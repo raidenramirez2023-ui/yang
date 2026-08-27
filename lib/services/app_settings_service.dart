@@ -177,4 +177,51 @@ class AppSettingsService {
   String? getSmtpFromEmail() => getSetting<String>('smtp_from_email');
 
   String getOcrApiKey() => getSetting<String>('ocr_api_key') ?? 'K82798202388957';
+
+  String getInventoryImportPasscode() =>
+      getSetting<String>('inventory_import_passcode', defaultValue: 'PAGSANJAN2026') ?? 'PAGSANJAN2026';
+
+  bool isStaffDelegationEnabled() =>
+      getSetting<bool>('staff_delegation_mode', defaultValue: false) ?? false;
+
+  Future<void> setStaffDelegationEnabled(bool enabled) async {
+    try {
+      await _supabase.from('app_settings').upsert({
+        'setting_key': 'staff_delegation_mode',
+        'setting_value': enabled ? 'true' : 'false',
+        'setting_type': 'boolean',
+        'description': 'Enable staff POS to process and approve reservations, payment slips, and balances during Admin rest days',
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'setting_key');
+      _cachedSettings['staff_delegation_mode'] = enabled;
+    } catch (e) {
+      debugPrint('Error updating staff delegation mode: $e');
+      _cachedSettings['staff_delegation_mode'] = enabled;
+    }
+  }
+
+  Future<void> updateInventoryImportPasscode(String newPasscode) async {
+    try {
+      final existing = await _supabase
+          .from('app_settings')
+          .select()
+          .eq('setting_key', 'inventory_import_passcode')
+          .maybeSingle();
+
+      if (existing == null) {
+        await _supabase.from('app_settings').insert({
+          'setting_key': 'inventory_import_passcode',
+          'setting_value': newPasscode,
+          'setting_type': 'string',
+          'description': 'Authorization passcode for Admin inventory import override',
+        });
+      } else {
+        await updateSetting('inventory_import_passcode', newPasscode);
+      }
+      _cachedSettings['inventory_import_passcode'] = newPasscode;
+    } catch (e) {
+      debugPrint('Error updating inventory import passcode: $e');
+      _cachedSettings['inventory_import_passcode'] = newPasscode;
+    }
+  }
 }

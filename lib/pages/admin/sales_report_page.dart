@@ -181,6 +181,81 @@ class _SalesReportPageState extends State<SalesReportPage>
     super.dispose();
   }
 
+  String _formatTransactionRef(dynamic rawTxnId, dynamic rawDbId, String type) {
+    String raw = (rawTxnId ?? rawDbId ?? '').toString().trim();
+    if (raw.isEmpty) return '#N/A';
+
+    // Strip leading # if already present
+    if (raw.startsWith('#')) raw = raw.substring(1).trim();
+
+    // Strip existing prefix tags if redundant
+    if (raw.toUpperCase().startsWith('AO-')) raw = raw.substring(3).trim();
+    if (raw.toUpperCase().startsWith('RES-')) raw = raw.substring(4).trim();
+    if (raw.toUpperCase().startsWith('ORD-')) raw = raw.substring(4).trim();
+
+    String prefix = '';
+    if (type == 'Advance') {
+      prefix = 'AO-';
+    } else if (type == 'Reservation') {
+      prefix = 'RES-';
+    } else {
+      // Regular walk-in order
+      final isNumeric = RegExp(r'^\d+$').hasMatch(raw);
+      prefix = isNumeric ? '' : 'ORD-';
+    }
+
+    // If UUID (contains hyphens or is a 32+ hex string), use first 8 characters
+    if (raw.contains('-') || raw.length >= 32) {
+      final cleanHex = raw.replaceAll('-', '');
+      final shortHex = cleanHex.length >= 8 ? cleanHex.substring(0, 8).toUpperCase() : cleanHex.toUpperCase();
+      return '#$prefix$shortHex';
+    }
+
+    // If numeric or custom string is long (e.g. timestamp > 10 chars), truncate to 8 chars
+    if (raw.length > 10) {
+      final shortPart = raw.substring(raw.length - 8);
+      return '#$prefix$shortPart';
+    }
+
+    return '#$prefix$raw';
+  }
+
+  String _resolveProcessedBy(Map<String, dynamic> item, String channel) {
+    if (item['cashier_name'] != null && item['cashier_name'].toString().trim().isNotEmpty) {
+      return item['cashier_name'].toString().trim();
+    }
+    if (item['processed_by'] != null && item['processed_by'].toString().trim().isNotEmpty) {
+      return item['processed_by'].toString().trim();
+    }
+    if (item['server_name'] != null && item['server_name'].toString().trim().isNotEmpty) {
+      return item['server_name'].toString().trim();
+    }
+    if (item['staff_name'] != null && item['staff_name'].toString().trim().isNotEmpty) {
+      return item['staff_name'].toString().trim();
+    }
+    if (item['approved_by'] != null && item['approved_by'].toString().trim().isNotEmpty) {
+      return item['approved_by'].toString().trim();
+    }
+    if (item['reviewed_by'] != null && item['reviewed_by'].toString().trim().isNotEmpty) {
+      return item['reviewed_by'].toString().trim();
+    }
+    if (item['actor_name'] != null && item['actor_name'].toString().trim().isNotEmpty) {
+      return item['actor_name'].toString().trim();
+    }
+    if (item['staff_email'] != null && item['staff_email'].toString().trim().isNotEmpty) {
+      final email = item['staff_email'].toString().trim();
+      if (email.toLowerCase().contains('staffycp')) return 'staffycp@gmail.com';
+      if (email.toLowerCase().contains('admn.pagsanjan') || email.toLowerCase().contains('pagsanjan')) return 'admn.pagsanjan@gmail.com';
+      if (email.toLowerCase() == 'staff') return 'staffycp@gmail.com';
+      if (email.toLowerCase() == 'admin') return 'admn.pagsanjan@gmail.com';
+      return email;
+    }
+    if (channel == 'Regular') return 'staffycp@gmail.com';
+    if (channel == 'Advance') return 'admn.pagsanjan@gmail.com';
+    if (channel == 'Reservation') return 'admn.pagsanjan@gmail.com';
+    return 'staffycp@gmail.com';
+  }
+
   Map<String, dynamic> _processMetrics(
       List<Map<String, dynamic>> allOrders,
       List<Map<String, dynamic>> allAdvanceOrders,
@@ -526,7 +601,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       }
 
       rows.add(['TRANSACTION AUDIT LOG']);
-      rows.add(['Transaction Ref', 'Customer Name', 'Sales Channel', 'Ordered Items', 'Date & Time', 'Amount (PHP)', 'Status']);
+      rows.add(['Transaction Ref', 'Database ID', 'Processed By', 'Customer Name', 'Sales Channel', 'Payment Method', 'Ordered Items', 'Date & Time', 'Amount (PHP)', 'Status']);
 
       for (var t in transactions) {
         String itemsStr = 'No items';
@@ -539,8 +614,11 @@ class _SalesReportPageState extends State<SalesReportPage>
 
         rows.add([
           t['id'],
+          t['db_id'] ?? t['raw_id'] ?? '',
+          t['processed_by'] ?? 'POS Staff / Admin',
           t['customer'],
           t['type'],
+          t['payment_method'] ?? 'N/A',
           itemsStr,
           t['full_date'] ?? t['date'],
           t['raw_amount']?.toString() ?? t['amount'].toString().replaceAll('₱', '').replaceAll(',', ''),
@@ -652,21 +730,35 @@ class _SalesReportPageState extends State<SalesReportPage>
 
               // Transaction Meta Info
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppTheme.adminMainBackground,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.cardBorder),
                 ),
                 child: Column(
                   children: [
-                    _buildModalRow('Transaction Ref:', transaction['id'] ?? '#N/A', isBold: true),
-                    const SizedBox(height: 6),
+                    _buildModalRow(
+                      'Transaction Ref:', 
+                      transaction['id'] ?? '#N/A', 
+                      isBold: true,
+                      subValue: transaction['db_id'] != null && transaction['db_id'] != transaction['id'] 
+                          ? 'DB ID: ${transaction['db_id']}' 
+                          : null,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildModalRow('Processed By:', transaction['processed_by'] ?? 'POS Staff / Admin', isProcessedBy: true),
+                    const SizedBox(height: 8),
                     _buildModalRow('Customer Name:', transaction['customer'] ?? 'Guest'),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _buildModalRow('Sales Channel:', transaction['type'] ?? 'Regular'),
-                    const SizedBox(height: 6),
+                    if (transaction['payment_method'] != null && transaction['payment_method'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildModalRow('Payment Method:', transaction['payment_method']),
+                    ],
+                    const SizedBox(height: 8),
                     _buildModalRow('Date & Time:', transaction['full_date'] ?? transaction['date'] ?? 'N/A'),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _buildModalRow('Order Status:', transaction['status'] ?? 'Completed', isStatus: true),
                   ],
                 ),
@@ -779,15 +871,65 @@ class _SalesReportPageState extends State<SalesReportPage>
     }
   }
 
-  Widget _buildModalRow(String label, String value, {bool isBold = false, bool isStatus = false}) {
+  Widget _buildModalRow(
+    String label, 
+    String value, {
+    bool isBold = false, 
+    bool isStatus = false,
+    bool isProcessedBy = false,
+    String? subValue,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500)),
         if (isStatus)
           _statusBadge(value)
+        else if (isProcessedBy)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.adminSidebarBackground.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppTheme.adminSidebarBackground.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_pin_rounded, size: 13, color: AppTheme.adminSidebarBackground),
+                const SizedBox(width: 4),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground),
+                ),
+              ],
+            ),
+          )
         else
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: AppTheme.adminPrimaryText)),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                    color: AppTheme.adminPrimaryText,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+                if (subValue != null)
+                  Text(
+                    subValue,
+                    style: const TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey, fontFamily: 'monospace'),
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -894,10 +1036,16 @@ class _SalesReportPageState extends State<SalesReportPage>
                           final name = o['customer_name']?.toString() ?? 'Guest';
                           final dbStatus = o['kitchen_status']?.toString() ?? 'Done';
                           final rawAmt = (o['total_amount'] as num?)?.toDouble() ?? (o['total_price'] as num?)?.toDouble() ?? 0.0;
+                          final rawTxnId = o['transaction_id'];
+                          final rawDbId = o['id']?.toString() ?? '';
+                          final shortRef = _formatTransactionRef(rawTxnId, rawDbId, 'Regular');
+                          final processedBy = _resolveProcessedBy(o, 'Regular');
+                          final paymentMethod = o['payment_method']?.toString() ?? 'Cash';
                           
                           combinedTransactions.add({
-                            'db_id': o['id'].toString(),
-                            'id': '#${o['transaction_id'] ?? o['id']}',
+                            'db_id': rawDbId,
+                            'raw_id': (rawTxnId ?? rawDbId).toString(),
+                            'id': shortRef,
                             'customer': name,
                             'date': DateFormat('MMM d, yyyy').format(date.toLocal()),
                             'full_date': DateFormat('MMM d, yyyy • h:mm a').format(date.toLocal()),
@@ -908,6 +1056,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
                             'color': AppTheme.regularOrderBlue,
                             'type': 'Regular',
+                            'processed_by': processedBy,
+                            'payment_method': paymentMethod,
                           });
                         }
 
@@ -918,10 +1068,15 @@ class _SalesReportPageState extends State<SalesReportPage>
                           final name = adv['customer_name']?.toString() ?? 'Guest';
                           final status = adv['status']?.toString().toLowerCase() ?? 'pending';
                           final rawAmt = (adv['total_price'] as num?)?.toDouble() ?? 0.0;
+                          final rawDbId = adv['id']?.toString() ?? '';
+                          final shortRef = _formatTransactionRef(adv['transaction_id'], rawDbId, 'Advance');
+                          final processedBy = _resolveProcessedBy(adv, 'Advance');
+                          final paymentMethod = adv['payment_method']?.toString() ?? 'Online';
 
                           combinedTransactions.add({
-                            'db_id': adv['id'].toString(),
-                            'id': '#AO-${adv['id']}',
+                            'db_id': rawDbId,
+                            'raw_id': (adv['transaction_id'] ?? rawDbId).toString(),
+                            'id': shortRef,
                             'customer': name,
                             'date': DateFormat('MMM d, yyyy').format(date.toLocal()),
                             'full_date': DateFormat('MMM d, yyyy • h:mm a').format(date.toLocal()),
@@ -933,6 +1088,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'color': AppTheme.advanceOrderGreen,
                             'type': 'Advance',
                             'selected_menu_items': adv['selected_menu_items'],
+                            'processed_by': processedBy,
+                            'payment_method': paymentMethod,
                           });
                         }
 
@@ -949,10 +1106,15 @@ class _SalesReportPageState extends State<SalesReportPage>
                           } else {
                             rawAmt = (res['total_price'] as num?)?.toDouble() ?? 0.0;
                           }
+                          final rawDbId = res['id']?.toString() ?? '';
+                          final shortRef = _formatTransactionRef(res['transaction_id'], rawDbId, 'Reservation');
+                          final processedBy = _resolveProcessedBy(res, 'Reservation');
+                          final paymentMethod = res['payment_method']?.toString() ?? (pStatus == 'deposit_paid' ? 'Deposit (GCash/Card)' : 'Full Payment');
 
                           combinedTransactions.add({
-                            'db_id': res['id'].toString(),
-                            'id': '#RES-${res['id']}',
+                            'db_id': rawDbId,
+                            'raw_id': (res['transaction_id'] ?? rawDbId).toString(),
+                            'id': shortRef,
                             'customer': name,
                             'date': DateFormat('MMM d, yyyy').format(date.toLocal()),
                             'full_date': DateFormat('MMM d, yyyy • h:mm a').format(date.toLocal()),
@@ -964,6 +1126,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'color': AppTheme.reservationPurple,
                             'type': 'Reservation',
                             'selected_menu_items': res['selected_menu_items'],
+                            'processed_by': processedBy,
+                            'payment_method': paymentMethod,
                           });
                         }
 
@@ -2410,9 +2574,14 @@ class _SalesReportPageState extends State<SalesReportPage>
       final q = _searchController.text.trim().toLowerCase();
       if (q.isNotEmpty) {
         final id = t['id']?.toString().toLowerCase() ?? '';
+        final rawId = t['raw_id']?.toString().toLowerCase() ?? '';
+        final dbId = t['db_id']?.toString().toLowerCase() ?? '';
         final cust = t['customer']?.toString().toLowerCase() ?? '';
         final type = t['type']?.toString().toLowerCase() ?? '';
-        if (!id.contains(q) && !cust.contains(q) && !type.contains(q)) return false;
+        final processedBy = t['processed_by']?.toString().toLowerCase() ?? '';
+        if (!id.contains(q) && !rawId.contains(q) && !dbId.contains(q) && !cust.contains(q) && !type.contains(q) && !processedBy.contains(q)) {
+          return false;
+        }
       }
 
       return true;
@@ -2643,11 +2812,12 @@ class _SalesReportPageState extends State<SalesReportPage>
       child: Row(
         children: [
           Expanded(flex: 2, child: Text('TRANSACTION REF', style: style)),
-          Expanded(flex: 3, child: Text('CUSTOMER', style: style)),
+          Expanded(flex: 2, child: Text('CUSTOMER', style: style)),
+          Expanded(flex: 2, child: Text('PROCESSED BY', style: style)),
           Expanded(flex: 2, child: Text('CHANNEL', style: style)),
-          Expanded(flex: 3, child: Text('DATE & TIME', style: style)),
+          Expanded(flex: 2, child: Text('DATE & TIME', style: style)),
           Expanded(flex: 2, child: Text('AMOUNT', style: style)),
-          Expanded(flex: 2, child: Text('STATUS', style: style)),
+          Expanded(flex: 1, child: Text('STATUS', style: style)),
           SizedBox(width: 80, child: Text('ACTION', textAlign: TextAlign.right, style: style)),
         ],
       ),
@@ -2672,22 +2842,39 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           // Customer
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 12,
+                  radius: 11,
                   backgroundColor: (t['color'] as Color).withValues(alpha: 0.12),
                   child: Text(
                     t['initials'],
-                    style: TextStyle(color: t['color'], fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: t['color'], fontSize: 9.5, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     t['customer'],
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryText),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryText),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Processed By
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Icon(Icons.person_outline_rounded, size: 13, color: AppTheme.adminSecondaryText.withValues(alpha: 0.8)),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    t['processed_by'] ?? 'Staff',
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: AppTheme.adminSecondaryText),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -2701,10 +2888,11 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           // Date
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Text(
               t['full_date'] ?? t['date'],
-              style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
+              style: const TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           // Amount
@@ -2712,12 +2900,12 @@ class _SalesReportPageState extends State<SalesReportPage>
             flex: 2,
             child: Text(
               t['amount'],
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
             ),
           ),
           // Status
           Expanded(
-            flex: 2,
+            flex: 1,
             child: _statusBadge(t['status']),
           ),
           // Action Button
@@ -2780,7 +2968,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(t['customer'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.adminPrimaryText), overflow: TextOverflow.ellipsis),
-                          Text(t['id'], style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
+                          Text(t['id'], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryAccent)),
                         ],
                       ),
                     ),
@@ -2791,7 +2979,18 @@ class _SalesReportPageState extends State<SalesReportPage>
               _statusBadge(t['status']),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.person_outline_rounded, size: 13, color: AppTheme.adminSecondaryText),
+              const SizedBox(width: 4),
+              Text(
+                'Processed by: ${t['processed_by'] ?? 'Staff'}',
+                style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2804,10 +3003,11 @@ class _SalesReportPageState extends State<SalesReportPage>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(t['full_date'] ?? t['date'], style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
-              TextButton(
+              TextButton.icon(
                 onPressed: () => _showReceiptModal(context, t),
+                icon: const Icon(Icons.visibility_outlined, size: 13, color: AppTheme.adminSidebarBackground),
+                label: const Text('View Details', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground)),
                 style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 20)),
-                child: const Text('View Details', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground)),
               ),
             ],
           ),
@@ -2944,4 +3144,4 @@ class _LocationPieData {
   final Color color;
 
   _LocationPieData(this.location, this.count, this.percentage, this.color);
-}
+}

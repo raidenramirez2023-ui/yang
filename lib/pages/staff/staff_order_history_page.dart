@@ -1583,7 +1583,7 @@ class _OrderCardState extends State<_OrderCard> {
                           reason: reason.isEmpty ? 'POS Item Refund' : reason,
                           staffEmail: Supabase
                                   .instance.client.auth.currentUser?.email ??
-                              'cashier.pos@yangchow.com',
+                              'staffycp@gmail.com',
                           staffName: cashier.isNotEmpty ? cashier : null,
                         );
 

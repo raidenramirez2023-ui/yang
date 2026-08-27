@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_options.dart'; // Supabase configuration
 
 import 'utils/app_theme.dart';
+import 'utils/global_messenger.dart';
 
 import 'services/app_settings_service.dart';
 
@@ -109,6 +110,8 @@ class YangChowApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: GlobalMessenger.navigatorKey,
+      scaffoldMessengerKey: GlobalMessenger.key,
       title: 'Yang Chow Restaurant',
 
       debugShowCheckedModeBanner: false,

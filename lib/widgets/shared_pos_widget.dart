@@ -2309,7 +2309,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   }) async {
 
-    final staffEmail = Supabase.instance.client.auth.currentUser?.email ?? 'staff';
+    final staffEmail = Supabase.instance.client.auth.currentUser?.email ?? 'staffycp@gmail.com';
 
     final itemRows = cartSnapshot
 

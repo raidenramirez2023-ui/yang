@@ -39,7 +39,8 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 
 import 'package:yang_chow/utils/responsive_utils.dart';
-
+import 'package:url_launcher/url_launcher.dart';
+import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 
 import 'package:yang_chow/widgets/customer_chat_modal.dart';
@@ -55,10 +56,6 @@ import 'package:yang_chow/pages/customer/customer_order_list.dart';
 import 'package:yang_chow/pages/customer/transactions_page.dart';
 
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
-
-import 'package:yang_chow/services/paymongo_service.dart';
-
-
 
 import 'package:yang_chow/services/notification_service.dart';
 
@@ -1632,6 +1629,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         break;
 
+                      case 'balance_payment_link':
+
+                        icon = Icons.payment_rounded;
+
+                        color = const Color(0xFF0EA5E9);
+
+                        break;
+
                       case 'reschedule_approved':
 
                         icon = Icons.event_available_rounded;
@@ -1676,80 +1681,73 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+                    String? checkoutUrl;
+                    if (n['event_type'] != null && n['event_type'].toString().contains('http')) {
+                      final match = RegExp(r'https?://[^\s]+').firstMatch(n['event_type'].toString());
+                      if (match != null) {
+                        checkoutUrl = match.group(0);
+                      }
+                    }
+
                     return ListTile(
-
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-
+                      onTap: checkoutUrl != null
+                          ? () async {
+                              final uri = Uri.parse(checkoutUrl!);
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          : null,
                       leading: CircleAvatar(
-
                         backgroundColor: color.withValues(alpha: 0.12),
-
                         radius: 22,
-
                         child: Icon(icon, color: color, size: 22),
-
                       ),
-
                       title: Text(
-
                         _getNotificationTitle(n),
-
                         style: const TextStyle(
-
                           fontWeight: FontWeight.w700,
-
                           fontSize: 14,
-
                           letterSpacing: -0.2,
-
                         ),
-
                       ),
-
                       subtitle: Column(
-
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
-
                           const SizedBox(height: 4),
-
                           Text(
-
                             _getNotificationSubtitle(n),
-
                             style: const TextStyle(
-
                               fontSize: 13,
-
                               fontWeight: FontWeight.w500,
-
                             ),
-
                           ),
-
                           const SizedBox(height: 4),
-
                           Text(
-
                             timeStr,
-
                             style: TextStyle(
-
                               fontSize: 11,
-
                               color: AppTheme.mediumGrey,
-
                               fontWeight: FontWeight.w400,
-
                             ),
-
                           ),
-
                         ],
-
                       ),
-
+                      trailing: checkoutUrl != null
+                          ? ElevatedButton.icon(
+                              onPressed: () async {
+                                final uri = Uri.parse(checkoutUrl!);
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              },
+                              icon: const Icon(Icons.payment_rounded, size: 13),
+                              label: const Text('Pay', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0EA5E9),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            )
+                          : null,
                     );
 
                   },
@@ -2045,6 +2043,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       case 'balance_cleared':
 
         return 'Remaining Balance Paid';
+
+      case 'balance_payment_link':
+
+        return 'Remaining Balance Payment Link';
 
 
 
@@ -9077,6 +9079,222 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  // ── Online Payment for Remaining Balance (GCash / PayMongo) ───────────────
+
+  Future<void> _payRemainingBalanceOnline(Map<String, dynamic> reservation) async {
+    final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
+    final depositAmount = (reservation['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final remaining = (reservation['remaining_balance'] as num?)?.toDouble() ?? (totalPrice - depositAmount);
+    final reservationId = reservation['id']?.toString() ?? '';
+    final eventType = reservation['event_type']?.toString() ?? 'Reservation';
+
+    if (remaining <= 0) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Row(
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF0EA5E9)),
+            const SizedBox(width: 16),
+            const Expanded(child: Text('Creating GCash/PayMongo payment link...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final customerName = currentUser?.userMetadata?['name'] ?? currentUser?.email?.split('@')[0] ?? 'Customer';
+
+      final response = await PayMongoService.createPaymentLink(
+        amount: remaining,
+        description: 'Remaining Balance — $eventType ($customerName)',
+        metadata: {
+          'source': 'remaining_balance_customer',
+          'reservation_id': reservationId,
+          'customer_name': customerName,
+        },
+      );
+
+      if (mounted) Navigator.of(context).pop(); // close loading
+
+      if (response['success'] == true && response['checkoutUrl'] != null) {
+        final checkoutUrl = response['checkoutUrl'] as String;
+        final linkId = response['linkId'] as String?;
+
+        // Save link to reservation if columns exist
+        try {
+          await Supabase.instance.client.from('reservations').update({
+            'balance_link_id': linkId,
+            'balance_link_url': checkoutUrl,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }).eq('id', reservationId);
+        } catch (e) {
+          debugPrint('Note: balance link columns update skipped: $e');
+        }
+
+        // Open checkout URL in browser
+        await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+
+        // Show waiting dialog with polling
+        if (mounted) {
+          _showRemainingPaymentWaitingDialog(
+            remaining: remaining,
+            linkId: linkId,
+            reservationId: reservationId,
+          );
+        }
+      } else {
+        throw Exception('No checkout URL returned from PayMongo');
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment link error: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showRemainingPaymentWaitingDialog({
+    required double remaining,
+    String? linkId,
+    required String reservationId,
+  }) {
+    Timer? pollingTimer;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        if (linkId != null) {
+          pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+            try {
+              final result = await PayMongoService.retrievePaymentLink(linkId);
+              if (result['isPaid'] == true) {
+                timer.cancel();
+                if (mounted) Navigator.of(dialogContext).pop();
+
+                await _reservationService.updatePaymentStatus(
+                  id: reservationId,
+                  paymentStatus: 'fully_paid',
+                  table: 'reservations',
+                  paymentReference: 'PayMongo-Balance',
+                );
+
+                if (mounted) {
+                  _loadCustomerReservations();
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      contentPadding: const EdgeInsets.all(24),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: AppTheme.successGreen.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_circle_rounded, size: 36, color: AppTheme.successGreen),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Payment Received!',
+                            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '₱${_fmt.format(remaining)} remaining balance has been settled successfully.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.mediumGrey),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.forestGreen,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Done'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              }
+            } catch (e) {
+              debugPrint('Polling error: $e');
+            }
+          });
+        }
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                child: const Icon(Icons.qr_code_2, size: 36, color: Color(0xFF0EA5E9)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Waiting for Payment...',
+                style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '₱${_fmt.format(remaining)}',
+                style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: const Color(0xFFDC2626)),
+              ),
+              const SizedBox(height: 16),
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(color: Color(0xFF0EA5E9), strokeWidth: 3),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Complete your payment in GCash / PayMongo checkout window.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mediumGrey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                pollingTimer?.cancel();
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Close', style: TextStyle(color: Colors.grey)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showPaymentDialog(Map<String, dynamic> reservation) {
 
     final pricingInfo = _reservationService.getReservationPricing(reservation);
@@ -14387,86 +14605,102 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         ),
                       ),
                     )
-                  else if (paymentStatus == 'deposit_paid')
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF007AFF).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.25)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.pending_actions_rounded, color: Color(0xFF007AFF), size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              reservation['_db_table'] == 'advance_orders'
-                                  ? 'Full payment received! Awaiting admin verification.'
-                                  : 'Deposit paid! Awaiting admin verification.',
+                  else if (paymentStatus == 'deposit_paid' && reservation['_db_table'] != 'advance_orders' && (totalPrice - depositAmount) > 0)
+                    AnimatedTapScale(
+                      onTap: () => _payRemainingBalanceOnline(reservation),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.payment_rounded, color: Colors.white, size: 17),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Pay Remaining Balance (₱${_fmt.format(totalPrice - depositAmount)})',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF007AFF),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    )
-                  else if (reservation['status'] == 'pending_admin_approval')
+                    ),
+                  if (isFullyPaid && reservation['_db_table'] != 'advance_orders') ...[
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9500).withValues(alpha: 0.08),
+                        color: const Color(0xFFF0FDF4),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFF9500).withValues(alpha: 0.25)),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.hourglass_top_rounded, color: Color(0xFFFF9500), size: 18),
+                          const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF15803D)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Payment submitted! Awaiting admin approval.',
+                              'Reservation fully settled — ₱0.00 remaining balance',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFD97706),
-                                fontWeight: FontWeight.w600,
                                 fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (reservation['status'] == 'confirmed')
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF34C759).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.25)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF34C759), size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Reservation & payment confirmed!',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF16A34A),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF15803D),
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    if (reservation['receipt_url'] != null) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final uri = Uri.parse(reservation['receipt_url'].toString());
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Color(0xFF16302A)),
+                          label: Text(
+                            'View Official Receipt (PDF)',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF16302A),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            side: const BorderSide(color: Color(0xFF16302A), width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ],
               ),
             ),

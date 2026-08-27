@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:yang_chow/services/paymongo_service.dart';
+import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
@@ -17,11 +22,19 @@ class TransactionsPage extends StatefulWidget {
 class _TransactionsPageState extends State<TransactionsPage> {
   late List<dynamic> _transactions;
   bool _isLoading = false;
+  Timer? _pollingTimer;
+  final _fmt = NumberFormat('#,##0.00', 'en_PH');
 
   @override
   void initState() {
     super.initState();
     _transactions = List.from(widget.initialTransactions);
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshTransactions() async {
@@ -293,7 +306,141 @@ class _TransactionsPageState extends State<TransactionsPage> {
                           style: GoogleFonts.inter(fontSize: 11, color: AppTheme.mediumGrey, fontStyle: FontStyle.italic),
                         ),
                     ],
-                  ),
+                  ),                  // ── Remaining Balance + Pay Button ───────────────────────
+                  if (tx['_db_table'] == 'reservations' && paymentStatus == 'deposit_paid') ...() {
+                    final totalPrice = (tx['total_price'] as num?)?.toDouble() ?? 0.0;
+                    final depositAmount = (tx['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+                    final remaining = (tx['remaining_balance'] as num?)?.toDouble() ?? (totalPrice - depositAmount);
+                    if (remaining > 0) {
+                      return [
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFED7AA)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFFEA580C)),
+                                  const SizedBox(width: 6),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Remaining Balance',
+                                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFFEA580C)),
+                                      ),
+                                      Text(
+                                        '₱${_fmt.format(remaining)}',
+                                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w900, color: const Color(0xFFDC2626)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Due',
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFEA580C)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _payRemainingBalance(
+                              reservationId: tx['id'].toString(),
+                              remaining: remaining,
+                              eventType: tx['event_type']?.toString() ?? 'Reservation',
+                            ),
+                            icon: const Icon(Icons.payment_rounded, size: 16),
+                            label: Text(
+                              'Pay ₱${_fmt.format(remaining)} via GCash/PayMongo',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0EA5E9),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ];
+                    }
+                    return <Widget>[];
+                  }(),
+
+                  // ── Fully Settled: Receipt Button ───────────────────────
+                  if (tx['_db_table'] == 'reservations' && paymentStatus == 'fully_paid') ...() {
+                    final receiptUrl = tx['receipt_url']?.toString();
+                    return [
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF15803D)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Reservation fully settled — ₱0.00 remaining balance',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (receiptUrl != null) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final uri = Uri.parse(receiptUrl);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
+                            },
+                            icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Color(0xFF16302A)),
+                            label: Text(
+                              'View Official Receipt (PDF)',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF16302A),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              side: const BorderSide(color: Color(0xFF16302A), width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ];
+                  }(),
                 ],
               ),
             ),
@@ -409,6 +556,272 @@ class _TransactionsPageState extends State<TransactionsPage> {
               fontWeight: FontWeight.w900,
               letterSpacing: 0.3,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // ── PayMongo Remaining Balance Self-Service ──────────────────────────
+
+  Future<void> _payRemainingBalance({
+    required String reservationId,
+    required double remaining,
+    required String eventType,
+  }) async {
+    // Show creating link dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Row(
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF0EA5E9)),
+            const SizedBox(width: 16),
+            const Expanded(child: Text('Creating payment link...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final customerName = currentUser?.userMetadata?['name'] ?? currentUser?.email?.split('@')[0] ?? 'Customer';
+
+      final response = await PayMongoService.createPaymentLink(
+        amount: remaining,
+        description: 'Remaining Balance — $eventType',
+        metadata: {
+          'source': 'remaining_balance_self_service',
+          'reservation_id': reservationId,
+          'customer_name': customerName,
+        },
+      );
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (response['success'] == true && response['checkoutUrl'] != null) {
+        final checkoutUrl = response['checkoutUrl'] as String;
+        final linkId = response['linkId'] as String?;
+
+        // Save link to reservation for tracking
+        try {
+          await Supabase.instance.client.from('reservations').update({
+            'balance_link_id': linkId,
+            'balance_link_url': checkoutUrl,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }).eq('id', reservationId);
+        } catch (e) {
+          debugPrint('Warning: could not save balance link to DB: $e');
+        }
+
+        // Open checkout in browser
+        await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+
+        // Show waiting dialog and start polling
+        if (mounted) {
+          _showWaitingForPaymentDialog(
+            remaining: remaining,
+            onCancel: () {
+              _pollingTimer?.cancel();
+            },
+          );
+          if (linkId != null) {
+            _startPolling(
+              linkId: linkId,
+              reservationId: reservationId,
+              remaining: remaining,
+            );
+          }
+        }
+      } else {
+        throw Exception('No checkout URL returned');
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showWaitingForPaymentDialog({
+    required double remaining,
+    required VoidCallback onCancel,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(28),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.qr_code_2, size: 48, color: Color(0xFF0EA5E9)),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Waiting for Payment...',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.darkGrey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Text(
+                '₱${_fmt.format(remaining)}',
+                style: GoogleFonts.inter(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFFDC2626),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(color: Color(0xFF0EA5E9), strokeWidth: 3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Complete payment in the GCash/PayMongo page that just opened.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.mediumGrey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              onCancel();
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startPolling({
+    required String linkId,
+    required String reservationId,
+    required double remaining,
+  }) {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        final result = await PayMongoService.retrievePaymentLink(linkId);
+        if (result['isPaid'] == true) {
+          timer.cancel();
+          if (mounted) Navigator.of(context).pop(); // close waiting dialog
+
+          // Update reservation to fully_paid
+          final svc = ReservationService();
+          await svc.updatePaymentStatus(
+            id: reservationId,
+            paymentStatus: 'fully_paid',
+            table: 'reservations',
+            paymentAmount: null,
+            paymentReference: 'PayMongo-Balance',
+          );
+
+          // Refresh transactions list
+          await _refreshTransactions();
+
+          // Show success
+          if (mounted) _showPaymentSuccessDialog(remaining);
+        }
+      } catch (e) {
+        debugPrint('Polling error: $e');
+      }
+    });
+  }
+
+  void _showPaymentSuccessDialog(double amount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(28),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppTheme.successGreen.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded, size: 48, color: AppTheme.successGreen),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Payment Received!',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.darkGrey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '₱${_fmt.format(amount)} remaining balance successfully paid.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.mediumGrey),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.successGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Your reservation is now fully paid ✅',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.successGreen,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.forestGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Done'),
           ),
         ],
       ),

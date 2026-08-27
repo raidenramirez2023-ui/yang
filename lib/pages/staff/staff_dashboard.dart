@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,7 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'package:yang_chow/pages/staff/staff_order_history_page.dart';
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
+import 'package:yang_chow/pages/admin/admin_reservations_page.dart';
+import 'package:yang_chow/pages/admin/payment_approval_page.dart';
+import 'package:yang_chow/pages/admin/remaining_balance_tracking_page.dart';
 import 'package:yang_chow/services/notification_service.dart';
+
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
@@ -22,11 +27,577 @@ class StaffDashboardPage extends StatefulWidget {
 class _StaffDashboardPageState extends State<StaffDashboardPage> {
   String _userName = 'Staff';
   bool _isLoading = true;
+  bool _isDelegationActive = false;
+
+  // Realtime badge counts matching Admin Side
+  int _pendingReservationCount = 0;
+  int _pendingPaymentCount = 0;
+  int _remainingBalanceCount = 0;
+  int _pendingRefundCount = 0;
+  Timer? _countRefreshTimer;
+  StreamSubscription? _adminNotifsSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _loadAllCounts();
+    _loadDelegationStatus();
+
+    // Periodic refresh for badges and delegation status (every 1 minute)
+    _countRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _loadAllCounts();
+      _loadDelegationStatus();
+    });
+
+    // Realtime notification updates to immediately refresh badges
+    _adminNotifsSubscription = NotificationService.getAdminOnlyNotificationsStream().listen((_) {
+      if (mounted) {
+        _loadAllCounts();
+        _loadDelegationStatus();
+      }
+    });
+  }
+
+  Future<bool> _loadDelegationStatus() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'staff_delegation_mode')
+          .maybeSingle();
+      final active = response != null &&
+          (response['setting_value']?.toString().toLowerCase() == 'true' ||
+              response['setting_value']?.toString() == '1');
+      if (mounted && _isDelegationActive != active) {
+        setState(() {
+          _isDelegationActive = active;
+        });
+      }
+      return active;
+    } catch (e) {
+      debugPrint('[Staff] Error loading delegation status: $e');
+      return _isDelegationActive;
+    }
+  }
+
+  void _showAdminDutyLockDialog(String featureName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.lock_rounded, color: Color(0xFFDC2626), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Admin is on Duty',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Access to $featureName is currently managed by Admin on duty.',
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'During Admin rest days, Admin will turn ON "Rest Day Mode" from the Admin Dashboard to automatically unlock transaction approvals for the staff counter.',
+              style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF14332E),
+              foregroundColor: const Color(0xFFD9A441),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _countRefreshTimer?.cancel();
+    _adminNotifsSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _loadAllCounts() {
+    _loadPendingReservationCount();
+    _loadPendingPaymentCount();
+    _loadRemainingBalanceCount();
+    _loadPendingRefundCount();
+  }
+
+  Future<void> _loadPendingPaymentCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final countResponse = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('status', 'pending_admin_approval')
+          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
+          .eq('is_archived', false);
+      if (mounted) {
+        setState(() {
+          _pendingPaymentCount = (countResponse as List).length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading staff pending payment count: $e');
+    }
+  }
+
+  Future<void> _loadPendingReservationCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final countResponse = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('is_archived', false)
+          .eq('status', 'pending');
+      if (mounted) {
+        setState(() {
+          _pendingReservationCount = (countResponse as List).length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading staff pending reservation count: $e');
+    }
+  }
+
+  Future<void> _loadRemainingBalanceCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final reservationsCount = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('payment_status', 'deposit_paid')
+          .neq('is_archived', true);
+      if (mounted) {
+        setState(() {
+          _remainingBalanceCount = (reservationsCount as List).length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading staff remaining balance count: $e');
+    }
+  }
+
+  Future<void> _loadPendingRefundCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      int refundsCount = 0;
+      try {
+        final refundRes = await supabase
+            .from('refunds')
+            .select('id')
+            .eq('status', 'pending');
+        refundsCount = (refundRes as List).length;
+      } catch (_) {}
+
+      int reschedulesCount = 0;
+      try {
+        final rescheduleRes = await supabase
+            .from('reschedule_requests')
+            .select('id')
+            .eq('status', 'pending');
+        reschedulesCount = (rescheduleRes as List).length;
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _pendingRefundCount = refundsCount + reschedulesCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading staff refund count: $e');
+    }
+  }
+
+  Widget _buildNavBadge(int count) {
+    if (count <= 0) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444), // Uniform Red (Exact same as Admin side)
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.35),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  int get _totalOperationsBadgeCount =>
+      _pendingReservationCount +
+      _pendingPaymentCount +
+      _remainingBalanceCount +
+      _pendingRefundCount;
+
+  Widget _buildOperationsDropdownButton() {
+    return AnimatedTapScale(
+      onTap: () => _showOperationsModal(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F766E), Color(0xFF134E4A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFF5EEAD4).withValues(alpha: 0.5),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F766E).withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.layers_rounded,
+              color: Color(0xFF5EEAD4),
+              size: 15,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Operations',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 11.5,
+                letterSpacing: 0.2,
+              ),
+            ),
+            if (_totalOperationsBadgeCount > 0)
+              _buildNavBadge(_totalOperationsBadgeCount),
+            const SizedBox(width: 3),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white70,
+              size: 15,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showOperationsModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: 440,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF334155),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D9488).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF14B8A6).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.layers_rounded,
+                      color: Color(0xFF2DD4BF),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Operations Hub',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          _isDelegationActive
+                              ? '🟢 Rest Day Mode: Staff Authorized'
+                              : '🔒 Admin on Duty (View & Process rules apply)',
+                          style: TextStyle(
+                            color: _isDelegationActive
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFF94A3B8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: Color(0xFF334155), height: 1),
+              const SizedBox(height: 12),
+
+              // Item 1: Reservations
+              _buildOperationsMenuItem(
+                ctx: ctx,
+                title: 'Event Reservations',
+                subtitle: 'Manage bookings, quotations & scheduling',
+                icon: Icons.event_available_rounded,
+                iconColor: const Color(0xFF2DD4BF),
+                badgeCount: _pendingReservationCount,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final isAllowed = await _loadDelegationStatus();
+                  if (!isAllowed) {
+                    _showAdminDutyLockDialog('Event Reservations');
+                    return;
+                  }
+                  if (!mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const AdminReservationsPage(isFullscreen: true),
+                    ),
+                  );
+                  _loadAllCounts();
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Item 2: Approvals
+              _buildOperationsMenuItem(
+                ctx: ctx,
+                title: 'Payment Approvals',
+                subtitle: 'Verify GCash & bank transfer payment slips',
+                icon: Icons.verified_user_rounded,
+                iconColor: const Color(0xFF818CF8),
+                badgeCount: _pendingPaymentCount,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final isAllowed = await _loadDelegationStatus();
+                  if (!isAllowed) {
+                    _showAdminDutyLockDialog('Payment Approvals');
+                    return;
+                  }
+                  if (!mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const PaymentApprovalPage(isFullscreen: true),
+                    ),
+                  );
+                  _loadAllCounts();
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Item 3: Balances
+              _buildOperationsMenuItem(
+                ctx: ctx,
+                title: 'Remaining Balances',
+                subtitle: 'Track 50% downpayments & collect balance',
+                icon: Icons.account_balance_wallet_rounded,
+                iconColor: const Color(0xFF38BDF8),
+                badgeCount: _remainingBalanceCount,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final isAllowed = await _loadDelegationStatus();
+                  if (!isAllowed) {
+                    _showAdminDutyLockDialog('Remaining Balances');
+                    return;
+                  }
+                  if (!mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RemainingBalanceTrackingPage(
+                        isFullscreen: true,
+                      ),
+                    ),
+                  );
+                  _loadAllCounts();
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Item 4: Refunds
+              _buildOperationsMenuItem(
+                ctx: ctx,
+                title: 'Refunds & Reschedules',
+                subtitle: 'Process customer refund & date change requests',
+                icon: Icons.currency_exchange_rounded,
+                iconColor: const Color(0xFFFBBF24),
+                badgeCount: _pendingRefundCount,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (!mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RefundManagementPage(
+                        isFullscreen: true,
+                        todayOnly: true,
+                      ),
+                    ),
+                  );
+                  _loadAllCounts();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOperationsMenuItem({
+    required BuildContext ctx,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required int badgeCount,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFF1E293B),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(12),
+        hoverColor: const Color(0xFF334155),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (badgeCount > 0) ...[
+                _buildNavBadge(badgeCount),
+                const SizedBox(width: 6),
+              ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF64748B),
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadUserInfo() async {
@@ -157,6 +728,29 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                   _buildTopOfflineSyncBadge(),
                   const SizedBox(width: 8),
 
+                  if (_isDelegationActive) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF065F46).withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF34D399), width: 1.1),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.beach_access_rounded, color: Color(0xFF34D399), size: 14),
+                          SizedBox(width: 5),
+                          Text(
+                            'Rest Day Mode: Active',
+                            style: TextStyle(color: Color(0xFF6EE7B7), fontSize: 10.5, fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+
                   // ── Scan Guest Pass QR Button ──
                   AnimatedTapScale(
                     onTap: () {
@@ -164,7 +758,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                       QrScannerDialog.show(context);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF15803D), Color(0xFF166534)],
@@ -190,79 +784,27 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                           const Icon(
                             Icons.qr_code_scanner_rounded,
                             color: Colors.white,
-                            size: 16,
+                            size: 15,
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 5),
                           Text(
                             'Scan Pass',
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                              letterSpacing: 0.3,
+                              fontSize: 11.5,
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
 
-                  // ── Prominent Visible REFUNDS Button ──
-                  AnimatedTapScale(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RefundManagementPage(isFullscreen: true, todayOnly: true),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFB45309), Color(0xFFD97706)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: const Color(0xFFFDE68A).withValues(alpha: 0.5),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFD97706).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.currency_exchange_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Refunds',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  // ── Operations Hub Dropdown Button (Groups Reservations, Approvals, Balances, Refunds) ──
+                  _buildOperationsDropdownButton(),
+                  const SizedBox(width: 6),
 
                   // ── Order History Button ──
                   AnimatedTapScale(
@@ -565,55 +1107,46 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Status Pill ──
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isOffline
-                          ? const [Color(0xFFB45309), Color(0xFFD97706)]
-                          : const [Color(0xFF0F5132), Color(0xFF198754)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isOffline
-                          ? const Color(0xFFFDE68A).withValues(alpha: 0.6)
-                          : const Color(0xFF86EFAC).withValues(alpha: 0.5),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isOffline
-                            ? const Color(0xFFD97706).withValues(alpha: 0.35)
-                            : const Color(0xFF198754).withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                // Status Pill: only shown when OFFLINE (online is the normal/expected state)
+                if (isOffline)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFB45309), Color(0xFFD97706)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isOffline ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
-                        color: Colors.white,
-                        size: 15,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Color(0xFFFDE68A),
+                        width: 1.2,
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        isOffline ? 'OFFLINE MODE' : 'ONLINE',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                          letterSpacing: 0.4,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xFFD97706),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 15),
+                        const SizedBox(width: 5),
+                        Text(
+                          'OFFLINE MODE',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
                 // ── Sync Button (if has pending) ──
                 if (pendingCount > 0) ...[

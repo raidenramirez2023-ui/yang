@@ -29,6 +29,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   final TextEditingController _searchController = TextEditingController();
   String? _scannedReservationId;
   Map<String, dynamic>? _scannedReservationMeta;
+  bool _headerCollapsed = false;
   
   // Services
   final ReservationService _reservationService = ReservationService();
@@ -141,6 +142,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       });
       await Supabase.instance.client.rpc('exec_sql', params: {
         'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS uploaded_id_url TEXT;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS transacted_by TEXT;"
       });
       
       // 2. Notify PostgREST to reload schema cache
@@ -316,14 +320,29 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     setState(() {
       final idx = reservations.indexWhere((r) => r['id'] == reservationId);
       if (idx != -1) {
-        reservations[idx] = {...reservations[idx], 'status': newStatus};
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        final adminIdentifier = currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+        reservations[idx] = {
+          ...reservations[idx],
+          'status': newStatus,
+          'transacted_by': adminIdentifier,
+        };
       }
     });
 
     try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final adminIdentifier = currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+
+      final Map<String, dynamic> updateData = {
+        'status': newStatus,
+        'transacted_by': adminIdentifier,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
       await Supabase.instance.client
           .from('reservations')
-          .update({'status': newStatus, 'updated_at': DateTime.now().toUtc().toIso8601String()})
+          .update(updateData)
           .eq('id', reservationId);
 
       // Log reservation status change
@@ -517,7 +536,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    return Padding(
+    final content = Padding(
       padding: isDesktop
           ? EdgeInsets.zero
           : const EdgeInsets.only(top: 8.0, left: 12.0, right: 12.0, bottom: 8.0),
@@ -530,6 +549,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         ],
       ),
     );
+
+    if (widget.isFullscreen) {
+      return Scaffold(
+        backgroundColor: AppTheme.adminMainBackground,
+        body: SafeArea(child: content),
+      );
+    }
+    return content;
   }
 
 
@@ -541,9 +568,22 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPageHeader(),
-          const SizedBox(height: 14),
-          _buildStatsBar(),
-          const SizedBox(height: 10),
+          AnimatedCrossFade(
+            firstChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 14),
+                _buildStatsBar(),
+                const SizedBox(height: 10),
+              ],
+            ),
+            secondChild: const SizedBox(height: 10, width: double.infinity),
+            crossFadeState: _headerCollapsed
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 280),
+            sizeCurve: Curves.easeInOut,
+          ),
           _buildSearchBar(),
           const SizedBox(height: 8),
           _buildActiveSearchFilterNotice(),
@@ -558,9 +598,22 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Column(
       children: [
         _buildPageHeader(),
-        const SizedBox(height: 10),
-        _buildStatsBar(),
-        const SizedBox(height: 8),
+        AnimatedCrossFade(
+          firstChild: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              _buildStatsBar(),
+              const SizedBox(height: 8),
+            ],
+          ),
+          secondChild: const SizedBox(height: 8, width: double.infinity),
+          crossFadeState: _headerCollapsed
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 280),
+          sizeCurve: Curves.easeInOut,
+        ),
         _buildSearchBar(),
         const SizedBox(height: 6),
         _buildActiveSearchFilterNotice(),
@@ -740,6 +793,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       ),
       child: Row(
         children: [
+          if (widget.isFullscreen || Navigator.canPop(context)) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: _darkBg),
+              tooltip: 'Back to POS',
+              onPressed: () => Navigator.pop(context),
+            ),
+            const SizedBox(width: 6),
+          ],
           Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
@@ -814,6 +875,16 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             onPressed: _loadReservations,
             icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
             tooltip: 'Refresh',
+          ),
+          AnimatedRotation(
+            turns: _headerCollapsed ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut,
+            child: IconButton(
+              onPressed: () => setState(() => _headerCollapsed = !_headerCollapsed),
+              icon: const Icon(Icons.keyboard_arrow_up_rounded, color: _slate, size: 22),
+              tooltip: _headerCollapsed ? 'Show Stats' : 'Hide Stats',
+            ),
           ),
         ],
       ),
@@ -1161,6 +1232,29 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.admin_panel_settings_outlined, size: 12, color: Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              r['transacted_by'] != null && r['transacted_by'].toString().isNotEmpty
+                                  ? 'Admin: ${r['transacted_by']}'
+                                  : 'Admin: Pending',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                color: r['transacted_by'] != null && r['transacted_by'].toString().isNotEmpty
+                                    ? const Color(0xFF166534)
+                                    : const Color(0xFF94A3B8),
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1623,6 +1717,12 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                                   _formatReadableTime(reservation['start_time']?.toString() ?? '')),
                               _infoChip(Icons.people_rounded,
                                   '${reservation['number_of_guests'] ?? 0} guests'),
+                              _infoChip(
+                                Icons.admin_panel_settings_outlined,
+                                reservation['transacted_by'] != null && reservation['transacted_by'].toString().isNotEmpty
+                                    ? 'Admin: ${reservation['transacted_by']}'
+                                    : 'Admin: Pending',
+                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -2599,6 +2699,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                             buildDetailRow('Start Time',   reservation['start_time']   ?? 'N/A', icon: Icons.access_time_rounded),
                             buildDetailRow('Guests',       '${reservation['number_of_guests'] ?? 0}', icon: Icons.people_rounded),
                             buildDetailRow('Table',        reservation['table_number']?.toString() ?? 'Unassigned', icon: Icons.table_restaurant_rounded),
+                            buildDetailRow('Handled By',   reservation['transacted_by'] ?? 'Pending (Not yet handled)', icon: Icons.admin_panel_settings_rounded),
                             buildDetailRow('Status',       (status ?? 'N/A').toUpperCase(), icon: Icons.info_rounded),
                           ],
                         ),
