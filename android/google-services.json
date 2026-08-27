@@ -14,6 +14,50 @@
       },
       "oauth_client": [
         {
+          "client_id": "58922100698-a4ocrbmh17blp93de399k5l3q580ime0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.yang_chow",
+            "certificate_hash": "dfabb8e866e358d0cc24eddb7db55189e25f820b"
+          }
+        },
+        {
+          "client_id": "58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCp2aSZ-zWgvzc00pChx7es2jvMNjlGxg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.yangChow"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:58922100698:android:6b5ecf1108024e191002e3",
+        "android_client_info": {
+          "package_name": "com.ycprms.yang_chow"
+        }
+      },
+      "oauth_client": [
+        {
           "client_id": "58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com",
           "client_type": 3
         }
