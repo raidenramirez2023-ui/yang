@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,11 +27,15 @@ class _LoginPageState extends State<LoginPage> {
       true; // New flag to handle initial redirect smoothly
   bool _isRedirecting = false;
   bool _rememberMe = false;
+  // Diagnostic: MethodChannel to get app's actual signing certificate SHA-1
+  static const _certChannel = MethodChannel('com.ycprms.yang_chow/certificate');
   // Google Sign-In instance
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // NOTE: Do NOT set clientId for Android — it's read automatically from google-services.json.
+    // Setting a clientId (especially iOS) on Android causes DEVELOPER_ERROR (code 10).
     clientId: kIsWeb
-        ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID
-        : '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com', // iOS Client ID
+        ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID only
+        : null, // Android: must be null — handled by google-services.json
     serverClientId: '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Web Client ID - required for idToken on Android
   );
 
@@ -442,8 +447,18 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (mounted) {
+        // DIAGNOSTIC: Show actual app SHA-1 alongside the error
+        String sha1Info = '';
+        if (!kIsWeb) {
+          try {
+            final sha1 = await _certChannel.invokeMethod<String>('getSHA1');
+            sha1Info = '\nApp SHA-1: $sha1';
+          } catch (_) {
+            sha1Info = '\nApp SHA-1: (could not retrieve)';
+          }
+        }
         _showSnackBar(
-          "Google Sign-In Error: $e",
+          "Google Sign-In Error: $e$sha1Info",
           Colors.red.shade700,
           Icons.error_outline,
         );

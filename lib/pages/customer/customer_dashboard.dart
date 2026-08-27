@@ -145,9 +145,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // NOTE: Do NOT set clientId for Android — it's read automatically from google-services.json.
+    // Setting a clientId (especially iOS) on Android causes DEVELOPER_ERROR (code 10).
     clientId: kIsWeb
-        ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID
-        : '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com', // iOS Client ID
+        ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID only
+        : null, // Android: must be null — handled by google-services.json
     serverClientId: kIsWeb
         ? null
         : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Web Client ID - required for idToken on Android
