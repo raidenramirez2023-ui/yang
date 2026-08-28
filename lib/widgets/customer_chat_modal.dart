@@ -63,17 +63,19 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
       final modalWidth = screenSize.width - 24;
       final modalHeight = (screenSize.height * 0.78).clamp(380.0, 680.0);
 
-      // Initialize position for mobile (button position)
+      // Initialize position for mobile (button position).
+      // Start above the bottom nav bar (~72px) with extra breathing room.
       if (!_positionInitialized) {
         _position = Offset(
           screenSize.width - 76,
-          screenSize.height - 120,
+          screenSize.height - 160, // above bottom nav bar
         );
         _positionInitialized = true;
       }
 
       final maxX = (screenSize.width - 60).clamp(0.0, double.infinity);
-      final maxY = (screenSize.height - 60).clamp(0.0, double.infinity);
+      // Clamp maxY so dragging can't push the button behind the bottom nav bar.
+      final maxY = (screenSize.height - 150).clamp(0.0, double.infinity);
       const minY = 50.0;
       final safeMaxY = maxY > minY ? maxY : minY;
 
