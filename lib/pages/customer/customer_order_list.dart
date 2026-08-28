@@ -446,12 +446,16 @@ class CustomerOrderListPage extends StatefulWidget {
     String time,
   ) onProceed;
   final VoidCallback? onCartUpdated;
+  /// Called when the user taps "Browse Menu" on the empty-cart screen.
+  /// Use this to navigate them to the Home tab where the menu lives.
+  final VoidCallback? onBrowseMenu;
 
   const CustomerOrderListPage({
     Key? key,
     required this.selectedMenuItems,
     required this.onProceed,
     this.onCartUpdated,
+    this.onBrowseMenu,
   }) : super(key: key);
 
   @override
@@ -540,7 +544,10 @@ class _CustomerOrderListPageState extends State<CustomerOrderListPage> {
                 title: 'Your order list is empty',
                 description: 'Browse our menu items and add your favorite dishes to get started.',
                 buttonText: 'Browse Menu',
-                onButtonPressed: () => Navigator.pop(context),
+                onButtonPressed: () {
+                  Navigator.pop(context);
+                  widget.onBrowseMenu?.call();
+                },
               ),
             )
           : ListView.builder(
@@ -853,8 +860,6 @@ class _CustomerOrderListPageState extends State<CustomerOrderListPage> {
                         backgroundColor: Colors.transparent,
                         builder: (_) => _OrderTypeSheet(
                           cartItems: selectedSubset,
-                          parentCart: widget.selectedMenuItems,
-                          onCartUpdated: widget.onCartUpdated,
                           onConfirm: widget.onProceed,
                         ),
                       );
@@ -934,8 +939,6 @@ Widget _stepperButton({
 
 class _OrderTypeSheet extends StatefulWidget {
   final Map<String, int> cartItems;
-  final Map<String, int>? parentCart;
-  final VoidCallback? onCartUpdated;
   final void Function(
     Map<String, int> items,
     String reservationType,
@@ -946,8 +949,6 @@ class _OrderTypeSheet extends StatefulWidget {
 
   const _OrderTypeSheet({
     required this.cartItems,
-    this.parentCart,
-    this.onCartUpdated,
     required this.onConfirm,
   });
 
@@ -960,12 +961,8 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
   String _advanceOrderType = 'Dine In';      // 'Dine In' | 'Pick Up'
 
   void _confirm() {
-    if (widget.parentCart != null) {
-      for (final key in widget.cartItems.keys) {
-        widget.parentCart!.remove(key);
-      }
-      widget.onCartUpdated?.call();
-    }
+    // NOTE: Do NOT clear or mutate parentCart here.
+    // Cart items are only removed after the reservation/order is successfully submitted.
     Navigator.pop(context); // close sheet
     Navigator.pop(context); // close cart page
     widget.onConfirm(

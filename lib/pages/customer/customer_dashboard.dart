@@ -458,6 +458,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  // --- Category Scroll State ---
+  final ScrollController _categoryScrollController = ScrollController();
+  bool _canScrollCategoryLeft = false;
+  bool _canScrollCategoryRight = true;
+
   @override
 
   void initState() {
@@ -465,6 +470,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     super.initState();
 
     _scrollController = ScrollController()..addListener(_onMenuScroll);
+    _categoryScrollController.addListener(_categoryScrollListener);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkCategoryScroll();
+    });
 
     _loadCartFromPrefs();
 
@@ -804,8 +814,34 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  void _categoryScrollListener() {
+    _checkCategoryScroll();
+  }
+
+  void _checkCategoryScroll() {
+    if (!_categoryScrollController.hasClients) return;
+    final position = _categoryScrollController.position;
+    final atLeft = position.pixels <= 0;
+    final atRight = position.pixels >= position.maxScrollExtent;
+    bool newCanScrollLeft = !atLeft;
+    bool newCanScrollRight = !atRight;
+    if (position.maxScrollExtent == 0) {
+      newCanScrollLeft = false;
+      newCanScrollRight = false;
+    }
+    if (_canScrollCategoryLeft != newCanScrollLeft || _canScrollCategoryRight != newCanScrollRight) {
+      if (mounted) {
+        setState(() {
+          _canScrollCategoryLeft = newCanScrollLeft;
+          _canScrollCategoryRight = newCanScrollRight;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _categoryScrollController.dispose();
     _rescheduleRequestsSubscription?.cancel();
     _scrollController?.removeListener(_onMenuScroll);
     _scrollController?.dispose();
@@ -838,7 +874,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     if (_isScrollingToCategory) return;
 
-    
+    // Use a responsive threshold: mobile has a shorter header/nav so we need
+    // a smaller value, otherwise the first category snaps active on any upward scroll.
+    final isMobile = MediaQuery.of(context).size.width < 768;
+    final threshold = isMobile ? 120.0 : 200.0;
 
     for (var i = MenuService.categories.length - 1; i >= 0; i--) {
 
@@ -854,9 +893,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
           final position = box.localToGlobal(Offset.zero).dy;
 
-          // Offset 200 handles standard tablet/desktop scroll offset for sticky header + nav
-
-          if (position <= 200.0) {
+          if (position <= threshold) {
 
             if (_selectedCategory != category) {
 
@@ -7321,82 +7358,153 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     return Container(
       height: 52,
       margin: const EdgeInsets.only(bottom: 16),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: MenuService.categories.length,
-        itemBuilder: (context, index) {
-          final category = MenuService.categories[index];
-          final isActive = _selectedCategory == category;
-          final catIcon = CategoryIconHelper.getIcon(category);
+      child: Stack(
+        children: [
+          ListView.builder(
+            controller: _categoryScrollController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: MenuService.categories.length,
+            itemBuilder: (context, index) {
+              final category = MenuService.categories[index];
+              final isActive = _selectedCategory == category;
+              final catIcon = CategoryIconHelper.getIcon(category);
 
-          return GestureDetector(
-            key: _getChipKey(category),
-            onTap: () async {
-              setState(() => _selectedCategory = category);
-              final key = _getCategoryKey(category);
-              if (key.currentContext != null) {
-                _isScrollingToCategory = true;
-                await Scrollable.ensureVisible(
-                  key.currentContext!,
-                  duration: const Duration(milliseconds: 600),
-                  curve: Curves.easeInOutCubic,
-                );
-                _isScrollingToCategory = false;
-              }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: isActive ? AppTheme.goldGradient : null,
-                color: isActive ? null : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: isActive ? Colors.transparent : AppTheme.cardBorder,
-                  width: 1.2,
-                ),
-                boxShadow: isActive
-                    ? [
-                        BoxShadow(
-                          color: AppTheme.warmGold.withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    catIcon,
-                    size: 16,
-                    color: isActive ? AppTheme.darkBrownText : AppTheme.forestGreen,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    category,
-                    style: GoogleFonts.inter(
-                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                      fontSize: 13,
-                      color: isActive ? AppTheme.darkBrownText : AppTheme.darkGrey,
-                      letterSpacing: isActive ? 0.1 : 0,
+              return GestureDetector(
+                key: _getChipKey(category),
+                onTap: () async {
+                  setState(() => _selectedCategory = category);
+                  final key = _getCategoryKey(category);
+                  if (key.currentContext != null) {
+                    _isScrollingToCategory = true;
+                    await Scrollable.ensureVisible(
+                      key.currentContext!,
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeInOutCubic,
+                    );
+                    _isScrollingToCategory = false;
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: isActive ? AppTheme.goldGradient : null,
+                    color: isActive ? null : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isActive ? Colors.transparent : AppTheme.cardBorder,
+                      width: 1.2,
                     ),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: AppTheme.warmGold.withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        catIcon,
+                        size: 16,
+                        color: isActive ? AppTheme.darkBrownText : AppTheme.forestGreen,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        category,
+                        style: GoogleFonts.inter(
+                          fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                          fontSize: 13,
+                          color: isActive ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                          letterSpacing: isActive ? 0.1 : 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          if (_canScrollCategoryLeft)
+            Positioned(
+              left: 4,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded, color: AppTheme.primaryColor, size: 20),
+                    onPressed: () {
+                      _categoryScrollController.animateTo(
+                        (_categoryScrollController.offset - 200).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ),
               ),
             ),
-          );
-        },
+          if (_canScrollCategoryRight)
+            Positioned(
+              right: 4,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded, color: AppTheme.primaryColor, size: 20),
+                    onPressed: () {
+                      _categoryScrollController.animateTo(
+                        (_categoryScrollController.offset + 200).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -15805,6 +15913,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           selectedMenuItems: _preOrderCart,
           onProceed: _proceedDirectlyToReservation,
           onCartUpdated: _handleCartUpdated,
+          onBrowseMenu: () => setState(() => _selectedIndex = 0),
         ),
       ),
     );

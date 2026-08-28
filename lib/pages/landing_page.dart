@@ -70,6 +70,11 @@ class _LandingPageState extends State<LandingPage>
   List<String> _menuCategories = [];
   bool _isLoadingData = true;
 
+  // --- Category Scroll State ---
+  final ScrollController _categoryScrollController = ScrollController();
+  bool _canScrollCategoryLeft = false;
+  bool _canScrollCategoryRight = true;
+
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -106,6 +111,11 @@ class _LandingPageState extends State<LandingPage>
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
+    _categoryScrollController.addListener(_categoryScrollListener);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkCategoryScroll();
+    });
 
     _animController = AnimationController(
       vsync: this,
@@ -131,6 +141,35 @@ class _LandingPageState extends State<LandingPage>
     _startHeroCarouselTimer();
     _subscribeToAnnouncements();
     _subscribeToFeaturedDishes();
+  }
+
+  void _categoryScrollListener() {
+    _checkCategoryScroll();
+  }
+
+  void _checkCategoryScroll() {
+    if (!_categoryScrollController.hasClients) return;
+    
+    final position = _categoryScrollController.position;
+    final atLeft = position.pixels <= 0;
+    final atRight = position.pixels >= position.maxScrollExtent;
+    
+    bool newCanScrollLeft = !atLeft;
+    bool newCanScrollRight = !atRight;
+    
+    if (position.maxScrollExtent == 0) {
+      newCanScrollLeft = false;
+      newCanScrollRight = false;
+    }
+    
+    if (_canScrollCategoryLeft != newCanScrollLeft || _canScrollCategoryRight != newCanScrollRight) {
+      if (mounted) {
+        setState(() {
+          _canScrollCategoryLeft = newCanScrollLeft;
+          _canScrollCategoryRight = newCanScrollRight;
+        });
+      }
+    }
   }
 
   void _subscribeToAnnouncements() {
@@ -1156,18 +1195,11 @@ class _LandingPageState extends State<LandingPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: isDesktop ? 42 : 36,
-                      height: isDesktop ? 42 : 36,
+                      width: isDesktop ? 56 : 46,
+                      height: isDesktop ? 56 : 46,
                       decoration: BoxDecoration(
-                        gradient: AppTheme.goldGradient,
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryGold.withValues(alpha: 0.4),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          )
-                        ],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(2.0),
@@ -1175,7 +1207,7 @@ class _LandingPageState extends State<LandingPage>
                           borderRadius: BorderRadius.circular(8),
                           child: Image.asset(
                             AppConstants.logoPath,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Icon(
                               Icons.restaurant_menu_rounded,
                               color: forestGreen,
@@ -3570,41 +3602,91 @@ class _LandingPageState extends State<LandingPage>
 
   Widget _buildMenuCategories(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: _menuCategories.map((cat) {
-          bool isSelected = _menuSelectedCategory == cat;
-          return Padding(
-            padding: EdgeInsets.only(right: isMobile ? 8 : 10),
-            child: ChoiceChip(
-              label: Text(cat),
-              selected: isSelected,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() => _menuSelectedCategory = cat);
-                }
-              },
-              selectedColor: forestGreen,
-              backgroundColor: Colors.white,
-              labelStyle: GoogleFonts.plusJakartaSans(
-                color: isSelected ? Colors.white : darkGreyText,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                fontSize: isMobile ? 12 : 13,
-              ),
-              padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 12 : 16, vertical: isMobile ? 6 : 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: BorderSide(
-                  color: isSelected ? forestGreen : AppTheme.cardBorder,
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        SingleChildScrollView(
+          controller: _categoryScrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: _menuCategories.map((cat) {
+              bool isSelected = _menuSelectedCategory == cat;
+              return Padding(
+                padding: EdgeInsets.only(right: isMobile ? 8 : 10),
+                child: ChoiceChip(
+                  label: Text(cat),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => _menuSelectedCategory = cat);
+                    }
+                  },
+                  selectedColor: forestGreen,
+                  backgroundColor: Colors.white,
+                  labelStyle: GoogleFonts.plusJakartaSans(
+                    color: isSelected ? Colors.white : darkGreyText,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: isMobile ? 12 : 13,
+                  ),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 12 : 16, vertical: isMobile ? 6 : 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(
+                      color: isSelected ? forestGreen : AppTheme.cardBorder,
+                    ),
+                  ),
+                  showCheckmark: false,
                 ),
-              ),
-              showCheckmark: false,
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
+          ),
+        ),
+        if (_canScrollCategoryLeft)
+          Positioned(
+            left: 0,
+            child: _buildCategoryArrow(Icons.chevron_left_rounded, () {
+              _categoryScrollController.animateTo(
+                (_categoryScrollController.offset - 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }),
+          ),
+        if (_canScrollCategoryRight)
+          Positioned(
+            right: 0,
+            child: _buildCategoryArrow(Icons.chevron_right_rounded, () {
+              _categoryScrollController.animateTo(
+                (_categoryScrollController.offset + 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryArrow(IconData icon, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: forestGreen, size: 20),
+        onPressed: onTap,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       ),
     );
   }
