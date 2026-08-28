@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -1065,10 +1066,36 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
 
   Widget _buildActionButtons() {
-
-    return Row(
-
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFD9A441).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer_outlined, color: Color(0xFF9E6B0D), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Sending this quotation starts a 3-Minute Grace Period for the customer to settle downpayment.',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF7A4F01),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Row(
+          children: [
 
         Expanded(
 
@@ -1142,17 +1169,13 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
                   )
 
-                : Text('Send Transaction'),
-
+                : const Text('Send Transaction'),
           ),
-
         ),
-
       ],
-
-    );
-
+    ),
+  ],
+);
   }
-
 }
 

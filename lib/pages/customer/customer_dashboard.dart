@@ -4936,13 +4936,33 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               ? DateTime.now()
                               : DateTime.now().add(const Duration(days: 4));
 
+                          Set<String> fullyBookedDates = {};
+                          if (_reservationType == 'Event Place') {
+                            fullyBookedDates = await _reservationService.getFullyBookedEventDates();
+                          }
+
+                          // Ensure initialDate is selectable
+                          DateTime initialDate = minDate;
+                          while (fullyBookedDates.contains(DateFormat('yyyy-MM-dd').format(initialDate))) {
+                            initialDate = initialDate.add(const Duration(days: 1));
+                          }
+
                           DateTime? pickedDate = await showDatePicker(
                             context: context,
-                            initialDate: minDate,
+                            initialDate: initialDate,
                             firstDate: minDate,
                             lastDate: DateTime.now().add(
                               const Duration(days: 365),
                             ),
+                            selectableDayPredicate: (DateTime day) {
+                              if (_reservationType == 'Event Place') {
+                                final dateStr = DateFormat('yyyy-MM-dd').format(day);
+                                if (fullyBookedDates.contains(dateStr)) {
+                                  return false;
+                                }
+                              }
+                              return true;
+                            },
                           );
 
                           if (pickedDate != null) {
@@ -4950,6 +4970,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               _dateController.text =
                                   DateFormat('MMMM d, yyyy').format(pickedDate);
                             });
+
+                            // Immediate overlap validation if time is already chosen
+                            if (_reservationType == 'Event Place' && _startTimeController.text.isNotEmpty) {
+                              final duration = double.tryParse(_durationController.text) ?? 2.0;
+                              final dateStr = DateFormat('yyyy-MM-dd').format(pickedDate);
+                              final isOverlapping = await _reservationService.isTimeSlotOverlapping(
+                                eventDate: dateStr,
+                                startTime: _startTimeController.text.trim(),
+                                durationHours: duration,
+                              );
+                              if (isOverlapping && mounted) {
+                                _showSnackBar(
+                                  'The selected time (${_startTimeController.text}) on ${DateFormat('MMMM d').format(pickedDate)} is already booked. Please pick another time.',
+                                  Colors.orange,
+                                );
+                                setState(() {
+                                  _startTimeController.clear();
+                                });
+                              }
+                            }
                           }
                         },
                       ),
@@ -5017,6 +5057,32 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 } catch (e) {
                                   debugPrint('Error validating lead time: $e');
                                 }
+                              }
+                            }
+
+                            // Validate event place time slot overlap immediately
+                            if (_reservationType == 'Event Place' && _dateController.text.isNotEmpty) {
+                              try {
+                                final parsedDate = DateFormat('MMMM d, yyyy').parse(_dateController.text.trim());
+                                final formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+                                final duration = double.tryParse(_durationController.text) ?? 2.0;
+                                final formattedTime = pickedTime.format(context);
+
+                                final isOverlapping = await _reservationService.isTimeSlotOverlapping(
+                                  eventDate: formattedDate,
+                                  startTime: formattedTime,
+                                  durationHours: duration,
+                                );
+
+                                if (isOverlapping) {
+                                  _showSnackBar(
+                                    'This time slot ($formattedTime) is already booked on this date. Please choose a different time.',
+                                    Colors.orange,
+                                  );
+                                  return;
+                                }
+                              } catch (e) {
+                                debugPrint('Error checking time slot overlap: $e');
                               }
                             }
 
@@ -8694,46 +8760,37 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  String _getPaymentStatusText(String status, bool isQuoted, {bool isAdvanceOrder = false, bool isPayInFull = false}) {
-
+  String _getPaymentStatusText(
+    String status,
+    bool isQuoted, {
+    bool isAdvanceOrder = false,
+    bool isPayInFull = false,
+    String? bookingStatus,
+  }) {
     if (!isQuoted) return 'AWAITING TRANSACTION';
 
-
+    final isConfirmed = bookingStatus == 'confirmed' || bookingStatus == 'completed';
 
     switch (status) {
-
       case 'deposit_paid':
-
-        return (isAdvanceOrder || isPayInFull) ? 'FULL PAID' : 'DEPOSIT PAID';
-
-
+        if (!isConfirmed) {
+          return (isAdvanceOrder || isPayInFull) ? 'FULLY SETTLED' : 'DEPOSIT (WAITING APPROVAL)';
+        }
+        return (isAdvanceOrder || isPayInFull) ? 'FULLY SETTLED' : 'DEPOSIT PAID';
 
       case 'paid':
-
       case 'fully_paid':
-
-        return 'PAID';
-
-
+        return 'FULLY SETTLED';
 
       case 'unpaid':
-
         return (isAdvanceOrder || isPayInFull) ? 'PAYMENT DUE' : 'DEPOSIT DUE';
 
-
-
       case 'refunded':
-
         return 'REFUNDED';
 
-
-
       default:
-
         return status.toUpperCase();
-
     }
-
   }
 
 
@@ -9188,6 +9245,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   table: 'reservations',
                   paymentReference: 'PayMongo-Balance',
                 );
+
+                try {
+                  await Supabase.instance.client.from('reservations').update({
+                    'payment_status': 'fully_paid',
+                    'payment_option': 'full',
+                    'remaining_balance': 0,
+                    'status': 'confirmed',
+                    'updated_at': DateTime.now().toUtc().toIso8601String(),
+                  }).eq('id', reservationId);
+                } catch (e) {
+                  debugPrint('Error updating remaining balance settlement: $e');
+                }
 
                 if (mounted) {
                   _loadCustomerReservations();
@@ -10498,7 +10567,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 itemBuilder: (context, index) {
                   final reservation = displayedReservations[index];
                   final isAdvanceOrder = reservation['_db_table'] == 'advance_orders';
-                  final isPaid = reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid';
+                  // Show timeline once customer has submitted payment (not just when fully confirmed)
+                  final isPaid = reservation['payment_status'] == 'paid' ||
+                      reservation['payment_status'] == 'fully_paid' ||
+                      reservation['payment_status'] == 'pending_verification' ||
+                      reservation['status'] == 'awaiting_verification';
                   final status = reservation['status'] as String? ?? 'pending';
 
                   return Container(
@@ -11136,7 +11209,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     int currentStep = 0;
 
     final s = status.toLowerCase();
-    if (s == 'confirmed' || s == 'paid' || s == 'approved') {
+    // Step 0 (Received): pending or awaiting_verification (payment submitted, not yet kitchen-visible)
+    if (s == 'awaiting_verification' || s == 'pending_verification') {
+      currentStep = 0; // Received — payment submitted, awaiting admin
+    } else if (s == 'confirmed' || s == 'paid' || s == 'approved' || s == 'pending') {
+      // 'pending' here means admin approved → sent to kitchen queue (confirmed)
       currentStep = 1;
     } else if (s == 'preparing' || s == 'cooking' || s == 'in_progress') {
       currentStep = 2;
@@ -11144,9 +11221,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       currentStep = 3;
     }
 
-    String etaText = '📝 Order placed in queue';
+    // Distinguish awaiting_verification (step 0) vs truly in-queue (step 0 after admin)
+    final s2 = status.toLowerCase();
+    String etaText = s2 == 'awaiting_verification' || s2 == 'pending_verification'
+        ? '⏳ Payment submitted — awaiting admin verification'
+        : '📝 Order placed in queue';
     if (currentStep == 1) {
-      etaText = '👨‍🍳 Confirmed by kitchen • Prepping fresh ingredients';
+      etaText = '✅ Admin approved — Order queued in kitchen';
     } else if (currentStep == 2) {
       etaText = '🔥 Sizzling in Wok Station • Est. 12–18 mins';
     } else if (currentStep == 3) {
@@ -13135,136 +13216,383 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-    final String title = _reservationType == 'Event Place'
+    if (_reservationType == 'Event Place') {
+      _showEventTermsAndConditionsDialog();
+      return;
+    }
 
-        ? 'Are you sure you want to Confirm Reservation?'
-
-        : 'Are you sure you want to Confirm Advance Order?';
-
-
+    final String title = 'Are you sure you want to Confirm Advance Order?';
 
     showDialog(
-
       context: context,
-
       builder: (context) => AlertDialog(
-
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-
         title: Row(
-
           children: [
-
             Icon(
-
               Icons.info_outline,
-
               color: AppTheme.primaryColor,
-
               size: 28,
-
             ),
-
-            SizedBox(width: 12),
-
+            const SizedBox(width: 12),
             Expanded(
-
               child: Text(
-
                 title,
-
-                style: TextStyle(
-
+                style: const TextStyle(
                   fontSize: 18,
-
                   fontWeight: FontWeight.bold,
-
                   color: Colors.black87,
-
                 ),
-
               ),
-
             ),
-
           ],
-
         ),
-
         actions: [
-
           Container(
-
-            margin: EdgeInsets.only(right: 8),
-
+            margin: const EdgeInsets.only(right: 8),
             child: TextButton(
-
               onPressed: () => Navigator.of(context).pop(),
-
               style: TextButton.styleFrom(
-
                 foregroundColor: Colors.grey.shade700,
-
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
-
                   borderRadius: BorderRadius.circular(8),
-
                   side: BorderSide(color: Colors.grey.shade300),
-
                 ),
-
               ),
-
               child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
-
             ),
-
           ),
-
           Container(
-
-            margin: EdgeInsets.only(right: 8),
-
+            margin: const EdgeInsets.only(right: 8),
             child: ElevatedButton(
-
               onPressed: () {
-
                 Navigator.of(context).pop();
-
                 _submitReservation();
-
               },
-
               style: ElevatedButton.styleFrom(
-
                 backgroundColor: AppTheme.primaryColor,
-
                 foregroundColor: Colors.white,
-
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
-
                   borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  void _showEventTermsAndConditionsDialog() {
+    bool isAgreed = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header Banner ───────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(22),
+                      topRight: Radius.circular(22),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                        ),
+                        child: const Icon(
+                          Icons.gavel_rounded,
+                          color: Color(0xFFD9A441),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TERMS & CONDITIONS',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Event Reservation & Payment Policy',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFFD9A441),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
                 ),
 
-              ),
+                // ── Scrollable Terms Content ────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section 1: Grace Period
+                        _buildTermsSection(
+                          icon: Icons.timer_outlined,
+                          iconColor: const Color(0xFFD9A441),
+                          title: '1. Quotation & 3-Minute Grace Period',
+                          description:
+                              'After submission, our Admin will evaluate your request and send an Official Quotation. You will have exactly 3 Minutes from receiving the quotation to settle the required initial downpayment (50%) to lock and guarantee your reserved date. Failure to pay within 3 minutes will automatically release the slot.',
+                        ),
+                        const SizedBox(height: 14),
 
-              child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.w600)),
+                        // Section 2: Remaining Balance
+                        _buildTermsSection(
+                          icon: Icons.payments_outlined,
+                          iconColor: const Color(0xFF0EA5E9),
+                          title: '2. Remaining Balance Settlement Options',
+                          description:
+                              'You have two flexible payment options for the remaining balance:\n'
+                              '• Online Payment: Pay anytime prior to the event date through the app.\n'
+                              '• On-the-Day Payment: Pay on-site (Cash or GCash QR) upon arrival before the event begins.',
+                        ),
+                        const SizedBox(height: 14),
 
+                        // Section 3: Non-Refundable Deposit
+                        _buildTermsSection(
+                          icon: Icons.verified_user_outlined,
+                          iconColor: const Color(0xFF10B981),
+                          title: '3. Reservation Confirmation & Non-Refund Policy',
+                          description:
+                              'The initial downpayment is strictly non-refundable once confirmed, as it reserves the venue and blocks all other booking requests for your scheduled slot.',
+                        ),
+                        const SizedBox(height: 18),
+
+                        // ── Agreement Checkbox ──────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isAgreed
+                                ? const Color(0xFF14332E).withValues(alpha: 0.06)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isAgreed
+                                  ? const Color(0xFF14332E)
+                                  : const Color(0xFFCBD5E1),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                isAgreed = !isAgreed;
+                              });
+                            },
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Checkbox(
+                                  value: isAgreed,
+                                  activeColor: const Color(0xFF14332E),
+                                  checkColor: const Color(0xFFD9A441),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  onChanged: (val) {
+                                    setDialogState(() {
+                                      isAgreed = val ?? false;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: Text(
+                                      'I have read, understood, and agree to the Terms and Conditions (including the 3-Minute Quotation Grace Period and Remaining Balance settlement policy).',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12.5,
+                                        fontWeight: isAgreed ? FontWeight.w700 : FontWeight.w500,
+                                        color: const Color(0xFF0F172A),
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Action Buttons ──────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(22),
+                      bottomRight: Radius.circular(22),
+                    ),
+                    border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: isAgreed
+                              ? () {
+                                  Navigator.pop(dialogContext);
+                                  _submitReservation();
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF14332E),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFFCBD5E1),
+                            disabledForegroundColor: Colors.white70,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: isAgreed ? 2 : 0,
+                          ),
+                          child: Text(
+                            'Agree & Submit Request',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-
           ),
-
-        ],
-
+        ),
       ),
-
     );
+  }
 
+  Widget _buildTermsSection({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: const Color(0xFF475569),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -14281,6 +14609,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  void _autoCancelExpiredQuotation(String id, String table) async {
+    if (id.isEmpty) return;
+    try {
+      final tableName = table.isNotEmpty ? table : 'reservations';
+      await Supabase.instance.client
+          .from(tableName)
+          .update({
+            'status': 'cancelled',
+            'special_requests': 'Auto-cancelled: 3-minute quotation payment grace period expired as per Terms & Conditions.',
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', id);
+    } catch (e) {
+      debugPrint('Error auto-cancelling expired quotation: $e');
+    }
+  }
+
   Widget _buildQuotationCard(Map<String, dynamic> reservation) {
     final totalPrice = (reservation['total_price'] ?? 0.0) as double;
     final depositAmount = (reservation['deposit_amount'] ?? 0.0) as double;
@@ -14296,7 +14641,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     final isUnpaidOrDue = paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment;
     final isDepositPaid = paymentStatus == 'deposit_paid';
-    final isFullyPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+    final isFullyPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid' || (reservation['remaining_balance'] != null && (reservation['remaining_balance'] as num) <= 0 && paymentStatus != 'unpaid');
+
+    final String resStatus = (reservation['status'] ?? 'pending').toString().toLowerCase();
+    final bool isCancelled = resStatus == 'cancelled';
+    final bool isConfirmed = resStatus == 'confirmed' || resStatus == 'completed';
+    // Only deposit payments need admin approval notice; fully paid is automatically settled!
+    final bool isAwaitingAdminApproval = isDepositPaid && !isConfirmed && !isFullyPaid;
+
+    // Compute grace period
+    final sentAtRaw = reservation['price_quotation_sent_at'] ?? reservation['created_at'];
+    DateTime? sentAt;
+    if (sentAtRaw != null) {
+      sentAt = DateTime.tryParse(sentAtRaw.toString());
+    }
+
+    Duration? remainingGrace;
+    bool isGraceExpired = false;
+    if (sentAt != null) {
+      final expiry = sentAt.add(const Duration(minutes: 3));
+      final now = DateTime.now();
+      if (now.isAfter(expiry)) {
+        isGraceExpired = true;
+      } else {
+        remainingGrace = expiry.difference(now);
+      }
+    }
+
+    // Strict Auto-cancel: if grace period expired and reservation was still unpaid
+    final bool isAutoCancelledDueToGrace = isCancelled || (isGraceExpired && isUnpaidOrDue);
+
+    if (isGraceExpired && isUnpaidOrDue && !isCancelled) {
+      _autoCancelExpiredQuotation(
+        reservation['id']?.toString() ?? '',
+        reservation['_db_table']?.toString() ?? 'reservations',
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
@@ -14304,9 +14684,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isUnpaidOrDue
-              ? const Color(0xFFD9A441).withValues(alpha: 0.5)
-              : const Color(0xFFE2E8F0),
+          color: isAutoCancelledDueToGrace
+              ? const Color(0xFFDC2626).withValues(alpha: 0.4)
+              : isUnpaidOrDue
+                  ? const Color(0xFFD9A441).withValues(alpha: 0.5)
+                  : const Color(0xFFE2E8F0),
           width: 1.2,
         ),
         boxShadow: [
@@ -14325,15 +14707,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             // ── Voucher Receipt Header (Petty Cash Style) ───────────────────────
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF14332E),
-                    Color(0xFF1E4A42),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+              decoration: BoxDecoration(
+                gradient: isAutoCancelledDueToGrace
+                    ? const LinearGradient(
+                        colors: [Color(0xFF450A0A), Color(0xFF7F1D1D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : const LinearGradient(
+                        colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
               ),
               child: Row(
                 children: [
@@ -14344,9 +14729,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
                     ),
-                    child: const Icon(
-                      Icons.receipt_long_rounded,
-                      color: Color(0xFFD9A441),
+                    child: Icon(
+                      isAutoCancelledDueToGrace ? Icons.event_busy_rounded : Icons.receipt_long_rounded,
+                      color: isAutoCancelledDueToGrace ? const Color(0xFFFCA5A5) : const Color(0xFFD9A441),
                       size: 18,
                     ),
                   ),
@@ -14381,18 +14766,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isFullyPaid
-                          ? const Color(0xFF34C759).withValues(alpha: 0.2)
-                          : isDepositPaid
-                              ? const Color(0xFF007AFF).withValues(alpha: 0.2)
-                              : const Color(0xFFD9A441).withValues(alpha: 0.25),
+                      color: isAutoCancelledDueToGrace
+                          ? const Color(0xFFDC2626).withValues(alpha: 0.25)
+                          : isAwaitingAdminApproval
+                              ? const Color(0xFFD97706).withValues(alpha: 0.25)
+                              : isFullyPaid
+                                  ? const Color(0xFF34C759).withValues(alpha: 0.2)
+                                  : isDepositPaid
+                                      ? const Color(0xFF007AFF).withValues(alpha: 0.2)
+                                      : const Color(0xFFD9A441).withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isFullyPaid
-                            ? const Color(0xFF34C759).withValues(alpha: 0.45)
-                            : isDepositPaid
-                                ? const Color(0xFF007AFF).withValues(alpha: 0.45)
-                                : const Color(0xFFD9A441).withValues(alpha: 0.6),
+                        color: isAutoCancelledDueToGrace
+                            ? const Color(0xFFDC2626).withValues(alpha: 0.6)
+                            : isAwaitingAdminApproval
+                                ? const Color(0xFFD97706).withValues(alpha: 0.6)
+                                : isFullyPaid
+                                    ? const Color(0xFF34C759).withValues(alpha: 0.45)
+                                    : isDepositPaid
+                                        ? const Color(0xFF007AFF).withValues(alpha: 0.45)
+                                        : const Color(0xFFD9A441).withValues(alpha: 0.6),
                       ),
                     ),
                     child: Row(
@@ -14403,29 +14796,40 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           height: 5,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isFullyPaid
-                                ? const Color(0xFF34C759)
-                                : isDepositPaid
-                                    ? const Color(0xFF38BDF8)
-                                    : const Color(0xFFD9A441),
+                            color: isAutoCancelledDueToGrace
+                                ? const Color(0xFFEF4444)
+                                : isAwaitingAdminApproval
+                                    ? const Color(0xFFF59E0B)
+                                    : isFullyPaid
+                                        ? const Color(0xFF34C759)
+                                        : isDepositPaid
+                                            ? const Color(0xFF38BDF8)
+                                            : const Color(0xFFD9A441),
                           ),
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          _getPaymentStatusText(
-                            paymentStatus,
-                            true,
-                            isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
-                            isPayInFull: isPayInFull,
-                          ),
+                          isAutoCancelledDueToGrace
+                              ? 'CANCELLED (EXPIRED)'
+                              : _getPaymentStatusText(
+                                  paymentStatus,
+                                  true,
+                                  isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
+                                  isPayInFull: isPayInFull,
+                                  bookingStatus: resStatus,
+                                ),
                           style: GoogleFonts.inter(
                             fontSize: 10,
                             fontWeight: FontWeight.w900,
-                            color: isFullyPaid
-                                ? const Color(0xFF86EFAC)
-                                : isDepositPaid
-                                    ? const Color(0xFFBAE6FD)
-                                    : const Color(0xFFFDE68A),
+                            color: isAutoCancelledDueToGrace
+                                ? const Color(0xFFFCA5A5)
+                                : isAwaitingAdminApproval
+                                    ? const Color(0xFFFDE68A)
+                                    : isFullyPaid
+                                        ? const Color(0xFF86EFAC)
+                                        : isDepositPaid
+                                            ? const Color(0xFFBAE6FD)
+                                            : const Color(0xFFFDE68A),
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -14567,8 +14971,152 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   const SizedBox(height: 16),
 
+                  // ── 24-Hour Grace Period Alert Banner (For Unpaid Quotations within Grace) ─────
+                  if (needsDepositPayment && !isAutoCancelledDueToGrace && remainingGrace != null) ...[
+                    Builder(
+                      builder: (context) {
+                        final grace = remainingGrace;
+                        if (grace == null) return const SizedBox.shrink();
+                        final hours = grace.inHours;
+                        final mins = grace.inMinutes % 60;
+                        final secs = grace.inSeconds % 60;
+                        final timeStr = hours > 0
+                            ? '${hours}h ${mins}m'
+                            : mins > 0
+                                ? '${mins}m ${secs}s'
+                                : '${secs}s';
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.timer_outlined, color: Color(0xFFD97706), size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF92400E)),
+                                    children: [
+                                      const TextSpan(text: '3-Minute Grace Period: ', style: TextStyle(fontWeight: FontWeight.w800)),
+                                      TextSpan(
+                                        text: '$timeStr left to pay downpayment and secure your date.',
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+
+                  // ── Remaining Balance Settlement Guidance (Deposit Paid) ────────
+                  if (paymentStatus == 'deposit_paid' && reservation['_db_table'] != 'advance_orders' && (totalPrice - depositAmount) > 0) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBAE6FD)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: Color(0xFF0284C7), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Remaining Balance Notice: You can pay online anytime before your event or pay on-site (Cash or GCash QR) on the event day itself.',
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0369A1),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // ── Actions & Status Pill Callouts ──────────────────────────────
-                  if (needsDepositPayment)
+                  if (isAutoCancelledDueToGrace)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFCA5A5), width: 1.2),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'RESERVATION CANCELLED',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF991B1B),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'As agreed in the Terms and Conditions upon booking, this quotation was not settled within the 3-minute grace period and has been automatically cancelled. The date slot has been released.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF7F1D1D),
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isAwaitingAdminApproval)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.hourglass_bottom_rounded, size: 18, color: Color(0xFFB45309)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Payment submitted — Awaiting admin verification & approval. Official receipt will be confirmed shortly.',
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF92400E),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (needsDepositPayment)
                     AnimatedTapScale(
                       onTap: () => _showPaymentDialog(reservation),
                       child: Container(
@@ -14670,36 +15218,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         ],
                       ),
                     ),
-                    if (reservation['receipt_url'] != null) ...[
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final uri = Uri.parse(reservation['receipt_url'].toString());
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
-                            }
-                          },
-                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Color(0xFF16302A)),
-                          label: Text(
-                            'View Official Receipt (PDF)',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF16302A),
-                            ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showOfficialReceiptDialog(reservation),
+                        icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF16302A)),
+                        label: Text(
+                          'View Official Receipt',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF16302A),
                           ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            side: const BorderSide(color: Color(0xFF16302A), width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: const BorderSide(color: Color(0xFF16302A), width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ],
               ),

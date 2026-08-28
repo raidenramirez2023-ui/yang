@@ -595,15 +595,22 @@ $body
 - Remaining Balance: PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}''';
 
     final nextStepsText = isPayInFull
-        ? 'To confirm your reservation, please pay the full amount of PHP ${totalPrice.toStringAsFixed(2)}.'
-        : 'To confirm your reservation, please pay the 50% deposit amount of PHP ${depositAmount.toStringAsFixed(2)}.';
+        ? 'To confirm and secure your reservation, please settle the full amount of PHP ${totalPrice.toStringAsFixed(2)} within the 3-Minute Grace Period.'
+        : 'To confirm and secure your reservation, please settle the required 50% deposit of PHP ${depositAmount.toStringAsFixed(2)} within the 3-Minute Grace Period.';
+
+    final balancePolicyText = !isPayInFull
+        ? '''\nREMAINING BALANCE POLICY:
+- Your remaining balance of PHP ${(totalPrice - depositAmount).toStringAsFixed(2)} can be settled either:
+  a) Online via our app anytime before the event date, OR
+  b) On-site on the event day itself (Cash / GCash QR) before event start.'''
+        : '';
 
     return '''
 Dear $customerName,
 
 Thank you for your interest in hosting your $eventType at Yang Chow Restaurant!
 
-We are pleased to provide you with the following price transaction:
+We are pleased to provide you with the official price quotation:
 
 EVENT DETAILS:
 - Event Type: $eventType
@@ -613,18 +620,18 @@ EVENT DETAILS:
 - Number of Guests: $guests
 
 $pricingBreakdownText
+$balancePolicyText
 
-NEXT STEPS:
+IMPORTANT PAYMENT POLICY & 3-MINUTE GRACE PERIOD:
 $nextStepsText
-Once the payment is received, your reservation will be confirmed and we will send you a confirmation email.
+- Please note: Your selected date & slot is reserved for exactly 3 Minutes upon receiving this quotation. Unsettled reservations after the 3-minute grace period may be released to other customers.
+- The initial deposit is non-refundable upon reservation confirmation.
 
-Payment can be made through our secure payment system or by contacting our restaurant directly.
+Payment can be made easily through our app via GCash, Maya, or Bank Transfer.
 
-Please note that reservations are subject to availability and confirmation is only guaranteed upon receipt of the payment.
+If you have any questions or need adjustments, please contact our restaurant team.
 
-If you have any questions or would like to modify your reservation details, please don't hesitate to contact us.
-
-We look forward to hosting your special event!
+We look forward to celebrating with you!
 
 Best regards,
 The Yang Chow Restaurant Team

@@ -589,7 +589,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
       if (metrics != null) {
         rows.add(['EXECUTIVE FINANCIAL SUMMARY']);
-        rows.add(['Gross Revenue', _currencyFormat.format(metrics['revenue']).replaceAll('₱', 'PHP ')]);
+        rows.add(['Gross Sales', _currencyFormat.format(metrics['revenue']).replaceAll('₱', 'PHP ')]);
         rows.add(['Walk-in Revenue', _currencyFormat.format(metrics['regularRevenue']).replaceAll('₱', 'PHP ')]);
         rows.add(['Advance Orders Revenue', _currencyFormat.format(metrics['advanceRevenue']).replaceAll('₱', 'PHP ')]);
         rows.add(['Event Catering Revenue', _currencyFormat.format(metrics['reservationRevenue']).replaceAll('₱', 'PHP ')]);
@@ -1532,7 +1532,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                       SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          'GROSS REVENUE',
+                          'GROSS SALES',
                           style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.warmGold, letterSpacing: 0.4),
                           overflow: TextOverflow.ellipsis,
                         ),

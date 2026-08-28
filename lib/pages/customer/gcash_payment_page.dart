@@ -13,6 +13,7 @@ class GCashPaymentPage extends StatefulWidget {
   final double depositAmount;
   final VoidCallback onPaymentSuccess;
   final String table; // 'reservations' or 'advance_orders'
+  final double? totalPrice; // Used to detect full payment
 
   const GCashPaymentPage({
     super.key,
@@ -20,6 +21,7 @@ class GCashPaymentPage extends StatefulWidget {
     required this.depositAmount,
     required this.onPaymentSuccess,
     this.table = 'reservations',
+    this.totalPrice,
   });
 
   @override
@@ -111,9 +113,19 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     try {
       final depositAmount = widget.depositAmount;
 
+      // Determine correct payment status (full vs deposit)
+      String paymentStatus;
+      if (widget.table == 'advance_orders') {
+        paymentStatus = 'pending_verification';
+      } else if (widget.totalPrice != null && depositAmount >= widget.totalPrice!) {
+        paymentStatus = 'fully_paid';
+      } else {
+        paymentStatus = 'deposit_paid';
+      }
+
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
-        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'pending_verification',
+        paymentStatus: paymentStatus,
         table: widget.table,
         paymentAmount: depositAmount,
         paymentReference: 'GCASH_${DateTime.now().millisecondsSinceEpoch}',

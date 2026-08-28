@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/pages/admin/admin_reviews_page.dart';
 
 class CustomerManagementPage extends StatefulWidget {
   const CustomerManagementPage({super.key});
@@ -15,6 +16,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   final _supabase = Supabase.instance.client;
   final _searchController = TextEditingController();
 
+  int _selectedTab = 0; // 0 = Customer Registry, 1 = Customer Reviews
   List<Map<String, dynamic>> _allCustomers = [];
   Map<String, Map<String, int>> _customerReservationStats = {};
   bool _isLoading = true;
@@ -115,69 +117,42 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    final filtered = _filtered;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: RefreshIndicator(
-        onRefresh: _loadCustomers,
-        color: _gold,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 14 : 24,
-                  vertical: isMobile ? 14 : 20,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(isMobile, filtered.length),
-                    const SizedBox(height: 16),
-                    _buildSearchAndFilter(isMobile),
-                    const SizedBox(height: 16),
-                    _buildQuickStats(isMobile),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
+      body: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 14 : 24,
+          vertical: isMobile ? 8 : 14,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top Module Header ───────────────────────────────────────────
+            _buildMainPageHeader(isMobile),
+            const SizedBox(height: 10),
+
+            // ── Clickable Tab Switcher (Below the Header) ───────────────────
+            _buildModuleTabSelector(isMobile),
+            const SizedBox(height: 10),
+
+            // ── Tab Content ─────────────────────────────────────────────────
+            Expanded(
+              child: _selectedTab == 0
+                  ? _buildCustomerRegistryView(isMobile)
+                  : const AdminReviewsPage(hideHeader: true),
             ),
-            if (_isLoading)
-              const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: _gold),
-                ),
-              )
-            else if (filtered.isEmpty)
-              SliverFillRemaining(child: _buildEmptyState())
-            else
-              SliverPadding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 14 : 24,
-                ).copyWith(bottom: 60),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        _buildCustomerCard(filtered[index], isMobile),
-                    childCount: filtered.length,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
-  // -------------------------------------------------------------------------
-  // HEADER
-  // -------------------------------------------------------------------------
-  Widget _buildHeader(bool isMobile, int count) {
+  Widget _buildMainPageHeader(bool isMobile) {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 16 : 20,
-        vertical: isMobile ? 14 : 18,
+        vertical: isMobile ? 14 : 16,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -186,22 +161,22 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
         boxShadow: [
           BoxShadow(
             color: _darkBg.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(13),
               boxShadow: [
                 BoxShadow(
                   color: _emerald.withValues(alpha: 0.25),
@@ -210,51 +185,30 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                 ),
               ],
             ),
-            child: const Icon(Icons.people_alt_rounded, color: _gold, size: 24),
+            child: Icon(
+              _selectedTab == 0 ? Icons.people_alt_rounded : Icons.rate_review_rounded,
+              color: _gold,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Customer Registry',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: isMobile ? 17 : 20,
-                          fontWeight: FontWeight.w800,
-                          color: _darkBg,
-                          letterSpacing: -0.4,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _gold.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: _gold.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        '$count members',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF9E6D10),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
                 Text(
-                  'View and manage registered customer accounts',
+                  _selectedTab == 0 ? 'Customer Registry' : 'Customer Reviews & Feedback',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: isMobile ? 17 : 19,
+                    fontWeight: FontWeight.w800,
+                    color: _darkBg,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                Text(
+                  _selectedTab == 0
+                      ? 'View and manage registered customer accounts'
+                      : 'Monitor good & critical reviews directly synced with landing page',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     color: _slate,
@@ -265,7 +219,13 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             ),
           ),
           IconButton(
-            onPressed: _loadCustomers,
+            onPressed: () {
+              if (_selectedTab == 0) {
+                _loadCustomers();
+              } else {
+                setState(() {});
+              }
+            },
             icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
             tooltip: 'Refresh',
           ),
@@ -273,6 +233,169 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       ),
     );
   }
+
+  Widget _buildModuleTabSelector(bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _slateLight),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBg.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _moduleTabButton(
+              index: 0,
+              icon: Icons.people_alt_rounded,
+              label: 'Customer Registry',
+              badgeText: _allCustomers.isNotEmpty ? '${_allCustomers.length}' : null,
+              isMobile: isMobile,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _moduleTabButton(
+              index: 1,
+              icon: Icons.rate_review_rounded,
+              label: 'Guest Reviews & Feedback',
+              badgeText: null,
+              isMobile: isMobile,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _moduleTabButton({
+    required int index,
+    required IconData icon,
+    required String label,
+    required String? badgeText,
+    required bool isMobile,
+  }) {
+    final isSelected = _selectedTab == index;
+    return InkWell(
+      onTap: () => setState(() => _selectedTab = index),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(
+          vertical: isMobile ? 9 : 11,
+          horizontal: isMobile ? 8 : 14,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? _emerald : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: _emerald.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: isMobile ? 16 : 18,
+              color: isSelected ? _gold : _slate,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: isMobile ? 12 : 13.5,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? Colors.white : _darkBg,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (badgeText != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? _gold.withValues(alpha: 0.25)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  badgeText,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? _gold : _slate,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomerRegistryView(bool isMobile) {
+    final filtered = _filtered;
+
+    return RefreshIndicator(
+      onRefresh: _loadCustomers,
+      color: _gold,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSearchAndFilter(isMobile),
+                const SizedBox(height: 12),
+                _buildQuickStats(isMobile),
+                const SizedBox(height: 14),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            const SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(color: _gold),
+              ),
+            )
+          else if (filtered.isEmpty)
+            SliverFillRemaining(child: _buildEmptyState())
+          else
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 60),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) =>
+                      _buildCustomerCard(filtered[index], isMobile),
+                  childCount: filtered.length,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+
 
   // -------------------------------------------------------------------------
   // SEARCH & FILTER

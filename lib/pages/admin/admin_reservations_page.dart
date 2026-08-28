@@ -2720,9 +2720,40 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           child: Column(
                             children: [
                               buildDetailRow('Total Price',    '₱${(reservation['total_price'] as num).toStringAsFixed(2)}', icon: Icons.monetization_on_rounded),
-                              buildDetailRow('Deposit',        '₱${(reservation['deposit_amount'] as num? ?? 0).toStringAsFixed(2)}', icon: Icons.account_balance_wallet_rounded),
+                              buildDetailRow('Deposit (50%)',  '₱${(reservation['deposit_amount'] as num? ?? 0).toStringAsFixed(2)}', icon: Icons.account_balance_wallet_rounded),
                               buildDetailRow('Payment Status', _getPaymentStatusText(reservation['payment_status'] as String? ?? 'unpaid'), icon: Icons.payment_rounded),
                               buildDetailRow('Quote Sent',     reservation['price_quotation_sent'] == true ? 'Yes' : 'No', icon: Icons.send_rounded),
+                              if (reservation['price_quotation_sent'] == true &&
+                                  (reservation['payment_status'] == null ||
+                                      reservation['payment_status'] == 'unpaid' ||
+                                      reservation['payment_status'] == 'pending')) ...[
+                                Builder(
+                                  builder: (context) {
+                                    final sentAtRaw = reservation['price_quotation_sent_at'] ?? reservation['created_at'];
+                                    DateTime? sentAt;
+                                    if (sentAtRaw != null) {
+                                      sentAt = DateTime.tryParse(sentAtRaw.toString());
+                                    }
+                                    String graceText = 'Pending';
+                                    if (sentAt != null) {
+                                      // NOTE: Temporarily set to 3 minutes for testing
+                                      final expiry = sentAt.add(const Duration(minutes: 3));
+                                      final now = DateTime.now();
+                                      if (now.isAfter(expiry)) {
+                                        graceText = 'Expired (> 3 mins)';
+                                      } else {
+                                        final rem = expiry.difference(now);
+                                        final hours = rem.inHours;
+                                        final mins = rem.inMinutes % 60;
+                                        final secs = rem.inSeconds % 60;
+                                        final timeStr = hours > 0 ? '${hours}h ${mins}m' : mins > 0 ? '${mins}m ${secs}s' : '${secs}s';
+                                        graceText = 'Active ($timeStr left)';
+                                      }
+                                    }
+                                    return buildDetailRow('Grace Period', graceText, icon: Icons.timer_outlined);
+                                  },
+                                ),
+                              ],
                             ],
                           ),
                         ),
