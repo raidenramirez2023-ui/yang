@@ -18,7 +18,14 @@ final _moneyFmt0 = NumberFormat('#,##0', 'en_PH');
 
 class RemainingBalanceTrackingPage extends StatefulWidget {
   final bool isFullscreen;
-  const RemainingBalanceTrackingPage({super.key, this.isFullscreen = false});
+  final bool isEmbedded;
+  final int initialTab;
+  const RemainingBalanceTrackingPage({
+    super.key,
+    this.isFullscreen = false,
+    this.isEmbedded = false,
+    this.initialTab = 0,
+  });
 
   @override
   State<RemainingBalanceTrackingPage> createState() => _RemainingBalanceTrackingPageState();
@@ -28,7 +35,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
   List<Map<String, dynamic>> _reservationsWithBalance = [];
   List<Map<String, dynamic>> _settledHistory = [];
   bool _isLoading = true;
-  int _selectedTab = 0; // 0 = Outstanding, 1 = Settled History
+  late int _selectedTab; // 0 = Outstanding, 1 = Settled History
   int _currentPage = 0;
   final int _rowsPerPage = 10;
   String _searchQuery = '';
@@ -38,6 +45,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab;
     _loadData();
   }
 
@@ -69,9 +77,37 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           .order('updated_at', ascending: false)
           .limit(150);
 
+      final allDepositRows = List<Map<String, dynamic>>.from(reservationsResponse);
+      final List<Map<String, dynamic>> actualWithBalance = [];
+      final List<Map<String, dynamic>> autoSettled = [];
+
+      for (final res in allDepositRows) {
+        final total = (res['total_price'] as num?)?.toDouble() ?? 0.0;
+        final deposit = (res['deposit_amount'] as num?)?.toDouble() ?? (res['payment_amount'] as num?)?.toDouble() ?? 0.0;
+        final paymentOption = res['payment_option']?.toString();
+        final rawRem = (res['remaining_balance'] as num?)?.toDouble() ?? (total - deposit);
+
+        // If it was a full payment or has zero remaining balance, it should NOT be in outstanding balances
+        if (paymentOption == 'full' || (total > 0 && deposit >= total) || rawRem <= 0) {
+          // Self-heal DB: update row in Supabase to fully_paid
+          try {
+            await Supabase.instance.client.from('reservations').update({
+              'payment_status': 'fully_paid',
+              'remaining_balance': 0,
+              'payment_option': 'full',
+              'payment_amount': total > 0 ? total : deposit,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            }).eq('id', res['id']);
+          } catch (_) {}
+          autoSettled.add({...res, 'payment_status': 'fully_paid', 'remaining_balance': 0});
+        } else {
+          actualWithBalance.add(res);
+        }
+      }
+
       setState(() {
-        _reservationsWithBalance = List<Map<String, dynamic>>.from(reservationsResponse);
-        _settledHistory = List<Map<String, dynamic>>.from(settledResponse);
+        _reservationsWithBalance = actualWithBalance;
+        _settledHistory = [...autoSettled, ...List<Map<String, dynamic>>.from(settledResponse)];
         _isLoading = false;
       });
     } catch (e) {
@@ -607,7 +643,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
       ),
     );
 
-    if (widget.isFullscreen) {
+    if (widget.isFullscreen && !widget.isEmbedded) {
       return Scaffold(
         backgroundColor: AppTheme.adminMainBackground,
         body: SafeArea(child: content),
@@ -618,12 +654,19 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
 
   Widget _buildDesktopLayout() {
     return Padding(
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 8),
+      padding: EdgeInsets.only(
+        left: widget.isEmbedded ? 0 : 20,
+        right: widget.isEmbedded ? 0 : 20,
+        top: 0,
+        bottom: 8,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeaderBanner(),
-          const SizedBox(height: 12),
+          if (!widget.isEmbedded) ...[
+            _buildHeaderBanner(),
+            const SizedBox(height: 12),
+          ],
           _buildSummaryCards(),
           const SizedBox(height: 12),
           _buildTabSelector(),
@@ -639,8 +682,10 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
   Widget _buildMobileLayout() {
     return Column(
       children: [
-        _buildHeaderBanner(),
-        const SizedBox(height: 12),
+        if (!widget.isEmbedded) ...[
+          _buildHeaderBanner(),
+          const SizedBox(height: 12),
+        ],
         _buildSummaryCards(),
         const SizedBox(height: 12),
         _buildTabSelector(),

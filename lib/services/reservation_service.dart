@@ -1255,24 +1255,27 @@ class ReservationService {
         if (receiptUrl != null) {
           updates['receipt_url'] = receiptUrl;
         }
-        // Set status to pending admin approval on deposit paid or fully paid
-        if (paymentStatus == 'deposit_paid' || paymentStatus == 'fully_paid') {
-          updates['status'] = 'pending_admin_approval';
-        }
-        
-        // Calculate and set remaining_balance
-        if (paymentStatus == 'deposit_paid') {
-          // Get the reservation to calculate remaining balance
-          final reservation = await getReservation(id);
-          if (reservation != null) {
-            final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
-            final deposit = paymentAmount ?? (reservation['deposit_amount'] as num?)?.toDouble() ?? 0.0;
-            final remainingBalance = totalPrice - deposit;
-            updates['remaining_balance'] = remainingBalance;
-          }
-        } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
-          // No remaining balance when fully paid
+
+        final reservation = await getReservation(id);
+        final totalPrice = (reservation?['total_price'] as num?)?.toDouble() ?? 0.0;
+        final deposit = paymentAmount ?? (reservation?['deposit_amount'] as num?)?.toDouble() ?? (reservation?['payment_amount'] as num?)?.toDouble() ?? 0.0;
+        final isFull = paymentStatus == 'fully_paid' || 
+            paymentStatus == 'paid' || 
+            (totalPrice > 0 && deposit >= totalPrice) || 
+            reservation?['payment_option'] == 'full';
+
+        if (isFull) {
+          updates['payment_status'] = 'fully_paid';
+          updates['payment_option'] = 'full';
           updates['remaining_balance'] = 0;
+          updates['deposit_amount'] = totalPrice > 0 ? totalPrice : deposit;
+          updates['payment_amount'] = totalPrice > 0 ? totalPrice : deposit;
+          // Fully settled bookings are directly confirmed
+          updates['status'] = 'confirmed';
+        } else {
+          updates['payment_status'] = 'deposit_paid';
+          updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
+          updates['status'] = 'pending_admin_approval';
         }
       } else {
         // advance_orders: only update payment_status + status, never overwrite total_price
@@ -1306,13 +1309,14 @@ class ReservationService {
         if (table == 'reservations') {
           final reservation = await getReservation(id);
           if (reservation != null) {
-            // Determine action type and text
+            // Determine action type and text based on effective status
+            final effectiveStatus = updates['payment_status'] ?? paymentStatus;
             String actionType = 'paid';
             String eventPrefix = '';
-            if (paymentStatus == 'deposit_paid') {
+            if (effectiveStatus == 'deposit_paid') {
               actionType = 'deposit_paid';
               eventPrefix = '(Deposit Paid) ';
-            } else if (paymentStatus == 'fully_paid') {
+            } else if (effectiveStatus == 'fully_paid' || effectiveStatus == 'paid') {
               if (wasDepositPaid) {
                 actionType = 'balance_cleared';
                 eventPrefix = '(Remaining Balance Paid) ';
@@ -1360,14 +1364,14 @@ class ReservationService {
               customUserRole: 'CUSTOMER',
               metadata: {
                 'reservation_id': id,
-                'payment_status': paymentStatus,
+                'payment_status': effectiveStatus,
                 'payment_reference': paymentReference,
                 'amount': paymentAmount,
                 'event_type': reservation['event_type'],
               },
             );
 
-            if (paymentStatus == 'deposit_paid') {
+            if (effectiveStatus == 'deposit_paid') {
               await _emailService.sendDepositPaymentConfirmation(
                 customerEmail: reservation['customer_email'],
                 customerName: reservation['customer_name'],
@@ -1376,7 +1380,7 @@ class ReservationService {
                 depositAmount:
                     paymentAmount ?? reservation['deposit_amount'] ?? 0.0,
               );
-            } else if (paymentStatus == 'fully_paid') {
+            } else if (effectiveStatus == 'fully_paid' || effectiveStatus == 'paid') {
               await _emailService.sendFullPaymentConfirmation(
                 customerEmail: reservation['customer_email'],
                 customerName: reservation['customer_name'],
@@ -1701,15 +1705,57 @@ class ReservationService {
 
 
       return false; // No overlap
-
     } catch (e) {
-
       debugPrint('Error checking time slot overlap: $e');
-
       return false; // Fallback to allow if error occurs
-
     }
+  }
 
+  /// Get dates that are fully booked for Event Place reservations
+  Future<Set<String>> getFullyBookedEventDates() async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('event_date, start_time, duration_hours')
+          .not('status', 'eq', 'cancelled');
+
+      final List<Map<String, dynamic>> reservations =
+          List<Map<String, dynamic>>.from(response);
+
+      // Group reservations by event_date
+      final Map<String, List<Map<String, dynamic>>> grouped = {};
+      for (var r in reservations) {
+        final date = r['event_date']?.toString();
+        if (date != null && date.isNotEmpty) {
+          grouped.putIfAbsent(date, () => []).add(r);
+        }
+      }
+
+      final Set<String> fullyBookedDates = {};
+
+      for (var entry in grouped.entries) {
+        final date = entry.key;
+        final list = entry.value;
+
+        // Calculate total booked hours on that date
+        double totalBookedHours = 0;
+        for (var res in list) {
+          final duration = (res['duration_hours'] as num?)?.toDouble() ?? 0.0;
+          totalBookedHours += duration;
+        }
+
+        // Operating hours range: 10:00 AM to 9:00 PM (11 hours total)
+        // If booked hours >= 8 hours, mark date as fully booked
+        if (totalBookedHours >= 8.0) {
+          fullyBookedDates.add(date);
+        }
+      }
+
+      return fullyBookedDates;
+    } catch (e) {
+      debugPrint('Error getting fully booked dates: $e');
+      return {};
+    }
   }
 
 
@@ -1893,8 +1939,21 @@ class ReservationService {
       };
 
       if (table == 'reservations') {
-        // For deposits: keep payment_status as is, only change status to 'confirmed'
-        // Revenue will be counted based on status == 'confirmed' AND payment_status != 'unpaid'
+        final reservation = await getReservation(id);
+        if (reservation != null) {
+          final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
+          final deposit = (reservation['deposit_amount'] as num?)?.toDouble() ?? (reservation['payment_amount'] as num?)?.toDouble() ?? 0.0;
+          final isFull = reservation['payment_status'] == 'fully_paid' ||
+              reservation['payment_status'] == 'paid' ||
+              reservation['payment_option'] == 'full' ||
+              (totalPrice > 0 && deposit >= totalPrice);
+
+          if (isFull) {
+            updates['payment_status'] = 'fully_paid';
+            updates['payment_option'] = 'full';
+            updates['remaining_balance'] = 0;
+          }
+        }
         updates['status'] = 'confirmed';
       } else {
         updates['status'] = 'pending'; // To kitchen

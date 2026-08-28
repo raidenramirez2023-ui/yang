@@ -66,10 +66,6 @@ import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
 
 import 'package:yang_chow/pages/admin/payment_approval_page.dart';
 
-
-
-import 'package:yang_chow/pages/admin/remaining_balance_tracking_page.dart';
-
 import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
@@ -347,89 +343,38 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   Future<void> _loadPendingPaymentCount() async {
-
-
-
     try {
-
-
-
       final supabase = Supabase.instance.client;
 
-
-
-      // Check if reservations table exists and has the required columns
-
-      await supabase
-
-          .from('reservations')
-
-          .select('id')
-
-          .eq('status', 'pending_admin_approval')
-
-          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
-
-          .eq('is_archived', false)
-
-          .limit(1); // Just check if table works, limit to 1 for faster response
-
-
-
-      // If we get here, table exists, now get full count
-
+      // 1. Count pending approval reservations
       final countResponse = await supabase
-
-
-
           .from('reservations')
-
-
-
           .select('id')
-
-
-
           .eq('status', 'pending_admin_approval')
-
-
-
           .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
-
-
-
           .eq('is_archived', false);
 
+      // 2. Count pending approval advance orders
+      int advanceCount = 0;
+      try {
+        final advCountResponse = await supabase
+            .from('advance_orders')
+            .select('id')
+            .eq('status', 'awaiting_verification')
+            .eq('payment_status', 'pending_verification');
+        advanceCount = (advCountResponse as List).length;
+      } catch (_) {}
 
+      final totalPending = (countResponse as List).length + advanceCount;
 
-      debugPrint('Pending payments count: ${(countResponse as List).length}');
-
-
+      debugPrint('Pending payments count: $totalPending (Res: ${(countResponse as List).length}, Adv: $advanceCount)');
 
       if (mounted) {
-
-
-
         setState(() {
-
-
-
-          _pendingPaymentCount = (countResponse as List).length;
-
-
-
+          _pendingPaymentCount = totalPending;
         });
-
-
-
       }
-
-
-
     } catch (e) {
-
-
-
       debugPrint('Error loading pending payment count: $e');
 
 
@@ -543,47 +488,32 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   Future<void> _loadRemainingBalanceCount() async {
-
     try {
-
       final supabase = Supabase.instance.client;
-
       
-
       // Count reservations with deposit_paid status
-
       final reservationsCount = await supabase
-
           .from('reservations')
-
-          .select('id')
-
+          .select('id, total_price, deposit_amount, payment_option, remaining_balance')
           .eq('payment_status', 'deposit_paid')
-
           .neq('is_archived', true);
 
-
-
-      final totalCount = (reservationsCount as List).length;
-
+      final totalCount = (reservationsCount as List).where((r) {
+        final total = (r['total_price'] as num?)?.toDouble() ?? 0.0;
+        final deposit = (r['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+        final opt = r['payment_option']?.toString();
+        final rem = (r['remaining_balance'] as num?)?.toDouble() ?? (total - deposit);
+        return opt != 'full' && (total <= 0 || deposit < total) && rem > 0;
+      }).length;
       
-
       debugPrint('Remaining balance count: $totalCount');
 
-
-
       if (mounted) {
-
         setState(() {
-
           _remainingBalanceCount = totalCount;
-
         });
-
       }
-
     } catch (e) {
-
       debugPrint('Error loading remaining balance count: $e');
 
       
@@ -662,195 +592,57 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   static const List<String> _pageTitles = [
-
-
-
     'Dashboard',
-
-
-
     'Sales Reports',
-
-
-
     'Inventory',
-
-
-
     'Inventory Forecast',
-
-
-
     'Menu Management',
-
-
-
     'Reservations',
-
-
-
-    'Payment Approvals',
-
-
-
-    'Remaining Balance',
-
-
-
+    'Payment Management',
     'Employee Management',
-
-
-
-    'Customers',
-
-
-
+    'Customers & Reviews',
     'Announcements',
-
-
-
     'Customer Chat',
-
     'Petty Cash',
-
     'Refunds & Reschedules',
-
     'Audit Logs',
-
     'Backup & Restore',
-
   ];
-
-
-
-
-
-
 
   static const List<IconData> _pageIcons = [
-
-
-
     Icons.dashboard,
-
-
-
     Icons.analytics,
-
-
-
     Icons.inventory_2,
-
-
-
     Icons.trending_up,
-
-
-
     Icons.restaurant_menu,
-
-
-
     Icons.event_available,
-
-
-
     Icons.payment,
-
-
-
-    Icons.account_balance_wallet,
-
-
-
     Icons.people,
-
-
-
-    Icons.person_outline,
-
-
-
+    Icons.groups_rounded,
     Icons.campaign,
-
-
-
     Icons.chat_bubble,
-
     Icons.account_balance_wallet,
-
     Icons.receipt_long,
-
     Icons.shield_outlined,
-
     Icons.settings_backup_restore_rounded,
-
   ];
 
-
-
-
-
-
-
   late final List<Widget> _pages = [
-
-
-
     const AdminDashboardPage(),
-
-
-
     const SalesReportPage(),
-
-
-
     const InventoryPage(isViewOnly: true, showImportExport: true),
-
-
-
     const InventoryForecastPage(),
-
-
-
     const AdminMenuManagementPage(),
-
-
-
     const AdminReservationsPage(),
-
-
-
     const PaymentApprovalPage(),
-
-
-
-    const RemainingBalanceTrackingPage(),
-
-
-
     const UserManagementPage(),
-
-
-
     const CustomerManagementPage(),
-
-
-
     const AdminAnnouncementsPage(),
-
-
-
     const AdminChatPage(),
-
     const PettyCashPage(),
-
     const RefundManagementPage(),
-
     const AuditLogsPage(),
-
     const BackupRestorePage(),
-
   ];
 
 
@@ -1099,47 +891,23 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                         setState(() => _selectedIndex = index);
 
-                        // Refresh count when switching to Payment Approvals
-
-                        if (_pageTitles[index] == 'Payment Approvals') {
-
-                          // Reset count to 0 when admin views payment approvals (mark as seen)
-
+                        // Refresh count when switching to Payment Management
+                        if (_pageTitles[index] == 'Payment Management') {
+                          // Reset count to 0 when admin views payment management (mark as seen)
                           if (mounted) {
-
                             setState(() {
-
                               _pendingPaymentCount = 0;
-
+                              _remainingBalanceCount = 0;
                             });
-
                           }
-
                         }
 
                         // Refresh count when switching to Reservations
-
                         if (_pageTitles[index] == 'Reservations') {
-
                           // Reset count to 0 when admin views reservations (mark as seen)
-
                           if (mounted) {
-
                             setState(() {
-
                               _pendingReservationCount = 0;
-
-                            });
-
-                          }
-
-                        }
-
-                        // Refresh count when switching to Remaining Balance
-                        if (_pageTitles[index] == 'Remaining Balance') {
-                          if (mounted) {
-                            setState(() {
-                              _remainingBalanceCount = 0;
                             });
                           }
                         }
@@ -1207,21 +975,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             ),
 
-
-
-
-
                             // Add badge for Reservations
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
                               _buildNavBadge(_pendingReservationCount),
 
-                            // Add badge for Payment Approvals
-                            if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
-                              _buildNavBadge(_pendingPaymentCount),
-
-                            // Add badge for Remaining Balance
-                            if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
-                              _buildNavBadge(_remainingBalanceCount),
+                            // Add badge for Payment Management (combined Approvals & Balances)
+                            if (_pageTitles[index] == 'Payment Management' && (_pendingPaymentCount + _remainingBalanceCount) > 0)
+                              _buildNavBadge(_pendingPaymentCount + _remainingBalanceCount),
 
                             // Add badge for Refunds & Reschedules
                             if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
@@ -1950,251 +1710,102 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
                       onTap: () {
+                        setState(() => _selectedIndex = index);
 
-                        // Refresh count when switching to Remaining Balance
-
-                        if (_pageTitles[index] == 'Remaining Balance') {
-
-                          // Reset count to 0 when admin views remaining balance (mark as seen)
-
+                        // Refresh count when switching to Payment Management
+                        if (_pageTitles[index] == 'Payment Management') {
+                          // Reset count to 0 when admin views payment management (mark as seen)
                           if (mounted) {
-
                             setState(() {
-
+                              _pendingPaymentCount = 0;
                               _remainingBalanceCount = 0;
-
                             });
-
                           }
-
-                          Navigator.pop(context);
-
-                          // Navigate to fullscreen version
-
-                          Navigator.push(
-
-                            context,
-
-                            MaterialPageRoute(
-
-                              builder: (context) => Scaffold(
-
-                                backgroundColor: Colors.transparent,
-
-                                appBar: AppBar(
-
-                                  title: const Text(
-
-                                    'Accounts with Remaining Balance', 
-
-                                    style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)
-
-                                  ),
-
-                                  backgroundColor: Colors.white,
-
-                                  elevation: 1,
-
-                                  iconTheme: const IconThemeData(color: Colors.black87),
-
-                                ),
-
-                                body: const SafeArea(
-
-                                  child: RemainingBalanceTrackingPage(isFullscreen: true),
-
-                                ),
-
-                              ),
-
-                            ),
-
-                          );
-
-                        } else {
-
-                          setState(() => _selectedIndex = index);
-
-                          // Refresh count when switching to Payment Approvals
-
-                          if (_pageTitles[index] == 'Payment Approvals') {
-
-                            // Reset count to 0 when admin views payment approvals (mark as seen)
-
-                            if (mounted) {
-
-                              setState(() {
-
-                                _pendingPaymentCount = 0;
-
-                              });
-
-                            }
-
-                          }
-
-                          // Refresh count when switching to Reservations
-
-                          if (_pageTitles[index] == 'Reservations') {
-
-                            // Reset count to 0 when admin views reservations (mark as seen)
-
-                            if (mounted) {
-
-                              setState(() {
-
-                                _pendingReservationCount = 0;
-
-                              });
-
-                            }
-
-                          }
-
-                          Navigator.pop(context);
-
                         }
 
+                        // Refresh count when switching to Reservations
+                        if (_pageTitles[index] == 'Reservations') {
+                          // Reset count to 0 when admin views reservations (mark as seen)
+                          if (mounted) {
+                            setState(() {
+                              _pendingReservationCount = 0;
+                            });
+                          }
+                        }
+
+                        Navigator.pop(context);
                       },
-
-
 
                       child: Container(
 
-
-
                         padding: const EdgeInsets.symmetric(
-
-
 
                           horizontal: 16,
 
-
-
                           vertical: 12,
-
-
 
                         ),
 
-
-
                         child: Row(
-
-
 
                           children: [
 
-
-
                             Icon(
-
-
 
                               _pageIcons[index],
 
-
-
                               size: 20,
-
-
 
                               color: isSelected
 
-
-
                                   ? Colors.white
-
-
 
                                   : AppTheme.adminSecondaryText,
 
-
-
                             ),
-
-
 
                             const SizedBox(width: 12),
 
-
-
                             Expanded(
-
-
 
                               child: Text(
 
-
-
                                 _pageTitles[index],
-
-
 
                                 style: TextStyle(
 
-
-
                                   fontWeight: isSelected
-
-
 
                                       ? FontWeight.w600
 
-
-
                                       : FontWeight.w500,
-
-
 
                                   color: isSelected
 
-
-
                                       ? Colors.white
-
-
 
                                       : AppTheme.adminSecondaryText,
 
-
-
                                 ),
-
-
 
                               ),
 
-
-
                             ),
-
-
-
-
 
                             // Add badge for Reservations
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
                               _buildNavBadge(_pendingReservationCount),
 
-                            // Add badge for Payment Approvals
-                            if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
-                              _buildNavBadge(_pendingPaymentCount),
-
-                            // Add badge for Remaining Balance
-                            if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
-                              _buildNavBadge(_remainingBalanceCount),
+                            // Add badge for Payment Management (combined Approvals & Balances)
+                            if (_pageTitles[index] == 'Payment Management' && (_pendingPaymentCount + _remainingBalanceCount) > 0)
+                              _buildNavBadge(_pendingPaymentCount + _remainingBalanceCount),
 
                             // Add badge for Refunds & Reschedules
                             if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
                               _buildNavBadge(_pendingRefundCount),
                           ],
 
-
-
                         ),
-
-
 
                       ),
 
@@ -3214,7 +2825,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
   String _getAdminNotificationSubtitle(Map<String, dynamic> n) {
     final actorName = n['actor_name'] ?? 'Customer';
     final actionType = n['action_type'];
-    final eventType = n['event_type'] ?? 'Reservation';
+    final rawEventType = (n['event_type'] ?? 'Reservation').toString();
+    final eventType = rawEventType.replaceAll(
+      RegExp(r'^\((?:Deposit Paid|Fully Paid|Remaining Balance Paid)\)\s*', caseSensitive: false),
+      '',
+    ).trim();
 
     if (actionType == 'stock_request') {
       return 'Kitchen has requested stock: $eventType';
