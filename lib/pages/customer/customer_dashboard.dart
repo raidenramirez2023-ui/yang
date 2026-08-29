@@ -1,97 +1,37 @@
 import 'dart:async';
-
 import 'dart:ui';
-
-
-
 import 'package:flutter/material.dart';
-
-
-
 import 'package:flutter/services.dart';
-
-
-
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:image_picker/image_picker.dart';
-
-
-
 import 'package:google_sign_in/google_sign_in.dart';
-
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:qr_flutter/qr_flutter.dart';
-
 import 'package:yang_chow/services/receipt_pdf_service.dart';
-
 import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
-
-
-
 import 'package:yang_chow/utils/app_theme.dart';
-
-
-
 import 'package:yang_chow/utils/app_constants.dart';
-
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
-
 import 'package:yang_chow/widgets/customer_chat_modal.dart';
-
 import 'package:yang_chow/pages/customer/customer_reviews_page.dart';
-
 import 'package:yang_chow/pages/customer/menu_selection_page.dart';
-
 import 'package:yang_chow/pages/customer/customer_order_list.dart';
-
-
-
 import 'package:yang_chow/pages/customer/transactions_page.dart';
-
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
-
 import 'package:yang_chow/services/notification_service.dart';
-
-
-
 import 'package:yang_chow/services/app_settings_service.dart';
-
-
-
 import 'package:yang_chow/services/reservation_service.dart';
-
 import 'package:yang_chow/services/refund_service.dart';
-
 import 'package:yang_chow/services/reschedule_service.dart';
-
-
-
-
-
 import 'package:yang_chow/services/menu_service.dart';
-
-
-
 import 'package:yang_chow/services/menu_reservation_service.dart';
-
 import 'package:yang_chow/models/menu_item.dart';
-
-
-
 import 'package:intl/intl.dart';
-
-
-
-
 import 'package:flutter/foundation.dart' show kIsWeb;
-
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 import 'package:yang_chow/utils/url_sync_helper.dart';
 
@@ -919,21 +859,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               
 
+              // Scroll the category chip bar to show the active chip.
+              // IMPORTANT: We use _categoryScrollController directly instead
+              // of Scrollable.ensureVisible because ensureVisible traverses ALL
+              // ancestor Scrollable widgets. On mobile, this causes the main
+              // vertical CustomScrollView to jump back to the top.
               final chipKey = _chipKeys[category];
 
-              if (chipKey?.currentContext != null) {
+              if (chipKey?.currentContext != null && _categoryScrollController.hasClients) {
 
-                Scrollable.ensureVisible(
+                final chipBox = chipKey!.currentContext!.findRenderObject() as RenderBox?;
 
-                  chipKey!.currentContext!,
+                if (chipBox != null) {
 
-                  alignment: 0.5,
+                  // Get the chip's position relative to the viewport
+                  final chipPosition = chipBox.localToGlobal(Offset.zero).dx;
 
-                  duration: const Duration(milliseconds: 300),
+                  final screenWidth = MediaQuery.of(context).size.width;
 
-                  curve: Curves.easeInOutCubic,
+                  // Calculate the target offset to center the chip horizontally
+                  final chipWidth = chipBox.size.width;
 
-                );
+                  final currentOffset = _categoryScrollController.offset;
+
+                  final targetOffset = currentOffset + chipPosition - (screenWidth / 2) + (chipWidth / 2);
+
+                  _categoryScrollController.animateTo(
+
+                    targetOffset.clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+
+                    duration: const Duration(milliseconds: 300),
+
+                    curve: Curves.easeInOutCubic,
+
+                  );
+
+                }
 
               }
 

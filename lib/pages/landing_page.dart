@@ -3700,51 +3700,39 @@ class _LandingPageState extends State<LandingPage>
         ),
         if (_canScrollCategoryLeft)
           Positioned(
-            left: 0,
-            child: _buildCategoryArrow(Icons.chevron_left_rounded, () {
-              _categoryScrollController.animateTo(
-                (_categoryScrollController.offset - 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            }),
+            left: isMobile ? 0 : -16,
+            child: _MenuScrollArrow(
+              direction: _MenuArrowDirection.left,
+              isMobile: isMobile,
+              onTap: () {
+                _categoryScrollController.animateTo(
+                  (_categoryScrollController.offset - 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+            ),
           ),
         if (_canScrollCategoryRight)
           Positioned(
-            right: 0,
-            child: _buildCategoryArrow(Icons.chevron_right_rounded, () {
-              _categoryScrollController.animateTo(
-                (_categoryScrollController.offset + 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            }),
+            right: isMobile ? 0 : -16,
+            child: _MenuScrollArrow(
+              direction: _MenuArrowDirection.right,
+              isMobile: isMobile,
+              onTap: () {
+                _categoryScrollController.animateTo(
+                  (_categoryScrollController.offset + 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+            ),
           ),
       ],
     );
   }
 
-  Widget _buildCategoryArrow(IconData icon, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: forestGreen, size: 20),
-        onPressed: onTap,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      ),
-    );
-  }
+
 
   Widget _buildMenuCard(BuildContext context, MenuItem item,
       {bool isMobile = false}) {
