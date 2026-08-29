@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,7 +16,7 @@ import 'package:intl/intl.dart';
 import 'package:yang_chow/models/menu_item.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
@@ -54,8 +56,8 @@ class _LandingPageState extends State<LandingPage>
   StreamSubscription<List<Map<String, dynamic>>>? _featuredOrdersSubscription;
 
   // --- Dynamic Data State ---
-  final PageController _announcementPageController = PageController();
-  int _currentAnnouncementIndex = 0;
+  final ValueNotifier<int> _updatesAssemblyNotifier = ValueNotifier<int>(0);
+  bool _updatesHasTriggeredInView = false;
   final ReservationService _reservationService = ReservationService();
   double _averageRating = 0.0;
   int _totalReviewCount = 0;
@@ -506,7 +508,6 @@ class _LandingPageState extends State<LandingPage>
     _heroCarouselTimer?.cancel();
     _announcementsChannel?.unsubscribe();
     _featuredOrdersSubscription?.cancel();
-    _announcementPageController.dispose();
     _animController.dispose();
     _mapSearchController.dispose();
     _startPointController.dispose();
@@ -589,8 +590,8 @@ class _LandingPageState extends State<LandingPage>
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 10),
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
         ),
       );
       final userLoc = LatLng(position.latitude, position.longitude);
@@ -602,7 +603,7 @@ class _LandingPageState extends State<LandingPage>
         _destinationController.text = 'Yang Chow';
       });
 
-      // Awtomatikong i-plot ang ruta mula sa lokasyon ng user papuntang Yang Chow
+      // Awtomatikong i-plot ang eksaktong ruta sa kalsada mula sa lokasyon ng user papuntang Yang Chow
       await _calculateRouteBetween(userLoc, _restaurantLocation, showSnackbar: true);
     } catch (e) {
       debugPrint('Error getting location: $e');
@@ -623,60 +624,84 @@ class _LandingPageState extends State<LandingPage>
     _startLatLng = start;
     _destinationLatLng = dest;
 
-    try {
-      final url = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/'
-        '${start.longitude},${start.latitude};'
-        '${dest.longitude},${dest.latitude}'
-        '?overview=full&geometries=geojson',
-      );
+    // Reliable routing servers with web CORS proxy support for road routes
+    final osrmDirect =
+        'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${dest.longitude},${dest.latitude}?overview=full&geometries=geojson&steps=true';
+    final osrmDe =
+        'https://routing.openstreetmap.de/routed-car/route/v1/driving/${start.longitude},${start.latitude};${dest.longitude},${dest.latitude}?overview=full&geometries=geojson';
+    final osrmCorsProxy =
+        'https://api.allorigins.win/raw?url=${Uri.encodeComponent(osrmDirect)}';
 
-      final response = await http.get(url).timeout(const Duration(seconds: 8));
+    final routingEndpoints = kIsWeb
+        ? [osrmCorsProxy, osrmDe, osrmDirect]
+        : [osrmDirect, osrmDe];
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final routes = data['routes'] as List?;
+    bool routeLoaded = false;
 
-        if (routes != null && routes.isNotEmpty) {
-          final List coordinates = routes[0]['geometry']['coordinates'];
+    for (final endpoint in routingEndpoints) {
+      try {
+        final url = Uri.parse(endpoint);
+        final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'YangChowApp/1.0'};
+        final response = await http.get(
+          url,
+          headers: headers.isEmpty ? null : headers,
+        ).timeout(const Duration(seconds: 7));
 
-          setState(() {
-            _routePoints = coordinates
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final routes = data['routes'] as List?;
+
+          if (routes != null && routes.isNotEmpty) {
+            final List coordinates = routes[0]['geometry']['coordinates'];
+
+            final points = coordinates
                 .map((coord) => LatLng(coord[1].toDouble(), coord[0].toDouble()))
                 .toList();
-            _isRouting = false;
-          });
 
-          if (_routePoints.isNotEmpty) {
-            final bounds = LatLngBounds.fromPoints([
-              start,
-              dest,
-              ..._routePoints,
-            ]);
-            _mapController.fitCamera(
-              CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)),
-            );
-          }
+            if (points.isNotEmpty) {
+              setState(() {
+                _routePoints = points;
+                _isRouting = false;
+              });
 
-          if (showSnackbar && mounted) {
-            final double distanceKm =
-                (routes[0]['distance'] as num) / 1000.0;
-            final int durationMin =
-                ((routes[0]['duration'] as num) / 60.0).round();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Route to Yang Chow: ${distanceKm.toStringAsFixed(1)} km (~$durationMin mins drive)',
+              final bounds = LatLngBounds.fromPoints([
+                start,
+                dest,
+                ..._routePoints,
+              ]);
+              _mapController.fitCamera(
+                CameraFit.bounds(
+                  bounds: bounds,
+                  padding: const EdgeInsets.all(60),
                 ),
-                backgroundColor: forestGreen,
-              ),
-            );
+              );
+
+              if (showSnackbar && mounted) {
+                final double distanceKm =
+                    (routes[0]['distance'] as num) / 1000.0;
+                final int durationMin =
+                    ((routes[0]['duration'] as num) / 60.0).round();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Ruta papuntang Yang Chow: ${distanceKm.toStringAsFixed(1)} km (~$durationMin mins drive)',
+                    ),
+                    backgroundColor: forestGreen,
+                  ),
+                );
+              }
+              routeLoaded = true;
+              break;
+            }
           }
-          return;
         }
+      } catch (e) {
+        debugPrint('Road routing attempt failed on $endpoint: $e');
       }
+    }
 
-      // Fallback direct path
+    if (!routeLoaded) {
+      // Kung offline o hindi maabot ang routing server
       setState(() {
         _routePoints = [start, dest];
         _isRouting = false;
@@ -686,16 +711,15 @@ class _LandingPageState extends State<LandingPage>
       _mapController.fitCamera(
         CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)),
       );
-    } catch (e) {
-      debugPrint('Error calculating route: $e');
-      setState(() {
-        _routePoints = [start, dest];
-        _isRouting = false;
-      });
-      final bounds = LatLngBounds.fromPoints([start, dest]);
-      _mapController.fitCamera(
-        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)),
-      );
+
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kasalukuyang direct path ang linya dahil offline ang routing service.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -898,6 +922,28 @@ class _LandingPageState extends State<LandingPage>
       if (_showScrollToTop) setState(() => _showScrollToTop = false);
     }
 
+    // Trigger reveal animation when Updates section enters the viewport
+    final ctx = _updatesKey.currentContext;
+    if (ctx != null) {
+      final renderBox = ctx.findRenderObject() as RenderBox?;
+      if (renderBox != null && renderBox.hasSize) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        final screenHeight = MediaQuery.of(context).size.height;
+        final isInView = position.dy < screenHeight * 0.88 &&
+            (position.dy + renderBox.size.height) > 60;
+
+        if (isInView) {
+          if (!_updatesHasTriggeredInView) {
+            _updatesHasTriggeredInView = true;
+            _updatesAssemblyNotifier.value++;
+          }
+        } else if (position.dy > screenHeight * 1.15 ||
+            (position.dy + renderBox.size.height) < -150) {
+          _updatesHasTriggeredInView = false;
+        }
+      }
+    }
+
     setState(() {
       _lastScrollOffset = _scrollController.offset;
     });
@@ -981,6 +1027,15 @@ class _LandingPageState extends State<LandingPage>
         duration: const Duration(milliseconds: 800),
         curve: Curves.easeInOutCubic,
       );
+
+      if (key == _updatesKey) {
+        _updatesHasTriggeredInView = true;
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _updatesAssemblyNotifier.value++;
+          }
+        });
+      }
     }
   }
 
@@ -2198,10 +2253,10 @@ class _LandingPageState extends State<LandingPage>
           ),
         ),
         padding: EdgeInsets.only(
-          top: isMobile ? 110 : 150,
-          bottom: isMobile ? 60 : 90,
-          left: isMobile ? 20 : 48,
-          right: isMobile ? 20 : 48,
+          top: isMobile ? 85 : 105,
+          bottom: isMobile ? 36 : 52,
+          left: isMobile ? 16 : 40,
+          right: isMobile ? 16 : 40,
         ),
         child: Center(
           child: ConstrainedBox(
@@ -2262,7 +2317,7 @@ class _LandingPageState extends State<LandingPage>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Main Headline
                   RichText(
@@ -2291,7 +2346,7 @@ class _LandingPageState extends State<LandingPage>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
                   // Description
                   Text(
@@ -2299,10 +2354,10 @@ class _LandingPageState extends State<LandingPage>
                     style: GoogleFonts.plusJakartaSans(
                       color: AppTheme.sidebarSubtitle,
                       fontSize: 16,
-                      height: 1.6,
+                      height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 24),
 
                   // Action Buttons
                   Row(
@@ -2326,7 +2381,7 @@ class _LandingPageState extends State<LandingPage>
                             shadowColor: Colors.transparent,
                             foregroundColor: AppTheme.darkBrownText,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 18),
+                                horizontal: 32, vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -2354,7 +2409,7 @@ class _LandingPageState extends State<LandingPage>
                 ],
               ),
             ),
-            const SizedBox(width: 48),
+            const SizedBox(width: 36),
 
             // Right Column: Showcase Card Grid
             Expanded(
@@ -2612,7 +2667,7 @@ class _LandingPageState extends State<LandingPage>
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         Text(
           'Authentic Yang Chow Dining',
@@ -2623,17 +2678,17 @@ class _LandingPageState extends State<LandingPage>
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
         Text(
           'Savor hand-crafted Dimsum, signature Yang Chow Fried Rice, rich savory dishes, and online table reservations.',
           style: GoogleFonts.plusJakartaSans(
             color: AppTheme.sidebarSubtitle,
             fontSize: 14,
-            height: 1.5,
+            height: 1.45,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
 
         SizedBox(
           width: double.infinity,
@@ -2648,7 +2703,7 @@ class _LandingPageState extends State<LandingPage>
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 foregroundColor: AppTheme.darkBrownText,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -2665,11 +2720,11 @@ class _LandingPageState extends State<LandingPage>
           ),
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
 
         // Auto-Rotating Hero Showcase Card for Mobile Phones
         Container(
-          height: 260,
+          height: 250,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             gradient: LinearGradient(
@@ -2710,8 +2765,8 @@ class _LandingPageState extends State<LandingPage>
       width: double.infinity,
       color: Colors.white,
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 60 : 100,
-        horizontal: isMobile ? 20 : 48,
+        vertical: isMobile ? 38 : 52,
+        horizontal: isMobile ? 16 : 40,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -2737,18 +2792,18 @@ class _LandingPageState extends State<LandingPage>
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               Text(
                 'Welcome to Yang Chow Pagsanjan',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: isMobile ? 28 : 40,
+                  fontSize: isMobile ? 28 : 38,
                   fontWeight: FontWeight.bold,
                   color: darkGreyText,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 700),
@@ -2756,19 +2811,19 @@ class _LandingPageState extends State<LandingPage>
                   'Bringing authentic Asian flavors, traditional culinary mastery, and modern dining experiences right to the heart of Pagsanjan, Laguna.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
+                    fontSize: 14.5,
                     color: AppTheme.mediumGrey,
-                    height: 1.6,
+                    height: 1.5,
                   ),
                 ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 28),
 
               if (isMobile)
                 Column(
                   children: [
                     _buildAboutImageGrid(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     _buildAboutTextBlock(),
                   ],
                 )
@@ -2777,7 +2832,7 @@ class _LandingPageState extends State<LandingPage>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(flex: 5, child: _buildAboutImageGrid()),
-                    const SizedBox(width: 60),
+                    const SizedBox(width: 36),
                     Expanded(flex: 6, child: _buildAboutTextBlock()),
                   ],
                 ),
@@ -3232,34 +3287,34 @@ class _LandingPageState extends State<LandingPage>
         Text(
           'Smart Online Booking & Authentic Dining',
           style: GoogleFonts.playfairDisplay(
-            fontSize: 28,
+            fontSize: 26,
             fontWeight: FontWeight.bold,
             color: darkGreyText,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         Text(
           'Yang Chow Pagsanjan integrates authentic culinary mastery with the YCPRMS digital platform. Experience fast online event bookings, advance meal pre-orders, and real-time reservation management.',
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
+            fontSize: 14.5,
             color: AppTheme.mediumGrey,
-            height: 1.6,
+            height: 1.5,
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 18),
 
         _buildAboutFeature(
           Icons.celebration_rounded,
           'Instant Event & Table Reservations',
           'Seamless booking for birthdays, family gatherings, and special occasions with real-time schedule selection.',
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _buildAboutFeature(
           Icons.restaurant_menu_rounded,
           'Advance Food Pre-Ordering',
           'Select your favorite dishes beforehand so they are freshly prepared and served upon your arrival.',
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _buildAboutFeature(
           Icons.track_changes_rounded,
           'Secure Downpayments & Live Tracking',
@@ -3402,8 +3457,8 @@ class _LandingPageState extends State<LandingPage>
       width: double.infinity,
       color: creamBg,
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 60 : 100,
-        horizontal: isMobile ? 16 : 48,
+        vertical: isMobile ? 38 : 52,
+        horizontal: isMobile ? 16 : 40,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -3428,29 +3483,29 @@ class _LandingPageState extends State<LandingPage>
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               Text(
                 'Explore Our Culinary Menu',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: isMobile ? 28 : 40,
+                  fontSize: isMobile ? 28 : 38,
                   fontWeight: FontWeight.bold,
                   color: darkGreyText,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Search & Category Filters Bar
               _buildMenuSearch(context),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
               _buildMenuCategories(context),
-              const SizedBox(height: 36),
+              const SizedBox(height: 22),
 
               // Menu Items Horizontal Scrollable Carousel
               if (displayedItems.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(40),
+                  padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -3459,12 +3514,12 @@ class _LandingPageState extends State<LandingPage>
                     children: [
                       const Icon(Icons.search_off_rounded,
                           size: 48, color: Colors.grey),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Text(
                         'No dishes found matching your search',
                         style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                          fontSize: 15,
                           color: AppTheme.mediumGrey,
                         ),
                       ),
@@ -3518,7 +3573,7 @@ class _LandingPageState extends State<LandingPage>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
 
                     // Swipe Hint Row
                     Row(
@@ -3527,7 +3582,7 @@ class _LandingPageState extends State<LandingPage>
                         Icon(
                           Icons.swipe_rounded,
                           color: forestGreen.withValues(alpha: 0.6),
-                          size: isMobile ? 16 : 18,
+                          size: isMobile ? 15 : 17,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -3536,7 +3591,7 @@ class _LandingPageState extends State<LandingPage>
                               : 'Swipe or use navigation arrows to explore dishes',
                           style: GoogleFonts.plusJakartaSans(
                             color: AppTheme.mediumGrey,
-                            fontSize: isMobile ? 12 : 13,
+                            fontSize: isMobile ? 11.5 : 12.5,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -4030,227 +4085,157 @@ class _LandingPageState extends State<LandingPage>
 
   Widget _buildUpdatesSection(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+
+    final displayAnnouncements = _announcements.isNotEmpty
+        ? _announcements
+        : [
+            {
+              'title': 'Grand Opening & Special Dimsum Family Meals',
+              'content':
+                  'Visit Yang Chow Pagsanjan at CLA Town Center Mall for daily authentic Asian dining specials & family bundles! Enjoy our signature Dimsum platter deals, sweet & sour pork, and handcrafted Chinese tea.',
+              'created_at': DateTime.now().toIso8601String(),
+            },
+            {
+              'title': 'Chef Special: Signature Hong Kong Style Dimsum Platter',
+              'content':
+                  'Freshly steamed daily! Savor our premium Hakaw, Pork Siomai, and Xiao Long Bao prepared with traditional Asian recipes by our master chefs.',
+              'created_at': DateTime.now()
+                  .subtract(const Duration(days: 3))
+                  .toIso8601String(),
+            },
+            {
+              'title': 'Weekend Family Banquet & Special Promo Discounts',
+              'content':
+                  'Gather with loved ones and enjoy exclusive weekend bundles featuring Yang Chow Fried Rice, Honey Glazed Chicken, and complimentary dessert.',
+              'created_at': DateTime.now()
+                  .subtract(const Duration(days: 5))
+                  .toIso8601String(),
+            },
+          ];
+
+    final itemsToShow = displayAnnouncements.take(3).toList();
 
     return Container(
       width: double.infinity,
       color: const Color(0xFFF9F6F0),
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 60 : 100,
-        horizontal: isMobile ? 20 : 48,
+        vertical: isMobile ? 40 : 64,
+        horizontal: isMobile ? 16 : 40,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1280),
+          constraints: const BoxConstraints(maxWidth: 1260),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Section Header (Centered)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: forestGreen.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
+              // Section Category Tag
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6.5),
+                decoration: BoxDecoration(
+                  color: forestGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: warmGold.withValues(alpha: 0.35),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.campaign_rounded,
+                        size: 14, color: forestGreen),
+                    const SizedBox(width: 6),
+                    Text(
                       'LATEST ANNOUNCEMENTS',
                       style: GoogleFonts.plusJakartaSans(
                         color: forestGreen,
                         fontWeight: FontWeight.w800,
-                        fontSize: 12,
+                        fontSize: 11.5,
                         letterSpacing: 1.2,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'News & Special Promo Updates',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: isMobile ? 26 : 38,
-                      fontWeight: FontWeight.bold,
-                      color: darkGreyText,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 12),
 
-              if (_announcements.isEmpty)
-                _buildUpdateCard({
-                  'title': 'Grand Opening & Special Dimsum Family Meals',
-                  'content':
-                      'Visit Yang Chow Pagsanjan at CLA Town Center Mall for daily authentic Asian dining specials & family bundles! Enjoy our signature Dimsum platter deals and more.',
-                  'created_at': DateTime.now().toIso8601String(),
-                })
-              else if (isMobile)
-                _buildMobileAnnouncementsCarousel(_announcements)
+              // Section Headline
+              Text(
+                'News & Special Promo Updates',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: isMobile ? 28 : 40,
+                  fontWeight: FontWeight.bold,
+                  color: darkGreyText,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Section Subtitle
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Text(
+                  'Discover our newest authentic Asian specialties, family banquet bundles, and seasonal offers at CLA Town Center Mall, Pagsanjan.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: isMobile ? 13.5 : 15,
+                    color: AppTheme.mediumGrey,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              SizedBox(height: isMobile ? 28 : 44),
+
+              // Ultra-Modern Symmetrical Bento 3-Card Showcase
+              if (isMobile || isTablet)
+                Column(
+                  children: itemsToShow.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index < itemsToShow.length - 1 ? 20 : 0,
+                      ),
+                      child: _ModernAnnouncementCardWidget(
+                        item: item,
+                        index: index,
+                        isMobile: true,
+                        triggerNotifier: _updatesAssemblyNotifier,
+                        onTap: () =>
+                            _showAnnouncementDetailsDialog(context, item),
+                      ),
+                    );
+                  }).toList(),
+                )
               else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _announcements.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 24),
-                  itemBuilder: (context, index) {
-                    return _buildUpdateCard(_announcements[index]);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileAnnouncementsCarousel(List<Map<String, dynamic>> items) {
-    return Column(
-      children: [
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: SizedBox(
-            height: 290,
-            child: PageView.builder(
-              controller: _announcementPageController,
-              itemCount: items.length,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentAnnouncementIndex = index;
-                });
-              },
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _buildUpdateCard(items[index]),
-                );
-              },
-            ),
-          ),
-        ),
-        if (items.length > 1) ...[
-          const SizedBox(height: 12),
-          // Dot Indicators
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(items.length, (dotIndex) {
-              final isSelected = _currentAnnouncementIndex == dotIndex;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: isSelected ? 18 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: isSelected ? forestGreen : forestGreen.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              );
-            }),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildUpdateCard(Map<String, dynamic> item) {
-    final isMobile = MediaQuery.of(context).size.width < 700;
-    final title = item['title'] ?? 'Announcement';
-    final content = item['content'] ?? '';
-    final createdAt = item['created_at'] != null
-        ? DateFormat('MMM dd, yyyy')
-            .format(DateTime.parse(item['created_at'].toString()))
-        : 'Recent';
-    final day = item['created_at'] != null
-        ? DateFormat('dd').format(DateTime.parse(item['created_at'].toString()))
-        : '—';
-    final monthYear = item['created_at'] != null
-        ? DateFormat('MMM yyyy')
-            .format(DateTime.parse(item['created_at'].toString()))
-        : '';
-
-    // Use image_url directly — announcement images are always plain external URLs.
-    final rawImage = (item['image_url'] ?? '').toString().trim();
-    final hasImage = rawImage.isNotEmpty;
-
-    Widget imageWidget = hasImage
-        ? Image.network(
-            rawImage,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                color: const Color(0xFFF0EDE6),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                      color: forestGreen, strokeWidth: 2),
-                ),
-              );
-            },
-            errorBuilder: (_, __, ___) => _announcementImageFallback(),
-          )
-        : _announcementImageFallback();
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showAnnouncementDetailsDialog(context, item),
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFEAE5D8)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              )
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: isMobile
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Compact Image on top for mobile
-                      SizedBox(
-                        height: 120,
-                        width: double.infinity,
-                        child: imageWidget,
-                      ),
-                      Expanded(
-                        child: _buildUpdateCardBody(
-                            title, content, createdAt, day, monthYear, isMobile: true),
-                      ),
-                    ],
-                  )
-                : SizedBox(
-                    height: 260,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Left: Image column (fixed width, fills height)
-                        SizedBox(
-                          width: 280,
-                          child: imageWidget,
-                        ),
-
-                        // Right: Content column
-                        Expanded(
-                          child: SingleChildScrollView(
-                            physics: const NeverScrollableScrollPhysics(),
-                            child: _buildUpdateCardBody(
-                                title, content, createdAt, day, monthYear, isMobile: false),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: itemsToShow.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      return Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            right: index < itemsToShow.length - 1 ? 24 : 0,
+                          ),
+                          child: _ModernAnnouncementCardWidget(
+                            item: item,
+                            index: index,
+                            isMobile: false,
+                            triggerNotifier: _updatesAssemblyNotifier,
+                            onTap: () =>
+                                _showAnnouncementDetailsDialog(context, item),
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    }).toList(),
                   ),
+                ),
+            ],
           ),
         ),
       ),
@@ -4259,360 +4244,24 @@ class _LandingPageState extends State<LandingPage>
 
   void _showAnnouncementDetailsDialog(
       BuildContext context, Map<String, dynamic> item) {
-    final title = item['title'] ?? 'Announcement';
-    final content = item['content'] ?? '';
-    final createdAt = item['created_at'] != null
-        ? DateFormat('MMMM dd, yyyy')
-            .format(DateTime.parse(item['created_at'].toString()))
-        : 'Recent';
-
-    final rawImage = (item['image_url'] ?? '').toString().trim();
-    final hasImage = rawImage.isNotEmpty;
-
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) {
-        return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 560),
-            padding: const EdgeInsets.all(22),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Top Bar: Date + Tag + Close Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: warmGold.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.calendar_today_rounded,
-                                    size: 13, color: primaryGold),
-                                const SizedBox(width: 5),
-                                Text(
-                                  createdAt,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: primaryGold,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: forestGreen.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Special Update',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: forestGreen,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 22),
-                        onPressed: () => Navigator.pop(context),
-                        tooltip: 'Close',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Full High-Res Flyer / Image
-                  if (hasImage)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: Image.network(
-                          rawImage,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _announcementImageFallback(),
-                        ),
-                      ),
-                    )
-                  else
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: SizedBox(
-                        height: 140,
-                        width: double.infinity,
-                        child: _announcementImageFallback(),
-                      ),
-                    ),
-
-                  const SizedBox(height: 18),
-
-                  // Full Title
-                  Text(
-                    title,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: darkGreyText,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Golden Accent Line
-                  Container(
-                    height: 3,
-                    width: 48,
-                    decoration: BoxDecoration(
-                      color: warmGold,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Full Content Story
-                  Text(
-                    content,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      color: AppTheme.mediumGrey,
-                      height: 1.6,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Action Buttons Footer
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: forestGreen,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.store_rounded,
-                                color: warmGold, size: 16),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Yang Chow Pagsanjan',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: forestGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          final user =
-                              Supabase.instance.client.auth.currentUser;
-                          if (user != null) {
-                            Navigator.pushNamed(
-                                context, '/customer_dashboard');
-                          } else {
-                            Navigator.pushNamed(context, '/login');
-                          }
-                        },
-                        icon: const Icon(Icons.celebration_rounded, size: 16),
-                        label: const Text('Book Now'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: forestGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+      barrierDismissible: true,
+      barrierLabel: 'Announcement Details',
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      transitionDuration: const Duration(milliseconds: 350),
+      pageBuilder: (context, anim1, anim2) {
+        return _AnnouncementModalDialog(item: item);
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: anim1,
+            curve: Curves.easeOutCubic,
           ),
+          child: child,
         );
       },
-    );
-  }
-
-  Widget _announcementImageFallback() {
-    return Container(
-      color: activeEmerald,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/YangChow.jpg',
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-          Container(
-            color: forestGreen.withValues(alpha: 0.55),
-            child: const Center(
-              child: Icon(Icons.campaign_rounded, color: warmGold, size: 36),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpdateCardBody(String title, String content, String createdAt,
-      String day, String monthYear, {bool isMobile = false}) {
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Date badge & Tag
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 7 : 10, vertical: isMobile ? 2 : 4),
-                    decoration: BoxDecoration(
-                      color: warmGold.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today_rounded,
-                            size: isMobile ? 10 : 12, color: primaryGold),
-                        const SizedBox(width: 4),
-                        Text(
-                          createdAt,
-                          style: GoogleFonts.plusJakartaSans(
-                            color: primaryGold,
-                            fontSize: isMobile ? 9.5 : 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 7 : 10, vertical: isMobile ? 2 : 4),
-                    decoration: BoxDecoration(
-                      color: forestGreen.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.campaign_rounded,
-                            size: isMobile ? 10 : 12, color: forestGreen),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Announcement',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: forestGreen,
-                            fontSize: isMobile ? 9.5 : 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: isMobile ? 8 : 14),
-
-              // Title
-              Text(
-                title,
-                maxLines: isMobile ? 1 : 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.playfairDisplay(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isMobile ? 15 : 20,
-                  color: darkGreyText,
-                  height: 1.2,
-                ),
-              ),
-              SizedBox(height: isMobile ? 6 : 12),
-
-              // Divider
-              Container(
-                height: 2,
-                width: isMobile ? 32 : 48,
-                decoration: BoxDecoration(
-                  color: warmGold,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: isMobile ? 6 : 12),
-
-              // Content
-              Text(
-                content,
-                maxLines: isMobile ? 2 : 4,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: isMobile ? 11.5 : 14,
-                  color: AppTheme.mediumGrey,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-
-          // Footer row
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(isMobile ? 5 : 8),
-                decoration: BoxDecoration(
-                  color: forestGreen,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.store_rounded,
-                    color: warmGold, size: isMobile ? 12 : 16),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Yang Chow Pagsanjan',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isMobile ? 11.5 : 13,
-                  color: forestGreen,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -4706,8 +4355,8 @@ class _LandingPageState extends State<LandingPage>
       width: double.infinity,
       color: creamBg,
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 60 : 100,
-        horizontal: isMobile ? 16 : 48,
+        vertical: isMobile ? 38 : 52,
+        horizontal: isMobile ? 16 : 40,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -4740,31 +4389,31 @@ class _LandingPageState extends State<LandingPage>
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
 
               Text(
                 'What Our Guests Say',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: isMobile ? 32 : 44,
+                  fontSize: isMobile ? 28 : 38,
                   fontWeight: FontWeight.bold,
                   color: darkGreyText,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               Text(
                 'Real dining experiences and reviews from our valued customers.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: isMobile ? 14 : 15,
+                  fontSize: isMobile ? 13.5 : 14.5,
                   color: const Color(0xFF64748B),
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 20),
 
               _buildOverallRating(),
-              const SizedBox(height: 48),
+              const SizedBox(height: 24),
 
               // Auto-scrolling Review Carousel
               SizedBox(
@@ -4786,7 +4435,7 @@ class _LandingPageState extends State<LandingPage>
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
 
               // View All Verified Reviews Button
               OutlinedButton.icon(
@@ -4796,12 +4445,12 @@ class _LandingPageState extends State<LandingPage>
                   'View All Verified Reviews (${_totalReviewCount > 0 ? _totalReviewCount : '150+'})',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13.5,
                     color: darkGreyText,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                   side: BorderSide(color: warmGold.withValues(alpha: 0.8), width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   backgroundColor: Colors.white,
@@ -5056,8 +4705,8 @@ class _LandingPageState extends State<LandingPage>
       width: double.infinity,
       color: Colors.white,
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 50 : 90,
-        horizontal: isMobile ? 16 : 48,
+        vertical: isMobile ? 38 : 52,
+        horizontal: isMobile ? 16 : 40,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -5092,33 +4741,33 @@ class _LandingPageState extends State<LandingPage>
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               Text(
                 'Visit Yang Chow Restaurant',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: isMobile ? 28 : 40,
+                  fontSize: isMobile ? 28 : 38,
                   fontWeight: FontWeight.bold,
                   color: darkGreyText,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               Text(
                 'CLA Town Center Mall, Pagsanjan, Laguna, Philippines 4008',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   color: AppTheme.mediumGrey,
-                  fontSize: isMobile ? 13.5 : 15,
+                  fontSize: isMobile ? 13 : 14.5,
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
               // Map Container Card with Multi-Layer Support
               Container(
-                height: isMobile ? 440 : 540,
+                height: isMobile ? 400 : 500,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
@@ -5147,11 +4796,11 @@ class _LandingPageState extends State<LandingPage>
                           maxZoom: 18.5,
                         ),
                         children: [
-                          // Base Tiles (CartoDB Voyager for realistic streets or Esri World Imagery)
+                          // Base Tiles (OpenStreetMap for streets or Esri World Imagery for satellite)
                           TileLayer(
                             urlTemplate: _isSatelliteMode
                                 ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                                : 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+                                : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.yangchow.app',
                             tileProvider: CancellableNetworkTileProvider(),
                           ),
@@ -5983,8 +5632,8 @@ class _LandingPageState extends State<LandingPage>
         ),
       ),
       padding: EdgeInsets.only(
-        top: isMobile ? 32 : 44,
-        bottom: 24,
+        top: isMobile ? 24 : 32,
+        bottom: 18,
         left: isMobile ? 16 : 40,
         right: isMobile ? 16 : 40,
       ),
@@ -6059,9 +5708,9 @@ class _LandingPageState extends State<LandingPage>
                 },
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
               const Divider(color: Colors.white12, height: 1),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
 
               // Footer Bottom Copyright & Social Icons (Centered & Responsive)
               Center(
@@ -6333,8 +5982,8 @@ class _DraggableServicesSectionState
       width: double.infinity,
       color: _LandingPageState.creamBg,
       padding: EdgeInsets.symmetric(
-        vertical: widget.isMobile ? 60 : 100,
-        horizontal: widget.isMobile ? 20 : 48,
+        vertical: widget.isMobile ? 38 : 52,
+        horizontal: widget.isMobile ? 16 : 40,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -6371,18 +6020,18 @@ class _DraggableServicesSectionState
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
 
               Text(
                 'Services We Offer',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: widget.isMobile ? 32 : 44,
+                  fontSize: widget.isMobile ? 28 : 38,
                   fontWeight: FontWeight.bold,
                   color: _LandingPageState.darkGreyText,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 620),
@@ -6390,14 +6039,15 @@ class _DraggableServicesSectionState
                   'Experience authentic Asian dining with our end-to-end digital ordering, online table reservations, and premium event catering solutions.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: widget.isMobile ? 14 : 15,
+                    fontSize: widget.isMobile ? 13.5 : 14.5,
                     color: const Color(0xFF64748B),
-                    height: 1.6,
+                    height: 1.5,
                   ),
                 ),
               ),
               // Drag hint (Only on Desktop / Tablet)
-              if (!widget.isMobile)
+              if (!widget.isMobile) ...[
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -6416,7 +6066,8 @@ class _DraggableServicesSectionState
                     ),
                   ],
                 ),
-              SizedBox(height: widget.isMobile ? 24 : 36),
+              ],
+              SizedBox(height: widget.isMobile ? 16 : 22),
 
               // Draggable cards on Desktop/Tablet or Carousel on Mobile
               LayoutBuilder(
@@ -7690,4 +7341,1213 @@ class _ReviewListTileState extends State<_ReviewListTile> {
     );
   }
 }
+
+/// Option 3: Modern, Professional, and Lightweight Circular Wipe / Radial Clip Reveal Animation
+/// (Similar to Instagram Stories / Material Design circular reveal).
+class CircularRevealImageWidget extends StatefulWidget {
+  final Widget imageWidget;
+  final Duration duration;
+  final Duration delay;
+  final bool autoStart;
+  final ValueNotifier<int>? triggerNotifier;
+  final VoidCallback? onTap;
+
+  const CircularRevealImageWidget({
+    super.key,
+    required this.imageWidget,
+    this.duration = const Duration(milliseconds: 1800),
+    this.delay = Duration.zero,
+    this.autoStart = false,
+    this.triggerNotifier,
+    this.onTap,
+  });
+
+  @override
+  State<CircularRevealImageWidget> createState() =>
+      _CircularRevealImageWidgetState();
+}
+
+class _CircularRevealImageWidgetState extends State<CircularRevealImageWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _revealAnim;
+  late final Animation<double> _zoomAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    );
+
+    _revealAnim = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic,
+    );
+
+    _zoomAnim = Tween<double>(begin: 1.10, end: 1.00).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+
+    widget.triggerNotifier?.addListener(_onTrigger);
+
+    if (widget.autoStart) {
+      _controller.value = 0.0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          if (widget.delay > Duration.zero) {
+            Future.delayed(widget.delay, () {
+              if (mounted) _controller.forward(from: 0.0);
+            });
+          } else {
+            _controller.forward(from: 0.0);
+          }
+        }
+      });
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(CircularRevealImageWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.triggerNotifier != widget.triggerNotifier) {
+      oldWidget.triggerNotifier?.removeListener(_onTrigger);
+      widget.triggerNotifier?.addListener(_onTrigger);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.triggerNotifier?.removeListener(_onTrigger);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTrigger() {
+    if (mounted) {
+      if (widget.delay > Duration.zero) {
+        Future.delayed(widget.delay, () {
+          if (mounted) _controller.forward(from: 0.0);
+        });
+      } else {
+        _controller.forward(from: 0.0);
+      }
+    }
+  }
+
+  void _triggerReveal() {
+    if (_controller.isAnimating) return;
+    _controller.forward(from: 0.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        _triggerReveal();
+        widget.onTap?.call();
+      },
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final progress = _revealAnim.value;
+
+          // When completely revealed and stationary, render clean image directly without clipper overhead
+          if (progress >= 1.0 && !_controller.isAnimating) {
+            return widget.imageWidget;
+          }
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Base dark backdrop to highlight the circular expanding wave
+              Container(color: const Color(0xFF1E293B)),
+
+              // Expanding Circular Clip Mask with subtle zoom
+              ClipPath(
+                clipper: _CircularRevealClipper(progress: progress),
+                child: Transform.scale(
+                  scale: _zoomAnim.value,
+                  child: Opacity(
+                    opacity: (progress * 1.5).clamp(0.0, 1.0),
+                    child: widget.imageWidget,
+                  ),
+                ),
+              ),
+
+              // Glowing golden circular rim along the expanding reveal edge
+              if (progress > 0.01 && progress < 0.99)
+                CustomPaint(
+                  painter: _CircularRimGlowPainter(progress: progress),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CircularRevealClipper extends CustomClipper<Path> {
+  final double progress;
+
+  _CircularRevealClipper({required this.progress});
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius =
+        math.sqrt(size.width * size.width + size.height * size.height) / 2;
+    final currentRadius = maxRadius * progress;
+
+    path.addOval(Rect.fromCircle(center: center, radius: currentRadius));
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_CircularRevealClipper oldClipper) =>
+      oldClipper.progress != progress;
+}
+
+class _CircularRimGlowPainter extends CustomPainter {
+  final double progress;
+
+  _CircularRimGlowPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius =
+        math.sqrt(size.width * size.width + size.height * size.height) / 2;
+    final currentRadius = maxRadius * progress;
+
+    // Outer soft aura glow
+    final auraPaint = Paint()
+      ..color = const Color(0xFFFFD166).withValues(alpha: (1.0 - progress) * 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+
+    // Inner crisp golden laser ring
+    final corePaint = Paint()
+      ..color = const Color(0xFFFFD166).withValues(alpha: (1.0 - progress) * 0.95)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5;
+
+    canvas.drawCircle(center, currentRadius, auraPaint);
+    canvas.drawCircle(center, currentRadius, corePaint);
+  }
+
+  @override
+  bool shouldRepaint(_CircularRimGlowPainter oldPainter) =>
+      oldPainter.progress != progress;
+}
+
+class _ModernAnnouncementCardWidget extends StatefulWidget {
+  final Map<String, dynamic> item;
+  final int index;
+  final bool isMobile;
+  final ValueNotifier<int>? triggerNotifier;
+  final VoidCallback onTap;
+
+  const _ModernAnnouncementCardWidget({
+    required this.item,
+    required this.index,
+    required this.isMobile,
+    required this.triggerNotifier,
+    required this.onTap,
+  });
+
+  @override
+  State<_ModernAnnouncementCardWidget> createState() =>
+      _ModernAnnouncementCardWidgetState();
+}
+
+class _ModernAnnouncementCardWidgetState
+    extends State<_ModernAnnouncementCardWidget>
+    with SingleTickerProviderStateMixin {
+  bool _isHovered = false;
+  late final AnimationController _cardController;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _opacityAnimation;
+  late final Animation<double> _dateChipAnimation;
+  late final Animation<double> _tagsAnimation;
+  late final Animation<double> _titleAnimation;
+  late final Animation<double> _footerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    _scaleAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: const Interval(0.0, 0.50, curve: Curves.easeOutCubic),
+    );
+
+    _opacityAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: const Interval(0.0, 0.40, curve: Curves.easeOut),
+    );
+
+    _dateChipAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: const Interval(0.20, 0.65, curve: Curves.easeOutCubic),
+    );
+
+    _tagsAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: const Interval(0.35, 0.75, curve: Curves.easeOutCubic),
+    );
+
+    _titleAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: const Interval(0.50, 0.88, curve: Curves.easeOutCubic),
+    );
+
+    _footerAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: const Interval(0.65, 1.00, curve: Curves.easeOutCubic),
+    );
+
+    widget.triggerNotifier?.addListener(_onTrigger);
+    _cardController.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(_ModernAnnouncementCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.triggerNotifier != widget.triggerNotifier) {
+      oldWidget.triggerNotifier?.removeListener(_onTrigger);
+      widget.triggerNotifier?.addListener(_onTrigger);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.triggerNotifier?.removeListener(_onTrigger);
+    _cardController.dispose();
+    super.dispose();
+  }
+
+  void _onTrigger() {
+    if (mounted) {
+      final delayMs = widget.index * 450;
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted) {
+          _cardController.forward(from: 0.0);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.item['title'] ?? 'Announcement';
+    final createdAt = widget.item['created_at'] != null
+        ? DateFormat('MMM dd, yyyy')
+            .format(DateTime.parse(widget.item['created_at'].toString()))
+        : 'Recent';
+
+    final rawImage = (widget.item['image_url'] ?? '').toString().trim();
+    final hasImage = rawImage.isNotEmpty;
+
+    Widget imageWidget = hasImage
+        ? Image.network(
+            rawImage,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: const Color(0xFFF0EDE6),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                      color: Color(0xFF990000), strokeWidth: 2),
+                ),
+              );
+            },
+            errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          )
+        : _buildFallbackImage();
+
+    return AnimatedBuilder(
+      animation: _cardController,
+      builder: (context, _) {
+        final cardOpacity = _opacityAnimation.value;
+        final cardScale = 0.94 + (0.06 * _scaleAnimation.value);
+
+        Widget cardBody = MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            transform: Matrix4.translationValues(0, _isHovered ? -6 : 0, 0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: _isHovered
+                    ? const Color(0xFFFFD166)
+                    : const Color(0xFFEAE5D8),
+                width: _isHovered ? 1.5 : 1.1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _isHovered
+                      ? const Color(0xFFFFD166).withValues(alpha: 0.22)
+                      : Colors.black.withValues(alpha: 0.05),
+                  blurRadius: _isHovered ? 24 : 14,
+                  offset: Offset(0, _isHovered ? 10 : 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(22),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Banner Image with Cascading Circular Reveal
+                      Stack(
+                        children: [
+                          AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: CircularRevealImageWidget(
+                              imageWidget: imageWidget,
+                              duration: const Duration(milliseconds: 2000),
+                              delay: Duration(milliseconds: widget.index * 450),
+                              triggerNotifier: widget.triggerNotifier,
+                            ),
+                          ),
+
+                          // Floating Top-Right Date Chip (Smooth Fade + Slide Down)
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: Opacity(
+                              opacity: _dateChipAnimation.value,
+                              child: Transform.translate(
+                                offset: Offset(
+                                    0, -8 * (1.0 - _dateChipAnimation.value)),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.5, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.72),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: const Color(0xFFFFD166)
+                                            .withValues(alpha: 0.6),
+                                        width: 0.9),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded,
+                                          size: 10.5, color: Color(0xFFFFD166)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        createdAt,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFFFFD166),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Card Content Area
+                      if (widget.isMobile)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Highlight Tags Row (Smooth Fade + Slide Down)
+                                  Opacity(
+                                    opacity: _tagsAnimation.value,
+                                    child: Transform.translate(
+                                      offset: Offset(
+                                          0, -6 * (1.0 - _tagsAnimation.value)),
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7.5, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF990000)
+                                                  .withValues(alpha: 0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '🥢 Yang Chow Exclusive',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFF990000),
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7.5, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFD166)
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '📍 CLA Mall',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFF422006),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // Headline Title (Smooth Fade + Slide Up)
+                                  Opacity(
+                                    opacity: _titleAnimation.value,
+                                    child: Transform.translate(
+                                      offset: Offset(
+                                          0, 10 * (1.0 - _titleAnimation.value)),
+                                      child: Text(
+                                        title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.playfairDisplay(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16.5,
+                                          color: const Color(0xFF1E293B),
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // Hairline Divider & Footer (Smooth Fade + Slide Up)
+                              Opacity(
+                                opacity: _footerAnimation.value,
+                                child: Transform.translate(
+                                  offset: Offset(
+                                      0, 10 * (1.0 - _footerAnimation.value)),
+                                  child: const Column(
+                                    children: [
+                                      SizedBox(height: 8),
+                                      Divider(
+                                        color: Color(0xFFEAE5D8),
+                                        height: 1,
+                                        thickness: 1,
+                                      ),
+                                      SizedBox(height: 8),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // Bottom Action Row
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF990000),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: const Icon(
+                                              Icons.store_rounded,
+                                              color: Color(0xFFFFD166),
+                                              size: 11),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Flexible(
+                                          child: Text(
+                                            'Pagsanjan Branch',
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts
+                                                .plusJakartaSans(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 11, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFD166),
+                                          Color(0xFFE5A93C),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFFFFD166)
+                                              .withValues(alpha: 0.35),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'View Details',
+                                          style: GoogleFonts
+                                              .plusJakartaSans(
+                                            color: const Color(0xFF3E1F00),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 10.5,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 3),
+                                        const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 11,
+                                            color: Color(0xFF3E1F00)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Highlight Tags Row (Smooth Fade + Slide Down)
+                                    Opacity(
+                                      opacity: _tagsAnimation.value,
+                                      child: Transform.translate(
+                                        offset: Offset(
+                                            0, -6 * (1.0 - _tagsAnimation.value)),
+                                        child: Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 7, vertical: 2.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF990000)
+                                                    .withValues(alpha: 0.08),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '🥢 Yang Chow Exclusive',
+                                                style:
+                                                    GoogleFonts.plusJakartaSans(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF990000),
+                                                ),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 7, vertical: 2.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFFD166)
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '📍 CLA Mall',
+                                                style:
+                                                    GoogleFonts.plusJakartaSans(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF422006),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+
+                                    // Headline Title (Smooth Fade + Slide Up)
+                                    Opacity(
+                                      opacity: _titleAnimation.value,
+                                      child: Transform.translate(
+                                        offset: Offset(
+                                            0, 10 * (1.0 - _titleAnimation.value)),
+                                        child: Text(
+                                          title,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.playfairDisplay(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 17.5,
+                                            color: const Color(0xFF1E293B),
+                                            height: 1.2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const Spacer(),
+
+                                // Hairline Divider & Footer (Smooth Fade + Slide Up)
+                                Opacity(
+                                  opacity: _footerAnimation.value,
+                                  child: Transform.translate(
+                                    offset: Offset(
+                                        0, 10 * (1.0 - _footerAnimation.value)),
+                                    child: const Column(
+                                      children: [
+                                        SizedBox(height: 4),
+                                        Divider(
+                                          color: Color(0xFFEAE5D8),
+                                          height: 1,
+                                          thickness: 1,
+                                        ),
+                                        SizedBox(height: 5),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                // Bottom Action Row
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Flexible(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(3.5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF990000),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: const Icon(
+                                                Icons.store_rounded,
+                                                color: Color(0xFFFFD166),
+                                                size: 11),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Flexible(
+                                            child: Text(
+                                              'Pagsanjan Branch',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts
+                                                  .plusJakartaSans(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFFFFD166),
+                                            Color(0xFFE5A93C),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFFFD166)
+                                                .withValues(alpha: 0.35),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'View Details',
+                                            style: GoogleFonts
+                                                .plusJakartaSans(
+                                              color: const Color(0xFF3E1F00),
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          const Icon(
+                                              Icons.arrow_forward_rounded,
+                                              size: 10.5,
+                                              color: Color(0xFF3E1F00)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        return Opacity(
+          opacity: cardOpacity,
+          child: Transform.scale(
+            scale: cardScale,
+            child: widget.isMobile
+                ? Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: cardBody,
+                    ),
+                  )
+                : cardBody,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      color: const Color(0xFF2C0E0E),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.restaurant_rounded,
+                color: Color(0xFFFFD166), size: 40),
+            const SizedBox(height: 6),
+            Text(
+              'Yang Chow Pagsanjan',
+              style: GoogleFonts.plusJakartaSans(
+                color: const Color(0xFFFFD166),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnnouncementModalDialog extends StatefulWidget {
+  final Map<String, dynamic> item;
+
+  const _AnnouncementModalDialog({required this.item});
+
+  @override
+  State<_AnnouncementModalDialog> createState() =>
+      _AnnouncementModalDialogState();
+}
+
+class _AnnouncementModalDialogState extends State<_AnnouncementModalDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _topBarAnimation;
+  late final Animation<double> _titleAnimation;
+  late final Animation<double> _contentAnimation;
+  late final Animation<double> _footerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+
+    _scaleAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
+    );
+
+    _topBarAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.12, 0.60, curve: Curves.easeOutCubic),
+    );
+
+    _titleAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.35, 0.78, curve: Curves.easeOutCubic),
+    );
+
+    _contentAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.48, 0.90, curve: Curves.easeOutCubic),
+    );
+
+    _footerAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.65, 1.00, curve: Curves.easeOutCubic),
+    );
+
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.item['title'] ?? 'Announcement';
+    final content = widget.item['content'] ?? '';
+    final createdAt = widget.item['created_at'] != null
+        ? DateFormat('MMMM dd, yyyy')
+            .format(DateTime.parse(widget.item['created_at'].toString()))
+        : 'Recent';
+
+    final rawImage = (widget.item['image_url'] ?? '').toString().trim();
+    final hasImage = rawImage.isNotEmpty;
+
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, _) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Transform.scale(
+            scale: 0.92 + (0.08 * _scaleAnimation.value),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 580),
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: const Color(0xFFFFD166).withValues(alpha: 0.5),
+                  width: 1.3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Top Bar: Date + Tag + Close Button (Fade + Slide Down)
+                    Opacity(
+                      opacity: _topBarAnimation.value,
+                      child: Transform.translate(
+                        offset: Offset(0, -10 * (1.0 - _topBarAnimation.value)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF990000)
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded,
+                                          size: 13, color: Color(0xFF990000)),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        createdAt,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF990000),
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFD166)
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Special Update',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: const Color(0xFF422006),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 22),
+                              onPressed: () => Navigator.pop(context),
+                              tooltip: 'Close',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Full High-Res Flyer / Image with Synchronized Circular Wipe Reveal
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: hasImage
+                            ? CircularRevealImageWidget(
+                                autoStart: true,
+                                duration: const Duration(milliseconds: 1400),
+                                imageWidget: Image.network(
+                                  rawImage,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _buildModalFallbackImage(),
+                                ),
+                              )
+                            : _buildModalFallbackImage(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Full Title & Golden Accent Line (Smooth Fade + Slide Up)
+                    Opacity(
+                      opacity: _titleAnimation.value,
+                      child: Transform.translate(
+                        offset: Offset(0, 16 * (1.0 - _titleAnimation.value)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF1E293B),
+                                height: 1.25,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              height: 3,
+                              width: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFD166),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Full Content Story (Smooth Fade + Slide Up)
+                    Opacity(
+                      opacity: _contentAnimation.value,
+                      child: Transform.translate(
+                        offset: Offset(0, 18 * (1.0 - _contentAnimation.value)),
+                        child: Text(
+                          content,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            color: const Color(0xFF475569),
+                            height: 1.6,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Action Buttons Footer (Smooth Fade + Slide Up)
+                    Opacity(
+                      opacity: _footerAnimation.value,
+                      child: Transform.translate(
+                        offset: Offset(0, 14 * (1.0 - _footerAnimation.value)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF990000),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.store_rounded,
+                                      color: Color(0xFFFFD166), size: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Yang Chow Pagsanjan',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: const Color(0xFF990000),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                final user =
+                                    Supabase.instance.client.auth.currentUser;
+                                if (user != null) {
+                                  Navigator.pushNamed(
+                                      context, '/customer_dashboard');
+                                } else {
+                                  Navigator.pushNamed(context, '/login');
+                                }
+                              },
+                              icon: const Icon(Icons.celebration_rounded,
+                                  size: 16),
+                              label: const Text('Book Now'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF990000),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 11),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModalFallbackImage() {
+    return Container(
+      color: const Color(0xFF2C0E0E),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.restaurant_rounded,
+                color: Color(0xFFFFD166), size: 44),
+            const SizedBox(height: 8),
+            Text(
+              'Yang Chow Pagsanjan Exclusive',
+              style: GoogleFonts.plusJakartaSans(
+                color: const Color(0xFFFFD166),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
