@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
+import 'package:yang_chow/services/reservation_service.dart';
 
 /// Service to manage reservation reschedule requests and approval workflow.
 class RescheduleService {
@@ -59,18 +60,42 @@ class RescheduleService {
     try {
       final now = DateTime.now().toUtc().toIso8601String();
 
-      // Check if there is already a pending reschedule request for this reservation
+      // Check if there is already an approved or pending reschedule request
       final existing = await _supabase
           .from('reschedule_requests')
-          .select('id')
+          .select('id, status')
           .eq('reservation_id', reservationId)
-          .eq('status', 'pending')
+          .or('status.eq.pending,status.eq.approved')
+          .order('created_at', ascending: false)
+          .limit(1)
           .maybeSingle();
 
       if (existing != null) {
+        if (existing['status'] == 'approved') {
+          return {
+            'success': false,
+            'error': 'Rescheduling is only allowed once. Please cancel and create a new reservation if you need further changes.',
+          };
+        }
         return {
           'success': false,
           'error': 'There is already a pending reschedule request for this reservation.',
+        };
+      }
+
+      // Check for overlapping schedule
+      final double duration = (newDuration ?? oldDuration ?? 2).toDouble();
+      final bool isOverlapping = await ReservationService().isTimeSlotOverlapping(
+        eventDate: newDate,
+        startTime: newTime,
+        durationHours: duration,
+        excludeReservationId: reservationId,
+      );
+
+      if (isOverlapping) {
+        return {
+          'success': false,
+          'error': 'The selected time slot is already booked. Please choose a different time or date.',
         };
       }
 
