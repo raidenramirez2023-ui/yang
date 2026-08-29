@@ -10221,6 +10221,27 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                             } else if (value == 'reschedule') {
                                               if (reservation['reschedule_status'] == 'pending_approval') {
                                                 _showSnackBar('A reschedule request is already pending approval.', Colors.orange);
+                                              } else if (reservation['reschedule_status'] == 'rescheduled') {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) => AlertDialog(
+                                                    title: Text(
+                                                      'Reschedule Limit Reached',
+                                                      style: GoogleFonts.lora(fontWeight: FontWeight.bold, color: AppTheme.forestGreen),
+                                                    ),
+                                                    content: Text(
+                                                      'You can only reschedule a reservation once. If you need a different schedule, please cancel this booking and create a new one.',
+                                                      style: GoogleFonts.plusJakartaSans(color: Colors.black87),
+                                                    ),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () => Navigator.pop(context),
+                                                        child: Text('OK', style: GoogleFonts.plusJakartaSans(color: AppTheme.forestGreen, fontWeight: FontWeight.bold)),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
                                               } else {
                                                 _showRescheduleDialog(reservation);
                                               }
