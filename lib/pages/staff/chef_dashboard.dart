@@ -4,13 +4,16 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:yang_chow/services/notification_service.dart';
 
 // ══════════════════════════════════════════════════════════
 //  CHEF DASHBOARD PAGE
 // ══════════════════════════════════════════════════════════
 class ChefDashboardPage extends StatefulWidget {
-  const ChefDashboardPage({super.key});
+  final int initialTab;
+
+  const ChefDashboardPage({super.key, this.initialTab = 0});
 
   @override
   State<ChefDashboardPage> createState() => _ChefDashboardPageState();
@@ -18,8 +21,23 @@ class ChefDashboardPage extends StatefulWidget {
 
 class _ChefDashboardPageState extends State<ChefDashboardPage>
     with TickerProviderStateMixin {
-  int _currentTab = 0;
+  late int _currentTab;
   late final PageController _pageController;
+  void Function()? _cancelPopState;
+
+  static const List<String> _tabUrls = [
+    '/chef/dashboard',
+    '/chef/events',
+    '/chef/finished',
+    '/chef/requests',
+    '/chef/stock',
+  ];
+
+  void _syncUrl() {
+    if (_currentTab >= 0 && _currentTab < _tabUrls.length) {
+      UrlSyncHelper.updateUrl(_tabUrls[_currentTab]);
+    }
+  }
 
   // Notifications
   int _pendingOrderCount = 0;
@@ -84,7 +102,17 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _currentTab = widget.initialTab;
+    _pageController = PageController(initialPage: widget.initialTab);
+    _syncUrl();
+    _cancelPopState = UrlSyncHelper.listenPopState((path) {
+      final idx = _tabUrls.indexOf(path);
+      if (idx != -1 && idx != _currentTab && mounted) {
+        setState(() => _currentTab = idx);
+        _pageController.jumpToPage(idx);
+      }
+    });
+
     _listenForNewOrders();
 
     _chefNotifsSubscription = NotificationService.getKitchenNotificationsStream().listen((notifs) {
@@ -103,6 +131,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
   @override
   void dispose() {
+    _cancelPopState?.call();
     _pageController.dispose();
     _orderStream?.cancel();
     _popupDebounceTimer?.cancel();
@@ -221,7 +250,10 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             Expanded(
               child: PageView(
                 controller: _pageController,
-                onPageChanged: (idx) => setState(() => _currentTab = idx),
+                onPageChanged: (idx) {
+                  setState(() => _currentTab = idx);
+                  _syncUrl();
+                },
                 children: const [
                   _CombinedKitchenTab(),
                   _UpcomingEventsTab(),

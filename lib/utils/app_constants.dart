@@ -9,8 +9,11 @@ class AppConstants {
   // Routes
   static const String loginRoute = '/';
   static const String forgotPasswordRoute = '/forgot-password';
-  static const String adminDashboardRoute = '/dashboard';
-  static const String staffDashboardRoute = '/staff-dashboard';
+  static const String adminDashboardRoute = '/admin/dashboard';
+  static const String staffDashboardRoute = '/staff/dashboard';
+  static const String chefDashboardRoute = '/chef/dashboard';
+  static const String inventoryDashboardRoute = '/inventory/dashboard';
+  static const String customerDashboardRoute = '/customer/dashboard';
 
   // User Roles
   static const String adminRole = 'Admin';

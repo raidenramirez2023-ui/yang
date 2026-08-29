@@ -13,9 +13,12 @@ import 'package:yang_chow/widgets/purchase_order_generator_dialog.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:yang_chow/utils/url_sync_helper.dart';
 
 class PagsanjaninvDashboardPage extends StatefulWidget {
-  const PagsanjaninvDashboardPage({super.key});
+  final int initialIndex;
+
+  const PagsanjaninvDashboardPage({super.key, this.initialIndex = 0});
 
   @override
   State<PagsanjaninvDashboardPage> createState() => _PagsanjaninvDashboardPageState();
@@ -28,7 +31,23 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   int _lowStockItems = 0;
   int _outOfStockItems = 0;
   bool _isLoading = true;
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+  void Function()? _cancelPopState;
+
+  static const List<String> _pageUrls = [
+    '/inventory/dashboard',
+    '/inventory/kitchen-requests',
+    '/inventory/manage-inventory',
+    '/inventory/storage-room',
+    '/inventory/petty-cash',
+    '/inventory/spoilage-waste',
+  ];
+
+  void _syncUrl() {
+    if (_selectedIndex >= 0 && _selectedIndex < _pageUrls.length) {
+      UrlSyncHelper.updateUrl(_pageUrls[_selectedIndex]);
+    }
+  }
   int _currentPage = 1;
   final int _itemsPerPage = 15;
   int _selectedYear = DateTime.now().year;
@@ -117,6 +136,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
+    _syncUrl();
+    _cancelPopState = UrlSyncHelper.listenPopState((path) {
+      final idx = _pageUrls.indexOf(path);
+      if (idx != -1 && idx != _selectedIndex && mounted) {
+        setState(() => _selectedIndex = idx);
+      }
+    });
+
     _allRequestsStream = _supabase
         .from('kitchen_requests')
         .stream(primaryKey: ['id'])
@@ -166,6 +194,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   @override
   void dispose() {
+    _cancelPopState?.call();
     _invNotifsSubscription?.cancel();
     _dismissInvTopToast();
     _inventorySubscription?.unsubscribe();
@@ -341,6 +370,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     setState(() {
       _selectedIndex = index;
     });
+    _syncUrl();
   }
 
   List<Widget> _getPages() {

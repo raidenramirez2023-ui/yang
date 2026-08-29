@@ -93,41 +93,46 @@ import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
-
-
+import 'package:yang_chow/utils/url_sync_helper.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
+  final int initialIndex;
 
-  const CustomerDashboardPage({super.key});
-
-
+  const CustomerDashboardPage({super.key, this.initialIndex = 0});
 
   @override
-
   State<CustomerDashboardPage> createState() => _CustomerDashboardPageState();
-
 }
 
-
-
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> with TickerProviderStateMixin {
-
-
-
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
+  late int _selectedIndex;
+  void Function()? _cancelPopState;
 
+  static const List<String> _tabUrls = [
+    '/customer/dashboard',
+    '/customer/reservations',
+    '/customer/transactions',
+    '/customer/activity',
+    '/customer/order-list',
+    '/customer/profile',
+  ];
 
-  int _selectedIndex = 0;
+  void _syncUrl() {
+    if (_selectedIndex >= 0 && _selectedIndex < _tabUrls.length) {
+      UrlSyncHelper.updateUrl(_tabUrls[_selectedIndex]);
+    }
+  }
 
-
+  void _onSelectTab(int index) {
+    setState(() => _selectedIndex = index);
+    _syncUrl();
+  }
 
   bool _isLoading = false;
 
-
-
   // Sidebar toggle for desktop & tablet
-
   bool _isSidebarOpen = true; // desktop starts open; tablet starts closed handled in _buildTabletLayout
 
   late AnimationController _sidebarAnimController;
@@ -464,10 +469,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   bool _canScrollCategoryRight = true;
 
   @override
-
   void initState() {
-
     super.initState();
+    _selectedIndex = widget.initialIndex;
+    _syncUrl();
+    _cancelPopState = UrlSyncHelper.listenPopState((path) {
+      final idx = _tabUrls.indexOf(path);
+      if (idx != -1 && idx != _selectedIndex && mounted) {
+        setState(() => _selectedIndex = idx);
+      }
+    });
 
     _scrollController = ScrollController()..addListener(_onMenuScroll);
     _categoryScrollController.addListener(_categoryScrollListener);
@@ -477,8 +488,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     });
 
     _loadCartFromPrefs();
-
-
 
     _appSettings = AppSettingsService();
 
@@ -841,6 +850,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   @override
   void dispose() {
+    _cancelPopState?.call();
     _categoryScrollController.dispose();
     _rescheduleRequestsSubscription?.cancel();
     _scrollController?.removeListener(_onMenuScroll);
@@ -2437,19 +2447,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   HapticFeedback.selectionClick();
 
-                  setState(() {
-
-                    _selectedIndex = index;
-
-                    if (closeable) {
-
+                  _onSelectTab(index);
+                  if (closeable) {
+                    setState(() {
                       _isSidebarOpen = false;
-
                       _sidebarAnimController.reverse();
-
-                    }
-
-                  });
+                    });
+                  }
 
                 },
 
@@ -3355,11 +3359,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         HapticFeedback.selectionClick();
 
-        setState(() {
-
-          _selectedIndex = index;
-
-        });
+        _onSelectTab(index);
 
       },
 

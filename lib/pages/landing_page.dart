@@ -927,7 +927,7 @@ class _LandingPageState extends State<LandingPage>
               } catch (e) {
                 debugPrint('Error inserting new user: $e');
               }
-              navigator.pushReplacementNamed('/customer-dashboard');
+              navigator.pushReplacementNamed('/customer/dashboard');
               return;
             } else {
               String userRole =
@@ -956,20 +956,20 @@ class _LandingPageState extends State<LandingPage>
   void _redirectByUserRole(String email, String userRole) {
     if (!mounted) return;
     if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
-      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+      Navigator.pushReplacementNamed(context, '/inventory/dashboard');
     } else if (email.toLowerCase() == 'chefycp@gmail.com' ||
         email.toLowerCase() == 'chefycp.gmail.com') {
-      Navigator.pushReplacementNamed(context, '/chef-dashboard');
+      Navigator.pushReplacementNamed(context, '/chef/dashboard');
     } else if (userRole == 'admin') {
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    } else if (userRole == 'inventory staff') {
-      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+      Navigator.pushReplacementNamed(context, '/admin/dashboard');
+    } else if (userRole == 'inventory staff' || userRole == 'pagsanjaninv') {
+      Navigator.pushReplacementNamed(context, '/inventory/dashboard');
     } else if (userRole == 'chef') {
-      Navigator.pushReplacementNamed(context, '/chef-dashboard');
+      Navigator.pushReplacementNamed(context, '/chef/dashboard');
     } else if (userRole == 'customer') {
-      Navigator.pushReplacementNamed(context, '/customer-dashboard');
+      Navigator.pushReplacementNamed(context, '/customer/dashboard');
     } else {
-      Navigator.pushReplacementNamed(context, '/staff-dashboard');
+      Navigator.pushReplacementNamed(context, '/staff/dashboard');
     }
   }
 
