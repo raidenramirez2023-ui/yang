@@ -53,14 +53,23 @@ class ChatFaqService {
       keywords: [
         'how to book', 'booking process', 'pre-order dishes', 'reservation process',
         'how to reserve', 'steps to book', 'paano mag book', 'paano mag-book',
-        'paano mag reserve', 'booking flow'
+        'paano mag reserve', 'booking flow', 'pre order'
       ],
       answer:
           '📅 **How to Book a Reservation in Yang Chow:**\n\n'
-          '1. **Select Date, Time & Table:** On the Dashboard, choose your preferred event date, time slot, table setup, and number of guests (pax).\n'
-          '2. **Pre-order Dishes (Menu):** Browse the menu and click *"Add to Order List"* to include your desired dishes in the cart.\n'
-          '3. **Review & Checkout:** Verify your order breakdown, total cost, and required deposit downpayment.\n'
-          '4. **Payment Verification:** Settle payment via GCash QR (upload receipt & ref no.) or PayMongo. You will receive an email confirmation and live tracking status.',
+          '1. **Step 1: Select Schedule & Table Setup**\n'
+          '   • On the **Customer Dashboard**, go to the **Book a Table** section.\n'
+          '   • Choose your event date, preferred time slot, table layout/table number, and number of guests (pax).\n\n'
+          '2. **Step 2: Pre-order Dishes (Menu Selection)**\n'
+          '   • Browse menu categories and select your desired dishes.\n'
+          '   • Customize quantities and tap **"Add to Order List"** to include them in your booking.\n\n'
+          '3. **Step 3: Review Order & Downpayment**\n'
+          '   • Review your booking summary, ordered dishes, total bill, and the required deposit downpayment amount.\n\n'
+          '4. **Step 4: Settle Payment (GCash QR / PayMongo)**\n'
+          '   • Proceed to checkout and pay via **GCash QR** (enter Ref No. & upload receipt proof) or **PayMongo** (credit/debit card or e-wallet).\n'
+          '   • Tap **Submit Payment**.\n\n'
+          '5. **Step 5: Track Your Booking**\n'
+          '   • Once submitted, track your live status (*Pending ➔ Confirmed*) under **"My Bookings"** on your Dashboard. You will also receive email notifications.',
       actionType: 'book_flow',
     ),
     FaqItem(
@@ -70,18 +79,23 @@ class ChatFaqService {
       shortChip: '💳 How to pay via GCash',
       keywords: [
         'how to pay', 'gcash qr', 'pay via gcash', 'paymongo', 'payment method',
-        'upload payment receipt', 'reference number gcash', 'paano magbayad', 'paano mag bayad'
+        'upload payment receipt', 'reference number gcash', 'paano magbayad', 'paano mag bayad',
+        'online payment', 'gcash'
       ],
       answer:
           '💳 **Payment Process in Yang Chow:**\n\n'
-          '1. **GCash QR:**\n'
-          '   • Scan the official restaurant QR code displayed on the payment page.\n'
-          '   • Enter the Reference Number from your GCash transaction.\n'
-          '   • Upload a screenshot of your payment receipt/proof for admin verification.\n\n'
+          '1. **GCash QR Payment:**\n'
+          '   • On the payment screen, select **GCash QR**.\n'
+          '   • Scan or save the official restaurant GCash QR Code displayed on screen.\n'
+          '   • Pay the required downpayment or total amount through your GCash App.\n'
+          '   • Copy the **GCash Reference Number** and upload the **Screenshot / Receipt Proof**.\n'
+          '   • Tap **Submit Payment** for admin/cashier verification.\n\n'
           '2. **PayMongo Gateway:**\n'
-          '   • Select Debit/Credit Card or E-Wallet for direct online checkout.\n\n'
-          '3. **Downpayment & Balance:**\n'
-          '   • The verified deposit is deducted from your total bill, and the remaining balance can be viewed in your Order History.',
+          '   • Select **PayMongo** for instant online payment using Debit/Credit Card or supported E-Wallets.\n'
+          '   • Complete payment on PayMongo\'s secure checkout page. Confirmation is verified automatically in real-time.\n\n'
+          '3. **Remaining Balance Settlement:**\n'
+          '   • The verified downpayment is automatically credited.\n'
+          '   • The remaining balance can be settled at the restaurant cashier during your visit or via online payment under **"My Bookings"**.',
       actionType: 'payment_guide',
     ),
     FaqItem(
@@ -91,13 +105,19 @@ class ChatFaqService {
       shortChip: '📊 Check status & balance',
       keywords: [
         'check balance', 'remaining balance', 'reservation status', 'view status',
-        'track balance', 'where to view balance', 'saan makikita balance', 'magkano balance'
+        'track balance', 'where to view balance', 'saan makikita balance', 'magkano balance',
+        'status and balance', 'my bookings', 'where can i view'
       ],
       answer:
-          '📊 **Tracking Status & Remaining Balance:**\n\n'
-          '• **Order History:** Open *My Orders / Reservations* on your Dashboard to view current status (*Pending ➔ Confirmed ➔ Preparing ➔ Completed*).\n'
-          '• **Live Balance:** View the exact downpayment paid and the remaining balance due at the restaurant.\n'
-          '• **Real-time Updates:** Your status automatically updates once verified by the cashier or admin.',
+          '📊 **Tracking Status & Remaining Balance in Yang Chow:**\n\n'
+          '• **Dashboard - "My Bookings" Section:**\n'
+          '  Scroll down on your **Customer Dashboard** to see all active reservations and advance orders.\n'
+          '• **Transactions Page:**\n'
+          '  Tap **"Transactions"** from the navigation drawer/bar to view your full booking and payment history.\n'
+          '• **Live Status Badge:**\n'
+          '  Each booking card displays its live status: `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, or `CANCELLED`.\n'
+          '• **Live Balance Breakdown:**\n'
+          '  Each card displays the **Total Bill**, **Downpayment Paid**, and **Remaining Balance** (payable upon dining at the restaurant).',
       actionType: 'track_balance',
     ),
     FaqItem(
@@ -107,14 +127,23 @@ class ChatFaqService {
       shortChip: '🔄 How to reschedule',
       keywords: [
         'how to reschedule', 'reschedule request', 'change reservation date',
-        'move schedule', 'rebook date', 'change time', 'paano mag reschedule', 'paano mag lipat'
+        'move schedule', 'rebook date', 'change time', 'paano mag reschedule', 'paano mag lipat',
+        'request to reschedule'
       ],
       answer:
-          '🔄 **How to Reschedule a Reservation:**\n\n'
-          '1. **Go to Order Details:** Select your active booking from your reservations list.\n'
-          '2. **Click *"Request Reschedule"*:** Choose your new preferred date, time, updated guest count, and state the reason.\n'
-          '3. **Admin Review:** Your request is submitted to the Admin Dashboard with a **Pending** status.\n'
-          '4. **Automatic Update:** Once approved, your reservation record automatically updates, and you will receive an email notification.',
+          '🔄 **How to Reschedule a Reservation in Yang Chow:**\n\n'
+          '1. **Locate Your Booking:**\n'
+          '   • Go to **"My Bookings"** on your **Customer Dashboard**.\n'
+          '2. **Open Actions Menu (⋮):**\n'
+          '   • On your active reservation card, tap the **Three-Dot Menu (⋮)** in the upper right.\n'
+          '3. **Select "Reschedule":**\n'
+          '   • Tap **"Reschedule"** to open the Reschedule Request dialog.\n'
+          '4. **Choose New Date, Time & Provide Reason:**\n'
+          '   • Select your new preferred date and available time slot.\n'
+          '   • Enter the reason for rescheduling and tap **"Submit Reschedule"**.\n'
+          '5. **Admin Approval:**\n'
+          '   • Your booking status will show **"Reschedule Pending"** while under review.\n'
+          '   • You will receive an in-app and email notification once the Admin approves or declines the new schedule.',
       actionType: 'reschedule_portal',
     ),
     FaqItem(
@@ -124,16 +153,21 @@ class ChatFaqService {
       shortChip: '💸 Refund & Cancellation policy',
       keywords: [
         'cancellation policy', 'refund policy', 'how to cancel', 'refund percentage',
-        'deposit refund', 'cancellation and refund', 'magkano refund', 'paano mag cancel'
+        'deposit refund', 'cancellation and refund', 'magkano refund', 'paano mag cancel',
+        'cancellation and refund policy'
       ],
       answer:
-          '💸 **Cancellation & Refund Policy:**\n\n'
-          '• **4+ Days Before the Event:** **100% Full Refund** of the deposit paid.\n'
-          '• **0 to 3 Days Before the Event (Including Event Day):** **50% Partial Refund** to cover prepared and purchased ingredients.\n'
-          '• **Past Event Date:** **0% (Non-refundable)**.\n\n'
-          '📌 **How Refunds are Processed:**\n'
-          '• Submit a cancellation request from your order details page.\n'
-          '• The Admin reviews the ticket and returns the refund amount to your GCash or original payment method along with proof of transaction.',
+          '💸 **Cancellation & Refund Policy in Yang Chow:**\n\n'
+          '• **Policy Calculation Schedule:**\n'
+          '  - **4+ Days Before Event Date:** **100% Full Refund** of the deposit/payment made.\n'
+          '  - **0 to 3 Days Before Event (Including Event Day):** **50% Partial Refund** (to cover reserved slots and prepared food ingredients).\n'
+          '  - **After Event Date Has Passed:** **0% (Non-refundable)**.\n\n'
+          '📌 **How to Cancel a Booking in the App:**\n'
+          '1. Go to **"My Bookings"** on your **Customer Dashboard**.\n'
+          '2. Tap the **Three-Dot Menu (⋮)** on your reservation card and select **"Cancel Booking"**.\n'
+          '3. The system calculates and displays your **Expected Refund Amount** according to the policy.\n'
+          '4. Select your cancellation reason and confirm.\n'
+          '5. The Admin reviews and processes the refund to your GCash / PayMongo or original payment method within 5–7 business days.',
       actionType: 'refund_tickets',
     ),
     FaqItem(
@@ -146,10 +180,11 @@ class ChatFaqService {
         'attach photo', 'send screenshot', 'kausap na staff', 'paano mag attach'
       ],
       answer:
-          '💬 **Live Chat & Concierge Support:**\n\n'
-          '• **Send Messages:** Type directly into the chat box for inquiries, special requests, or custom assistance.\n'
-          '• **Attach Photos/Screenshots:** Click the camera/gallery icon to the left of the input bar to send payment receipts or photos.\n'
-          '• **Real-time Notifications:** You will receive live alerts in the chat whenever a staff member responds.',
+          '💬 **Live Chat & Concierge Support in Yang Chow:**\n\n'
+          '• **Message Directly:** Type your questions, dietary preferences, or event inquiries into the chat bar below.\n'
+          '• **Attach Photos / Payment Receipts:** Tap the **Camera / Gallery Icon** beside the input bar to attach receipts or event photos.\n'
+          '• **Operating Hours:** 🕒 9:00 AM – 9:00 PM Daily.\n'
+          '• **Instant Notifications:** You will receive live in-app notifications whenever staff replies to your conversation.',
       actionType: 'chat_staff_photo',
     ),
   ];

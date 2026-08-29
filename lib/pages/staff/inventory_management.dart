@@ -1698,7 +1698,7 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── ADMIN INVENTORY IMPORT & RECONCILIATION LOGIC ─────────────────────────
+  // ── PHYSICAL STOCK AUDIT & VARIANCE CHECKER (READ-ONLY) ─────────────────
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _handleImportCsv() async {
@@ -1856,7 +1856,7 @@ class _InventoryPageState extends State<InventoryPage> {
         }
       }
 
-      List<Map<String, dynamic>> previewRows = [];
+      List<Map<String, dynamic>> auditRows = [];
 
       for (int i = headerRowIndex + 1; i < rawRows.length; i++) {
         final row = rawRows[i];
@@ -1887,40 +1887,49 @@ class _InventoryPageState extends State<InventoryPage> {
         final finalItemName = existing != null ? (existing['name'] ?? rawName) : rawName;
 
         if (parsedQty == null || parsedQty < 0) {
-          previewRows.add({
-            'type': 'error',
+          auditRows.add({
+            'status': 'error',
             'name': finalItemName,
             'category': rawCat.isEmpty ? (existing?['category'] ?? 'Groceries') : rawCat,
-            'oldQuantity': existing?['quantity'] ?? 0,
-            'newQuantity': 0,
+            'systemStock': existing?['quantity'] ?? 0,
+            'physicalCount': 0,
+            'variance': 0,
             'unit': rawUnit,
             'storage_room': rawStorage,
             'supplier': rawSupplier,
-            'error': 'Invalid quantity ($rawQtyStr)',
+            'error': 'Invalid quantity format: "$rawQtyStr"',
             'existingId': existing?['id'],
           });
         } else if (existing != null) {
-          final oldQty = (existing['quantity'] as num?)?.toInt() ?? 0;
-          previewRows.add({
-            'type': 'update',
+          final sysQty = (existing['quantity'] as num?)?.toInt() ?? 0;
+          final variance = parsedQty - sysQty;
+          String status = 'balanced';
+          if (variance < 0) {
+            status = 'shortage';
+          } else if (variance > 0) {
+            status = 'surplus';
+          }
+
+          auditRows.add({
+            'status': status,
             'name': finalItemName,
             'category': rawCat.isNotEmpty ? rawCat : (existing['category'] ?? 'Groceries'),
-            'oldQuantity': oldQty,
-            'newQuantity': parsedQty,
-            'diff': parsedQty - oldQty,
+            'systemStock': sysQty,
+            'physicalCount': parsedQty,
+            'variance': variance,
             'unit': rawUnit.isNotEmpty ? rawUnit : (existing['unit'] ?? 'pcs'),
             'storage_room': rawStorage.isNotEmpty ? rawStorage : (existing['storage_room'] ?? 'Dry Storage'),
             'supplier': rawSupplier.isNotEmpty ? rawSupplier : (existing['supplier'] ?? ''),
             'existingId': existing['id'],
           });
         } else {
-          previewRows.add({
-            'type': 'new',
+          auditRows.add({
+            'status': 'new',
             'name': finalItemName,
             'category': rawCat.isNotEmpty ? rawCat : 'Groceries',
-            'oldQuantity': 0,
-            'newQuantity': parsedQty,
-            'diff': parsedQty,
+            'systemStock': 0,
+            'physicalCount': parsedQty,
+            'variance': parsedQty,
             'unit': rawUnit.isNotEmpty ? rawUnit : 'pcs',
             'storage_room': rawStorage.isNotEmpty ? rawStorage : 'Dry Storage',
             'supplier': rawSupplier,
@@ -1929,7 +1938,7 @@ class _InventoryPageState extends State<InventoryPage> {
         }
       }
 
-      if (previewRows.isEmpty) {
+      if (auditRows.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1941,8 +1950,21 @@ class _InventoryPageState extends State<InventoryPage> {
         return;
       }
 
+      // Log audit check activity to audit log service (read-only audit activity)
+      try {
+        await AuditLogService.logActivity(
+          action: 'AUDIT_CHECK',
+          module: 'Inventory',
+          description: 'Checked physical inventory CSV (${file.name}) with ${auditRows.length} items. Database unchanged.',
+          metadata: {
+            'file_name': file.name,
+            'total_items': auditRows.length,
+          },
+        );
+      } catch (_) {}
+
       if (!mounted) return;
-      _showImportPreviewDialog(previewRows, file.name);
+      _showStockAuditVarianceDialog(auditRows, file.name);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1955,20 +1977,52 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  void _showImportPreviewDialog(
-    List<Map<String, dynamic>> previewRows,
+  void _showStockAuditVarianceDialog(
+    List<Map<String, dynamic>> auditRows,
     String fileName,
   ) {
-    final updateCount = previewRows.where((r) => r['type'] == 'update').length;
-    final newCount = previewRows.where((r) => r['type'] == 'new').length;
-    final errorCount = previewRows.where((r) => r['type'] == 'error').length;
-    bool isSyncing = false;
+    String filterTab = 'all'; // 'all', 'discrepancy', 'shortage', 'surplus', 'balanced'
+    String searchQuery = '';
 
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
+          final shortageCount = auditRows.where((r) => r['status'] == 'shortage').length;
+          final surplusCount = auditRows.where((r) => r['status'] == 'surplus').length;
+          final balancedCount = auditRows.where((r) => r['status'] == 'balanced').length;
+          final newCount = auditRows.where((r) => r['status'] == 'new').length;
+          final errorCount = auditRows.where((r) => r['status'] == 'error').length;
+          final discrepancyCount = shortageCount + surplusCount;
+
+          final filteredRows = auditRows.where((row) {
+            final name = (row['name'] ?? '').toString().toLowerCase();
+            final category = (row['category'] ?? '').toString().toLowerCase();
+            final status = row['status'];
+
+            final matchesSearch = searchQuery.isEmpty ||
+                name.contains(searchQuery.toLowerCase()) ||
+                category.contains(searchQuery.toLowerCase());
+
+            if (!matchesSearch) return false;
+
+            if (filterTab == 'discrepancy') {
+              return status == 'shortage' || status == 'surplus';
+            } else if (filterTab == 'shortage') {
+              return status == 'shortage';
+            } else if (filterTab == 'surplus') {
+              return status == 'surplus';
+            } else if (filterTab == 'balanced') {
+              return status == 'balanced';
+            } else if (filterTab == 'new') {
+              return status == 'new';
+            } else if (filterTab == 'error') {
+              return status == 'error';
+            }
+            return true;
+          }).toList();
+
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             backgroundColor: Colors.white,
@@ -1976,10 +2030,10 @@ class _InventoryPageState extends State<InventoryPage> {
             child: Container(
               padding: const EdgeInsets.all(24),
               constraints: BoxConstraints(
-                maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 780,
+                maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 820,
                 maxHeight: ResponsiveUtils.isMobile(context)
-                    ? MediaQuery.of(context).size.height * 0.9
-                    : 680,
+                    ? MediaQuery.of(context).size.height * 0.92
+                    : 720,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1994,7 +2048,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
-                          Icons.sync_alt_rounded,
+                          Icons.fact_check_rounded,
                           color: Color(0xFF14332E),
                           size: 24,
                         ),
@@ -2005,7 +2059,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Physical Inventory Import & Reconciliation',
+                              'Physical Stock Audit & Variance Report',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
@@ -2014,243 +2068,438 @@ class _InventoryPageState extends State<InventoryPage> {
                               ),
                             ),
                             Text(
-                              'File: $fileName • Review stock adjustments before syncing',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              'File: $fileName • Read-only comparison (Live stocks remain untouched)',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        onPressed: isSyncing ? null : () => Navigator.pop(dialogCtx),
+                        onPressed: () => Navigator.pop(dialogCtx),
                         icon: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-                  // Metrics Summary Banner
+                  // Safe Mode Alert Banner
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.25)),
                     ),
-                    child: Row(
+                    child: const Row(
                       children: [
-                        _buildImportStatBadge(
-                          label: 'Total Rows',
-                          count: previewRows.length.toString(),
-                          color: const Color(0xFF14332E),
-                          icon: Icons.receipt_long_rounded,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildImportStatBadge(
-                          label: 'Stock Updates',
-                          count: updateCount.toString(),
-                          color: const Color(0xFF3B82F6),
-                          icon: Icons.update_rounded,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildImportStatBadge(
-                          label: 'New Items',
-                          count: newCount.toString(),
-                          color: const Color(0xFF10B981),
-                          icon: Icons.add_circle_outline_rounded,
-                        ),
-                        if (errorCount > 0) ...[
-                          const SizedBox(width: 10),
-                          _buildImportStatBadge(
-                            label: 'Errors / Skip',
-                            count: errorCount.toString(),
-                            color: const Color(0xFFEF4444),
-                            icon: Icons.error_outline_rounded,
+                        Icon(Icons.shield_outlined, color: Color(0xFF059669), size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Safe Audit Mode: Comparing physical counts against system records. Your inventory will NOT be modified.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF065F46),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
-                  // Preview List Table
+                  // Metrics Summary Banner
+                  Row(
+                    children: [
+                      _buildAuditStatCard(
+                        label: 'Total Checked',
+                        count: auditRows.length.toString(),
+                        color: const Color(0xFF14332E),
+                        icon: Icons.inventory_2_outlined,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildAuditStatCard(
+                        label: 'Shortage (Lacking)',
+                        count: shortageCount.toString(),
+                        color: const Color(0xFFDC2626),
+                        icon: Icons.trending_down_rounded,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildAuditStatCard(
+                        label: 'Surplus (Over)',
+                        count: surplusCount.toString(),
+                        color: const Color(0xFFD97706),
+                        icon: Icons.trending_up_rounded,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildAuditStatCard(
+                        label: 'Balanced (Match)',
+                        count: balancedCount.toString(),
+                        color: const Color(0xFF16A34A),
+                        icon: Icons.check_circle_outline_rounded,
+                      ),
+                      if (newCount > 0) ...[
+                        const SizedBox(width: 8),
+                        _buildAuditStatCard(
+                          label: 'New Items',
+                          count: newCount.toString(),
+                          color: const Color(0xFF2563EB),
+                          icon: Icons.add_circle_outline_rounded,
+                        ),
+                      ],
+                      if (errorCount > 0) ...[
+                        const SizedBox(width: 8),
+                        _buildAuditStatCard(
+                          label: 'Format Errors',
+                          count: errorCount.toString(),
+                          color: const Color(0xFF9333EA),
+                          icon: Icons.error_outline_rounded,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Filter Chips & Search Bar
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: [
+                              _buildFilterChip('All Items (${auditRows.length})', 'all', filterTab, (val) {
+                                setDialogState(() => filterTab = val);
+                              }),
+                              const SizedBox(width: 6),
+                              _buildFilterChip('Discrepancies ($discrepancyCount)', 'discrepancy', filterTab, (val) {
+                                setDialogState(() => filterTab = val);
+                              }, badgeColor: discrepancyCount > 0 ? const Color(0xFFEF4444) : null),
+                              const SizedBox(width: 6),
+                              _buildFilterChip('Shortages ($shortageCount)', 'shortage', filterTab, (val) {
+                                setDialogState(() => filterTab = val);
+                              }),
+                              const SizedBox(width: 6),
+                              _buildFilterChip('Surpluses ($surplusCount)', 'surplus', filterTab, (val) {
+                                setDialogState(() => filterTab = val);
+                              }),
+                              const SizedBox(width: 6),
+                              _buildFilterChip('Balanced ($balancedCount)', 'balanced', filterTab, (val) {
+                                setDialogState(() => filterTab = val);
+                              }),
+                              if (newCount > 0) ...[
+                                const SizedBox(width: 6),
+                                _buildFilterChip('New ($newCount)', 'new', filterTab, (val) {
+                                  setDialogState(() => filterTab = val);
+                                }),
+                              ],
+                              if (errorCount > 0) ...[
+                                const SizedBox(width: 6),
+                                _buildFilterChip('Errors ($errorCount)', 'error', filterTab, (val) {
+                                  setDialogState(() => filterTab = val);
+                                }, badgeColor: const Color(0xFF9333EA)),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 170,
+                        height: 34,
+                        child: TextField(
+                          onChanged: (val) => setDialogState(() => searchQuery = val),
+                          style: const TextStyle(fontSize: 11),
+                          decoration: InputDecoration(
+                            hintText: 'Search items...',
+                            hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                            prefixIcon: const Icon(Icons.search, size: 14, color: Color(0xFF94A3B8)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Table Header Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14332E),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            'STATUS',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFB0C8C3)),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'ITEM / SPECIFICATIONS',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFB0C8C3)),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 85,
+                          child: Text(
+                            'SYSTEM STOCK',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFB0C8C3)),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 90,
+                          child: Text(
+                            'PHYSICAL COUNT',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFB0C8C3)),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 110,
+                          child: Text(
+                            'VARIANCE / DIFF',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFB0C8C3)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Audit Rows List
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: const Color(0xFFE2E8F0)),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: ListView.separated(
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: previewRows.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                          itemBuilder: (context, idx) {
-                            final row = previewRows[idx];
-                            final type = row['type'];
-                            final isUpdate = type == 'update';
-                            final isNew = type == 'new';
-                            final isError = type == 'error';
-                            final diff = (row['diff'] as num?)?.toInt() ?? 0;
+                      child: filteredRows.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No items found matching the selected filter.',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                              ),
+                            )
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: ListView.separated(
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: filteredRows.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                itemBuilder: (context, idx) {
+                                  final row = filteredRows[idx];
+                                  final status = row['status'];
+                                  final variance = (row['variance'] as num?)?.toInt() ?? 0;
+                                  final sysQty = (row['systemStock'] as num?)?.toInt() ?? 0;
+                                  final physQty = (row['physicalCount'] as num?)?.toInt() ?? 0;
+                                  final unit = row['unit'] ?? 'pcs';
 
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              child: Row(
-                                children: [
-                                  // Action badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isUpdate
-                                          ? const Color(0xFF3B82F6).withValues(alpha: 0.12)
-                                          : isNew
-                                              ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                                              : const Color(0xFFEF4444).withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      isUpdate ? 'UPDATE' : isNew ? 'NEW ITEM' : 'ERROR',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: isUpdate
-                                            ? const Color(0xFF2563EB)
-                                            : isNew
-                                                ? const Color(0xFF059669)
-                                                : const Color(0xFFDC2626),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  // Name and Category
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                  Color badgeBg;
+                                  Color badgeFg;
+                                  String badgeText;
+
+                                  if (status == 'shortage') {
+                                    badgeBg = const Color(0xFFFEE2E2);
+                                    badgeFg = const Color(0xFFDC2626);
+                                    badgeText = 'SHORTAGE';
+                                  } else if (status == 'surplus') {
+                                    badgeBg = const Color(0xFFFEF3C7);
+                                    badgeFg = const Color(0xFFD97706);
+                                    badgeText = 'SURPLUS';
+                                  } else if (status == 'balanced') {
+                                    badgeBg = const Color(0xFFDCFCE7);
+                                    badgeFg = const Color(0xFF16A34A);
+                                    badgeText = 'MATCHED';
+                                  } else if (status == 'new') {
+                                    badgeBg = const Color(0xFFDBEAFE);
+                                    badgeFg = const Color(0xFF2563EB);
+                                    badgeText = 'NEW ITEM';
+                                  } else {
+                                    badgeBg = const Color(0xFFF1F5F9);
+                                    badgeFg = const Color(0xFF64748B);
+                                    badgeText = 'ERROR';
+                                  }
+
+                                  return Container(
+                                    color: (status == 'shortage' || status == 'surplus')
+                                        ? (status == 'shortage'
+                                            ? const Color(0xFFFEF2F2).withValues(alpha: 0.5)
+                                            : const Color(0xFFFFFBEB).withValues(alpha: 0.5))
+                                        : Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    child: Row(
                                       children: [
-                                        Text(
-                                          row['name'] ?? '',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF0F172A),
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          '${row['category']} • ${row['storage_room']} • ${row['unit']}',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Quantities and diff
-                                  if (isError) ...[
-                                    Text(
-                                      row['error'] ?? 'Error',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFFDC2626),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ] else ...[
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (isUpdate) ...[
-                                              Text(
-                                                '${row['oldQuantity']} → ',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Color(0xFF94A3B8),
-                                                  decoration: TextDecoration.lineThrough,
+                                        // Status badge
+                                        SizedBox(
+                                          width: 80,
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: badgeBg,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                badgeText,
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: badgeFg,
                                                 ),
                                               ),
-                                            ],
-                                            Text(
-                                              '${row['newQuantity']} ${row['unit']}',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF0F172A),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (isUpdate) ...[
-                                          Text(
-                                            diff > 0 ? '+$diff ${row['unit']}' : diff < 0 ? '$diff ${row['unit']}' : 'No change',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                              color: diff > 0
-                                                  ? const Color(0xFF10B981)
-                                                  : diff < 0
-                                                      ? const Color(0xFFEF4444)
-                                                      : const Color(0xFF64748B),
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                        // Name and specifications
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                row['name'] ?? '',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF0F172A),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              Text(
+                                                '${row['category']} • ${row['storage_room']}${row['supplier'] != null && row['supplier'].toString().isNotEmpty ? ' • ${row['supplier']}' : ''}',
+                                                style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // System Stock
+                                        SizedBox(
+                                          width: 85,
+                                          child: Text(
+                                            '$sysQty $unit',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF475569),
+                                            ),
+                                          ),
+                                        ),
+                                        // Physical Count
+                                        SizedBox(
+                                          width: 90,
+                                          child: Text(
+                                            '$physQty $unit',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ),
+                                        // Variance Display
+                                        SizedBox(
+                                          width: 110,
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: variance < 0
+                                                    ? const Color(0xFFDC2626).withValues(alpha: 0.1)
+                                                    : variance > 0
+                                                        ? const Color(0xFFD97706).withValues(alpha: 0.1)
+                                                        : const Color(0xFF16A34A).withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                variance < 0
+                                                    ? '$variance $unit'
+                                                    : variance > 0
+                                                        ? '+$variance $unit'
+                                                        : '0 (Balanced)',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: variance < 0
+                                                      ? const Color(0xFFDC2626)
+                                                      : variance > 0
+                                                          ? const Color(0xFFD97706)
+                                                          : const Color(0xFF16A34A),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                  ],
-                                ],
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                            ),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-                  // Actions
+                  const SizedBox(height: 14),
+
+                  // Actions: Print PDF, Export CSV, Close
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      TextButton(
-                        onPressed: isSyncing ? null : () => Navigator.pop(dialogCtx),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          foregroundColor: const Color(0xFF64748B),
+                      // Download CSV / Excel Variance Button
+                      OutlinedButton.icon(
+                        onPressed: () => _exportVarianceToCsv(auditRows, fileName),
+                        icon: const Icon(Icons.table_chart_outlined, size: 16),
+                        label: const Text('Export Variance (CSV)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0D9488),
+                          side: const BorderSide(color: Color(0xFF0D9488)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
+
+                      // Print Variance PDF Button
                       ElevatedButton.icon(
+                        onPressed: () => _printVarianceReportPdf(auditRows, fileName),
+                        icon: const Icon(Icons.print_rounded, size: 16),
+                        label: const Text('Print Variance Report (PDF)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF14332E),
                           foregroundColor: const Color(0xFFE6C374),
-                          elevation: 2,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          elevation: 1,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: isSyncing
-                            ? null
-                            : () async {
-                                setDialogState(() => isSyncing = true);
-                                await _executeImportSync(previewRows, dialogCtx);
-                              },
-                        icon: isSyncing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFFE6C374),
-                                ),
-                              )
-                            : const Icon(Icons.cloud_upload_rounded, size: 18),
-                        label: Text(
-                          isSyncing ? 'Syncing...' : 'Confirm & Sync Inventory',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+
+                      const Spacer(),
+
+                      // Close Button
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          foregroundColor: const Color(0xFF64748B),
                         ),
+                        child: const Text('Close Audit', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                     ],
                   ),
@@ -2263,7 +2512,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildImportStatBadge({
+  Widget _buildAuditStatCard({
     required String label,
     required String count,
     required Color color,
@@ -2280,7 +2529,7 @@ class _InventoryPageState extends State<InventoryPage> {
         child: Row(
           children: [
             Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -2295,7 +2544,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                  style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -2305,87 +2554,339 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<void> _executeImportSync(
-    List<Map<String, dynamic>> previewRows,
-    BuildContext dialogCtx,
-  ) async {
-    int updated = 0;
-    int added = 0;
-    int failed = 0;
-
-    final user = Supabase.instance.client.auth.currentUser;
-
-    for (var row in previewRows) {
-      if (row['type'] == 'error') {
-        failed++;
-        continue;
-      }
-
-      try {
-        if (row['type'] == 'update' && row['existingId'] != null) {
-          await Supabase.instance.client.from('inventory').update({
-            'quantity': row['newQuantity'],
-            if (row['category'] != null) 'category': row['category'],
-            if (row['unit'] != null) 'unit': row['unit'],
-            if (row['storage_room'] != null) 'storage_room': row['storage_room'],
-            if (row['supplier'] != null && row['supplier'].toString().isNotEmpty)
-              'supplier': row['supplier'],
-          }).eq('id', row['existingId']);
-          updated++;
-        } else if (row['type'] == 'new') {
-          await Supabase.instance.client.from('inventory').insert({
-            'name': row['name'],
-            'category': row['category'],
-            'quantity': row['newQuantity'],
-            'unit': row['unit'],
-            'storage_room': row['storage_room'],
-            'supplier': row['supplier'],
-            'created_by': user?.email,
-            'created_at': DateTime.now().toUtc().toIso8601String(),
-          });
-          added++;
-        }
-      } catch (e) {
-        debugPrint('Error syncing row ${row['name']}: $e');
-        failed++;
-      }
-    }
-
-    // Log to Audit Log Service
-    try {
-      await AuditLogService.logActivity(
-        action: 'IMPORT',
-        module: 'Inventory',
-        description: 'Physical inventory import: updated $updated items, added $added items.',
-        metadata: {
-          'updated_count': updated,
-          'added_count': added,
-          'failed_count': failed,
-          'total_processed': previewRows.length,
-        },
-      );
-    } catch (_) {}
-
-    if (dialogCtx.mounted) {
-      Navigator.pop(dialogCtx);
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Inventory sync complete! Updated: $updated, Added: $added${failed > 0 ? ', Errors: $failed' : ''}'),
-              ),
-            ],
+  Widget _buildFilterChip(
+    String label,
+    String value,
+    String currentVal,
+    ValueChanged<String> onSelected, {
+    Color? badgeColor,
+  }) {
+    final isSelected = currentVal == value;
+    return InkWell(
+      onTap: () => onSelected(value),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (badgeColor ?? const Color(0xFF14332E))
+              : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? (badgeColor ?? const Color(0xFF14332E)) : const Color(0xFFE2E8F0),
           ),
-          backgroundColor: const Color(0xFF15803D),
-          behavior: SnackBarBehavior.floating,
         ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF475569),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportVarianceToCsv(
+    List<Map<String, dynamic>> auditRows,
+    String sourceFile,
+  ) async {
+    try {
+      List<List<dynamic>> rows = [];
+      rows.add(['YANG CHOW PALACE RESTAURANT - PHYSICAL STOCK AUDIT & VARIANCE REPORT']);
+      rows.add([
+        'Audit Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
+        'Source File: $sourceFile',
+        'Total Items Evaluated: ${auditRows.length}',
+      ]);
+      rows.add([]);
+      rows.add([
+        'Item Name',
+        'Category',
+        'Location / Storage',
+        'Unit',
+        'System Stock',
+        'Physical Count',
+        'Variance (Diff)',
+        'Status',
+        'Supplier',
+        'Remarks',
+      ]);
+
+      for (var row in auditRows) {
+        final variance = (row['variance'] as num?)?.toInt() ?? 0;
+        final status = row['status'].toString().toUpperCase();
+        rows.add([
+          row['name'] ?? '',
+          row['category'] ?? '',
+          row['storage_room'] ?? '',
+          row['unit'] ?? '',
+          row['systemStock'] ?? 0,
+          row['physicalCount'] ?? 0,
+          variance > 0 ? '+$variance' : variance.toString(),
+          status,
+          row['supplier'] ?? '',
+          status == 'SHORTAGE'
+              ? 'Lacking by ${variance.abs()} ${row['unit']}'
+              : status == 'SURPLUS'
+                  ? 'Surplus by $variance ${row['unit']}'
+                  : 'Balanced',
+        ]);
+      }
+
+      final csvData = csv_pkg.CsvCodec().encode(rows);
+      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvData));
+      final fileName = 'yangchow_stock_variance_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
+
+      final outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Stock Variance CSV',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        bytes: bytes,
       );
+
+      if (outputFile != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Exported Variance Report for ${auditRows.length} items to CSV!')),
+              ],
+            ),
+            backgroundColor: const Color(0xFF15803D),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export variance CSV: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _printVarianceReportPdf(
+    List<Map<String, dynamic>> auditRows,
+    String sourceFile,
+  ) async {
+    try {
+      final doc = pw.Document();
+      final nowStr = DateFormat('MMMM dd, yyyy - hh:mm a').format(DateTime.now());
+
+      final shortageCount = auditRows.where((r) => r['status'] == 'shortage').length;
+      final surplusCount = auditRows.where((r) => r['status'] == 'surplus').length;
+      final balancedCount = auditRows.where((r) => r['status'] == 'balanced').length;
+
+      const itemsPerPage = 20;
+      final totalPages = (auditRows.length / itemsPerPage).ceil();
+
+      for (int pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+        final start = pageIdx * itemsPerPage;
+        final end = (start + itemsPerPage < auditRows.length) ? start + itemsPerPage : auditRows.length;
+        final pageItems = auditRows.sublist(start, end);
+        final isLastPage = (pageIdx == totalPages - 1);
+
+        doc.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(24),
+            build: (pw.Context context) {
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Restaurant Header
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'YANG CHOW PALACE RESTAURANT',
+                            style: pw.TextStyle(
+                              fontSize: 15,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.teal900,
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'PHYSICAL INVENTORY AUDIT & VARIANCE REPORT',
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.grey900,
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'Source File: $sourceFile  |  Total Items: ${auditRows.length}  |  Shortages: $shortageCount  |  Surpluses: $surplusCount  |  Balanced: $balancedCount',
+                            style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+                          ),
+                        ],
+                      ),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text('Date: $nowStr', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                          pw.Text('Page ${pageIdx + 1} of $totalPages', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  pw.Divider(color: PdfColors.teal900, thickness: 1.5),
+                  pw.SizedBox(height: 6),
+
+                  // Table of items
+                  pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                    columnWidths: {
+                      0: const pw.FixedColumnWidth(22), // #
+                      1: const pw.FlexColumnWidth(2.8), // Item Name
+                      2: const pw.FlexColumnWidth(1.5), // Category
+                      3: const pw.FlexColumnWidth(1.6), // Location
+                      4: const pw.FixedColumnWidth(38), // Unit
+                      5: const pw.FixedColumnWidth(48), // Sys Stock
+                      6: const pw.FixedColumnWidth(52), // Physical
+                      7: const pw.FixedColumnWidth(50), // Variance
+                      8: const pw.FlexColumnWidth(1.8), // Status/Remarks
+                    },
+                    children: [
+                      // Table Header
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(color: PdfColors.teal900),
+                        children: [
+                          _buildPdfHeaderCell('#'),
+                          _buildPdfHeaderCell('Item Name'),
+                          _buildPdfHeaderCell('Category'),
+                          _buildPdfHeaderCell('Location'),
+                          _buildPdfHeaderCell('Unit'),
+                          _buildPdfHeaderCell('Sys Qty'),
+                          _buildPdfHeaderCell('Phys Count'),
+                          _buildPdfHeaderCell('Variance'),
+                          _buildPdfHeaderCell('Status / Remarks'),
+                        ],
+                      ),
+                      // Table Rows
+                      ...pageItems.asMap().entries.map((entry) {
+                        final index = start + entry.key + 1;
+                        final item = entry.value;
+                        final isEven = entry.key % 2 == 0;
+                        final variance = (item['variance'] as num?)?.toInt() ?? 0;
+                        final status = item['status'];
+
+                        PdfColor statusColor = PdfColors.black;
+                        String statusDesc = 'Matched';
+                        if (status == 'shortage') {
+                          statusColor = PdfColors.red800;
+                          statusDesc = 'Shortage (${variance.abs()})';
+                        } else if (status == 'surplus') {
+                          statusColor = PdfColors.amber800;
+                          statusDesc = 'Surplus (+$variance)';
+                        } else if (status == 'new') {
+                          statusColor = PdfColors.blue800;
+                          statusDesc = 'New Item';
+                        }
+
+                        return pw.TableRow(
+                          decoration: pw.BoxDecoration(
+                            color: status == 'shortage'
+                                ? PdfColors.red50
+                                : status == 'surplus'
+                                    ? PdfColors.amber50
+                                    : (isEven ? PdfColors.white : PdfColors.grey100),
+                          ),
+                          children: [
+                            _buildPdfCell(index.toString(), align: pw.TextAlign.center),
+                            _buildPdfCell(item['name']?.toString() ?? '', isBold: true),
+                            _buildPdfCell(item['category']?.toString() ?? ''),
+                            _buildPdfCell(item['storage_room']?.toString() ?? 'Dry Storage'),
+                            _buildPdfCell(item['unit']?.toString() ?? 'pcs', align: pw.TextAlign.center),
+                            _buildPdfCell(item['systemStock']?.toString() ?? '0', align: pw.TextAlign.center),
+                            _buildPdfCell(item['physicalCount']?.toString() ?? '0', align: pw.TextAlign.center, isBold: true),
+                            _buildPdfCell(
+                              variance > 0 ? '+$variance' : variance.toString(),
+                              align: pw.TextAlign.center,
+                              isBold: true,
+                            ),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              child: pw.Text(
+                                statusDesc,
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+
+                  pw.Spacer(),
+
+                  // Signatures Footer only on last page
+                  if (isLastPage) ...[
+                    pw.SizedBox(height: 10),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text('Physical Count Conducted By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                            pw.SizedBox(height: 18),
+                            pw.Container(width: 180, height: 0.5, color: PdfColors.black),
+                            pw.SizedBox(height: 2),
+                            pw.Text('Staff Signature over Printed Name / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                          ],
+                        ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text('Variance Audited & Reviewed By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                            pw.SizedBox(height: 18),
+                            pw.Container(width: 180, height: 0.5, color: PdfColors.black),
+                            pw.SizedBox(height: 2),
+                            pw.Text('Inventory Manager / Admin Signature / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        );
+      }
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => doc.save(),
+        name: 'yangchow_stock_variance_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Variance print failed: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
     }
   }
 
@@ -3269,27 +3770,30 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                         ],
                         const SizedBox(width: 8),
-                        // Import CSV Button
-                        ElevatedButton.icon(
-                          onPressed: _handleImportCsv,
-                          icon: const Icon(Icons.file_upload_outlined, size: 16),
-                          label: ResponsiveUtils.isMobile(context)
-                              ? const SizedBox.shrink()
-                              : const Text(
-                                  'Import CSV',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                                ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            foregroundColor: const Color(0xFF14332E),
-                            elevation: 0,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        // Audit CSV Button
+                        Tooltip(
+                          message: 'Audit Physical Count vs System Stock (Safe Read-Only Mode)',
+                          child: ElevatedButton.icon(
+                            onPressed: _handleImportCsv,
+                            icon: const Icon(Icons.fact_check_outlined, size: 16),
+                            label: ResponsiveUtils.isMobile(context)
+                                ? const SizedBox.shrink()
+                                : const Text(
+                                    'Audit CSV',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                  ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF1F5F9),
+                              foregroundColor: const Color(0xFF14332E),
+                              elevation: 0,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              ),
                             ),
                           ),
                         ),

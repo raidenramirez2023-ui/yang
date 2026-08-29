@@ -456,10 +456,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   // ID Upload for verification
   // ignore: unused_field
   XFile? _selectedIdImage;
-
   bool _isUploadingId = false;
-
   String? _uploadedIdUrl;
+  String? _savedAccountValidIdUrl;
+  bool _hasSavedValidId = false;
 
 
 
@@ -804,16 +804,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       final combined = [...reservations, ...advanceOrders];
 
-      // Sort combined results by created_at descending
-      combined.sort((a, b) {
-        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toUtc().toIso8601String());
-        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toUtc().toIso8601String());
-        return bTime.compareTo(aTime);
-      });
+      // Find the most recent Valid ID uploaded by this customer account
+      String? savedIdUrl;
+      for (final r in List<Map<String, dynamic>>.from(results[0])) {
+        final idUrl = r['uploaded_id_url']?.toString();
+        if (idUrl != null && idUrl.isNotEmpty && idUrl != 'null') {
+          savedIdUrl = idUrl;
+          break;
+        }
+      }
 
       if (mounted) {
         setState(() {
           customerReservations = combined;
+          if (savedIdUrl != null && savedIdUrl.isNotEmpty) {
+            _savedAccountValidIdUrl = savedIdUrl;
+            _hasSavedValidId = true;
+            _uploadedIdUrl ??= savedIdUrl;
+          }
         });
       }
     } catch (e) {
@@ -3563,29 +3571,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     return AnimatedTapScale(
       onTap: () => setState(() => _advanceOrderType = label),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 260),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
         decoration: BoxDecoration(
           gradient: isSelected ? AppTheme.goldGradient : null,
           color: isSelected ? null : Colors.white,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? Colors.transparent : AppTheme.cardBorder,
-            width: 1.2,
+            color: isSelected ? AppTheme.warmGold : AppTheme.cardBorder,
+            width: isSelected ? 1.5 : 1.0,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppTheme.warmGold.withValues(alpha: 0.35),
-                    blurRadius: 10,
+                    color: AppTheme.warmGold.withValues(alpha: 0.38),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 6,
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -3593,10 +3601,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? AppTheme.darkBrownText : AppTheme.forestGreen,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : AppTheme.backgroundColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppTheme.darkBrownText : AppTheme.forestGreen,
+              ),
             ),
             const SizedBox(width: 8),
             Text(
@@ -3605,6 +3621,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 color: isSelected ? AppTheme.darkBrownText : AppTheme.darkGrey,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 fontSize: 13,
+                letterSpacing: -0.1,
               ),
             ),
           ],
@@ -4763,62 +4780,79 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   Widget _buildReservationsSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final horizontalPadding = isSmallScreen ? 12.0 : 16.0;
+    final cardPadding = isSmallScreen ? 14.0 : 20.0;
+
+    final hasDate = _dateController.text.trim().isNotEmpty;
+    final hasTime = _startTimeController.text.trim().isNotEmpty;
+    final menuItemsCount = _selectedMenuItems.values.fold(0, (sum, qty) => sum + qty);
+    final menuSubtotal = _menuReservationService.calculateMenuTotalPrice(_selectedMenuItems);
+    final depositRequired = _paymentOption == 'full' && _reservationType == 'Event Place'
+        ? menuSubtotal
+        : _menuReservationService.calculateMenuDepositAmount(menuSubtotal, reservationType: _reservationType);
+
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Section header ──────────────────────────────────────────
+            // ── Clean Header ───────────────────────────────────────────
             Row(
               children: [
                 Container(
                   width: 4,
-                  height: 26,
+                  height: 28,
                   decoration: BoxDecoration(
                     gradient: AppTheme.goldGradient,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _reservationType == 'Event Place' ? 'Book Event Venue' : 'Advance Food Order',
+                        _reservationType == 'Event Place' ? 'Event Hall Reservation' : 'Advance Food Order',
                         style: GoogleFonts.lora(
-                          fontSize: 24,
+                          fontSize: isSmallScreen ? 19 : 22,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.darkGrey,
-                          letterSpacing: -0.3,
                         ),
                       ),
                       Text(
                         _reservationType == 'Event Place'
-                            ? 'Curate your exclusive banquet or gathering at Yang Chow'
-                            : 'Pre-order dishes for dine-in or fast take-out without waiting',
-                        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.mediumGrey),
+                            ? 'Book private halls for gatherings and banquets'
+                            : 'Order in advance for zero wait time',
+                        style: GoogleFonts.inter(
+                          fontSize: isSmallScreen ? 12 : 13,
+                          color: AppTheme.mediumGrey,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            // Reservation Type Segmented Mode Switcher
+            const SizedBox(height: 16),
+
+            // ── Mode Switcher ──────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.cardBorder, width: 1.2),
+                border: Border.all(color: AppTheme.cardBorder),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -4828,15 +4862,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     child: AnimatedTapScale(
                       onTap: () => setState(() => _reservationType = 'Event Place'),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        duration: const Duration(milliseconds: 220),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           gradient: _reservationType == 'Event Place' ? AppTheme.goldGradient : null,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: _reservationType == 'Event Place'
                               ? [
                                   BoxShadow(
-                                    color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                    color: AppTheme.warmGold.withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -4848,16 +4882,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           children: [
                             Icon(
                               Icons.celebration_rounded,
-                              size: 18,
+                              size: 16,
                               color: _reservationType == 'Event Place' ? AppTheme.darkBrownText : AppTheme.mediumGrey,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Event Place',
-                              style: GoogleFonts.inter(
-                                color: _reservationType == 'Event Place' ? AppTheme.darkBrownText : AppTheme.darkGrey,
-                                fontWeight: _reservationType == 'Event Place' ? FontWeight.w800 : FontWeight.w600,
-                                fontSize: 13,
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Event Place',
+                                style: GoogleFonts.inter(
+                                  color: _reservationType == 'Event Place' ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                                  fontWeight: _reservationType == 'Event Place' ? FontWeight.w800 : FontWeight.w600,
+                                  fontSize: isSmallScreen ? 12 : 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -4869,15 +4907,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     child: AnimatedTapScale(
                       onTap: () => setState(() => _reservationType = 'Advance Order'),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        duration: const Duration(milliseconds: 220),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           gradient: _reservationType == 'Advance Order' ? AppTheme.goldGradient : null,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: _reservationType == 'Advance Order'
                               ? [
                                   BoxShadow(
-                                    color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                    color: AppTheme.warmGold.withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -4888,17 +4926,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.takeout_dining_rounded,
-                              size: 18,
+                              Icons.restaurant_rounded,
+                              size: 16,
                               color: _reservationType == 'Advance Order' ? AppTheme.darkBrownText : AppTheme.mediumGrey,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Advance Order',
-                              style: GoogleFonts.inter(
-                                color: _reservationType == 'Advance Order' ? AppTheme.darkBrownText : AppTheme.darkGrey,
-                                fontWeight: _reservationType == 'Advance Order' ? FontWeight.w800 : FontWeight.w600,
-                                fontSize: 13,
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Advance Order',
+                                style: GoogleFonts.inter(
+                                  color: _reservationType == 'Advance Order' ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                                  fontWeight: _reservationType == 'Advance Order' ? FontWeight.w800 : FontWeight.w600,
+                                  fontSize: isSmallScreen ? 12 : 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -4909,1610 +4951,955 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+
             // Sub-selection for Advance Order (Dine In / Pick Up)
             if (_reservationType == 'Advance Order') ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildSubSelectionButton('Dine In', Icons.restaurant_rounded),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   _buildSubSelectionButton('Pick Up', Icons.shopping_bag_rounded),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
             ],
-            // Form Card
+
+            // ── Clean Form Card ────────────────────────────────────────
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppTheme.cardBorder, width: 1.2),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppTheme.cardBorder),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
+                    blurRadius: 18,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.all(22),
+                padding: EdgeInsets.all(cardPadding),
                 child: Form(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_reservationType == 'Event Place') ...[
-                        // Event Type
-                        _buildFormLabel('EVENT TYPE'),
-                        const SizedBox(height: 8),
-                        _buildStyledDropdown<String>(
-                          value: _selectedEventType,
-                          hint: 'Select event type',
-                          icon: Icons.celebration_rounded,
-                          items: _eventTypes,
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedEventType = val;
-                              _eventController.text = val ?? '';
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      // Date
-                      _buildFormLabel(_reservationType == 'Event Place' ? 'DATE' : (_advanceOrderType == 'Dine In' ? 'DINING DATE' : 'PICKUP DATE')),
-                      const SizedBox(height: 8),
-                      _buildStyledTextField(
-                        controller: _dateController,
-                        hint: 'Select a date',
-                        icon: Icons.calendar_month_rounded,
-                        readOnly: true,
-                        onTap: () async {
-                          final minDate = _reservationType == 'Advance Order'
-                              ? DateTime.now()
-                              : DateTime.now().add(const Duration(days: 4));
-
-                          Set<String> fullyBookedDates = {};
-                          if (_reservationType == 'Event Place') {
-                            fullyBookedDates = await _reservationService.getFullyBookedEventDates();
-                          }
-
-                          // Ensure initialDate is selectable
-                          DateTime initialDate = minDate;
-                          while (fullyBookedDates.contains(DateFormat('yyyy-MM-dd').format(initialDate))) {
-                            initialDate = initialDate.add(const Duration(days: 1));
-                          }
-
-                          DateTime? pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: initialDate,
-                            firstDate: minDate,
-                            lastDate: DateTime.now().add(
-                              const Duration(days: 365),
-                            ),
-                            selectableDayPredicate: (DateTime day) {
-                              if (_reservationType == 'Event Place') {
-                                final dateStr = DateFormat('yyyy-MM-dd').format(day);
-                                if (fullyBookedDates.contains(dateStr)) {
-                                  return false;
-                                }
-                              }
-                              return true;
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOutCubic,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Event Type (Event Place Only)
+                        if (_reservationType == 'Event Place') ...[
+                          _buildFormLabel('EVENT TYPE'),
+                          const SizedBox(height: 8),
+                          _buildStyledDropdown<String>(
+                            value: _selectedEventType,
+                            hint: 'Select event type',
+                            icon: Icons.celebration_rounded,
+                            items: _eventTypes,
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedEventType = val;
+                                _eventController.text = val ?? '';
+                              });
                             },
-                          );
+                          ),
+                          const SizedBox(height: 18),
+                        ],
 
-                          if (pickedDate != null) {
-                            setState(() {
-                              _dateController.text =
-                                  DateFormat('MMMM d, yyyy').format(pickedDate);
-                            });
+                        // Date & Time Adaptive Layout
+                        _buildFormLabel('DATE & TIME'),
+                        const SizedBox(height: 8),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final stackVertically = constraints.maxWidth < 310;
 
-                            // Immediate overlap validation if time is already chosen
-                            if (_reservationType == 'Event Place' && _startTimeController.text.isNotEmpty) {
-                              final duration = double.tryParse(_durationController.text) ?? 2.0;
-                              final dateStr = DateFormat('yyyy-MM-dd').format(pickedDate);
-                              final isOverlapping = await _reservationService.isTimeSlotOverlapping(
-                                eventDate: dateStr,
-                                startTime: _startTimeController.text.trim(),
-                                durationHours: duration,
-                              );
-                              if (isOverlapping && mounted) {
-                                _showSnackBar(
-                                  'The selected time (${_startTimeController.text}) on ${DateFormat('MMMM d').format(pickedDate)} is already booked. Please pick another time.',
-                                  Colors.orange,
+                            final dateTile = AnimatedTapScale(
+                              onTap: () async {
+                                final minDate = _reservationType == 'Advance Order'
+                                    ? DateTime.now()
+                                    : DateTime.now().add(const Duration(days: 4));
+
+                                Set<String> fullyBookedDates = {};
+                                if (_reservationType == 'Event Place') {
+                                  fullyBookedDates = await _reservationService.getFullyBookedEventDates();
+                                }
+
+                                DateTime initialDate = minDate;
+                                while (fullyBookedDates.contains(DateFormat('yyyy-MM-dd').format(initialDate))) {
+                                  initialDate = initialDate.add(const Duration(days: 1));
+                                }
+
+                                DateTime? pickedDate = await showDatePicker(
+                                  context: context,
+                                  initialDate: initialDate,
+                                  firstDate: minDate,
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                  selectableDayPredicate: (DateTime day) {
+                                    if (_reservationType == 'Event Place') {
+                                      final dateStr = DateFormat('yyyy-MM-dd').format(day);
+                                      if (fullyBookedDates.contains(dateStr)) {
+                                        return false;
+                                      }
+                                    }
+                                    return true;
+                                  },
                                 );
-                                setState(() {
-                                  _startTimeController.clear();
-                                });
-                              }
-                            }
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      // Start Time
-                      _buildFormLabel(_reservationType == 'Event Place' ? 'START TIME' : (_advanceOrderType == 'Dine In' ? 'DINING TIME' : 'PICKUP TIME')),
-                      const SizedBox(height: 8),
-                      _buildStyledTextField(
-                        controller: _startTimeController,
-                        hint: '-- : --',
-                        icon: Icons.access_time_filled_rounded,
-                        readOnly: true,
-                        onTap: () async {
-                          final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
-                          final endHour = _reservationType == 'Advance Order' ? 19 : _operatingHoursEnd;
 
-                          final TimeOfDay? pickedTime = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay(hour: startHour, minute: 0),
-                          );
+                                if (pickedDate != null) {
+                                  setState(() {
+                                    _dateController.text = DateFormat('MMMM d, yyyy').format(pickedDate);
+                                  });
 
-                          if (pickedTime != null) {
-                            // Validate against operating hours
-                            if (pickedTime.hour < startHour ||
-                                pickedTime.hour > endHour ||
-                                (pickedTime.hour == endHour && pickedTime.minute > 0)) {
-                              _showSnackBar(
-                                'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
-                                Colors.red,
-                              );
-                              return;
-                            }
-
-                            // Validate 40-minutes-ahead rule for same-day Advance Orders (Dine In & Pick Up)
-                            if (_reservationType == 'Advance Order') {
-                              final selectedDateStr = _dateController.text.trim();
-                              if (selectedDateStr.isNotEmpty) {
-                                try {
-                                  final now = DateTime.now();
-                                  final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
-                                  final isToday = selectedDate.year == now.year &&
-                                      selectedDate.month == now.month &&
-                                      selectedDate.day == now.day;
-
-                                  if (isToday) {
-                                    final selectedDateTime = DateTime(
-                                      now.year,
-                                      now.month,
-                                      now.day,
-                                      pickedTime.hour,
-                                      pickedTime.minute,
+                                  if (_reservationType == 'Event Place' && _startTimeController.text.isNotEmpty) {
+                                    final duration = double.tryParse(_durationController.text) ?? 2.0;
+                                    final dateStr = DateFormat('yyyy-MM-dd').format(pickedDate);
+                                    final isOverlapping = await _reservationService.isTimeSlotOverlapping(
+                                      eventDate: dateStr,
+                                      startTime: _startTimeController.text.trim(),
+                                      durationHours: duration,
                                     );
-                                    final timeDifference = selectedDateTime.difference(now);
-
-                                    if (timeDifference.inMinutes < 40) {
-                                      final earliestTime = now.add(const Duration(minutes: 40));
-                                      final earliestFormatted = '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
+                                    if (isOverlapping && mounted) {
                                       _showSnackBar(
-                                        'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
-                                        Colors.red,
+                                        'The selected time (${_startTimeController.text}) on ${DateFormat('MMMM d').format(pickedDate)} is already booked. Please pick another time.',
+                                        Colors.orange,
                                       );
-                                      return;
+                                      setState(() {
+                                        _startTimeController.clear();
+                                      });
                                     }
                                   }
-                                } catch (e) {
-                                  debugPrint('Error validating lead time: $e');
                                 }
-                              }
-                            }
-
-                            // Validate event place time slot overlap immediately
-                            if (_reservationType == 'Event Place' && _dateController.text.isNotEmpty) {
-                              try {
-                                final parsedDate = DateFormat('MMMM d, yyyy').parse(_dateController.text.trim());
-                                final formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
-                                final duration = double.tryParse(_durationController.text) ?? 2.0;
-                                final formattedTime = pickedTime.format(context);
-
-                                final isOverlapping = await _reservationService.isTimeSlotOverlapping(
-                                  eventDate: formattedDate,
-                                  startTime: formattedTime,
-                                  durationHours: duration,
-                                );
-
-                                if (isOverlapping) {
-                                  _showSnackBar(
-                                    'This time slot ($formattedTime) is already booked on this date. Please choose a different time.',
-                                    Colors.orange,
-                                  );
-                                  return;
-                                }
-                              } catch (e) {
-                                debugPrint('Error checking time slot overlap: $e');
-                              }
-                            }
-
-                            setState(() {
-                              _startTimeController.text = pickedTime.format(context);
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      if (_reservationType == 'Event Place') ...[
-                        // Duration
-                        _buildFormLabel('DURATION'),
-                        const SizedBox(height: 8),
-                        _buildStyledDropdown<String>(
-                          value: _selectedBaseDuration,
-                          hint: 'Select duration',
-                          icon: Icons.timer_rounded,
-                          items: _baseDurations,
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedBaseDuration = val;
-                              _updateDurationText();
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      // Number of Guests
-                      if (_reservationType == 'Event Place' || (_reservationType == 'Advance Order' && _advanceOrderType == 'Dine In')) ...[
-                        _buildFormLabel('GUESTS'),
-                        const SizedBox(height: 8),
-                        _buildStyledTextField(
-                          controller: _guestsController,
-                          hint: 'Enter number of guests',
-                          icon: Icons.people_alt_rounded,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          helperText: _reservationType == 'Event Place'
-                              ? '$_minGuestCount–100 guests allowed'
-                              : '1–20 guests allowed',
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      // Menu Selection (Digital Dining Check Style)
-                      _buildFormLabel('MENU SELECTION'),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.backgroundColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppTheme.cardBorder,
-                            width: 1.2,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF9FAFB),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: hasDate ? AppTheme.warmGold : AppTheme.cardBorder,
+                                    width: hasDate ? 1.4 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
                                   children: [
-                                    const Icon(Icons.receipt_long_rounded, size: 18, color: AppTheme.forestGreen),
+                                    Icon(
+                                      Icons.calendar_month_rounded,
+                                      size: 18,
+                                      color: hasDate ? AppTheme.primaryColor : AppTheme.mediumGrey,
+                                    ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      _selectedMenuItems.isEmpty
-                                          ? 'No dishes selected yet'
-                                          : '${_selectedMenuItems.values.fold(0, (sum, qty) => sum + qty)} items in pre-order',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        color: _selectedMenuItems.isEmpty
-                                            ? AppTheme.mediumGrey
-                                            : AppTheme.darkGrey,
-                                        fontWeight: _selectedMenuItems.isEmpty
-                                            ? FontWeight.normal
-                                            : FontWeight.w700,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Date',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.mediumGrey,
+                                            ),
+                                          ),
+                                          Text(
+                                            hasDate ? _dateController.text : 'Select date',
+                                            style: GoogleFonts.inter(
+                                              fontSize: isSmallScreen ? 12 : 13,
+                                              fontWeight: hasDate ? FontWeight.w700 : FontWeight.w500,
+                                              color: hasDate ? AppTheme.darkGrey : AppTheme.mediumGrey,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                                if (_selectedMenuItems.isNotEmpty)
-                                  TextButton(
-                                    onPressed: () => setState(() {
-                                      _selectedMenuItems.clear();
-                                      _preOrderCart.clear();
-                                    }),
-                                    child: Text(
-                                      'Clear All',
+                              ),
+                            );
+
+                            final timeTile = AnimatedTapScale(
+                              onTap: () async {
+                                final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
+                                final endHour = _reservationType == 'Advance Order' ? 19 : _operatingHoursEnd;
+
+                                final TimeOfDay? pickedTime = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay(hour: startHour, minute: 0),
+                                );
+
+                                if (pickedTime != null) {
+                                  _handleTimeSelection(pickedTime, startHour, endHour);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF9FAFB),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: hasTime ? AppTheme.warmGold : AppTheme.cardBorder,
+                                    width: hasTime ? 1.4 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time_filled_rounded,
+                                      size: 18,
+                                      color: hasTime ? AppTheme.primaryColor : AppTheme.mediumGrey,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Time',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.mediumGrey,
+                                            ),
+                                          ),
+                                          Text(
+                                            hasTime ? _startTimeController.text : '-- : --',
+                                            style: GoogleFonts.inter(
+                                              fontSize: isSmallScreen ? 12 : 13,
+                                              fontWeight: hasTime ? FontWeight.w700 : FontWeight.w500,
+                                              color: hasTime ? AppTheme.darkGrey : AppTheme.mediumGrey,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+
+                            if (stackVertically) {
+                              return Column(
+                                children: [
+                                  dateTile,
+                                  const SizedBox(height: 10),
+                                  timeTile,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: dateTile),
+                                const SizedBox(width: 10),
+                                Expanded(child: timeTile),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Duration (Event Place Only)
+                        if (_reservationType == 'Event Place') ...[
+                          _buildFormLabel('DURATION'),
+                          const SizedBox(height: 8),
+                          _buildStyledDropdown<String>(
+                            value: _selectedBaseDuration,
+                            hint: 'Select duration',
+                            icon: Icons.timer_rounded,
+                            items: _baseDurations,
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedBaseDuration = val;
+                                _updateDurationText();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Guests Input
+                        if (_reservationType == 'Event Place' ||
+                            (_reservationType == 'Advance Order' && _advanceOrderType == 'Dine In')) ...[
+                          _buildFormLabel('NUMBER OF GUESTS'),
+                          const SizedBox(height: 8),
+                          _buildStyledTextField(
+                            controller: _guestsController,
+                            hint: 'Enter guest count (max 100)',
+                            icon: Icons.people_alt_rounded,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(3),
+                              TextInputFormatter.withFunction((oldValue, newValue) {
+                                if (newValue.text.isEmpty) return newValue;
+                                final int? val = int.tryParse(newValue.text);
+                                if (val == null) return oldValue;
+                                final int maxGuests = _reservationType == 'Event Place' ? 100 : 20;
+                                if (val > maxGuests) {
+                                  return oldValue;
+                                }
+                                return newValue;
+                              }),
+                            ],
+                            helperText: _reservationType == 'Event Place'
+                                ? 'Allowed: $_minGuestCount–100 guests (Numbers only)'
+                                : 'Allowed: 1–20 guests (Numbers only)',
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Menu Selection Box
+                        _buildFormLabel('MENU SELECTION'),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.cardBorder),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.receipt_long_rounded, size: 16, color: AppTheme.forestGreen),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _selectedMenuItems.isEmpty
+                                                ? 'No dishes selected'
+                                                : '$menuItemsCount dishes (₱${NumberFormat('#,##0.00').format(menuSubtotal)})',
+                                            style: GoogleFonts.inter(
+                                              fontSize: isSmallScreen ? 12 : 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.darkGrey,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (_selectedMenuItems.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () => setState(() {
+                                        _selectedMenuItems.clear();
+                                        _preOrderCart.clear();
+                                      }),
+                                      child: Text(
+                                        'Clear',
+                                        style: GoogleFonts.inter(
+                                          color: AppTheme.errorRed,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (_selectedMenuItems.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                const Divider(height: 1),
+                                const SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      _reservationType == 'Advance Order'
+                                          ? 'Total Amount:'
+                                          : (_paymentOption == 'full' ? 'Total Amount:' : '50% Deposit:'),
+                                      style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mediumGrey),
+                                    ),
+                                    Text(
+                                      '₱${NumberFormat("#,##0.00").format(depositRequired)}',
                                       style: GoogleFonts.inter(
-                                        color: AppTheme.errorRed,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.forestGreen,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: AnimatedTapScale(
+                                  onTap: _navigateToMenuSelection,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    decoration: BoxDecoration(
+                                      gradient: AppTheme.goldGradient,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.restaurant_menu_rounded, size: 16, color: AppTheme.darkBrownText),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _selectedMenuItems.isEmpty ? 'Select Dishes' : 'Modify Dishes',
+                                          style: GoogleFonts.inter(
+                                            color: AppTheme.darkBrownText,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Extra Time (Event Place Only)
+                        if (_reservationType == 'Event Place') ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9FAFB),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppTheme.cardBorder),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.history_toggle_off_rounded, size: 18, color: AppTheme.primaryColor),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Extra Time Extension',
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: isSmallScreen ? 12 : 13,
+                                            color: AppTheme.darkGrey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Switch(
+                                      value: _addExtraTime,
+                                      activeThumbColor: AppTheme.primaryColor,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _addExtraTime = val;
+                                          if (!_addExtraTime) {
+                                            _selectedExtraTime = null;
+                                          }
+                                          _updateDurationText();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                if (_addExtraTime) ...[
+                                  const SizedBox(height: 8),
+                                  _buildStyledDropdown<String>(
+                                    value: _selectedExtraTime,
+                                    hint: 'Select extra hours',
+                                    icon: Icons.add_alarm_rounded,
+                                    items: _extraTimeOptions,
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _selectedExtraTime = val;
+                                        _updateDurationText();
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Payment Option Selection (Event Place Only)
+                        if (_reservationType == 'Event Place') ...[
+                          _buildFormLabel('PAYMENT OPTION'),
+                          const SizedBox(height: 8),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final stackPayment = constraints.maxWidth < 290;
+
+                              final halfTile = AnimatedTapScale(
+                                onTap: () => setState(() => _paymentOption = 'half'),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: _paymentOption == 'half'
+                                        ? AppTheme.warmGold.withValues(alpha: 0.12)
+                                        : const Color(0xFFF9FAFB),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: _paymentOption == 'half' ? AppTheme.warmGold : AppTheme.cardBorder,
+                                      width: _paymentOption == 'half' ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _paymentOption == 'half'
+                                            ? Icons.check_circle_rounded
+                                            : Icons.radio_button_unchecked_rounded,
+                                        size: 18,
+                                        color: _paymentOption == 'half' ? AppTheme.primaryColor : AppTheme.mediumGrey,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '50% Deposit',
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: isSmallScreen ? 12 : 13,
+                                            color: AppTheme.darkGrey,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+
+                              final fullTile = AnimatedTapScale(
+                                onTap: () => setState(() => _paymentOption = 'full'),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: _paymentOption == 'full'
+                                        ? AppTheme.warmGold.withValues(alpha: 0.12)
+                                        : const Color(0xFFF9FAFB),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: _paymentOption == 'full' ? AppTheme.warmGold : AppTheme.cardBorder,
+                                      width: _paymentOption == 'full' ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _paymentOption == 'full'
+                                            ? Icons.check_circle_rounded
+                                            : Icons.radio_button_unchecked_rounded,
+                                        size: 18,
+                                        color: _paymentOption == 'full' ? AppTheme.primaryColor : AppTheme.mediumGrey,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Pay in Full',
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: isSmallScreen ? 12 : 13,
+                                            color: AppTheme.darkGrey,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+
+                              if (stackPayment) {
+                                return Column(
+                                  children: [
+                                    halfTile,
+                                    const SizedBox(height: 8),
+                                    fullTile,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(child: halfTile),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: fullTile),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Special Requests
+                        if (_enableSpecialRequests) ...[
+                          _buildFormLabel(_reservationType == 'Event Place' ? 'SPECIAL REQUESTS' : 'PREPARATION NOTES'),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _specialRequestsController,
+                            maxLines: 2,
+                            style: GoogleFonts.inter(fontSize: 13.5, color: AppTheme.darkGrey),
+                            decoration: InputDecoration(
+                              hintText: _reservationType == 'Event Place'
+                                  ? 'Dietary preferences, accessibility needs, setup requests...'
+                                  : 'Preparation instructions (e.g. no spice, utensils needed)...',
+                              hintStyle: GoogleFonts.inter(
+                                color: AppTheme.mediumGrey.withValues(alpha: 0.6),
+                                fontSize: 13,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFFF9FAFB),
+                              contentPadding: const EdgeInsets.all(12),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(color: AppTheme.cardBorder),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(color: AppTheme.cardBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(color: AppTheme.warmGold, width: 1.5),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Valid ID Upload (Event Place Only)
+                        if (_reservationType == 'Event Place') ...[
+                          Row(
+                            children: [
+                              _buildFormLabel(
+                                _hasSavedValidId
+                                    ? 'VALID ID (ON FILE)'
+                                    : 'VALID ID (REQUIRED FOR CHECK-IN)',
+                              ),
+                              if (!_hasSavedValidId) ...[
+                                const SizedBox(width: 4),
+                                const Text(
+                                  '*',
+                                  style: TextStyle(
+                                    color: AppTheme.errorRed,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ] else ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.forestGreen.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: AppTheme.forestGreen.withValues(alpha: 0.3), width: 0.8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.verified_rounded, size: 12, color: AppTheme.forestGreen),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'VERIFIED RECORD',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.forestGreen,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (_isUploadingId)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12.0),
+                                child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                              ),
+                            )
+                          else if (_uploadedIdUrl != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF9FAFB),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: AppTheme.forestGreen.withValues(alpha: 0.6),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      _uploadedIdUrl!,
+                                      width: 52,
+                                      height: 52,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Container(
+                                        width: 52,
+                                        height: 52,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade200,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.badge_rounded, color: AppTheme.forestGreen, size: 26),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.check_circle_rounded, color: AppTheme.forestGreen, size: 16),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                _hasSavedValidId && _uploadedIdUrl == _savedAccountValidIdUrl
+                                                    ? 'Valid ID on File'
+                                                    : 'Valid ID Attached',
+                                                style: GoogleFonts.inter(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppTheme.forestGreen,
+                                                  fontSize: isSmallScreen ? 12 : 13,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _hasSavedValidId && _uploadedIdUrl == _savedAccountValidIdUrl
+                                              ? 'Recorded from previous booking. No re-upload required.'
+                                              : 'Ready for check-in verification.',
+                                          style: GoogleFonts.inter(
+                                            fontSize: isSmallScreen ? 10 : 11,
+                                            color: AppTheme.mediumGrey,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _pickAndUploadIdImage,
+                                    child: Text(
+                                      'Change',
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.primaryColor,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 12,
                                       ),
                                     ),
                                   ),
-                              ],
-                            ),
-                            if (_selectedMenuItems.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(14),
+                                ],
+                              ),
+                            )
+                          else
+                            AnimatedTapScale(
+                              onTap: _pickAndUploadIdImage,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFFF9FAFB),
+                                  borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: AppTheme.cardBorder),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    ..._selectedMenuItems.entries.map(
-                                      (entry) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 6),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              child: Row(
-                                                children: [
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                      color: AppTheme.warmGold.withValues(alpha: 0.2),
-                                                      borderRadius: BorderRadius.circular(6),
-                                                    ),
-                                                    child: Text(
-                                                      '${entry.value}x',
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: AppTheme.darkBrownText,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      entry.key,
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w600,
-                                                        color: AppTheme.darkGrey,
-                                                      ),
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Text(
-                                              '₱${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuTotalPrice({entry.key: entry.value}))}',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppTheme.forestGreen,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                    const Icon(Icons.add_photo_alternate_rounded, size: 20, color: AppTheme.primaryColor),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Upload Valid ID (Required: JPG, PNG)',
+                                      style: GoogleFonts.inter(
+                                        fontSize: isSmallScreen ? 12 : 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.darkGrey,
                                       ),
-                                    ),
-                                    const Divider(height: 18),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'Menu Subtotal:',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.darkGrey,
-                                          ),
-                                        ),
-                                        Text(
-                                          '₱${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems))}',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.forestGreen,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _reservationType == 'Advance Order'
-                                              ? 'Full Payment Required:'
-                                              : (_paymentOption == 'full' ? 'Full Payment Required:' : '50% Deposit Required:'),
-                                          style: GoogleFonts.inter(
-                                            fontSize: 11,
-                                            color: AppTheme.mediumGrey,
-                                          ),
-                                        ),
-                                        Text(
-                                          '₱${NumberFormat("#,##0.00").format(_paymentOption == 'full' && _reservationType == 'Event Place' ? _menuReservationService.calculateMenuTotalPrice(_selectedMenuItems) : _menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems), reservationType: _reservationType))}',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.darkBrownText,
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ],
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              width: double.infinity,
-                              child: AnimatedTapScale(
-                                onTap: _navigateToMenuSelection,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  decoration: BoxDecoration(
-                                    gradient: AppTheme.goldGradient,
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppTheme.warmGold.withValues(alpha: 0.35),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.restaurant_menu_rounded, color: AppTheme.darkBrownText, size: 18),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _selectedMenuItems.isEmpty
-                                            ? 'Select Dishes from Menu'
-                                            : 'Modify Dish Selection',
-                                        style: GoogleFonts.inter(
-                                          color: AppTheme.darkBrownText,
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                          const SizedBox(height: 22),
+                        ],
 
-                      // Extra Time Toggle
-
-                              if (_reservationType == 'Event Place') 
-
-                                Container(
-
-                                  padding: const EdgeInsets.all(16),
-
-
-
-                                  decoration: BoxDecoration(
-
-                                    color: Colors.grey.shade50,
-
-
-
-                                    borderRadius: BorderRadius.circular(16),
-
-
-
-                                    border: Border.all(
-
-                                      color: Colors.grey.shade100,
-
-                                    ),
-
-                                  ),
-
-
-
-                                child: Column(
-
-                                  children: [
-
-                                    Row(
-
-                                      children: [
-
-                                        Container(
-
-                                          padding: const EdgeInsets.all(8),
-
-
-
-                                          decoration: BoxDecoration(
-
-                                            color: Colors.white,
-
-
-
-                                            shape: BoxShape.circle,
-
-
-
-                                            boxShadow: [
-
-                                              BoxShadow(
-
-                                                color: Colors.black.withValues(
-
-                                                  alpha: 0.05,
-
-                                                ),
-
-
-
-                                                blurRadius: 4,
-
-                                              ),
-
-                                            ],
-
-                                          ),
-
-
-
-                                          child: const Icon(
-
-                                            Icons.history_toggle_off_rounded,
-
-
-
-                                            color: AppTheme.primaryColor,
-
-
-
-                                            size: 20,
-
-                                          ),
-
+                        // Submit Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: AnimatedTapScale(
+                            onTap: _isLoading ? () {} : _showConfirmationDialog,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: _isLoading
+                                    ? null
+                                    : const LinearGradient(
+                                        colors: [AppTheme.primaryColor, Color(0xFF14332E)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                color: _isLoading ? Colors.grey.shade400 : null,
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: _isLoading
+                                    ? null
+                                    : [
+                                        BoxShadow(
+                                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
                                         ),
-
-
-
-                                        const SizedBox(width: 12),
-
-
-
-                                        const Expanded(
-
-                                          child: Column(
-
-                                            crossAxisAlignment:
-
-                                                CrossAxisAlignment.start,
-
-
-
-                                            children: [
-
-                                              Text(
-
-                                                'Extra Time',
-
-
-
-                                                style: TextStyle(
-
-                                                  fontWeight: FontWeight.bold,
-
-
-
-                                                  fontSize: 14,
-
-
-
-                                                  color: AppTheme.darkGrey,
-
-                                                ),
-
-                                              ),
-
-
-
-                                              Text(
-
-                                                'Allow flexibility for the event end',
-
-
-
-                                                style: TextStyle(
-
-                                                  fontSize: 11,
-
-
-
-                                                  color: AppTheme.mediumGrey,
-
-                                                ),
-
-                                              ),
-
-                                            ],
-
-                                          ),
-
-                                        ),
-
-
-
-                                        Switch(
-
-                                          value: _addExtraTime,
-
-
-
-                                          activeThumbColor:
-
-                                              AppTheme.primaryColor,
-
-
-
-                                          onChanged: (val) {
-
-                                            setState(() {
-
-                                              _addExtraTime = val;
-
-
-
-                                              if (!_addExtraTime) {
-
-                                                _selectedExtraTime = null;
-
-                                              }
-
-
-
-                                              _updateDurationText();
-
-                                            });
-
-                                          },
-
-                                        ),
-
                                       ],
-
-                                    ),
-
-
-
-                                    if (_addExtraTime) ...[
-
-                                      const SizedBox(height: 16),
-
-
-
-                                      _buildStyledDropdown<String>(
-
-                                        value: _selectedExtraTime,
-
-
-
-                                        hint: 'Select extra time',
-
-
-
-                                        icon: Icons.add_alarm_rounded,
-
-
-
-                                        items: _extraTimeOptions,
-
-
-
-                                        onChanged: (val) {
-
-                                          setState(() {
-
-                                            _selectedExtraTime = val;
-
-
-
-                                            _updateDurationText();
-
-                                          });
-
-                                        },
-
-                                      ),
-
-                                    ],
-
-                                  ],
-
-                                ),
-
                               ),
-
-
-
-                              const SizedBox(height: 24), // Reduced from 32
-
-
-
-                              // Payment Option Selection
-
-                              if (_reservationType == 'Event Place')
-
-                                Container(
-
-                                  decoration: BoxDecoration(
-
-                                    color: Colors.grey.shade50,
-
-                                    borderRadius: BorderRadius.circular(16),
-
-                                    border: Border.all(
-
-                                      color: Colors.grey.shade100,
-
-                                    ),
-
-                                  ),
-
-                                  child: ClipRRect(
-
-                                    borderRadius: BorderRadius.circular(16),
-
-                                    child: Material(
-
-                                      color: Colors.grey.shade50,
-
-                                      child: Padding(
-
-                                        padding: const EdgeInsets.all(16),
-
-                                        child: Column(
-
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                                          children: [
-
-                                            Row(
-
-                                              children: [
-
-                                                Container(
-
-                                                  padding: const EdgeInsets.all(8),
-
-                                                  decoration: BoxDecoration(
-
-                                                    color: Colors.white,
-
-                                                    shape: BoxShape.circle,
-
-                                                    boxShadow: [
-
-                                                      BoxShadow(
-
-                                                        color: Colors.black.withValues(
-
-                                                          alpha: 0.05,
-
-                                                        ),
-
-                                                        blurRadius: 4,
-
-                                                      ),
-
-                                                    ],
-
-                                                  ),
-
-                                                  child: const Icon(
-
-                                                    Icons.payment_rounded,
-
-                                                    color: AppTheme.primaryColor,
-
-                                                    size: 20,
-
-                                                  ),
-
-                                                ),
-
-                                                const SizedBox(width: 12),
-
-                                                const Expanded(
-
-                                                  child: Column(
-
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                                                    children: [
-
-                                                      Text(
-
-                                                        'Payment Option',
-
-                                                        style: TextStyle(
-
-                                                          fontWeight: FontWeight.bold,
-
-                                                          fontSize: 14,
-
-                                                          color: AppTheme.darkGrey,
-
-                                                        ),
-
-                                                      ),
-
-                                                      Text(
-
-                                                        'Choose how you want to pay for your reservation',
-
-                                                        style: TextStyle(
-
-                                                          fontSize: 11,
-
-                                                          color: AppTheme.mediumGrey,
-
-                                                        ),
-
-                                                      ),
-
-                                                    ],
-
-                                                  ),
-
-                                                ),
-
-                                              ],
-
-                                            ),
-
-                                            const SizedBox(height: 16),
-
-                                            // Radio buttons for payment options
-
-                                            Column(
-
-                                              children: [
-
-                                                RadioListTile<String>(
-
-                                                  title: const Text(
-
-                                                    'Pay Half (Deposit)',
-
-                                                    style: TextStyle(
-
-                                                      fontSize: 14,
-
-                                                      fontWeight: FontWeight.w600,
-
-                                                    ),
-
-                                                  ),
-
-                                                  subtitle: const Text(
-
-                                                    'Pay 50% now as deposit, remaining balance due on event day',
-
-                                                    style: TextStyle(fontSize: 12),
-
-                                                  ),
-
-                                                  // ignore: deprecated_member_use
-                                                  value: 'half',
-                                                  // ignore: deprecated_member_use
-                                                  groupValue: _paymentOption,
-                                                  // ignore: deprecated_member_use
-                                                  onChanged: (value) {
-
-                                                    setState(() {
-
-                                                      _paymentOption = value!;
-
-                                                    });
-
-                                                  },
-
-                                                  activeColor: AppTheme.primaryColor,
-
-                                                  contentPadding: EdgeInsets.zero,
-
-                                                  visualDensity: VisualDensity.compact,
-
-                                                ),
-
-                                                RadioListTile<String>(
-
-                                                  title: const Text(
-
-                                                    'Pay in Full',
-
-                                                    style: TextStyle(
-
-                                                      fontSize: 14,
-
-                                                      fontWeight: FontWeight.w600,
-
-                                                    ),
-
-                                                  ),
-
-                                                  subtitle: const Text(
-
-                                                    'Pay the total amount upfront',
-
-                                                    style: TextStyle(fontSize: 12),
-
-                                                  ),
-
-                                                  // ignore: deprecated_member_use
-                                                  value: 'full',
-                                                  // ignore: deprecated_member_use
-                                                  groupValue: _paymentOption,
-                                                  // ignore: deprecated_member_use
-                                                  onChanged: (value) {
-
-                                                    setState(() {
-
-                                                      _paymentOption = value!;
-
-                                                    });
-
-                                                  },
-
-                                                  activeColor: AppTheme.primaryColor,
-
-                                                  contentPadding: EdgeInsets.zero,
-
-                                                  visualDensity: VisualDensity.compact,
-
-                                                ),
-
-                                              ],
-
-                                            ),
-
-                                          ],
-
+                              child: Center(
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                         ),
-
+                                      )
+                                    : Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            _reservationType == 'Event Place'
+                                                ? 'Confirm Reservation'
+                                                : 'Confirm Order',
+                                            style: GoogleFonts.inter(
+                                              fontSize: isSmallScreen ? 14 : 15,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
+                                        ],
                                       ),
-
-                                    ),
-
-                                  ),
-
-                                ),
-
-
-
-                              const SizedBox(height: 24),
-
-
-
-                              // Special Requests Field (if enabled)
-
-                              if (_enableSpecialRequests) ...[
-
-                                _buildFormLabel(_reservationType == 'Event Place' ? 'SPECIAL REQUESTS' : 'PREPARATION NOTES'),
-
-
-
-                                const SizedBox(height: 8),
-
-
-
-                                Container(
-
-                                  padding: const EdgeInsets.all(16),
-
-
-
-                                  decoration: BoxDecoration(
-
-                                    color: Colors.grey.shade50,
-
-
-
-                                    borderRadius: BorderRadius.circular(16),
-
-
-
-                                    border: Border.all(
-
-                                      color: Colors.grey.shade100,
-
-                                    ),
-
-                                  ),
-
-
-
-                                  child: Column(
-
-                                    crossAxisAlignment:
-
-                                        CrossAxisAlignment.start,
-
-
-
-                                    children: [
-
-                                      TextFormField(
-
-                                        controller: _specialRequestsController,
-
-
-
-                                        maxLines: 3,
-
-
-
-                                        decoration: InputDecoration(
-
-                                          hintText:
-
-                                              _reservationType == 'Event Place'
-
-                                               ? 'Enter any special requests (dietary restrictions, accessibility needs, celebration requirements, etc.)'
-
-                                               : 'Enter any preparation notes (no spice, utensils needed, allergy warnings, etc.)'
-
-,
-
-
-
-                                          hintStyle: TextStyle(
-
-                                            color: Colors.grey.shade400,
-
-
-
-                                            fontSize: 13,
-
-                                          ),
-
-
-
-                                          filled: true,
-
-
-
-                                          fillColor: Colors.white,
-
-
-
-                                          contentPadding: const EdgeInsets.all(
-
-                                            12,
-
-                                          ),
-
-
-
-                                          border: OutlineInputBorder(
-
-                                            borderRadius: BorderRadius.circular(
-
-                                              8,
-
-                                            ),
-
-
-
-                                            borderSide: BorderSide(
-
-                                              color: Colors.grey.shade300,
-
-                                            ),
-
-                                          ),
-
-
-
-                                          enabledBorder: OutlineInputBorder(
-
-                                            borderRadius: BorderRadius.circular(
-
-                                              8,
-
-                                            ),
-
-
-
-                                            borderSide: BorderSide(
-
-                                              color: Colors.grey.shade300,
-
-                                            ),
-
-                                          ),
-
-
-
-                                          focusedBorder: OutlineInputBorder(
-
-                                            borderRadius: BorderRadius.circular(
-
-                                              8,
-
-                                            ),
-
-
-
-                                            borderSide: const BorderSide(
-
-                                              color: AppTheme.primaryColor,
-
-
-
-                                              width: 1.5,
-
-                                            ),
-
-                                          ),
-
-                                        ),
-
-                                      ),
-
-
-
-                                      const SizedBox(height: 8),
-
-
-
-                                      Text(
-
-                                        _reservationType == 'Event Place'
-
-                                            ? 'Examples: Vegetarian guests | Wheelchair access needed | Birthday surprise setup | High chair for baby'
-
-                                            : 'Examples: No spicy food | Separate sauces | Extra napkins | Allergy to peanuts',
-
-                                        style: TextStyle(
-
-                                          fontSize: 11,
-
-                                          color: Colors.grey.shade500,
-
-                                        ),
-
-                                      ),
-
-                                    ],
-
-                                  ),
-
-                                ),
-
-
-
-                                if (_reservationType == 'Event Place') ...[
-
-                                  const SizedBox(height: 24),
-
-                                  _buildFormLabel('VALID ID FOR IN-PERSON VERIFICATION'),
-
-                                  const SizedBox(height: 8),
-
-                                  Container(
-
-                                    padding: const EdgeInsets.all(16),
-
-                                    decoration: BoxDecoration(
-
-                                      color: Colors.grey.shade50,
-
-                                      borderRadius: BorderRadius.circular(16),
-
-                                      border: Border.all(
-
-                                        color: Colors.grey.shade100,
-
-                                      ),
-
-                                    ),
-
-                                    child: Column(
-
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                                      children: [
-
-                                        Text(
-
-                                          'Please upload a valid government-issued ID or school ID. This will be used by staff to verify your reservation when you arrive in person.',
-
-                                          style: TextStyle(
-
-                                            fontSize: 12,
-
-                                            color: Colors.grey.shade600,
-
-                                          ),
-
-                                        ),
-
-                                        const SizedBox(height: 16),
-
-                                        if (_isUploadingId)
-
-                                          const Center(
-
-                                            child: Padding(
-
-                                              padding: EdgeInsets.symmetric(vertical: 12.0),
-
-                                              child: Column(
-
-                                                children: [
-
-                                                  CircularProgressIndicator(color: AppTheme.primaryColor),
-
-                                                  SizedBox(height: 8),
-
-                                                  Text('Uploading ID, please wait...', style: TextStyle(fontSize: 12)),
-
-                                                ],
-
-                                              ),
-
-                                            ),
-
-                                          )
-
-                                        else if (_uploadedIdUrl != null)
-
-                                          Row(
-
-                                            children: [
-
-                                              ClipRRect(
-
-                                                borderRadius: BorderRadius.circular(8),
-
-                                                child: Container(
-
-                                                  width: 80,
-
-                                                  height: 80,
-
-                                                  color: Colors.grey.shade200,
-
-                                                  child: Image.network(
-
-                                                    _uploadedIdUrl!,
-
-                                                    fit: BoxFit.cover,
-
-                                                    errorBuilder: (context, error, stackTrace) =>
-
-                                                        const Icon(Icons.broken_image, color: Colors.grey),
-
-                                                  ),
-
-                                                ),
-
-                                              ),
-
-                                              const SizedBox(width: 16),
-
-                                              Expanded(
-
-                                                child: Column(
-
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                                  children: [
-
-                                                    const Text(
-
-                                                      'ID Uploaded Successfully',
-
-                                                      style: TextStyle(
-
-                                                        fontWeight: FontWeight.bold,
-
-                                                        color: Colors.green,
-
-                                                        fontSize: 14,
-
-                                                      ),
-
-                                                    ),
-
-                                                    const SizedBox(height: 4),
-
-                                                    TextButton.icon(
-
-                                                      onPressed: _pickAndUploadIdImage,
-
-                                                      icon: const Icon(Icons.cached, size: 16),
-
-                                                      label: const Text('Change ID'),
-
-                                                      style: TextButton.styleFrom(
-
-                                                        foregroundColor: AppTheme.primaryColor,
-
-                                                        padding: EdgeInsets.zero,
-
-                                                      ),
-
-                                                    ),
-
-                                                  ],
-
-                                                ),
-
-                                              ),
-
-                                            ],
-
-                                          )
-
-                                        else
-
-                                          InkWell(
-
-                                            onTap: _pickAndUploadIdImage,
-
-                                            borderRadius: BorderRadius.circular(12),
-
-                                            child: Container(
-
-                                              width: double.infinity,
-
-                                              padding: const EdgeInsets.symmetric(vertical: 24),
-
-                                              decoration: BoxDecoration(
-
-                                                border: Border.all(
-
-                                                  color: Colors.grey.shade300,
-
-                                                  style: BorderStyle.solid,
-
-                                                ),
-
-                                                borderRadius: BorderRadius.circular(12),
-
-                                                color: Colors.white,
-
-                                              ),
-
-                                              child: Column(
-
-                                                children: [
-
-                                                  Icon(
-
-                                                    Icons.add_photo_alternate_outlined,
-
-                                                    size: 36,
-
-                                                    color: Colors.grey.shade400,
-
-                                                  ),
-
-                                                  const SizedBox(height: 8),
-
-                                                  Text(
-
-                                                    'Click to upload Valid ID',
-
-                                                    style: TextStyle(
-
-                                                      fontSize: 14,
-
-                                                      fontWeight: FontWeight.w500,
-
-                                                      color: Colors.grey.shade600,
-
-                                                    ),
-
-                                                  ),
-
-                                                  const SizedBox(height: 4),
-
-                                                  Text(
-
-                                                    'Formats: JPG, PNG',
-
-                                                    style: TextStyle(
-
-                                                      fontSize: 11,
-
-                                                      color: Colors.grey.shade400,
-
-                                                    ),
-
-                                                  ),
-
-                                                ],
-
-                                              ),
-
-                                            ),
-
-                                          ),
-
-                                      ],
-
-                                    ),
-
-                                  ),
-
-                                ],
-
-
-
-                                const SizedBox(height: 24), // Reduced from 32
-
-                              ],
-
-
-
-                              // Submit Button
-
-                              SizedBox(
-
-                                width: double.infinity,
-
-
-
-                                height: 56,
-
-
-
-                                child: ElevatedButton(
-
-                                  onPressed: _isLoading
-
-                                      ? null
-
-                                      : _showConfirmationDialog,
-
-
-
-                                  style: ElevatedButton.styleFrom(
-
-                                    backgroundColor: AppTheme.primaryColor,
-
-
-
-                                    foregroundColor: Colors.white,
-
-
-
-                                    elevation: 2,
-
-
-
-                                    shadowColor: AppTheme.primaryColor
-
-                                        .withValues(alpha: 0.3),
-
-
-
-                                    shape: RoundedRectangleBorder(
-
-                                      borderRadius: BorderRadius.circular(14),
-
-                                    ),
-
-                                  ),
-
-
-
-                                  child: _isLoading
-
-                                      ? const SizedBox(
-
-                                          height: 24,
-
-
-
-                                          width: 24,
-
-
-
-                                          child: CircularProgressIndicator(
-
-                                            strokeWidth: 2,
-
-
-
-                                            valueColor:
-
-                                                AlwaysStoppedAnimation<Color>(
-
-                                                  Colors.white,
-
-                                                ),
-
-                                          ),
-
-                                        )
-
-                                      : Row(
-
-                                          mainAxisAlignment:
-
-                                              MainAxisAlignment.center,
-
-
-
-                                          children: [
-
-                                            Text(
-
-                                              _reservationType == 'Event Place' ? 'Confirm Reservation' : 'Confirm Advance Order',
-
-
-
-                                              style: const TextStyle(
-
-                                                fontSize: 16,
-
-
-
-                                                fontWeight: FontWeight.bold,
-
-
-
-                                                letterSpacing: 0.5,
-
-                                              ),
-
-                                            ),
-
-
-
-                                            const SizedBox(width: 8),
-
-
-
-                                            const Icon(
-
-                                              Icons.arrow_forward_rounded,
-
-
-
-                                              size: 20,
-
-                                            ),
-
-                                          ],
-
-                                        ),
-
-                                ),
-
                               ),
-
-                            ],
-
+                            ),
                           ),
-
                         ),
-
-                      ),
-
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-
-
-
-            const SizedBox(height: 24), // Reduced from 32
-
+            const SizedBox(height: 24),
           ],
-
         ),
-
       ),
-
     );
+  }
 
+  void _handleTimeSelection(TimeOfDay pickedTime, int startHour, int endHour) async {
+    if (pickedTime.hour < startHour ||
+        pickedTime.hour > endHour ||
+        (pickedTime.hour == endHour && pickedTime.minute > 0)) {
+      _showSnackBar(
+        'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
+        Colors.red,
+      );
+      return;
+    }
+
+    if (_reservationType == 'Advance Order') {
+      final selectedDateStr = _dateController.text.trim();
+      if (selectedDateStr.isNotEmpty) {
+        try {
+          final now = DateTime.now();
+          final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
+          final isToday = selectedDate.year == now.year &&
+              selectedDate.month == now.month &&
+              selectedDate.day == now.day;
+
+          if (isToday) {
+            final selectedDateTime = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              pickedTime.hour,
+              pickedTime.minute,
+            );
+            final timeDifference = selectedDateTime.difference(now);
+
+            if (timeDifference.inMinutes < 40) {
+              final earliestTime = now.add(const Duration(minutes: 40));
+              final earliestFormatted =
+                  '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
+              _showSnackBar(
+                'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
+                Colors.red,
+              );
+              return;
+            }
+          }
+        } catch (e) {
+          debugPrint('Error validating lead time: $e');
+        }
+      }
+    }
+
+    if (_reservationType == 'Event Place' && _dateController.text.isNotEmpty) {
+      try {
+        final parsedDate = DateFormat('MMMM d, yyyy').parse(_dateController.text.trim());
+        final formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+        final duration = double.tryParse(_durationController.text) ?? 2.0;
+        final formattedTime = pickedTime.format(context);
+
+        final isOverlapping = await _reservationService.isTimeSlotOverlapping(
+          eventDate: formattedDate,
+          startTime: formattedTime,
+          durationHours: duration,
+        );
+
+        if (isOverlapping) {
+          _showSnackBar(
+            'This time slot ($formattedTime) is already booked on this date. Please choose a different time.',
+            Colors.orange,
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error checking time slot overlap: $e');
+      }
+    }
+
+    setState(() {
+      _startTimeController.text = pickedTime.format(context);
+    });
   }
 
 
@@ -6524,119 +5911,168 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildFormLabel(String label) {
-    return Text(
-      label,
-      style: GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        color: AppTheme.mediumGrey,
-        letterSpacing: 1.2,
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 5,
+          height: 5,
+          margin: const EdgeInsets.only(right: 6),
+          decoration: const BoxDecoration(
+            color: AppTheme.warmGold,
+            shape: BoxShape.circle,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.darkGrey,
+            letterSpacing: 1.1,
+          ),
+        ),
+      ],
     );
   }
 
-
-
+  // ignore: unused_element
   Widget _buildStyledTextField({
-
     required TextEditingController controller,
-
     required String hint,
-
     required IconData icon,
-
     bool readOnly = false,
-
     VoidCallback? onTap,
-
     TextInputType? keyboardType,
-
     List<TextInputFormatter>? inputFormatters,
-
     String? helperText,
-
   }) {
-
     return TextFormField(
-
       controller: controller,
-
       readOnly: readOnly,
-
       onTap: onTap,
-
       keyboardType: keyboardType,
-
       inputFormatters: inputFormatters,
-
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-
-      decoration: InputDecoration(
-
-        hintText: hint,
-
-        helperText: helperText,
-
-        helperStyle: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
-
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
-
+      style: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.darkGrey,
       ),
-
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: AppTheme.mediumGrey.withValues(alpha: 0.6),
+        ),
+        helperText: helperText,
+        helperStyle: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.mediumGrey,
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppTheme.warmGold.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppTheme.darkBrownText, size: 18),
+          ),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.cardBorder, width: 1.0),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.cardBorder, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.warmGold, width: 1.8),
+        ),
+      ),
     );
-
   }
-
-
 
   Widget _buildStyledDropdown<T>({
-
     required T? value,
-
     required String hint,
-
     required IconData icon,
-
     required List<String> items,
-
     required void Function(String?) onChanged,
-
   }) {
-
     return DropdownButtonFormField<String>(
-
       initialValue: value as String?,
-
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppTheme.darkGrey),
-
-      decoration: InputDecoration(
-
-        hintText: hint,
-
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
-
-        suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.mediumGrey),
-
+      style: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.darkGrey,
       ),
-
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: AppTheme.mediumGrey.withValues(alpha: 0.6),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppTheme.warmGold.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppTheme.darkBrownText, size: 18),
+          ),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        suffixIcon: const Padding(
+          padding: EdgeInsets.only(right: 12),
+          child: Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.mediumGrey, size: 22),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.cardBorder, width: 1.0),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.cardBorder, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.warmGold, width: 1.8),
+        ),
+      ),
+      dropdownColor: Colors.white,
+      borderRadius: BorderRadius.circular(16),
       icon: const SizedBox.shrink(),
-
       items: items
-
           .map((item) => DropdownMenuItem(
-
                 value: item,
-
-                child: Text(item),
-
+                child: Text(
+                  item,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
               ))
-
           .toList(),
-
       onChanged: onChanged,
-
     );
-
   }
 
 
@@ -8561,13 +7997,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
         setState(() {
-
           _selectedIdImage = pickedFile;
-
           _uploadedIdUrl = imageUrl;
-
+          _savedAccountValidIdUrl = imageUrl;
+          _hasSavedValidId = true;
           _isUploadingId = false;
-
         });
 
       }
@@ -8784,8 +8218,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         _selectedIdImage = null;
 
-        _uploadedIdUrl = null;
+        if (_uploadedIdUrl != null && _uploadedIdUrl!.isNotEmpty) {
+          _savedAccountValidIdUrl = _uploadedIdUrl;
+          _hasSavedValidId = true;
+        }
 
+        // Retain the saved ID URL on account so next booking does not need re-upload
+        _uploadedIdUrl = _savedAccountValidIdUrl;
       });
 
       _saveCartToPrefs();
@@ -13287,39 +12726,51 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
     if (_reservationType == 'Event Place') {
-
       if (_selectedEventType == null) hasRequiredFields = false;
-
       if (date.isEmpty) hasRequiredFields = false;
-
       if (startTime.isEmpty) hasRequiredFields = false;
-
       if (_selectedBaseDuration == null) hasRequiredFields = false;
-
       if (guests.isEmpty) hasRequiredFields = false;
-
       if (_selectedMenuItems.isEmpty) hasRequiredFields = false;
 
+      if (!hasRequiredFields) {
+        _showSnackBar('Please fill in all required fields', Colors.red);
+        return;
+      }
+
+      final int? guestCount = int.tryParse(guests);
+      if (guestCount == null || guestCount < _minGuestCount || guestCount > 100) {
+        _showSnackBar('Number of guests must be between $_minGuestCount and 100', Colors.red);
+        return;
+      }
+
+      if (_isUploadingId) {
+        _showSnackBar('Please wait for your Valid ID to finish uploading', Colors.orange);
+        return;
+      }
+
+      if (_uploadedIdUrl == null || _uploadedIdUrl!.isEmpty) {
+        _showSnackBar('Please upload a Valid ID before confirming your reservation', Colors.red);
+        return;
+      }
     } else {
-
       if (date.isEmpty) hasRequiredFields = false;
-
       if (startTime.isEmpty) hasRequiredFields = false;
-
       if (_advanceOrderType == 'Dine In' && guests.isEmpty) hasRequiredFields = false;
-
       if (_selectedMenuItems.isEmpty) hasRequiredFields = false;
 
-    }
+      if (!hasRequiredFields) {
+        _showSnackBar('Please fill in all required fields', Colors.red);
+        return;
+      }
 
-
-
-    if (!hasRequiredFields) {
-
-      _showSnackBar('Please fill in all required fields', Colors.red);
-
-      return;
-
+      if (_advanceOrderType == 'Dine In') {
+        final int? guestCount = int.tryParse(guests);
+        if (guestCount == null || guestCount < 1 || guestCount > 20) {
+          _showSnackBar('Number of guests must be between 1 and 20', Colors.red);
+          return;
+        }
+      }
     }
 
 
@@ -13720,15 +13171,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
     // Validation
-
     if (_reservationType == 'Event Place' && _selectedEventType == null) {
-
       _showSnackBar('Please select an event type', Colors.red);
-
-
-
       return;
+    }
 
+    if (_reservationType == 'Event Place') {
+      if (_isUploadingId) {
+        _showSnackBar('Please wait for your Valid ID to finish uploading', Colors.orange);
+        return;
+      }
+      if (_uploadedIdUrl == null || _uploadedIdUrl!.isEmpty) {
+        _showSnackBar('Please upload a Valid ID before completing your reservation', Colors.red);
+        return;
+      }
     }
 
 
