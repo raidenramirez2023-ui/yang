@@ -1483,7 +1483,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                 const SizedBox(height: 24),
 
                                 // ── Main Analytics & Monitoring Sections ──────────────────
-                                _buildSectionTitle(context, 'Revenue Analytics',
+                                _buildSectionTitle(context, 'Gross Analytics',
                                     icon: Icons.show_chart_rounded),
                                 const SizedBox(height: 12),
                                 _buildRevenueChart(context),
@@ -1852,7 +1852,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          'DAILY REVENUE',
+                          'DAILY GROSS',
                           style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.warmGold, letterSpacing: 0.4),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2107,7 +2107,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Revenue Analytics',
+                      'Gross Analytics',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.darkGrey,
@@ -2117,12 +2117,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     const SizedBox(height: 2),
                     Text(
                       _selectedPeriod == 'Weekly'
-                          ? 'This week\'s revenue overview'
+                          ? 'This week\'s gross overview'
                           : _selectedPeriod == 'Daily'
-                              ? 'Today\'s hourly revenue'
+                              ? 'Today\'s hourly gross overview'
                               : _selectedPeriod == 'Monthly'
-                                  ? 'Monthly revenue breakdown'
-                                  : 'Annual revenue trend',
+                                  ? 'Monthly gross overview'
+                                  : 'Annual gross overview',
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppTheme.mediumGrey,

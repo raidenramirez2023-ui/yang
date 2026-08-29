@@ -270,7 +270,7 @@ class _LoginPageState extends State<LoginPage> {
           );
 
           if (mounted) {
-            Navigator.pushReplacementNamed(context, '/customer-dashboard');
+            Navigator.pushReplacementNamed(context, '/customer/dashboard');
           }
         }
       } else {
@@ -310,7 +310,7 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          Navigator.pushReplacementNamed(context, '/customer/dashboard');
         }
       }
     } on AuthException catch (e) {
@@ -537,7 +537,7 @@ class _LoginPageState extends State<LoginPage> {
             Colors.green.shade700,
             Icons.check_circle_outline,
           );
-          Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          Navigator.pushReplacementNamed(context, '/customer/dashboard');
         }
       } else {
         // Prepare updates for existing user
@@ -599,7 +599,7 @@ class _LoginPageState extends State<LoginPage> {
             Colors.green.shade700,
             Icons.check_circle_outline,
           );
-          Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          Navigator.pushReplacementNamed(context, '/customer/dashboard');
         }
       }
     } catch (e) {

@@ -1293,7 +1293,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 runSpacing: 4,
                 children: [
                   const Text(
-                    'Sales & Revenue Report',
+                    'Sales & Gross Report',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -1767,7 +1767,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Revenue Analytics & Trends',
+                      'Gross Analytics & Trends',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -3144,4 +3144,4 @@ class _LocationPieData {
   final Color color;
 
   _LocationPieData(this.location, this.count, this.percentage, this.color);
-}
+}

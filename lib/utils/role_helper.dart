@@ -92,17 +92,19 @@ class RoleHelper {
     final role = await getCurrentUserRole();
     
     // pagsanjaninv@gmail.com and inventory staff get special dashboard
-    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
-      return '/pagsanjaninv-dashboard';
+    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff' || role == 'pagsanjaninv') {
+      return '/inventory/dashboard';
     }
     
     switch (role) {
       case 'admin':
-        return '/dashboard';
+        return '/admin/dashboard';
+      case 'chef':
+        return '/chef/dashboard';
       case 'staff':
-        return '/staff-dashboard';
+        return '/staff/dashboard';
       default:
-        return '/customer-dashboard';
+        return '/customer/dashboard';
     }
   }
 }

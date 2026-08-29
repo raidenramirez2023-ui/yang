@@ -81,55 +81,26 @@ import 'package:yang_chow/services/notification_service.dart';
 
 
 
+import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-
-
-
-
-
-
 class AdminMainPage extends StatefulWidget {
+  final int initialIndex;
 
-
-
-  const AdminMainPage({super.key});
-
-
-
-
-
-
+  const AdminMainPage({super.key, this.initialIndex = 0});
 
   @override
-
-
-
   State<AdminMainPage> createState() => _AdminMainPageState();
-
-
-
 }
 
-
-
-
-
-
-
 class _AdminMainPageState extends State<AdminMainPage> {
-
-
-
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+  void Function()? _cancelPopState;
 
   int _pendingPaymentCount = 0;
-
   int _pendingReservationCount = 0;
-
   int _remainingBalanceCount = 0;
-
   int _pendingRefundCount = 0;
 
 
@@ -189,6 +160,15 @@ class _AdminMainPageState extends State<AdminMainPage> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
+    _syncUrl();
+    _cancelPopState = UrlSyncHelper.listenPopState((path) {
+      final idx = _pageUrls.indexOf(path);
+      if (idx != -1 && idx != _selectedIndex && mounted) {
+        setState(() => _selectedIndex = idx);
+      }
+    });
+
     _checkUserRole();
     _loadDelegationSetting();
     _loadPendingPaymentCount();
@@ -582,7 +562,36 @@ class _AdminMainPageState extends State<AdminMainPage> {
     _countRefreshTimer?.cancel();
     _adminNotifsSubscription?.cancel();
     _dismissAdminTopToast();
+    _cancelPopState?.call();
     super.dispose();
+  }
+
+  static const List<String> _pageUrls = [
+    '/admin/dashboard',
+    '/admin/sales-reports',
+    '/admin/inventory',
+    '/admin/inventory-forecast',
+    '/admin/menu-management',
+    '/admin/reservations',
+    '/admin/payment-management',
+    '/admin/employee-management',
+    '/admin/customers-reviews',
+    '/admin/announcements',
+    '/admin/customer-chat',
+    '/admin/petty-cash',
+    '/admin/refunds-reschedules',
+    '/admin/audit-logs',
+  ];
+
+  void _syncUrl() {
+    if (_selectedIndex >= 0 && _selectedIndex < _pageUrls.length) {
+      UrlSyncHelper.updateUrl(_pageUrls[_selectedIndex]);
+    }
+  }
+
+  void _onSelectTab(int index) {
+    setState(() => _selectedIndex = index);
+    _syncUrl();
   }
 
 
@@ -889,7 +898,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                       onTap: () {
 
-                        setState(() => _selectedIndex = index);
+                        _onSelectTab(index);
 
                         // Refresh count when switching to Payment Management
                         if (_pageTitles[index] == 'Payment Management') {

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/global_messenger.dart';
 
@@ -115,21 +114,22 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   void _redirectByUserRole(String email, String userRole) {
     if (!mounted) return;
 
-    if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
-      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+    if (email.toLowerCase() == 'pagsanjaninv@gmail.com' ||
+        email.toLowerCase() == 'pagsanjaninv.gmail.com') {
+      Navigator.pushReplacementNamed(context, '/inventory/dashboard');
     } else if (email.toLowerCase() == 'chefycp@gmail.com' ||
         email.toLowerCase() == 'chefycp.gmail.com') {
-      Navigator.pushReplacementNamed(context, '/chef-dashboard');
+      Navigator.pushReplacementNamed(context, '/chef/dashboard');
     } else if (userRole == 'admin') {
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    } else if (userRole == 'inventory staff') {
-      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+      Navigator.pushReplacementNamed(context, '/admin/dashboard');
+    } else if (userRole == 'inventory staff' || userRole == 'pagsanjaninv') {
+      Navigator.pushReplacementNamed(context, '/inventory/dashboard');
     } else if (userRole == 'chef') {
-      Navigator.pushReplacementNamed(context, '/chef-dashboard');
+      Navigator.pushReplacementNamed(context, '/chef/dashboard');
     } else if (userRole == 'customer') {
-      Navigator.pushReplacementNamed(context, '/customer-dashboard');
+      Navigator.pushReplacementNamed(context, '/customer/dashboard');
     } else {
-      Navigator.pushReplacementNamed(context, '/staff-dashboard');
+      Navigator.pushReplacementNamed(context, '/staff/dashboard');
     }
   }
 
