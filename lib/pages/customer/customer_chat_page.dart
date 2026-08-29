@@ -188,23 +188,22 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     String? botReplyText;
     String? botActionType;
 
-    // 1. Check if the message is asking for live DB data (Reservation status, Balance, Reschedule, Refund)
-    if (ConciergeLiveBotService().isDatabaseInquiry(userText)) {
+    // 1. Check static FAQ knowledge base for system flow & process questions
+    final faqMatch = ChatFaqService().findFaqMatch(userText);
+    if (faqMatch != null) {
+      botReplyText = faqMatch.answer;
+      botActionType = faqMatch.actionType;
+    }
+
+    // 2. If not a general FAQ match, check if message is asking for personal live DB records
+    if (botReplyText == null && ConciergeLiveBotService().isDatabaseInquiry(userText)) {
       botReplyText = await ConciergeLiveBotService()
           .generateDatabaseResponse(customerEmail, userText);
       botActionType = 'live_db_query';
     }
 
-    // 2. If not a DB query, check static FAQ knowledge base
-    if (botReplyText == null) {
-      final faqMatch = ChatFaqService().findFaqMatch(userText);
-      if (faqMatch != null) {
-        botReplyText = faqMatch.answer;
-        botActionType = faqMatch.actionType;
-      }
-    }
-
     if (botReplyText == null) return;
+    if (_isBotTyping) return;
 
     // Simulate realistic typing indicator for Concierge Auto-Bot
     if (mounted) {
@@ -216,8 +215,9 @@ class _CustomerChatPageState extends State<CustomerChatPage>
 
     if (!mounted) return;
 
+    final botTempId = 'bot_${DateTime.now().millisecondsSinceEpoch}';
     final botMsg = <String, dynamic>{
-      'id': 'bot_${DateTime.now().millisecondsSinceEpoch}',
+      'id': botTempId,
       'customer_email': customerEmail,
       'customer_name': 'Yang Chow Concierge',
       'message': botReplyText,
@@ -242,6 +242,15 @@ class _CustomerChatPageState extends State<CustomerChatPage>
       );
     } catch (e) {
       debugPrint('Error persisting automated bot reply: $e');
+    } finally {
+      // Clean up temporary local bot message after syncing with realtime stream
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) {
+          setState(() {
+            _botMessages.removeWhere((m) => m['id'] == botTempId);
+          });
+        }
+      });
     }
   }
 
@@ -352,13 +361,20 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                           }
                         }
 
-                        // Combine database stream messages and local bot responses
+                        // Combine database stream messages and local bot responses without duplication
                         final combinedMessages = <Map<String, dynamic>>[...dbMessages];
                         for (final botMsg in _botMessages) {
-                          final existsInDb = dbMessages.any((m) =>
-                              m['id'] == botMsg['id'] ||
-                              (m['is_from_customer'] == false &&
-                               m['message'] == botMsg['message']));
+                          final botText = botMsg['message']?.toString().trim();
+                          final botId = botMsg['id']?.toString();
+
+                          final existsInDb = dbMessages.any((m) {
+                            final mId = m['id']?.toString();
+                            final mText = m['message']?.toString().trim();
+                            if (mId != null && botId != null && mId == botId) return true;
+                            if (mText != null && botText != null && mText == botText) return true;
+                            return false;
+                          });
+
                           if (!existsInDb) {
                             combinedMessages.add(botMsg);
                           }
@@ -1728,6 +1744,7 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
   late int _currentView; // 0: Menu, 1: Reservations & Balance, 2: Reschedule Requests, 3: Cancellations & Refunds, 4: FAQs
   String _faqSearchQuery = '';
   final TextEditingController _faqSearchController = TextEditingController();
+  bool _isHandlingAction = false;
 
   @override
   void initState() {
@@ -3515,6 +3532,8 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
                     borderRadius: BorderRadius.circular(14),
                     child: InkWell(
                       onTap: () {
+                        if (_isHandlingAction) return;
+                        _isHandlingAction = true;
                         Navigator.pop(context);
                         widget.onSendMessage(faq.question);
                       },
@@ -3616,6 +3635,8 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
         // Contact Live Agent Button
         OutlinedButton.icon(
           onPressed: () {
+            if (_isHandlingAction) return;
+            _isHandlingAction = true;
             Navigator.pop(context);
             widget.onSendMessage(
               '👨‍💼 Hi Support, I have a specific inquiry not listed in the FAQs. Could a staff member assist me?',

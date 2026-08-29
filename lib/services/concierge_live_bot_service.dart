@@ -151,7 +151,10 @@ class ConciergeLiveBotService {
 
           return '🔄 **Reschedule Status Update:**\n\n'
               'We checked your account (**$email**), and you currently have no pending reschedule requests.\n\n'
-              'To request a date change, open your booking in your Dashboard and tap *"Request Reschedule"*.';
+              '📌 **How to Request a Reschedule in App:**\n'
+              '1. Go to **"My Bookings"** on your **Customer Dashboard**.\n'
+              '2. Tap the **Three-Dot Menu (⋮)** in the top right of your active reservation card.\n'
+              '3. Select **"Reschedule"**, choose your new preferred date & time slot, enter your reason, and tap **"Submit Reschedule"**.';
         }
       } catch (e) {
         debugPrint('Error fetching live reschedule for bot: $e');
@@ -284,12 +287,13 @@ class ConciergeLiveBotService {
         return '💸 **Cancellation & Refund Policy Guidelines:**\n\n'
             'Here is our official refund calculation policy:\n'
             '• **4+ Days Before Event Date:** **100% Full Refund** of the deposit paid.\n'
-            '• **0 to 3 Days Before Event Date (Including Event Day):** **50% Partial Refund** (to cover prepared ingredients).\n'
-            '• **Past Event Date:** **0% (Non-refundable)**.\n\n'
-            '📌 **How to Submit a Cancellation Request:**\n'
-            '1. Go to **My Orders / Reservations** on your Dashboard.\n'
-            '2. Open your booking and click *"Request Cancellation / Refund"*.\n'
-            '3. State the reason and submit. Our Admin will verify and process the return via GCash/original payment method.\n\n'
+            '• **0 to 3 Days Before Event Date (Including Event Day):** **50% Partial Refund** (to cover reserved slots & prepared ingredients).\n'
+            '• **After Event Date Has Passed:** **0% (Non-refundable)**.\n\n'
+            '📌 **How to Submit a Cancellation in App:**\n'
+            '1. Go to **"My Bookings"** on your **Customer Dashboard**.\n'
+            '2. Tap the **Three-Dot Menu (⋮)** on your active reservation card and select **"Cancel Booking"**.\n'
+            '3. The app displays your **Expected Refund Amount**. Select the cancellation reason and confirm.\n'
+            '4. Admin reviews and processes the return via GCash / PayMongo or original payment method within 5–7 business days.\n\n'
             '💬 *Our live support staff has also been notified and can assist you right away!*';
       } catch (e) {
         debugPrint('Error fetching live refund for bot: $e');

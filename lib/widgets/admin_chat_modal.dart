@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../pages/admin/admin_chat_page.dart';
 import '../services/chat_service.dart';
 import '../utils/app_theme.dart';
@@ -20,10 +19,15 @@ class _AdminChatModalState extends State<AdminChatModal> {
   bool _isMinimized = false;
   bool _isClosed = true;
 
-  // Draggable modal properties
-  Offset _position = const Offset(0, 0);
-  bool _isDragging = false;
-  bool _positionInitialized = false;
+  // Draggable floating bubble position
+  Offset _buttonPosition = const Offset(0, 0);
+  bool _isDraggingButton = false;
+  bool _buttonPositionInitialized = false;
+
+  // Draggable modal window position (for desktop)
+  Offset _modalPosition = const Offset(0, 0);
+  bool _isDraggingModal = false;
+  bool _modalPositionInitialized = false;
 
   @override
   void initState() {
@@ -57,145 +61,201 @@ class _AdminChatModalState extends State<AdminChatModal> {
           sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0),
     );
 
-    if (isMobile) {
+    final screenSize = MediaQuery.of(context).size;
+
+    // Initialize button position (bottom right)
+    if (!_buttonPositionInitialized) {
+      _buttonPosition = Offset(
+        (screenSize.width - 80).clamp(10.0, double.infinity),
+        (screenSize.height - (isMobile ? 130 : 86)).clamp(50.0, double.infinity),
+      );
+      _buttonPositionInitialized = true;
+    }
+
+    final btnMaxX = (screenSize.width - 68).clamp(0.0, double.infinity);
+    final btnMaxY = (screenSize.height - 68).clamp(0.0, double.infinity);
+    const btnMinY = 50.0;
+    const btnMinX = 10.0;
+    final btnSafeMaxY = btnMaxY > btnMinY ? btnMaxY : btnMinY;
+
+    final constrainedBtnPosition = Offset(
+      _buttonPosition.dx.clamp(btnMinX, btnMaxX),
+      _buttonPosition.dy.clamp(btnMinY, btnSafeMaxY),
+    );
+
+    // 1. CLOSED STATE: Draggable floating chat bubble
+    if (_isClosed) {
       return Positioned(
-        bottom: 20,
-        right: 20,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!_isClosed)
-              Container(
-                width: MediaQuery.of(context).size.width - 24,
-                height: MediaQuery.of(context).size.height * 0.78,
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Column(
-                    children: [
-                      _buildHeader(true, totalUnread),
-                      const Expanded(child: AdminChatPage()),
-                    ],
-                  ),
-                ),
-              ),
-            _buildChatButton(totalUnread),
-          ],
+        left: constrainedBtnPosition.dx,
+        top: constrainedBtnPosition.dy,
+        child: GestureDetector(
+          onPanStart: (_) => setState(() => _isDraggingButton = true),
+          onPanUpdate: (details) {
+            setState(() {
+              _buttonPosition = Offset(
+                _buttonPosition.dx + details.delta.dx,
+                _buttonPosition.dy + details.delta.dy,
+              );
+            });
+          },
+          onPanEnd: (_) => setState(() => _isDraggingButton = false),
+          onTap: () => setState(() => _isClosed = false),
+          child: _buildChatButton(totalUnread),
         ),
       );
-    } else {
-      // Desktop layout
-      if (_isClosed) {
-        return Positioned(
-          bottom: 24,
-          right: 24,
-          child: _buildChatButton(totalUnread),
-        );
-      }
+    }
 
-      final screenSize = MediaQuery.of(context).size;
-      final modalWidth = _isMinimized ? 380.0 : 880.0;
-      final maxModalHeight = screenSize.height - 100;
-      final modalHeight =
-          _isMinimized ? 52.0 : (maxModalHeight.clamp(500.0, 680.0));
-
-      if (!_positionInitialized) {
-        final safeInitialY =
-            (screenSize.height - modalHeight - 60).clamp(40.0, 160.0);
-        _position = Offset(
-          screenSize.width - modalWidth - 30,
-          safeInitialY,
-        );
-        _positionInitialized = true;
-      }
-
-      final maxX = (screenSize.width - modalWidth).clamp(0.0, double.infinity);
-      final maxY =
-          (screenSize.height - modalHeight - 20).clamp(0.0, double.infinity);
-      const minY = 40.0;
-      final safeMaxY = maxY > minY ? maxY : minY;
-
-      final constrainedPosition = Offset(
-        _position.dx.clamp(0.0, maxX),
-        _position.dy.clamp(minY, safeMaxY),
-      );
+    // 2. OPEN STATE: Mobile Layout
+    if (isMobile) {
+      final modalWidth = screenSize.width - 24;
+      final modalHeight = (screenSize.height * 0.78).clamp(380.0, 680.0);
+      const modalLeft = 12.0;
+      final modalTop = (screenSize.height - modalHeight - 75).clamp(40.0, double.infinity);
 
       return Stack(
         children: [
           Positioned(
-            left: constrainedPosition.dx,
-            top: constrainedPosition.dy,
+            left: modalLeft,
+            top: modalTop,
             child: Container(
               width: modalWidth,
               height: modalHeight,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.22),
-                    blurRadius: 28,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
-                border: Border.all(
-                  color: _isDragging
-                      ? const Color(0xFF14332E)
-                      : const Color(0xFFE2E8F0),
-                  width: _isDragging ? 2 : 1,
-                ),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 child: Column(
                   children: [
-                    _buildHeader(false, totalUnread),
-                    if (!_isMinimized)
-                      const Expanded(child: AdminChatPage()),
+                    _buildHeader(true, totalUnread),
+                    const Expanded(child: AdminChatPage()),
                   ],
                 ),
               ),
             ),
           ),
           Positioned(
-            left: constrainedPosition.dx + modalWidth - 58,
-            top: constrainedPosition.dy + modalHeight + 14,
+            left: constrainedBtnPosition.dx,
+            top: constrainedBtnPosition.dy,
             child: GestureDetector(
-              onPanStart: (_) => setState(() => _isDragging = true),
+              onPanStart: (_) => setState(() => _isDraggingButton = true),
               onPanUpdate: (details) {
                 setState(() {
-                  _position = Offset(
-                    _position.dx + details.delta.dx,
-                    _position.dy + details.delta.dy,
+                  _buttonPosition = Offset(
+                    _buttonPosition.dx + details.delta.dx,
+                    _buttonPosition.dy + details.delta.dy,
                   );
                 });
               },
-              onPanEnd: (_) => setState(() => _isDragging = false),
+              onPanEnd: (_) => setState(() => _isDraggingButton = false),
+              onTap: () => setState(() => _isClosed = true),
               child: _buildChatButton(totalUnread),
             ),
           ),
         ],
       );
     }
+
+    // 3. OPEN STATE: Desktop Layout
+    final modalWidth = _isMinimized ? 380.0 : 880.0;
+    final maxModalHeight = screenSize.height - 100;
+    final modalHeight =
+        _isMinimized ? 52.0 : (maxModalHeight.clamp(500.0, 680.0));
+
+    if (!_modalPositionInitialized) {
+      final safeInitialY =
+          (screenSize.height - modalHeight - 60).clamp(40.0, 160.0);
+      _modalPosition = Offset(
+        (screenSize.width - modalWidth - 30).clamp(10.0, double.infinity),
+        safeInitialY,
+      );
+      _modalPositionInitialized = true;
+    }
+
+    final modalMaxX = (screenSize.width - modalWidth).clamp(0.0, double.infinity);
+    final modalMaxY =
+        (screenSize.height - modalHeight - 20).clamp(0.0, double.infinity);
+    const modalMinY = 40.0;
+    final modalSafeMaxY = modalMaxY > modalMinY ? modalMaxY : modalMinY;
+
+    final constrainedModalPosition = Offset(
+      _modalPosition.dx.clamp(0.0, modalMaxX),
+      _modalPosition.dy.clamp(modalMinY, modalSafeMaxY),
+    );
+
+    return Stack(
+      children: [
+        Positioned(
+          left: constrainedModalPosition.dx,
+          top: constrainedModalPosition.dy,
+          child: Container(
+            width: modalWidth,
+            height: modalHeight,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 28,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(
+                color: _isDraggingModal
+                    ? const Color(0xFF14332E)
+                    : const Color(0xFFE2E8F0),
+                width: _isDraggingModal ? 2 : 1,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Column(
+                children: [
+                  _buildHeader(false, totalUnread),
+                  if (!_isMinimized)
+                    const Expanded(child: AdminChatPage()),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: constrainedBtnPosition.dx,
+          top: constrainedBtnPosition.dy,
+          child: GestureDetector(
+            onPanStart: (_) => setState(() => _isDraggingButton = true),
+            onPanUpdate: (details) {
+              setState(() {
+                _buttonPosition = Offset(
+                  _buttonPosition.dx + details.delta.dx,
+                  _buttonPosition.dy + details.delta.dy,
+                );
+              });
+            },
+            onPanEnd: (_) => setState(() => _isDraggingButton = false),
+            onTap: () => setState(() => _isClosed = true),
+            child: _buildChatButton(totalUnread),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildChatButton(int totalUnread) {
-    return GestureDetector(
-      onTap: () => setState(() => _isClosed = !_isClosed),
-      child: Container(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         width: 58,
         height: 58,
         decoration: BoxDecoration(
@@ -205,12 +265,15 @@ class _AdminChatModalState extends State<AdminChatModal> {
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFD9A441), width: 1.5),
+          border: Border.all(
+            color: _isDraggingButton ? const Color(0xFFF59E0B) : const Color(0xFFD9A441),
+            width: _isDraggingButton ? 2.5 : 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF14332E).withOpacity(0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: const Color(0xFF14332E).withValues(alpha: _isDraggingButton ? 0.5 : 0.35),
+              blurRadius: _isDraggingButton ? 20 : 16,
+              offset: Offset(0, _isDraggingButton ? 8 : 6),
             ),
           ],
         ),
@@ -234,7 +297,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 4,
                       ),
                     ],
@@ -263,18 +326,18 @@ class _AdminChatModalState extends State<AdminChatModal> {
 
   Widget _buildHeader(bool isMobile, int totalUnread) {
     return GestureDetector(
-      onPanStart: isMobile ? null : (_) => setState(() => _isDragging = true),
+      onPanStart: isMobile ? null : (_) => setState(() => _isDraggingModal = true),
       onPanUpdate: isMobile
           ? null
           : (details) {
               setState(() {
-                _position = Offset(
-                  _position.dx + details.delta.dx,
-                  _position.dy + details.delta.dy,
+                _modalPosition = Offset(
+                  _modalPosition.dx + details.delta.dx,
+                  _modalPosition.dy + details.delta.dy,
                 );
               });
             },
-      onPanEnd: isMobile ? null : (_) => setState(() => _isDragging = false),
+      onPanEnd: isMobile ? null : (_) => setState(() => _isDraggingModal = false),
       child: Container(
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -288,7 +351,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
         child: Row(
           children: [
             Icon(
-              _isDragging
+              _isDraggingModal
                   ? Icons.drag_indicator_rounded
                   : Icons.support_agent_rounded,
               color: Colors.white,
@@ -333,7 +396,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   _isMinimized
                       ? Icons.open_in_full_rounded
                       : Icons.remove_rounded,
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                   size: 18,
                 ),
                 onPressed: () => setState(() => _isMinimized = !_isMinimized),
@@ -345,7 +408,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
               constraints: const BoxConstraints(),
               icon: Icon(
                 Icons.close_rounded,
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 size: 20,
               ),
               onPressed: () => setState(() => _isClosed = true),

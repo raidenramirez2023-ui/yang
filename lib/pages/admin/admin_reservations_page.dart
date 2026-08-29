@@ -2459,6 +2459,39 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     });
   }
 
+  Future<String?> _resolveCustomerUploadedId(String email, String? directIdUrl) async {
+    if (directIdUrl != null && directIdUrl.isNotEmpty && directIdUrl != 'null') {
+      return directIdUrl;
+    }
+    final trimmedEmail = email.trim().toLowerCase();
+    if (trimmedEmail.isEmpty) return null;
+
+    // Check local loaded list first
+    for (final r in reservations) {
+      if ((r['customer_email'] ?? '').toString().trim().toLowerCase() == trimmedEmail) {
+        final id = r['uploaded_id_url']?.toString();
+        if (id != null && id.isNotEmpty && id != 'null') {
+          return id;
+        }
+      }
+    }
+
+    try {
+      final res = await Supabase.instance.client
+          .from('reservations')
+          .select('uploaded_id_url')
+          .or('customer_email.eq.$email,customer_email.eq.$trimmedEmail')
+          .not('uploaded_id_url', 'is', null)
+          .order('created_at', ascending: false)
+          .limit(1);
+      if (res.isNotEmpty && res[0]['uploaded_id_url'] != null) {
+        final url = res[0]['uploaded_id_url'].toString();
+        if (url.isNotEmpty && url != 'null') return url;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   void _showViewReservationDialog(Map<String, dynamic> reservation) {
     final status = reservation['status'];
     final isPending = status == 'pending';
@@ -2760,98 +2793,178 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       ],
 
                       // Uploaded ID
-                      if (reservation['uploaded_id_url'] != null &&
-                          reservation['uploaded_id_url'].toString().isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _modalSectionTitle('VERIFICATION ID'),
-                        const SizedBox(height: 10),
-                        InkWell(
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => Dialog(
-                                backgroundColor: Colors.transparent,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: _darkBg,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(20),
-                                        child: InteractiveViewer(
-                                          minScale: 0.5,
-                                          maxScale: 4.0,
-                                          child: Image.network(
-                                            reservation['uploaded_id_url'].toString(),
-                                            fit: BoxFit.contain,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 12, right: 12,
-                                      child: CircleAvatar(
-                                        backgroundColor: Colors.black.withValues(alpha: 0.6),
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close_rounded, color: Colors.white),
-                                          onPressed: () => Navigator.pop(ctx),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                      const SizedBox(height: 16),
+                      _modalSectionTitle('VERIFICATION ID'),
+                      const SizedBox(height: 10),
+                      FutureBuilder<String?>(
+                        future: _resolveCustomerUploadedId(
+                          reservation['customer_email']?.toString() ?? '',
+                          reservation['uploaded_id_url']?.toString(),
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return Container(
+                              height: 90,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _slateLight),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: _emerald),
                                 ),
                               ),
                             );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            height: 150,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _slateLight),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Image.network(
-                                    reservation['uploaded_id_url'].toString(),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (c, e, s) => const Center(
-                                      child: Icon(Icons.broken_image_rounded, size: 40, color: Color(0xFF94A3B8)),
+                          }
+
+                          final idUrl = snapshot.data;
+                          if (idUrl != null && idUrl.isNotEmpty && idUrl != 'null') {
+                            return InkWell(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => Dialog(
+                                    backgroundColor: Colors.transparent,
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: _darkBg,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(20),
+                                            child: InteractiveViewer(
+                                              minScale: 0.5,
+                                              maxScale: 4.0,
+                                              child: Image.network(
+                                                idUrl,
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 12, right: 12,
+                                          child: CircleAvatar(
+                                            backgroundColor: Colors.black.withValues(alpha: 0.6),
+                                            child: IconButton(
+                                              icon: const Icon(Icons.close_rounded, color: Colors.white),
+                                              onPressed: () => Navigator.pop(ctx),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Positioned(
-                                    bottom: 8, right: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.5),
-                                        borderRadius: BorderRadius.circular(6),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                height: 160,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.6), width: 1.5),
+                                  color: const Color(0xFFF8FAFC),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.network(
+                                        idUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (c, e, s) => const Center(
+                                          child: Icon(Icons.broken_image_rounded, size: 40, color: Color(0xFF94A3B8)),
+                                        ),
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.zoom_in_rounded, size: 12, color: Colors.white),
-                                          const SizedBox(width: 4),
-                                          Text('Tap to enlarge',
-                                              style: GoogleFonts.plusJakartaSans(fontSize: 10, color: Colors.white)),
-                                        ],
+                                      Positioned(
+                                        top: 8, left: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF065F46).withValues(alpha: 0.9),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.verified_user_rounded, size: 12, color: Colors.white),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Customer Valid ID',
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      Positioned(
+                                        bottom: 8, right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.65),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.zoom_in_rounded, size: 12, color: Colors.white),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Tap to enlarge',
+                                                style: GoogleFonts.plusJakartaSans(fontSize: 10, color: Colors.white),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
+                            );
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFFECACA)),
                             ),
-                          ),
-                        ),
-                      ],
+                            child: Row(
+                              children: [
+                                const Icon(Icons.badge_outlined, color: Color(0xFFDC2626), size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'No Valid ID recorded for this reservation.',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      color: const Color(0xFFDC2626),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),

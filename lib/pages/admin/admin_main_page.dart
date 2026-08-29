@@ -70,7 +70,6 @@ import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
 import 'package:yang_chow/pages/admin/audit_logs_page.dart';
-import 'package:yang_chow/pages/admin/backup_restore_page.dart';
 
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
@@ -615,7 +614,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Petty Cash',
     'Refunds & Reschedules',
     'Audit Logs',
-    'Backup & Restore',
   ];
 
   static const List<IconData> _pageIcons = [
@@ -633,7 +631,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.account_balance_wallet,
     Icons.receipt_long,
     Icons.shield_outlined,
-    Icons.settings_backup_restore_rounded,
   ];
 
   late final List<Widget> _pages = [
@@ -651,7 +648,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const PettyCashPage(),
     const RefundManagementPage(),
     const AuditLogsPage(),
-    const BackupRestorePage(),
   ];
 
 
