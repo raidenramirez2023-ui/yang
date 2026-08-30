@@ -307,37 +307,22 @@ class MenuService {
   static const List<String> _defaultCategories = [
 
     'Yangchow Family Bundles',
-
-    'Vegetables',
-
-    'Special Noodles',
-
-    'Soup',
-
-    'Seafood',
-
-    'Roast and Soy Specialties',
-
-    'Pork',
-
-    'Noodles',
-
-    'Mami or Noodles',
-
-    'Hot Pot Specialties',
-
-    'Fried Rice or Rice',
-
     'Dimsum',
-
     'Congee',
-
-    'Chicken',
-
-    'Beef',
-
     'Appetizer',
-
+    'Mami or Noodles',
+    'Soup',
+    'Special Noodles',
+    'Fried Rice or Rice',
+    'Noodles',
+    'Roast and Soy Specialties',
+    'Beef',
+    'Pork',
+    'Chicken',
+    'Seafood',
+    'Hot Pot Specialties',
+    'Vegetables',
+    'Catering Packages',
   ];
 
 

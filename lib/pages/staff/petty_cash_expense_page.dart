@@ -27,10 +27,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   String _selectedStatusFilter = 'All';
   String _selectedCategoryFilter = 'All';
   String _selectedSort = 'newest'; // 'newest', 'oldest', 'highest', 'lowest'
+  int _currentPage = 1;
+  static const int _rowsPerPage = 15;
+  final ScrollController _tableHorizontalScrollController = ScrollController();
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tableHorizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -494,7 +498,10 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
           ),
           child: TextField(
             controller: _searchController,
-            onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+            onChanged: (val) => setState(() {
+              _searchQuery = val.trim().toLowerCase();
+              _currentPage = 1;
+            }),
             style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF0F172A)),
             decoration: InputDecoration(
               hintText: 'Search by description, inventory item, supplier, or receipt #...',
@@ -508,7 +515,10 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() => _searchQuery = '');
+                        setState(() {
+                          _searchQuery = '';
+                          _currentPage = 1;
+                        });
                       },
                     )
                   : null,
@@ -596,7 +606,68 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
               return _buildEmptyState(myExpenses.isEmpty);
             }
 
-            return _buildExpensesTable(filtered, isMobile);
+            final totalItems = filtered.length;
+            final totalPages = (totalItems / _rowsPerPage).ceil().clamp(1, 999999);
+            if (_currentPage > totalPages && totalPages > 0) {
+              _currentPage = totalPages;
+            }
+            if (_currentPage < 1) {
+              _currentPage = 1;
+            }
+
+            final startIndex = (_currentPage - 1) * _rowsPerPage;
+            final endIndex = (startIndex + _rowsPerPage < totalItems) ? startIndex + _rowsPerPage : totalItems;
+            final paginatedExpenses = filtered.sublist(
+              startIndex < totalItems ? startIndex : 0,
+              endIndex <= totalItems ? endIndex : totalItems,
+            );
+            final totalFilteredAmount = filtered.fold<double>(0.0, (sum, item) => sum + item.amount);
+
+            if (isMobile) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildMobileSummaryCard(totalItems, totalFilteredAmount),
+                  const SizedBox(height: 12),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: paginatedExpenses.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) => _buildExpenseCard(paginatedExpenses[index]),
+                  ),
+                  if (totalItems > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: _buildTablePaginationControls(
+                          currentPage: _currentPage,
+                          totalItems: totalItems,
+                          totalPages: totalPages,
+                          startIndex: startIndex,
+                          endIndex: endIndex,
+                          onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            }
+
+            return _buildExpensesTable(
+              expenses: paginatedExpenses,
+              totalItems: totalItems,
+              totalFilteredAmount: totalFilteredAmount,
+              currentPage: _currentPage,
+              totalPages: totalPages,
+              startIndex: startIndex,
+              endIndex: endIndex,
+            );
           },
         ),
       ],
@@ -609,7 +680,10 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: InkWell(
-        onTap: () => setState(() => _selectedStatusFilter = status),
+        onTap: () => setState(() {
+          _selectedStatusFilter = status;
+          _currentPage = 1;
+        }),
         borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -655,11 +729,30 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   }
 
   // ---------------------------------------------------------------------------
-  // EXPENSE TABLE (MODERN, RESPONSIVE, DATA-RICH)
+  // DESKTOP TABLE IMPLEMENTATION (FULL-WIDTH 100% RESPONSIVE GRID)
   // ---------------------------------------------------------------------------
-  Widget _buildExpensesTable(List<PettyCashExpense> expenses, bool isMobile) {
-    final totalFilteredAmount = expenses.fold<double>(0.0, (sum, item) => sum + item.amount);
+  Widget _tableHeader(String label, {TextAlign align = TextAlign.left}) {
+    return Text(
+      label,
+      textAlign: align,
+      style: GoogleFonts.plusJakartaSans(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF475569),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
 
+  Widget _buildExpensesTable({
+    required List<PettyCashExpense> expenses,
+    required int totalItems,
+    required double totalFilteredAmount,
+    required int currentPage,
+    required int totalPages,
+    required int startIndex,
+    required int endIndex,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -676,9 +769,9 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Table Top Bar: Count & Total Summary
+          // Table Top Bar: Count & Total Summary (Full 100% Width)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: const BoxDecoration(
               color: Color(0xFFF8FAFC),
               borderRadius: BorderRadius.only(
@@ -695,7 +788,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                     const Icon(Icons.table_chart_rounded, size: 18, color: Color(0xFF14332E)),
                     const SizedBox(width: 8),
                     Text(
-                      '${expenses.length} Record${expenses.length == 1 ? '' : 's'} Found',
+                      '$totalItems Record${totalItems == 1 ? '' : 's'} Found',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -735,357 +828,914 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
             ),
           ),
 
-          // Horizontally Scrollable Table
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 960),
-              child: DataTable(
-                columnSpacing: 18,
-                horizontalMargin: 18,
-                headingRowHeight: 46,
-                dataRowMinHeight: 64,
-                dataRowMaxHeight: 110,
-                headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
-                headingTextStyle: GoogleFonts.plusJakartaSans(
-                  color: const Color(0xFF475569),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                  letterSpacing: 0.5,
-                ),
-                columns: const [
-                  DataColumn(label: Text('DATE')),
-                  DataColumn(label: Text('CATEGORY')),
-                  DataColumn(label: Text('DESCRIPTION & ITEMS')),
-                  DataColumn(label: Text('SUPPLIER')),
-                  DataColumn(label: Text('RECEIPT #')),
-                  DataColumn(label: Text('AMOUNT')),
-                  DataColumn(label: Text('STATUS')),
-                  DataColumn(label: Text('RECEIPT')),
-                  DataColumn(label: Text('ACTIONS')),
-                ],
-                rows: expenses.map((expense) {
-                  final rowIndex = expenses.indexOf(expense);
-                  final isEven = rowIndex.isEven;
+          // Responsive Full-Width Flex Table (Stretches across all available width, no dead space)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final minWidth = constraints.maxWidth < 1080 ? 1080.0 : constraints.maxWidth;
 
-                  Color statusColor;
-                  IconData statusIcon;
-                  String statusLabel;
-
-                  switch (expense.status.toLowerCase()) {
-                    case 'approved':
-                      statusColor = const Color(0xFF15803D);
-                      statusIcon = Icons.check_circle_rounded;
-                      statusLabel = 'Approved';
-                      break;
-                    case 'rejected':
-                      statusColor = const Color(0xFFDC2626);
-                      statusIcon = Icons.cancel_rounded;
-                      statusLabel = 'Rejected';
-                      break;
-                    case 'reimbursed':
-                      statusColor = const Color(0xFF0284C7);
-                      statusIcon = Icons.payments_rounded;
-                      statusLabel = 'Reimbursed';
-                      break;
-                    case 'pending':
-                    default:
-                      statusColor = const Color(0xFFD97706);
-                      statusIcon = Icons.hourglass_top_rounded;
-                      statusLabel = 'Pending';
-                      break;
-                  }
-
-                  final categoryIcon = _getCategoryIcon(expense.category);
-                  final categoryColor = _getCategoryColor(expense.category);
-
-                  return DataRow(
-                    color: WidgetStateProperty.resolveWith<Color?>((states) {
-                      if (states.contains(WidgetState.hovered)) {
-                        return const Color(0xFFF8FAFC);
-                      }
-                      return isEven ? Colors.white : const Color(0xFFFBFDFB);
-                    }),
-                    cells: [
-                      // Date Cell
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 6),
-                            Text(
-                              DateFormat('MMM d, yyyy').format(expense.expenseDate),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF334155),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Category Cell
-                      DataCell(
+              return Scrollbar(
+                controller: _tableHorizontalScrollController,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _tableHorizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: minWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Table Header Row
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: categoryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: categoryColor.withValues(alpha: 0.2)),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(categoryIcon, size: 13, color: categoryColor),
-                              const SizedBox(width: 5),
-                              Text(
-                                expense.categoryDisplay,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: categoryColor,
-                                ),
-                              ),
+                              SizedBox(width: 110, child: _tableHeader('DATE')),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 155, child: _tableHeader('CATEGORY')),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 3, child: _tableHeader('DESCRIPTION & ITEMS')),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 120, child: _tableHeader('SUPPLIER')),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 100, child: _tableHeader('RECEIPT #')),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 115, child: _tableHeader('AMOUNT', align: TextAlign.right)),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 110, child: _tableHeader('STATUS', align: TextAlign.center)),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 85, child: _tableHeader('RECEIPT', align: TextAlign.center)),
+                              const SizedBox(width: 12),
+                              SizedBox(width: 80, child: _tableHeader('ACTIONS', align: TextAlign.right)),
                             ],
                           ),
                         ),
-                      ),
 
-                      // Description & Items Cell
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 280),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  expense.description,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF0F172A),
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (expense.isMultiItemExpense && expense.inventoryItems != null && expense.inventoryItems!.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Wrap(
-                                    spacing: 4,
-                                    runSpacing: 2,
-                                    children: expense.inventoryItems!.take(3).map((item) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                                        ),
-                                        child: Text(
-                                          '${item.itemName} ×${item.quantity}',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFF475569),
+                        // Table Rows List
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: expenses.length,
+                          separatorBuilder: (_, __) => const Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Color(0xFFF1F5F9),
+                          ),
+                          itemBuilder: (context, index) {
+                            final expense = expenses[index];
+                            final isEven = index.isEven;
+
+                            Color statusColor;
+                            IconData statusIcon;
+                            String statusLabel;
+
+                            switch (expense.status.toLowerCase()) {
+                              case 'approved':
+                                statusColor = const Color(0xFF15803D);
+                                statusIcon = Icons.check_circle_rounded;
+                                statusLabel = 'Approved';
+                                break;
+                              case 'rejected':
+                                statusColor = const Color(0xFFDC2626);
+                                statusIcon = Icons.cancel_rounded;
+                                statusLabel = 'Rejected';
+                                break;
+                              case 'reimbursed':
+                                statusColor = const Color(0xFF0284C7);
+                                statusIcon = Icons.payments_rounded;
+                                statusLabel = 'Reimbursed';
+                                break;
+                              case 'pending':
+                              default:
+                                statusColor = const Color(0xFFD97706);
+                                statusIcon = Icons.hourglass_top_rounded;
+                                statusLabel = 'Pending';
+                                break;
+                            }
+
+                            final categoryIcon = _getCategoryIcon(expense.category);
+                            final categoryColor = _getCategoryColor(expense.category);
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              color: isEven ? Colors.white : const Color(0xFFFBFDFB),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // 1. DATE
+                                  SizedBox(
+                                    width: 110,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF94A3B8)),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            DateFormat('MMM d, yyyy').format(expense.expenseDate),
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF334155),
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ] else if (expense.inventoryItemName != null) ...[
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ],
                                     ),
-                                    child: Text(
-                                      '${expense.inventoryItemName!} ×${expense.quantityPurchased ?? 1}',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF475569),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // 2. CATEGORY
+                                  SizedBox(
+                                    width: 155,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: categoryColor.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: categoryColor.withValues(alpha: 0.2)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(categoryIcon, size: 13, color: categoryColor),
+                                            const SizedBox(width: 5),
+                                            Flexible(
+                                              child: Text(
+                                                expense.categoryDisplay,
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: categoryColor,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ],
-                                if (expense.notes != null && expense.notes!.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Note: ${expense.notes!}',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 10,
-                                      fontStyle: FontStyle.italic,
-                                      color: const Color(0xFF94A3B8),
+                                  const SizedBox(width: 12),
+
+                                  // 3. DESCRIPTION & ITEMS (Expanded flex: 3 to fill entire container width)
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          expense.description,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF0F172A),
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (expense.isMultiItemExpense && expense.inventoryItems != null && expense.inventoryItems!.isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Wrap(
+                                            spacing: 4,
+                                            runSpacing: 2,
+                                            children: expense.inventoryItems!.take(4).map((item) {
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF1F5F9),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                ),
+                                                child: Text(
+                                                  '${item.itemName} ×${item.quantity}',
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: const Color(0xFF475569),
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        ] else if (expense.inventoryItemName != null) ...[
+                                          const SizedBox(height: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: Text(
+                                              '${expense.inventoryItemName!} ×${expense.quantityPurchased ?? 1}',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        if (expense.notes != null && expense.notes!.isNotEmpty) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Note: ${expense.notes!}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 10,
+                                              fontStyle: FontStyle.italic,
+                                              color: const Color(0xFF94A3B8),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ],
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                                  const SizedBox(width: 12),
 
-                      // Supplier Cell
-                      DataCell(
-                        expense.supplier != null && expense.supplier!.isNotEmpty
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.storefront_rounded, size: 14, color: Color(0xFF94A3B8)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    expense.supplier!,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12,
-                                      color: const Color(0xFF475569),
-                                      fontWeight: FontWeight.w500,
+                                  // 4. SUPPLIER
+                                  SizedBox(
+                                    width: 120,
+                                    child: expense.supplier != null && expense.supplier!.isNotEmpty
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.storefront_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  expense.supplier!,
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    fontSize: 12,
+                                                    color: const Color(0xFF475569),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            '—',
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1)),
+                                          ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // 5. RECEIPT #
+                                  SizedBox(
+                                    width: 100,
+                                    child: expense.receiptNumber != null && expense.receiptNumber!.isNotEmpty
+                                        ? Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: Text(
+                                              '#${expense.receiptNumber}',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF475569),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          )
+                                        : Text(
+                                            '—',
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1)),
+                                          ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // 6. AMOUNT
+                                  SizedBox(
+                                    width: 115,
+                                    child: Text(
+                                      '₱${NumberFormat('#,##0.00').format(expense.amount)}',
+                                      textAlign: TextAlign.right,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF14332E),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // 7. STATUS
+                                  SizedBox(
+                                    width: 110,
+                                    child: Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: statusColor.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(statusIcon, color: statusColor, size: 12),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              statusLabel,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: statusColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // 8. RECEIPT
+                                  SizedBox(
+                                    width: 85,
+                                    child: Center(
+                                      child: expense.receiptImageUrl != null
+                                          ? OutlinedButton.icon(
+                                              onPressed: () => _showReceiptLightbox(expense.receiptImageUrl!),
+                                              icon: const Icon(Icons.photo_library_rounded, size: 13),
+                                              label: const Text('View'),
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: const Color(0xFF14332E),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                side: BorderSide(color: const Color(0xFF14332E).withValues(alpha: 0.3)),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                                textStyle: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            )
+                                          : Text(
+                                              '—',
+                                              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1)),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // 9. ACTIONS
+                                  SizedBox(
+                                    width: 80,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: expense.status.toLowerCase() == 'pending'
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1E293B)),
+                                                  tooltip: 'Edit Expense',
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                  onPressed: () => _editExpense(expense),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                IconButton(
+                                                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
+                                                  tooltip: 'Delete Expense',
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                  onPressed: () => _deleteExpense(expense.id!),
+                                                ),
+                                              ],
+                                            )
+                                          : Tooltip(
+                                              message: 'Only pending expenses can be edited or deleted',
+                                              child: Icon(
+                                                Icons.lock_outline_rounded,
+                                                size: 15,
+                                                color: const Color(0xFF94A3B8).withValues(alpha: 0.6),
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ],
-                              )
-                            : Text(
-                                '—',
-                                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1)),
                               ),
-                      ),
-
-                      // Receipt # Cell
-                      DataCell(
-                        expense.receiptNumber != null && expense.receiptNumber!.isNotEmpty
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                ),
-                                child: Text(
-                                  '#${expense.receiptNumber}',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF475569),
-                                  ),
-                                ),
-                              )
-                            : Text(
-                                '—',
-                                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1)),
-                              ),
-                      ),
-
-                      // Amount Cell
-                      DataCell(
-                        Text(
-                          '₱${NumberFormat('#,##0.00').format(expense.amount)}',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF14332E),
-                          ),
+                            );
+                          },
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
 
-                      // Status Cell
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.2)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(statusIcon, color: statusColor, size: 12),
-                              const SizedBox(width: 5),
-                              Text(
-                                statusLabel,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: statusColor,
-                                ),
-                              ),
-                            ],
-                          ),
+          // Pagination Controls attached to bottom of card
+          _buildTablePaginationControls(
+            currentPage: currentPage,
+            totalItems: totalItems,
+            totalPages: totalPages,
+            startIndex: startIndex,
+            endIndex: endIndex,
+            onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // MOBILE CARD VIEW & SUMMARY (FOR SMARTPHONES / SMALL SCREENS)
+  // ---------------------------------------------------------------------------
+  Widget _buildMobileSummaryCard(int totalItems, double totalAmount) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.table_chart_rounded, size: 16, color: Color(0xFF14332E)),
+              const SizedBox(width: 6),
+              Text(
+                '$totalItems Record${totalItems == 1 ? '' : 's'}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            'Total: ₱${NumberFormat('#,##0.00').format(totalAmount)}',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF14332E),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpenseCard(PettyCashExpense expense) {
+    Color statusColor;
+    IconData statusIcon;
+    String statusLabel;
+
+    switch (expense.status.toLowerCase()) {
+      case 'approved':
+        statusColor = const Color(0xFF15803D);
+        statusIcon = Icons.check_circle_rounded;
+        statusLabel = 'Approved';
+        break;
+      case 'rejected':
+        statusColor = const Color(0xFFDC2626);
+        statusIcon = Icons.cancel_rounded;
+        statusLabel = 'Rejected';
+        break;
+      case 'reimbursed':
+        statusColor = const Color(0xFF0284C7);
+        statusIcon = Icons.payments_rounded;
+        statusLabel = 'Reimbursed';
+        break;
+      case 'pending':
+      default:
+        statusColor = const Color(0xFFD97706);
+        statusIcon = Icons.hourglass_top_rounded;
+        statusLabel = 'Pending';
+        break;
+    }
+
+    final categoryIcon = _getCategoryIcon(expense.category);
+    final categoryColor = _getCategoryColor(expense.category);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top row: Date + Status Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF94A3B8)),
+                    const SizedBox(width: 6),
+                    Text(
+                      DateFormat('MMM d, yyyy').format(expense.expenseDate),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, color: statusColor, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusLabel,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
                         ),
-                      ),
-
-                      // Receipt Lightbox Action Cell
-                      DataCell(
-                        expense.receiptImageUrl != null
-                            ? OutlinedButton.icon(
-                                onPressed: () => _showReceiptLightbox(expense.receiptImageUrl!),
-                                icon: const Icon(Icons.photo_library_rounded, size: 13),
-                                label: const Text('View'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF14332E),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  side: BorderSide(color: const Color(0xFF14332E).withValues(alpha: 0.3)),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                  textStyle: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              )
-                            : Text(
-                                '—',
-                                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFFCBD5E1)),
-                              ),
-                      ),
-
-                      // Actions (Edit / Delete) Cell
-                      DataCell(
-                        expense.status.toLowerCase() == 'pending'
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1E293B)),
-                                    tooltip: 'Edit Expense',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                    onPressed: () => _editExpense(expense),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
-                                    tooltip: 'Delete Expense',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                    onPressed: () => _deleteExpense(expense.id!),
-                                  ),
-                                ],
-                              )
-                            : Tooltip(
-                                message: 'Only pending expenses can be edited or deleted',
-                                child: Icon(
-                                  Icons.lock_outline_rounded,
-                                  size: 15,
-                                  color: const Color(0xFF94A3B8).withValues(alpha: 0.6),
-                                ),
-                              ),
                       ),
                     ],
-                  );
-                }).toList(),
-              ),
+                  ),
+                ),
+              ],
             ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Category & Amount
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: categoryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: categoryColor.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(categoryIcon, size: 12, color: categoryColor),
+                          const SizedBox(width: 5),
+                          Text(
+                            expense.categoryDisplay,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: categoryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '₱${NumberFormat('#,##0.00').format(expense.amount)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF14332E),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Description
+                Text(
+                  expense.description,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+
+                // Items list
+                if (expense.isMultiItemExpense && expense.inventoryItems != null && expense.inventoryItems!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: expense.inventoryItems!.map((item) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          '${item.itemName} ×${item.quantity}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ] else if (expense.inventoryItemName != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      '${expense.inventoryItemName!} ×${expense.quantityPurchased ?? 1}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                ],
+
+                if (expense.notes != null && expense.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Note: ${expense.notes!}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 10),
+
+                // Supplier & Receipt # & Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          if (expense.supplier != null && expense.supplier!.isNotEmpty)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.storefront_rounded, size: 13, color: Color(0xFF94A3B8)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  expense.supplier!,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11.5,
+                                    color: const Color(0xFF475569),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (expense.receiptNumber != null && expense.receiptNumber!.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                '#${expense.receiptNumber}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (expense.receiptImageUrl != null)
+                          OutlinedButton.icon(
+                            onPressed: () => _showReceiptLightbox(expense.receiptImageUrl!),
+                            icon: const Icon(Icons.photo_library_rounded, size: 13),
+                            label: const Text('Receipt'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF14332E),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              side: BorderSide(color: const Color(0xFF14332E).withValues(alpha: 0.3)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              textStyle: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        if (expense.status.toLowerCase() == 'pending') ...[
+                          const SizedBox(width: 6),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1E293B)),
+                            tooltip: 'Edit Expense',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            onPressed: () => _editExpense(expense),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
+                            tooltip: 'Delete Expense',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            onPressed: () => _deleteExpense(expense.id!),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // PAGINATION CONTROLS
+  // ---------------------------------------------------------------------------
+  Widget _buildTablePaginationControls({
+    required int currentPage,
+    required int totalItems,
+    required int totalPages,
+    required int startIndex,
+    required int endIndex,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    final TextEditingController pageInputController = TextEditingController(text: '$currentPage');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            totalItems == 0
+                ? 'No expenses found'
+                : 'Showing ${startIndex + 1}–$endIndex of $totalItems expenses',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Previous button
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+                color: const Color(0xFF14332E),
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Previous Page',
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Page',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Numeric Page Input Field
+              SizedBox(
+                width: 48,
+                height: 32,
+                child: TextField(
+                  controller: pageInputController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final enteredPage = int.tryParse(value);
+                    if (enteredPage != null && enteredPage >= 1 && enteredPage <= totalPages) {
+                      onPageChanged(enteredPage);
+                    } else {
+                      pageInputController.text = '$currentPage';
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'of $totalPages',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Next button
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+                color: const Color(0xFF14332E),
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Next Page',
+              ),
+            ],
           ),
         ],
       ),

@@ -29,7 +29,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
   String _selectedSort = 'newest'; // 'newest', 'oldest', 'highest', 'lowest'
   bool _isAdmin = false;
   int _currentPage = 0;
-  final int _rowsPerPage = 10;
+  final int _rowsPerPage = 15;
 
   @override
   void initState() {
@@ -1338,7 +1338,8 @@ class _PettyCashPageState extends State<PettyCashPage> {
     final endIndex = (startIndex + _rowsPerPage < totalItems)
         ? startIndex + _rowsPerPage
         : totalItems;
-    final totalPages = (totalItems / _rowsPerPage).ceil();
+    final totalPages = (totalItems / _rowsPerPage).ceil().clamp(1, 999999);
+    final TextEditingController pageInputController = TextEditingController(text: '${currentPage + 1}');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1359,6 +1360,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
             ),
           ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               InkWell(
                 onTap: currentPage > 0 ? () => onPageChanged(currentPage - 1) : null,
@@ -1376,17 +1378,69 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'Page ${currentPage + 1} of $totalPages',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                'Page',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
                 ),
               ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 48,
+                height: 32,
+                child: TextField(
+                  controller: pageInputController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final enteredPage = int.tryParse(value);
+                    if (enteredPage != null && enteredPage >= 1 && enteredPage <= totalPages) {
+                      onPageChanged(enteredPage - 1);
+                    } else {
+                      pageInputController.text = '${currentPage + 1}';
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'of $totalPages',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: endIndex < totalItems ? () => onPageChanged(currentPage + 1) : null,
                 borderRadius: BorderRadius.circular(8),

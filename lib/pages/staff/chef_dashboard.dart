@@ -54,6 +54,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   // ── Top Toast Notification Overlay for Chef ──
   OverlayEntry? _currentChefTopToastEntry;
   Timer? _chefTopToastTimer;
+  Timer? _eventReminderTimer;
   final Set<String> _shownToastChefNotificationIds = {};
   StreamSubscription<List<Map<String, dynamic>>>? _chefNotifsSubscription;
 
@@ -115,6 +116,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
     _listenForNewOrders();
 
+    // Check for 2-day upcoming event reminders immediately and every 5 minutes
+    NotificationService.checkAndSendUpcomingEventReminders();
+    _eventReminderTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      NotificationService.checkAndSendUpcomingEventReminders();
+    });
+
     _chefNotifsSubscription = NotificationService.getKitchenNotificationsStream().listen((notifs) {
       if (!mounted) return;
       final unread = notifs.where((n) => n['is_read'] == false).toList();
@@ -135,6 +142,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     _pageController.dispose();
     _orderStream?.cancel();
     _popupDebounceTimer?.cancel();
+    _eventReminderTimer?.cancel();
     _chefNotifsSubscription?.cancel();
     _dismissChefTopToast();
     super.dispose();
@@ -475,6 +483,9 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         break;
       case 'pos_order':
         _showNewOrderPopup(notification);
+        break;
+      case 'event_reminder':
+        _showEventReservationPopup(notification);
         break;
       case 'advance_order_ticket':
         final eventType = notification['event_type']?.toString() ?? '';
@@ -1376,6 +1387,13 @@ _closePopup();
                     final timeStr = DateFormat('MMM d, h:mm a').format(date);
 
                     return ListTile(
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (n['action_type'] == 'event_reminder') {
+                          setState(() => _currentTab = 1);
+                          _pageController.jumpToPage(1);
+                        }
+                      },
                       leading: CircleAvatar(
                         backgroundColor: Colors.red.withValues(alpha: 0.1),
                         child: Icon(
@@ -1548,6 +1566,8 @@ _closePopup();
         return Icons.restaurant_rounded;
       case 'advance_order_ticket':
         return Icons.assignment_rounded;
+      case 'event_reminder':
+        return Icons.event_note_rounded;
       default:
         return Icons.notifications_active_rounded;
     }
@@ -1576,6 +1596,9 @@ _closePopup();
       }
       return 'Advance Order Ticket';
     }
+    if (n['action_type'] == 'event_reminder') {
+      return 'Upcoming Event Reminder';
+    }
     return 'Kitchen Alert';
   }
 
@@ -1597,6 +1620,9 @@ _closePopup();
     }
     if (n['action_type'] == 'advance_order_ticket') {
       return n['event_type'] ?? 'Advance order ticket ready for preparation.';
+    }
+    if (n['action_type'] == 'event_reminder') {
+      return n['event_type'] ?? 'An upcoming event reservation is scheduled within the next 2 days.';
     }
     return n['event_type'] ?? 'New activity in the kitchen.';
   }
@@ -2940,25 +2966,24 @@ class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
         .order('event_date', ascending: true)
         .listen((rows) {
           if (!mounted) return;
-          final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
           final filtered = rows.where((r) {
             final isMenuBased = r['is_menu_based'] == true;
             final ps = r['payment_status']?.toString().toLowerCase();
             final isPaid = ps == 'paid' || ps == 'deposit_paid' || ps == 'fully_paid';
-            final eventDateStr = r['event_date']?.toString();
-            final isFuture = eventDateStr != null && eventDateStr.compareTo(todayStr) > 0;
             final menuItems = r['selected_menu_items'];
             final hasMenu = menuItems != null && (menuItems as Map).isNotEmpty;
             final isNotServed = r['kitchen_status']?.toString() != 'Done';
             // Only show events that have been approved by admin in Payment Approvals
             final status = r['status']?.toString().toLowerCase();
             final isApproved = status == 'confirmed' || status == 'completed';
-            return isMenuBased && isPaid && isFuture && hasMenu && isNotServed && isApproved;
+            return isMenuBased && isPaid && hasMenu && isNotServed && isApproved;
           }).toList();
           setState(() {
             _events = filtered;
             _loading = false;
           });
+          // Check and send 2-day reminder notifications if any event meets criteria
+          NotificationService.checkAndSendUpcomingEventReminders();
         });
   }
 
@@ -2998,7 +3023,11 @@ class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
             ),
             itemCount: _events.length,
             itemBuilder: (context, index) {
-              return _UpcomingEventCard(event: _events[index]);
+              final event = _events[index];
+              return _UpcomingEventCard(
+                key: ValueKey(event['id']?.toString() ?? index.toString()),
+                event: event,
+              );
             },
           );
         }
@@ -3008,9 +3037,13 @@ class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
           padding: const EdgeInsets.all(16),
           itemCount: _events.length,
           itemBuilder: (context, index) {
+            final event = _events[index];
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
-              child: _UpcomingEventCard(event: _events[index]),
+              child: _UpcomingEventCard(
+                key: ValueKey(event['id']?.toString() ?? index.toString()),
+                event: event,
+              ),
             );
           },
         );
@@ -3023,7 +3056,7 @@ class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
 class _UpcomingEventCard extends StatefulWidget {
   final Map<String, dynamic> event;
 
-  const _UpcomingEventCard({required this.event});
+  const _UpcomingEventCard({super.key, required this.event});
 
   @override
   State<_UpcomingEventCard> createState() => _UpcomingEventCardState();
@@ -3037,6 +3070,16 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
   void initState() {
     super.initState();
     _kitchenStatus = widget.event['kitchen_status']?.toString() ?? 'Pending';
+  }
+
+  @override
+  void didUpdateWidget(covariant _UpcomingEventCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.event['id'] != oldWidget.event['id'] ||
+        widget.event['kitchen_status'] != oldWidget.event['kitchen_status']) {
+      _kitchenStatus = widget.event['kitchen_status']?.toString() ?? 'Pending';
+      _isLoading = false;
+    }
   }
 
   Future<void> _advanceStatus() async {
@@ -3075,7 +3118,11 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
     try {
       final eventDate = DateTime.parse(eventDateStr);
       formattedDate = DateFormat('EEE, MMM d, yyyy').format(eventDate);
-      daysUntil = eventDate.difference(DateTime.now()).inDays + 1;
+      
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
+      daysUntil = eventDateOnly.difference(todayDate).inDays;
     } catch (_) {}
 
     // Format time
@@ -3092,7 +3139,15 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
     Color urgencyBg;
     Color urgencyTextColor;
     String urgencyLabel;
-    if (daysUntil <= 1) {
+    if (daysUntil < 0) {
+      urgencyBg = const Color(0xFFE2E8F0);
+      urgencyTextColor = const Color(0xFF475569);
+      urgencyLabel = 'Passed';
+    } else if (daysUntil == 0) {
+      urgencyBg = const Color(0xFFFEE2E2);
+      urgencyTextColor = const Color(0xFFDC2626);
+      urgencyLabel = 'Today!';
+    } else if (daysUntil == 1) {
       urgencyBg = const Color(0xFFFEE2E2);
       urgencyTextColor = const Color(0xFFDC2626);
       urgencyLabel = 'Tomorrow!';
