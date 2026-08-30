@@ -100,6 +100,77 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     }
   }
 
+  bool _hasCheckedLoginEventsModal = false;
+
+  Future<void> _checkUpcomingEventsOnLogin() async {
+    if (_hasCheckedLoginEventsModal || !mounted) return;
+    _hasCheckedLoginEventsModal = true;
+
+    try {
+      final rows = await Supabase.instance.client
+          .from('reservations')
+          .select()
+          .eq('is_menu_based', true)
+          .neq('kitchen_status', 'Done')
+          .order('event_date', ascending: true);
+
+      if (!mounted) return;
+
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+
+      final upcomingEvents = rows.where((r) {
+        final isMenuBased = r['is_menu_based'] == true;
+        final ps = r['payment_status']?.toString().toLowerCase();
+        final isPaid = ps == 'paid' || ps == 'deposit_paid' || ps == 'fully_paid';
+        final menuItems = r['selected_menu_items'];
+        final hasMenu = menuItems != null && (menuItems as Map).isNotEmpty;
+        final isNotServed = r['kitchen_status']?.toString() != 'Done';
+        final status = r['status']?.toString().toLowerCase();
+        final isApproved = status == 'confirmed' || status == 'completed';
+        final eventDateStr = r['event_date']?.toString();
+
+        if (!isMenuBased || !isPaid || !hasMenu || !isNotServed || !isApproved || eventDateStr == null) {
+          return false;
+        }
+
+        try {
+          final eventDate = DateTime.parse(eventDateStr);
+          final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
+          final daysUntil = eventDateOnly.difference(todayDate).inDays;
+          // Only include events that are 2 to 5 days ahead from today
+          return daysUntil >= 2 && daysUntil <= 5;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+
+      if (upcomingEvents.isNotEmpty && mounted) {
+        _showUpcomingEventsNoticeModal(upcomingEvents);
+      }
+    } catch (e) {
+      debugPrint('Error checking login upcoming events: $e');
+    }
+  }
+
+  void _showUpcomingEventsNoticeModal(List<Map<String, dynamic>> events) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _UpcomingEventsNoticeDialog(
+        events: events,
+        onViewEventsTab: () {
+          _pageController.animateToPage(
+            1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+          setState(() => _currentTab = 1);
+        },
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -116,10 +187,15 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
     _listenForNewOrders();
 
-    // Check for 2-day upcoming event reminders immediately and every 5 minutes
+    // Check for 2-5 days upcoming event reminders & day-of-event notifications immediately and every 5 minutes
     NotificationService.checkAndSendUpcomingEventReminders();
     _eventReminderTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       NotificationService.checkAndSendUpcomingEventReminders();
+    });
+
+    // Check on login if there are upcoming events in 2 to 5 days and show modal
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUpcomingEventsOnLogin();
     });
 
     _chefNotifsSubscription = NotificationService.getKitchenNotificationsStream().listen((notifs) {
@@ -485,6 +561,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         _showNewOrderPopup(notification);
         break;
       case 'event_reminder':
+      case 'event_today':
         _showEventReservationPopup(notification);
         break;
       case 'advance_order_ticket':
@@ -1030,32 +1107,35 @@ _closePopup();
   void _showEventReservationPopup(Map<String, dynamic> notification) {
     final title = _getNotificationTitle(notification);
     final subtitle = _getNotificationSubtitle(notification);
-    
+    final isToday = notification['action_type'] == 'event_today';
+    final headerColor = isToday ? const Color(0xFFDC2626) : Colors.orange;
+    final headerIcon = isToday ? Icons.notification_important_rounded : Icons.event_note_rounded;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: EdgeInsets.zero,
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Orange Header
+              // Header
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: const BoxDecoration(
-                  color: Colors.orange,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: headerColor,
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.event,
+                    Icon(
+                      headerIcon,
                       color: Colors.white,
                       size: 28,
                     ),
@@ -1076,7 +1156,7 @@ _closePopup();
                           _dismissedNotificationIds.add(notification['id'].toString());
                         });
                         Navigator.pop(context);
-_closePopup();
+                        _closePopup();
                       },
                       child: const Icon(
                         Icons.close,
@@ -1105,23 +1185,25 @@ _closePopup();
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
+                        color: headerColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                        border: Border.all(color: headerColor.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            color: Colors.orange,
+                          Icon(
+                            isToday ? Icons.today_rounded : Icons.calendar_today,
+                            color: headerColor,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Check the Events tab for details',
+                              isToday
+                                  ? 'Check the Events tab for today\'s menu and preparation'
+                                  : 'Check the Events tab for details',
                               style: TextStyle(
-                                color: Colors.orange,
+                                color: headerColor,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1155,15 +1237,15 @@ _closePopup();
                           setState(() => _currentTab = 1);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: headerColor,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
-                          'View Events',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                        child: Text(
+                          isToday ? 'View Today\'s Events' : 'View Events',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -1389,24 +1471,25 @@ _closePopup();
                     return ListTile(
                       onTap: () {
                         Navigator.pop(context);
-                        if (n['action_type'] == 'event_reminder') {
+                        if (n['action_type'] == 'event_reminder' || n['action_type'] == 'event_today') {
                           setState(() => _currentTab = 1);
                           _pageController.jumpToPage(1);
                         }
                       },
                       leading: CircleAvatar(
-                        backgroundColor: Colors.red.withValues(alpha: 0.1),
+                        backgroundColor: (n['action_type'] == 'event_today' ? const Color(0xFFDC2626) : Colors.red).withValues(alpha: 0.1),
                         child: Icon(
                           _getIconForAction(n['action_type']),
-                          color: Colors.red,
+                          color: n['action_type'] == 'event_today' ? const Color(0xFFDC2626) : Colors.red,
                           size: 20,
                         ),
                       ),
                       title: Text(
                         _getNotificationTitle(n),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
+                          color: n['action_type'] == 'event_today' ? const Color(0xFFDC2626) : null,
                         ),
                       ),
                       subtitle: Column(
@@ -1442,6 +1525,8 @@ _closePopup();
     if (!mounted) return;
     final title = _getNotificationTitle(n);
     final subtitle = _getNotificationSubtitle(n);
+    final isToday = n['action_type'] == 'event_today';
+    final accentColor = isToday ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
 
     void openBellDialog() {
       _dismissChefTopToast();
@@ -1466,12 +1551,12 @@ _closePopup();
               color: const Color(0xFF0F172A),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFF59E0B),
+                color: accentColor,
                 width: 1.8,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                  color: accentColor.withValues(alpha: 0.25),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -1487,12 +1572,12 @@ _closePopup();
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                    color: accentColor.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     _getIconForAction(n['action_type']),
-                    color: const Color(0xFFF59E0B),
+                    color: accentColor,
                     size: 20,
                   ),
                 ),
@@ -1528,12 +1613,12 @@ _closePopup();
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    backgroundColor: const Color(0xFFF59E0B),
-                    foregroundColor: const Color(0xFF0F172A),
+                    backgroundColor: accentColor,
+                    foregroundColor: isToday ? Colors.white : const Color(0xFF0F172A),
                     elevation: 3,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 15, color: Color(0xFF0F172A)),
+                  icon: Icon(Icons.arrow_forward_rounded, size: 15, color: isToday ? Colors.white : const Color(0xFF0F172A)),
                   label: Text(
                     'VIEW',
                     style: GoogleFonts.plusJakartaSans(
@@ -1566,6 +1651,8 @@ _closePopup();
         return Icons.restaurant_rounded;
       case 'advance_order_ticket':
         return Icons.assignment_rounded;
+      case 'event_today':
+        return Icons.notification_important_rounded;
       case 'event_reminder':
         return Icons.event_note_rounded;
       default:
@@ -1596,6 +1683,9 @@ _closePopup();
       }
       return 'Advance Order Ticket';
     }
+    if (n['action_type'] == 'event_today') {
+      return "Today's Event Alert!";
+    }
     if (n['action_type'] == 'event_reminder') {
       return 'Upcoming Event Reminder';
     }
@@ -1621,8 +1711,11 @@ _closePopup();
     if (n['action_type'] == 'advance_order_ticket') {
       return n['event_type'] ?? 'Advance order ticket ready for preparation.';
     }
+    if (n['action_type'] == 'event_today') {
+      return n['event_type'] ?? 'An event reservation is scheduled for TODAY! Please make sure meals and inventory are ready.';
+    }
     if (n['action_type'] == 'event_reminder') {
-      return n['event_type'] ?? 'An upcoming event reservation is scheduled within the next 2 days.';
+      return n['event_type'] ?? 'An upcoming event reservation is scheduled within the next 2-5 days.';
     }
     return n['event_type'] ?? 'New activity in the kitchen.';
   }
@@ -2928,6 +3021,490 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
       default:
         return Icons.arrow_forward_rounded;
     }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  UPCOMING EVENTS NOTICE MODAL (2 TO 5 DAYS AHEAD)
+// ══════════════════════════════════════════════════════════
+class _UpcomingEventsNoticeDialog extends StatelessWidget {
+  final List<Map<String, dynamic>> events;
+  final VoidCallback onViewEventsTab;
+
+  const _UpcomingEventsNoticeDialog({
+    required this.events,
+    required this.onViewEventsTab,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = screenWidth > 680 ? 640.0 : screenWidth * 0.94;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: dialogWidth,
+        constraints: const BoxConstraints(maxHeight: 640),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Header Section with Dark Green & Gold Accent ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0B211D), Color(0xFF133831)],
+                ),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                border: Border(
+                  bottom: BorderSide(color: Color(0x33E6C374), width: 1.5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6C374).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFFE6C374).withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.calendar_month_rounded,
+                      color: Color(0xFFE6C374),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'UPCOMING EVENTS NOTICE',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6C374),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${events.length} ${events.length == 1 ? 'EVENT' : 'EVENTS'}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: const Color(0xFF0B211D),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Upcoming booked events in 2 to 5 days requiring preparation',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFFCBD5E1),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Alert Notice Bar ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              color: const Color(0xFFFFFBEB),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFD97706),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Please verify upcoming menu selections and coordinate ingredient prep or inventory requests.',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF92400E),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Scrollable Events List ──
+            Flexible(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                shrinkWrap: true,
+                itemCount: events.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  return _buildEventItemCard(context, event);
+                },
+              ),
+            ),
+
+            // ── Footer Action Area ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                border: Border(
+                  top: BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Dismiss',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: const Color(0xFF475569),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        onViewEventsTab();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 2,
+                      ),
+                      icon: const Icon(Icons.event_note_rounded, size: 18),
+                      label: Text(
+                        'View in Events Tab',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventItemCard(BuildContext context, Map<String, dynamic> event) {
+    final customerName = event['customer_name']?.toString() ?? 'Guest';
+    final eventType = event['event_type']?.toString() ?? 'Event';
+    final eventDateStr = event['event_date']?.toString() ?? '';
+    final startTime = event['start_time']?.toString() ?? '';
+    final guestCount = event['number_of_guests'];
+    final menuItems = event['selected_menu_items'] as Map<String, dynamic>? ?? {};
+    final specialRequests = event['special_requests']?.toString() ?? '';
+
+    // Calculate days until
+    int daysUntil = 0;
+    String formattedDate = eventDateStr;
+    DateTime parsedDate = DateTime.now();
+    try {
+      parsedDate = DateTime.parse(eventDateStr);
+      formattedDate = DateFormat('EEE, MMM d, yyyy').format(parsedDate);
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final eventDateOnly = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+      daysUntil = eventDateOnly.difference(todayDate).inDays;
+    } catch (_) {}
+
+    // Format time
+    String formattedTime = startTime;
+    try {
+      final parts = startTime.split(':');
+      if (parts.length >= 2) {
+        final dt = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+        formattedTime = DateFormat('h:mm a').format(dt);
+      }
+    } catch (_) {}
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date badge
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        DateFormat('MMM').format(parsedDate).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('d').format(parsedDate),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        customerName,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              eventType,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                          if (guestCount != null) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '• $guestCount guests',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                color: const Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Countdown Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEDD5),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFED7AA)),
+                  ),
+                  child: Text(
+                    'In $daysUntil days',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFC2410C),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Date & Time
+            Row(
+              children: [
+                const Icon(Icons.schedule_rounded, size: 13, color: Color(0xFF64748B)),
+                const SizedBox(width: 5),
+                Text(
+                  '$formattedDate at $formattedTime',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    color: const Color(0xFF475569),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            if (menuItems.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: menuItems.entries.map((entry) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            '${entry.value}×',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          entry.key,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF334155),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            if (specialRequests.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Note: $specialRequests',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10.5,
+                    color: const Color(0xFF92400E),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -623,50 +623,56 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
             );
             final totalFilteredAmount = filtered.fold<double>(0.0, (sum, item) => sum + item.amount);
 
-            if (isMobile) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildMobileSummaryCard(totalItems, totalFilteredAmount),
-                  const SizedBox(height: 12),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: paginatedExpenses.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _buildExpenseCard(paginatedExpenses[index]),
-                  ),
-                  if (totalItems > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: _buildTablePaginationControls(
-                          currentPage: _currentPage,
-                          totalItems: totalItems,
-                          totalPages: totalPages,
-                          startIndex: startIndex,
-                          endIndex: endIndex,
-                          onPageChanged: (newPage) => setState(() => _currentPage = newPage),
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            }
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = isMobile || constraints.maxWidth < 780;
 
-            return _buildExpensesTable(
-              expenses: paginatedExpenses,
-              totalItems: totalItems,
-              totalFilteredAmount: totalFilteredAmount,
-              currentPage: _currentPage,
-              totalPages: totalPages,
-              startIndex: startIndex,
-              endIndex: endIndex,
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildMobileSummaryCard(totalItems, totalFilteredAmount),
+                      const SizedBox(height: 12),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: paginatedExpenses.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) => _buildExpenseCard(paginatedExpenses[index]),
+                      ),
+                      if (totalItems > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: _buildTablePaginationControls(
+                              currentPage: _currentPage,
+                              totalItems: totalItems,
+                              totalPages: totalPages,
+                              startIndex: startIndex,
+                              endIndex: endIndex,
+                              onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }
+
+                return _buildExpensesTable(
+                  expenses: paginatedExpenses,
+                  totalItems: totalItems,
+                  totalFilteredAmount: totalFilteredAmount,
+                  currentPage: _currentPage,
+                  totalPages: totalPages,
+                  startIndex: startIndex,
+                  endIndex: endIndex,
+                );
+              },
             );
           },
         ),
@@ -735,6 +741,9 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
     return Text(
       label,
       textAlign: align,
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
       style: GoogleFonts.plusJakartaSans(
         fontSize: 11,
         fontWeight: FontWeight.w800,
@@ -831,11 +840,12 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
           // Responsive Full-Width Flex Table (Stretches across all available width, no dead space)
           LayoutBuilder(
             builder: (context, constraints) {
-              final minWidth = constraints.maxWidth < 1080 ? 1080.0 : constraints.maxWidth;
+              final minWidth = constraints.maxWidth < 1220 ? 1220.0 : constraints.maxWidth;
 
               return Scrollbar(
                 controller: _tableHorizontalScrollController,
                 thumbVisibility: true,
+                trackVisibility: true,
                 child: SingleChildScrollView(
                   controller: _tableHorizontalScrollController,
                   scrollDirection: Axis.horizontal,
