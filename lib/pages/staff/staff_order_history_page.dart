@@ -35,7 +35,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
     super.dispose();
   }
 
-  // ── Fetch orders with items joined ─────────────────────────────────────────
+  // ── Fetch orders ───────────────────────────────────────────────────────────
   Stream<List<Map<String, dynamic>>> _ordersStream() {
     return _supabase
         .from('orders')
@@ -77,6 +77,13 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       }
       return true;
     }).toList();
+  }
+
+  String _formatTs(String? raw) {
+    if (raw == null) return '—';
+    final dt = DateTime.tryParse(raw)?.toLocal();
+    if (dt == null) return raw;
+    return DateFormat('MMM d, yyyy • h:mm a').format(dt);
   }
 
   @override
@@ -138,7 +145,8 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: _primaryDark.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(20),
@@ -220,7 +228,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
               // Summary metric banner
               if (filtered.isNotEmpty)
                 Container(
-                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
@@ -262,18 +270,11 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                   ),
                 ),
 
-              // Orders List
+              // Table Content
               Expanded(
                 child: filtered.isEmpty
                     ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) => _OrderCard(
-                          order: filtered[index],
-                          fmt: _fmt,
-                        ),
-                      ),
+                    : _buildOrdersTable(filtered),
               ),
             ],
           );
@@ -450,384 +451,333 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       ),
     );
   }
-}
 
-// ── Single Order Card (Realistic Digital Receipt) ─────────────────────────────
-class _OrderCard extends StatefulWidget {
-  final Map<String, dynamic> order;
-  final NumberFormat fmt;
+  // ── Table Builder ──────────────────────────────────────────────────────────
+  Widget _buildOrdersTable(List<Map<String, dynamic>> orders) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const minTableWidth = 920.0;
+            final isConstrained = constraints.maxWidth < minTableWidth;
 
-  const _OrderCard({required this.order, required this.fmt});
+            final tableWidget = Column(
+              children: [
+                // Table Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8FAFC),
+                    border: Border(bottom: BorderSide(color: _border)),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 120,
+                        child: _tableHeaderLabel('ORDER #'),
+                      ),
+                      SizedBox(
+                        width: 170,
+                        child: _tableHeaderLabel('DATE & TIME'),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: _tableHeaderLabel('CUSTOMER'),
+                      ),
+                      SizedBox(
+                        width: 90,
+                        child: _tableHeaderLabel('ITEMS'),
+                      ),
+                      SizedBox(
+                        width: 130,
+                        child: _tableHeaderLabel('TOTAL AMOUNT', align: TextAlign.right),
+                      ),
+                      SizedBox(
+                        width: 140,
+                        child: Center(child: _tableHeaderLabel('STATUS')),
+                      ),
+                      SizedBox(
+                        width: 190,
+                        child: Center(child: _tableHeaderLabel('ACTIONS')),
+                      ),
+                    ],
+                  ),
+                ),
 
-  @override
-  State<_OrderCard> createState() => _OrderCardState();
-}
+                // Table Rows
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: orders.length,
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFF1F5F9),
+                    ),
+                    itemBuilder: (context, index) {
+                      final order = orders[index];
+                      return _OrderTableRow(
+                        key: ValueKey(order['id']),
+                        order: order,
+                        fmt: _fmt,
+                        formatTs: _formatTs,
+                        onViewDetails: () => _showOrderDetailsDialog(context, order),
+                        onRefund: () => _showPosRefundDialog(context, order),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
 
-class _OrderCardState extends State<_OrderCard> {
-  static const _primaryDark = Color(0xFF0C241F);
-  static const _red = Color(0xFFDC2626);
-  static const _border = Color(0xFFE2E8F0);
-  static const _grey = Color(0xFF64748B);
-  static const _textDark = Color(0xFF0F172A);
+            if (isConstrained) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minTableWidth,
+                  child: tableWidget,
+                ),
+              );
+            }
 
-  List<Map<String, dynamic>>? _items;
-  bool _loadingItems = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadItems();
+            return tableWidget;
+          },
+        ),
+      ),
+    );
   }
 
-  @override
-  void didUpdateWidget(covariant _OrderCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.order['id'] != widget.order['id'] ||
-        oldWidget.order['refund_status'] != widget.order['refund_status']) {
-      _items = null;
-      _loadItems();
-    }
+  Widget _tableHeaderLabel(String label, {TextAlign align = TextAlign.left}) {
+    return Text(
+      label,
+      textAlign: align,
+      style: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF64748B),
+        letterSpacing: 0.6,
+      ),
+    );
   }
 
-  Future<void> _loadItems() async {
-    if (_items != null) return;
-    setState(() => _loadingItems = true);
-    try {
-      final res = await Supabase.instance.client
-          .from('order_items')
-          .select()
-          .eq('order_id', widget.order['id'].toString())
-          .order('id');
-
-      List<Map<String, dynamic>> itemsList =
-          List<Map<String, dynamic>>.from(res);
-
-      // Fallback: If order_items has no rows (e.g. from historical refunds where rows were deleted),
-      // recover item details from the refunds table
-      if (itemsList.isEmpty) {
-        final refundRes = await Supabase.instance.client
-            .from('refunds')
-            .select('refunded_items')
-            .eq('source_table', 'orders')
-            .eq('source_id', widget.order['id'].toString())
-            .maybeSingle();
-
-        if (refundRes != null && refundRes['refunded_items'] != null) {
-          final raw = refundRes['refunded_items'];
-          if (raw is List) {
-            itemsList = List<Map<String, dynamic>>.from(raw);
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _items = itemsList;
-          _loadingItems = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loadingItems = false);
-    }
-  }
-
-  String _formatTs(String? raw) {
-    if (raw == null) return '—';
-    final dt = DateTime.tryParse(raw)?.toLocal();
-    if (dt == null) return raw;
-    return DateFormat('MMM d, yyyy • h:mm a').format(dt);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final o = widget.order;
-    final rawTotal = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
-    final itemsSum = _items?.fold<double>(
-          0.0,
-          (sum, it) =>
-              sum +
-              (((it['unit_price'] as num?)?.toDouble() ?? 0.0) *
-                  ((it['quantity'] as num?)?.toInt() ?? 1)),
-        ) ??
-        0.0;
-    final total =
-        rawTotal > 0 ? rawTotal : (itemsSum > 0 ? itemsSum : rawTotal);
-    final tid = o['transaction_id']?.toString();
-    final dbid = o['id']?.toString() ?? '';
+  // ── Order Details Dialog (Digital Receipt Modal) ───────────────────────────
+  void _showOrderDetailsDialog(
+      BuildContext context, Map<String, dynamic> order) {
+    final tid = order['transaction_id']?.toString();
+    final dbid = order['id']?.toString() ?? '';
     final orderId =
         tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
-    final shortId = orderId;
-    final ts = _formatTs(o['created_at']?.toString());
-    final itemCount = (o['item_count'] as num?)?.toInt() ?? 0;
-    final refundStatus = o['refund_status']?.toString();
-    final isFullRefund = refundStatus == 'full_refund';
-    final isPartialRefund = refundStatus == 'partial_refund';
-    final rawName = o['customer_name']?.toString().trim();
+    final rawName = order['customer_name']?.toString().trim();
     final customerName = (rawName != null &&
             rawName.isNotEmpty &&
             rawName.toLowerCase() != 'guest' &&
             rawName.toLowerCase() != 'walk-in customer' &&
             rawName.toLowerCase() != 'walk-in')
         ? rawName
-        : (rawName != null && rawName.isNotEmpty && rawName != 'Guest' ? rawName : null);
+        : 'Walk-in Customer';
+    final isFullRefund = order['refund_status'] == 'full_refund';
+    final isPartialRefund = order['refund_status'] == 'partial_refund';
+    final total = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final paid = (order['amount_paid'] as num?)?.toDouble() ?? total;
+    final change = (order['change_due'] as num?)?.toDouble() ?? 0.0;
+    final ts = _formatTs(order['created_at']?.toString());
+    final cashier = order['cashier_name'] ?? order['processed_by'] ?? 'Cashier Staff';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header Row ────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            child: Row(
-              children: [
-                // Receipt Icon Container
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: isFullRefund
-                        ? Colors.red.shade50
-                        : _primaryDark.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isFullRefund
-                          ? Colors.red.shade100
-                          : _primaryDark.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      isFullRefund
-                          ? Icons.receipt_rounded
-                          : Icons.point_of_sale_rounded,
-                      color: isFullRefund ? _red : _primaryDark,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchOrderItems(order['id'].toString()),
+          builder: (context, snapshot) {
+            final items = snapshot.data ?? [];
+            final loading =
+                snapshot.connectionState == ConnectionState.waiting;
 
-                // Order Details
-                Expanded(
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              contentPadding: EdgeInsets.zero,
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            '#$shortId',
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: _textDark,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          if (customerName != null) ...[
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                '• $customerName',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: _primaryDark,
-                                  letterSpacing: -0.2,
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAFC),
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(18)),
+                          border: Border(bottom: BorderSide(color: _border)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isFullRefund
+                                    ? Colors.red.shade50
+                                    : _primaryDark.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isFullRefund
+                                      ? Colors.red.shade100
+                                      : _primaryDark.withValues(alpha: 0.12),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
+                              child: Icon(
+                                isFullRefund
+                                    ? Icons.receipt_rounded
+                                    : Icons.point_of_sale_rounded,
+                                color: isFullRefund ? _red : _primaryDark,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '#$orderId',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                          color: _textDark,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _buildStatusBadge(
+                                          isFullRefund, isPartialRefund),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    ts,
+                                    style: GoogleFonts.inter(
+                                        fontSize: 12, color: _grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded,
+                                  color: _grey, size: 20),
+                              onPressed: () => Navigator.pop(ctx),
                             ),
                           ],
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              o['order_type'] ?? 'POS',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: _grey,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time_rounded,
-                              size: 12, color: _grey),
-                          const SizedBox(width: 4),
-                          Text(
-                            ts,
-                            style: GoogleFonts.inter(
-                                fontSize: 11, color: _grey),
-                          ),
-                          if (itemCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Text('•',
-                                style: GoogleFonts.inter(
-                                    fontSize: 11, color: _grey)),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$itemCount item${itemCount != 1 ? 's' : ''}',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: _grey,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Total & Status Badge
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '₱ ${widget.fmt.format(total)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isFullRefund ? _grey : _textDark,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    _buildStatusBadge(isFullRefund, isPartialRefund),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // ── Visible Itemized Breakdown Section ───────────────────────────
-          Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFFBFBFB),
-              border: Border(
-                top: BorderSide(color: _border),
-                bottom: BorderSide(color: _border),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: _loadingItems
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: _primaryDark,
-                          strokeWidth: 2,
                         ),
                       ),
-                    ),
-                  )
-                : _items == null || _items!.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'No item details available.',
-                          style: GoogleFonts.inter(color: _grey, fontSize: 12),
-                        ),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Column Headers
-                          Row(
+
+                      // Meta details info
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _border),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Expanded(
-                                flex: 5,
-                                child: Text(
-                                  'ITEM',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: _grey,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: 36,
-                                child: Text(
-                                  'QTY',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: _grey,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  'PRICE',
-                                  textAlign: TextAlign.right,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: _grey,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ),
+                              _buildMetaColumn(
+                                  'CUSTOMER', customerName, Icons.person_outline),
+                              _buildMetaColumn('ORDER TYPE',
+                                  order['order_type'] ?? 'POS', Icons.storefront_outlined),
+                              _buildMetaColumn('PROCESSED BY',
+                                  cashier.toString(), Icons.badge_outlined),
                             ],
                           ),
-                          // Scrollable Items List
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 140),
-                            child: Scrollbar(
-                              thumbVisibility: (_items?.length ?? 0) > 3,
-                              child: SingleChildScrollView(
-                                physics: const BouncingScrollPhysics(),
+                        ),
+                      ),
+
+                      // Item list
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'ORDER ITEMS',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _grey,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (loading)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: _primaryDark,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            else if (items.isEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                child: Text(
+                                  'No items recorded for this order.',
+                                  style: GoogleFonts.inter(
+                                      color: _grey, fontSize: 13),
+                                ),
+                              )
+                            else
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: _border),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 child: Column(
                                   children: [
-                                    ..._items!.map((it) {
-                                      final name = it['item_name'] ?? '—';
+                                    ...items.map((it) {
+                                      final name = it['item_name'] ?? 'Item';
                                       final qty =
-                                          (it['quantity'] as num?)?.toInt() ?? 1;
+                                          (it['quantity'] as num?)?.toInt() ??
+                                              1;
                                       final price =
                                           (it['unit_price'] as num?)
                                                   ?.toDouble() ??
                                               0.0;
                                       final sub = price * qty;
 
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 6),
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 10),
+                                        decoration: const BoxDecoration(
+                                          border: Border(
+                                            bottom:
+                                                BorderSide(color: Color(0xFFF1F5F9)),
+                                          ),
+                                        ),
                                         child: Row(
                                           children: [
                                             Expanded(
-                                              flex: 5,
                                               child: Text(
                                                 name,
                                                 style: GoogleFonts.inter(
@@ -837,41 +787,35 @@ class _OrderCardState extends State<_OrderCard> {
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(
-                                              width: 36,
-                                              child: Center(
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                          horizontal: 5,
-                                                          vertical: 1),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        const Color(0xFFF1F5F9),
-                                                    borderRadius:
-                                                        BorderRadius.circular(4),
-                                                  ),
-                                                  child: Text(
-                                                    '×$qty',
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: const Color(
-                                                          0xFF475569),
-                                                    ),
-                                                  ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF1F5F9),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                '×$qty',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color:
+                                                      const Color(0xFF475569),
                                                 ),
                                               ),
                                             ),
-                                            Expanded(
-                                              flex: 3,
+                                            const SizedBox(width: 14),
+                                            SizedBox(
+                                              width: 80,
                                               child: Text(
-                                                '₱ ${widget.fmt.format(sub)}',
+                                                '₱ ${_fmt.format(sub)}',
                                                 textAlign: TextAlign.right,
                                                 style: GoogleFonts.inter(
                                                   fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
+                                                  fontWeight: FontWeight.w700,
                                                   color: _textDark,
                                                 ),
                                               ),
@@ -883,249 +827,252 @@ class _OrderCardState extends State<_OrderCard> {
                                   ],
                                 ),
                               ),
+                          ],
+                        ),
+                      ),
+
+                      // Notes if any
+                      if (order['note'] != null &&
+                          order['note'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEFCE8),
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: const Color(0xFFFEF08A)),
+                            ),
+                            child: Text(
+                              'Note: ${order['note']}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFF854D0E),
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
+                        ),
 
-                          // Note if any
-                          if (o['note'] != null &&
-                              o['note'].toString().isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEFCE8),
-                                borderRadius: BorderRadius.circular(6),
-                                border:
-                                    Border.all(color: const Color(0xFFFEF08A)),
-                              ),
+                      // Totals breakdown
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _border),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildReceiptRow('Total Amount',
+                                  '₱ ${_fmt.format(total)}',
+                                  isBold: true, isLarge: true),
+                              const SizedBox(height: 8),
+                              _buildReceiptRow('Amount Paid (Cash)',
+                                  '₱ ${_fmt.format(paid)}'),
+                              if (change > 0) ...[
+                                const SizedBox(height: 6),
+                                _buildReceiptRow('Change Given',
+                                    '₱ ${_fmt.format(change)}',
+                                    color: const Color(0xFF166534)),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Footer Actions
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
                               child: Text(
-                                'Note: ${o['note']}',
+                                'Close',
                                 style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: const Color(0xFF854D0E),
-                                  fontStyle: FontStyle.italic,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _grey,
                                 ),
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-          ),
-
-          // ── Payment Summary & Action Footer ──────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Payment breakdown
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.payments_outlined,
-                              size: 13, color: _grey),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Paid: ₱ ${widget.fmt.format((o['amount_paid'] as num?)?.toDouble() ?? total)}',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: _grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          if ((o['change_due'] as num?) != null &&
-                              (o['change_due'] as num) > 0) ...[
-                            const SizedBox(width: 8),
-                            Text('•',
-                                style: GoogleFonts.inter(
-                                    fontSize: 11, color: _grey)),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Change: ₱ ${widget.fmt.format((o['change_due'] as num).toDouble())}',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: const Color(0xFF166534),
-                                fontWeight: FontWeight.w600,
+                            if (!isFullRefund) ...[
+                              const SizedBox(width: 10),
+                              ElevatedButton.icon(
+                                icon: const Icon(
+                                    Icons.assignment_return_rounded,
+                                    size: 15,
+                                    color: Colors.white),
+                                label: Text(
+                                  'Process Refund',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _showPosRefundDialog(context, order);
+                                },
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-
-                // Refund button
-                if (!isFullRefund)
-                  InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => _showPosRefundDialog(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _red,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _red.withValues(alpha: 0.25),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.assignment_return_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Process Refund',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
-  Widget _buildStatusBadge(bool isFullRefund, bool isPartialRefund) {
-    Color bg;
-    Color borderCol;
-    Color textColor;
-    String label;
-    IconData icon;
+  Widget _buildMetaColumn(String label, String value, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            color: _grey,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: _primaryDark),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _textDark,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
-    if (isFullRefund) {
-      bg = const Color(0xFFFEF2F2);
-      borderCol = const Color(0xFFFCA5A5);
-      textColor = const Color(0xFF991B1B);
-      label = 'Refunded';
-      icon = Icons.assignment_return_rounded;
-    } else if (isPartialRefund) {
-      bg = const Color(0xFFFFFBEB);
-      borderCol = const Color(0xFFFDE68A);
-      textColor = const Color(0xFF92400E);
-      label = 'Partially Refunded';
-      icon = Icons.sync_rounded;
-    } else {
-      bg = const Color(0xFFF0FDF4);
-      borderCol = const Color(0xFF86EFAC);
-      textColor = const Color(0xFF166534);
-      label = 'Paid';
-      icon = Icons.check_circle_rounded;
+  Widget _buildReceiptRow(String label, String value,
+      {bool isBold = false, bool isLarge = false, Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: isLarge ? 14 : 12,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            color: isLarge ? _textDark : _grey,
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: isLarge ? 16 : 13,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color: color ?? _textDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Helper to load items for dialogs ──────────────────────────────────────
+  Future<List<Map<String, dynamic>>> _fetchOrderItems(String orderId) async {
+    try {
+      final res = await _supabase
+          .from('order_items')
+          .select()
+          .eq('order_id', orderId)
+          .order('id');
+
+      List<Map<String, dynamic>> itemsList =
+          List<Map<String, dynamic>>.from(res);
+
+      if (itemsList.isEmpty) {
+        final refundRes = await _supabase
+            .from('refunds')
+            .select('refunded_items')
+            .eq('source_table', 'orders')
+            .eq('source_id', orderId)
+            .maybeSingle();
+
+        if (refundRes != null && refundRes['refunded_items'] != null) {
+          final raw = refundRes['refunded_items'];
+          if (raw is List) {
+            itemsList = List<Map<String, dynamic>>.from(raw);
+          }
+        }
+      }
+      return itemsList;
+    } catch (_) {
+      return [];
     }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderCol),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: textColor),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
-  void _showPosRefundDialog(BuildContext context) {
+  // ── POS Refund Dialog ──────────────────────────────────────────────────────
+  void _showPosRefundDialog(BuildContext context, Map<String, dynamic> order) {
     final passcodeCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    String initialCashierName = currentUser?.userMetadata?['full_name']?.toString() ??
-        currentUser?.userMetadata?['name']?.toString() ??
-        currentUser?.email?.split('@').first ??
-        'Cashier Staff';
+    final currentUser = _supabase.auth.currentUser;
+    String initialCashierName =
+        currentUser?.userMetadata?['full_name']?.toString() ??
+            currentUser?.userMetadata?['name']?.toString() ??
+            currentUser?.email?.split('@').first ??
+            'Cashier Staff';
     final cashierCtrl = TextEditingController(text: initialCashierName);
     bool isLoading = false;
     String? errorMsg;
     bool obscurePasscode = true;
 
-    final o = widget.order;
-    final orderId = o['id'].toString();
-    final transactionId = o['transaction_id']?.toString() ?? orderId;
-    final totalAmount = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final orderId = order['id'].toString();
+    final transactionId = order['transaction_id']?.toString() ?? orderId;
+    final totalAmount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
 
-    List<Map<String, dynamic>> localItems =
-        List<Map<String, dynamic>>.from(_items ?? []);
-    bool fetchingItems = _items == null;
+    List<Map<String, dynamic>> localItems = [];
+    bool fetchingItems = true;
     Set<int> selectedIndices = {};
-
-    if (!fetchingItems) {
-      selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
-    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
           if (fetchingItems) {
-            Supabase.instance.client
-                .from('order_items')
-                .select()
-                .eq('order_id', orderId)
-                .order('id')
-                .then((res) async {
-              List<Map<String, dynamic>> loaded =
-                  List<Map<String, dynamic>>.from(res);
-              if (loaded.isEmpty) {
-                try {
-                  final refundRes = await Supabase.instance.client
-                      .from('refunds')
-                      .select('refunded_items')
-                      .eq('source_table', 'orders')
-                      .eq('source_id', orderId)
-                      .maybeSingle();
-                  if (refundRes != null && refundRes['refunded_items'] != null) {
-                    final raw = refundRes['refunded_items'];
-                    if (raw is List) {
-                      loaded = List<Map<String, dynamic>>.from(raw);
-                    }
-                  }
-                } catch (_) {}
-              }
+            _fetchOrderItems(orderId).then((loaded) {
               if (ctx.mounted) {
                 setDlgState(() {
                   localItems = loaded;
-                  _items = localItems;
                   fetchingItems = false;
                   selectedIndices =
                       Set.from(List.generate(localItems.length, (i) => i));
                 });
               }
-            }).catchError((err) {
+            }).catchError((_) {
               if (ctx.mounted) {
                 setDlgState(() {
                   fetchingItems = false;
@@ -1243,9 +1190,8 @@ class _OrderCardState extends State<_OrderCard> {
                                   if (allSelected) {
                                     selectedIndices.clear();
                                   } else {
-                                    selectedIndices = Set.from(
-                                        List.generate(
-                                            localItems.length, (i) => i));
+                                    selectedIndices = Set.from(List.generate(
+                                        localItems.length, (i) => i));
                                   }
                                 });
                               },
@@ -1343,7 +1289,7 @@ class _OrderCardState extends State<_OrderCard> {
                                         ),
                                       ),
                                       Text(
-                                        '₱ ${widget.fmt.format(itemSubtotal)}',
+                                        '₱ ${_fmt.format(itemSubtotal)}',
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           fontWeight: isChecked
@@ -1383,7 +1329,7 @@ class _OrderCardState extends State<_OrderCard> {
                             ),
                           ),
                           Text(
-                            '₱ ${widget.fmt.format(currentRefundTotal)}',
+                            '₱ ${_fmt.format(currentRefundTotal)}',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF166534),
                               fontWeight: FontWeight.w900,
@@ -1408,10 +1354,14 @@ class _OrderCardState extends State<_OrderCard> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: cashierCtrl,
-                      style: GoogleFonts.inter(fontSize: 13, color: _textDark, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: _textDark,
+                          fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
                         hintText: 'Cashier name',
-                        prefixIcon: const Icon(Icons.person_outline, size: 18, color: _grey),
+                        prefixIcon: const Icon(Icons.person_outline,
+                            size: 18, color: _grey),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                         contentPadding: const EdgeInsets.symmetric(
@@ -1441,7 +1391,8 @@ class _OrderCardState extends State<_OrderCard> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: reasonCtrl,
-                      style: GoogleFonts.inter(fontSize: 13, color: _textDark),
+                      style:
+                          GoogleFonts.inter(fontSize: 13, color: _textDark),
                       decoration: InputDecoration(
                         hintText: 'e.g. Customer cancelled, wrong item',
                         hintStyle:
@@ -1562,7 +1513,8 @@ class _OrderCardState extends State<_OrderCard> {
                         if (!isValidPasscode) {
                           setDlgState(() {
                             isLoading = false;
-                            errorMsg = 'Invalid passcode. Default is 1234.';
+                            errorMsg =
+                                'Invalid passcode. Default is 1234.';
                           });
                           return;
                         }
@@ -1576,15 +1528,17 @@ class _OrderCardState extends State<_OrderCard> {
                           orderId: orderId,
                           transactionId: transactionId,
                           customerName:
-                              o['customer_name'] ?? 'Walk-in Customer',
+                              order['customer_name'] ?? 'Walk-in Customer',
                           refundedItems: selectedItems,
                           refundAmount: currentRefundTotal,
                           originalAmount: totalAmount,
-                          reason: reason.isEmpty ? 'POS Item Refund' : reason,
+                          reason:
+                              reason.isEmpty ? 'POS Item Refund' : reason,
                           staffEmail: Supabase
                                   .instance.client.auth.currentUser?.email ??
                               'staffycp@gmail.com',
-                          staffName: cashier.isNotEmpty ? cashier : null,
+                          staffName:
+                              cashier.isNotEmpty ? cashier : null,
                         );
 
                         if (ctx.mounted) Navigator.pop(ctx);
@@ -1592,13 +1546,6 @@ class _OrderCardState extends State<_OrderCard> {
                         if (result['success'] == true ||
                             result['id'] != null) {
                           if (mounted) {
-                            final isFullRefund =
-                                currentRefundTotal >= totalAmount;
-                            setState(() {
-                              widget.order['refund_status'] = isFullRefund
-                                  ? 'full_refund'
-                                  : 'partial_refund';
-                            });
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Row(
@@ -1608,7 +1555,7 @@ class _OrderCardState extends State<_OrderCard> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'POS cash refund processed successfully! (₱${widget.fmt.format(currentRefundTotal)})',
+                                        'POS cash refund processed successfully! (₱${_fmt.format(currentRefundTotal)})',
                                         style: GoogleFonts.inter(fontSize: 13),
                                       ),
                                     ),
@@ -1648,8 +1595,8 @@ class _OrderCardState extends State<_OrderCard> {
                       )
                     : Text(
                         selectedIndices.length == localItems.length
-                            ? 'Confirm Full Refund (₱${widget.fmt.format(currentRefundTotal)})'
-                            : 'Confirm Refund (${selectedIndices.length} items • ₱${widget.fmt.format(currentRefundTotal)})',
+                            ? 'Confirm Full Refund (₱${_fmt.format(currentRefundTotal)})'
+                            : 'Confirm Refund (${selectedIndices.length} items • ₱${_fmt.format(currentRefundTotal)})',
                         style: GoogleFonts.inter(
                             fontSize: 13, fontWeight: FontWeight.w700),
                       ),
@@ -1657,6 +1604,348 @@ class _OrderCardState extends State<_OrderCard> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  static Widget _buildStatusBadge(bool isFullRefund, bool isPartialRefund) {
+    Color bg;
+    Color borderCol;
+    Color textColor;
+    String label;
+    IconData icon;
+
+    if (isFullRefund) {
+      bg = const Color(0xFFFEF2F2);
+      borderCol = const Color(0xFFFCA5A5);
+      textColor = const Color(0xFF991B1B);
+      label = 'Refunded';
+      icon = Icons.assignment_return_rounded;
+    } else if (isPartialRefund) {
+      bg = const Color(0xFFFFFBEB);
+      borderCol = const Color(0xFFFDE68A);
+      textColor = const Color(0xFF92400E);
+      label = 'Partially Refunded';
+      icon = Icons.sync_rounded;
+    } else {
+      bg = const Color(0xFFF0FDF4);
+      borderCol = const Color(0xFF86EFAC);
+      textColor = const Color(0xFF166534);
+      label = 'Paid';
+      icon = Icons.check_circle_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderCol),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Single Order Table Row ───────────────────────────────────────────────────
+class _OrderTableRow extends StatefulWidget {
+  final Map<String, dynamic> order;
+  final NumberFormat fmt;
+  final String Function(String?) formatTs;
+  final VoidCallback onViewDetails;
+  final VoidCallback onRefund;
+
+  const _OrderTableRow({
+    super.key,
+    required this.order,
+    required this.fmt,
+    required this.formatTs,
+    required this.onViewDetails,
+    required this.onRefund,
+  });
+
+  @override
+  State<_OrderTableRow> createState() => _OrderTableRowState();
+}
+
+class _OrderTableRowState extends State<_OrderTableRow> {
+  bool _isHovered = false;
+  static const _textDark = Color(0xFF0F172A);
+  static const _grey = Color(0xFF64748B);
+  static const _primaryDark = Color(0xFF0C241F);
+  static const _red = Color(0xFFDC2626);
+
+  @override
+  Widget build(BuildContext context) {
+    final o = widget.order;
+    final tid = o['transaction_id']?.toString();
+    final dbid = o['id']?.toString() ?? '';
+    final orderId =
+        tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
+
+    final rawName = o['customer_name']?.toString().trim();
+    final customerName = (rawName != null &&
+            rawName.isNotEmpty &&
+            rawName.toLowerCase() != 'guest' &&
+            rawName.toLowerCase() != 'walk-in customer' &&
+            rawName.toLowerCase() != 'walk-in')
+        ? rawName
+        : 'Walk-in';
+
+    final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final itemCount = (o['item_count'] as num?)?.toInt() ?? 0;
+    final refundStatus = o['refund_status']?.toString();
+    final isFullRefund = refundStatus == 'full_refund';
+    final isPartialRefund = refundStatus == 'partial_refund';
+    final ts = widget.formatTs(o['created_at']?.toString());
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: InkWell(
+        onTap: widget.onViewDetails,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          color: _isHovered
+              ? const Color(0xFFF1F5F9).withValues(alpha: 0.6)
+              : Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // ORDER # & Type
+              SizedBox(
+                width: 120,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isFullRefund
+                            ? Colors.red.shade50
+                            : _primaryDark.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isFullRefund
+                            ? Icons.receipt_rounded
+                            : Icons.point_of_sale_rounded,
+                        size: 14,
+                        color: isFullRefund ? _red : _primaryDark,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '#$orderId',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: _textDark,
+                            ),
+                          ),
+                          Text(
+                            o['order_type'] ?? 'POS',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: _grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // DATE & TIME
+              SizedBox(
+                width: 170,
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time_rounded,
+                        size: 13, color: _grey),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        ts,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: _textDark,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // CUSTOMER
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Center(
+                        child: Text(
+                          customerName.isNotEmpty
+                              ? customerName[0].toUpperCase()
+                              : 'W',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: _textDark,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        customerName,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _textDark,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ITEMS
+              SizedBox(
+                width: 90,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$itemCount item${itemCount != 1 ? 's' : ''}',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF475569),
+                    ),
+                  ),
+                ),
+              ),
+
+              // TOTAL AMOUNT
+              SizedBox(
+                width: 130,
+                child: Text(
+                  '₱ ${widget.fmt.format(total)}',
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: isFullRefund ? _grey : _textDark,
+                  ),
+                ),
+              ),
+
+              // STATUS BADGE
+              SizedBox(
+                width: 140,
+                child: Center(
+                  child: _StaffOrderHistoryPageState._buildStatusBadge(
+                      isFullRefund, isPartialRefund),
+                ),
+              ),
+
+              // ACTIONS
+              SizedBox(
+                width: 190,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // View details button
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.receipt_long_rounded,
+                          size: 13, color: _primaryDark),
+                      label: Text(
+                        'Details',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _primaryDark,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6)),
+                      ),
+                      onPressed: widget.onViewDetails,
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Refund button
+                    if (!isFullRefund)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _red,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6)),
+                        ),
+                        onPressed: widget.onRefund,
+                        child: Text(
+                          'Refund',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 55),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

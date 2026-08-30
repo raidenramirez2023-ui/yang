@@ -907,24 +907,89 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                         ),
                       ),
                       if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            height: 100,
-                            width: double.infinity,
-                            color: const Color(0xFFF1F5F9),
-                            child: Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => const Center(
-                                child: Icon(Icons.broken_image_rounded, color: _slate),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () => _showImagePreviewDialog(context, imageUrl, title),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  constraints: BoxConstraints(
+                                    minHeight: isMobile ? 170 : 230,
+                                    maxHeight: isMobile ? 220 : 320,
+                                  ),
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    alignment: Alignment.center,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        height: isMobile ? 170 : 230,
+                                        color: const Color(0xFFF8FAFC),
+                                        child: const Center(
+                                          child: CircularProgressIndicator(color: _gold, strokeWidth: 2),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (c, e, s) => Container(
+                                      height: 140,
+                                      color: const Color(0xFFF1F5F9),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.broken_image_rounded, color: _slate, size: 32),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Failed to load image',
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              Positioned(
+                                right: 10,
+                                bottom: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.65),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'View Full Image',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       const SizedBox(height: 8),
                       Row(
@@ -939,7 +1004,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                             label: Text(isActive ? 'Deactivate' : 'Activate'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF475569),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               side: const BorderSide(color: Color(0xFFCBD5E1)),
                               textStyle: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.w700),
@@ -952,7 +1017,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                             label: const Text('Delete'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFDC2626),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               side: const BorderSide(color: Color(0xFFFCA5A5)),
                               textStyle: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.w700),
@@ -965,6 +1030,98 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showImagePreviewDialog(BuildContext context, String imageUrl, String title) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860, maxHeight: 720),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.image_rounded, color: _gold, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: _darkBg,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close_rounded, size: 20, color: _slate),
+                        splashRadius: 18,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                Flexible(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(18),
+                      bottomRight: Radius.circular(18),
+                    ),
+                    child: Container(
+                      color: const Color(0xFF0F172A),
+                      alignment: Alignment.center,
+                      child: InteractiveViewer(
+                        minScale: 0.8,
+                        maxScale: 4.0,
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(color: _gold),
+                            );
+                          },
+                          errorBuilder: (c, e, s) => Container(
+                            height: 240,
+                            color: const Color(0xFF1E293B),
+                            child: const Center(
+                              child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 48),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

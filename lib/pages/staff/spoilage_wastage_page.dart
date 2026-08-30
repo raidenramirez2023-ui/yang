@@ -99,14 +99,20 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         localLogs = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
       }
 
-      // Deduplicate using unique fingerprint: (item_name + quantity + created_at)
+      // Deduplicate using unique fingerprint: (item_name + quantity + UTC date bucket)
       final Map<String, Map<String, dynamic>> uniqueMap = {};
 
       String getFingerprint(Map<String, dynamic> item) {
         final name = (item['item_name'] ?? '').toString().toLowerCase().trim();
         final qty = (item['quantity'] as num?)?.toDouble() ?? 0.0;
         final rawDate = item['created_at']?.toString() ?? '';
-        final dateKey = rawDate.length >= 16 ? rawDate.substring(0, 16) : rawDate;
+        final dt = DateTime.tryParse(rawDate)?.toUtc();
+        
+        // Normalize time to a 5-minute bucket in UTC to eliminate DB vs Local timezone offset discrepancies
+        final minuteBucket = dt != null ? (dt.minute ~/ 5) : 0;
+        final dateKey = dt != null
+            ? '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}_${dt.hour.toString().padLeft(2, '0')}:$minuteBucket'
+            : (rawDate.length >= 16 ? rawDate.substring(0, 16) : rawDate);
         return '${name}_${qty}_$dateKey';
       }
 
@@ -116,11 +122,21 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         uniqueMap[fp] = l;
       }
 
-      // Local entries only if not already matched
+      // Local entries only if not already matched, and merge notes into existing DB entry
       for (var l in localLogs) {
         final fp = getFingerprint(l);
-        if (!uniqueMap.containsKey(fp)) {
-          uniqueMap[fp] = l;
+        if (uniqueMap.containsKey(fp)) {
+          final currentNote = (uniqueMap[fp]!['notes'] ?? '').toString().trim();
+          final localNote = (l['notes'] ?? '').toString().trim();
+          if (currentNote.isEmpty && localNote.isNotEmpty) {
+            uniqueMap[fp]!['notes'] = localNote;
+          }
+        } else {
+          final localId = (l['id'] ?? '').toString();
+          final existsById = uniqueMap.values.any((item) => item['id']?.toString() == localId);
+          if (!existsById) {
+            uniqueMap[fp] = l;
+          }
         }
       }
 
@@ -289,17 +305,11 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     ),
                     const SizedBox(height: 14),
 
-                    // ── List of Wastage Cards ──────────────────────────
+                    // ── Table of Wastage Logs ──────────────────────────
                     if (filtered.isEmpty)
                       _buildEmptyState()
                     else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filtered.length,
-                        separatorBuilder: (ctx, i) => const SizedBox(height: 10),
-                        itemBuilder: (ctx, i) => _buildWastageCard(filtered[i], isMobile),
-                      ),
+                      _buildWastageTable(filtered, isMobile),
 
                     const SizedBox(height: 60),
                   ],
@@ -607,192 +617,315 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     );
   }
 
-  // ── Wastage Card ───────────────────────────────────────────────────────────
-  Widget _buildWastageCard(Map<String, dynamic> log, bool isMobile) {
-    final name = (log['item_name'] ?? 'Unnamed Item').toString();
-    final category = (log['category'] ?? 'General').toString();
-    final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
-    final unit = (log['unit'] ?? 'units').toString();
-    final reason = (log['reason'] ?? 'Spoilage').toString();
-    final loggedBy = (log['logged_by'] ?? 'Staff').toString();
-    final notes = (log['notes'] ?? '').toString();
-    final createdAt = log['created_at']?.toString();
-
-    String formattedDate = '';
-    if (createdAt != null) {
-      final dt = DateTime.tryParse(createdAt);
-      if (dt != null) formattedDate = DateFormat('MMM d, hh:mm a').format(dt.toLocal());
-    }
-
-    Color reasonColor = const Color(0xFFDC2626);
-    IconData reasonIcon = Icons.delete_outline_rounded;
-    if (reason.contains('Expired')) {
-      reasonColor = const Color(0xFFD97706);
-      reasonIcon = Icons.timer_off_outlined;
-    } else if (reason.contains('Prep')) {
-      reasonColor = const Color(0xFF0284C7);
-      reasonIcon = Icons.soup_kitchen_outlined;
-    } else if (reason.contains('Storage')) {
-      reasonColor = const Color(0xFF7C3AED);
-      reasonIcon = Icons.ac_unit_rounded;
-    }
-
+  // ── Wastage Data Table ───────────────────────────────────────────────────
+  Widget _buildWastageTable(List<Map<String, dynamic>> logs, bool isMobile) {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            // Left Accent Strip
-            Container(
-              width: 5,
-              decoration: BoxDecoration(
-                color: reasonColor,
-                borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double tableWidth = constraints.maxWidth > 960 ? constraints.maxWidth : 960;
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: SizedBox(
+                width: tableWidth,
+                child: DataTable(
+                  headingRowHeight: 46,
+                  dataRowMinHeight: 56,
+                  dataRowMaxHeight: 74,
+                  horizontalMargin: 20,
+                  columnSpacing: 24,
+                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                  dividerThickness: 1,
+              border: const TableBorder(
+                horizontalInside: BorderSide(
+                  color: Color(0xFFF1F5F9),
+                  width: 1,
+                ),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: reasonColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+              columns: [
+                DataColumn(
+                  label: _tableHeader('DATE & TIME'),
+                ),
+                DataColumn(
+                  label: _tableHeader('ITEM & CATEGORY'),
+                ),
+                DataColumn(
+                  label: _tableHeader('QTY LOST'),
+                ),
+                DataColumn(
+                  label: _tableHeader('REASON / TYPE'),
+                ),
+                DataColumn(
+                  label: _tableHeader('LOGGED BY'),
+                ),
+                DataColumn(
+                  label: _tableHeader('NOTES / DETAILS'),
+                ),
+                DataColumn(
+                  label: _tableHeader('ACTIONS'),
+                ),
+              ],
+              rows: logs.map((log) {
+                final name = (log['item_name'] ?? 'Unnamed Item').toString();
+                final category = (log['category'] ?? 'General').toString();
+                final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
+                final unit = (log['unit'] ?? 'units').toString();
+                final reason = (log['reason'] ?? 'Spoilage').toString();
+                final loggedBy = (log['logged_by'] ?? 'Staff').toString();
+                final notes = (log['notes'] ?? '').toString();
+                final createdAt = log['created_at']?.toString();
+
+                String datePart = '';
+                String timePart = '';
+                if (createdAt != null) {
+                  final dt = DateTime.tryParse(createdAt)?.toLocal();
+                  if (dt != null) {
+                    datePart = DateFormat('MMM dd, yyyy').format(dt);
+                    timePart = DateFormat('hh:mm a').format(dt);
+                  }
+                }
+
+                Color reasonColor = const Color(0xFFDC2626);
+                IconData reasonIcon = Icons.delete_outline_rounded;
+                if (reason.contains('Expired')) {
+                  reasonColor = const Color(0xFFD97706);
+                  reasonIcon = Icons.timer_off_outlined;
+                } else if (reason.contains('Prep')) {
+                  reasonColor = const Color(0xFF0284C7);
+                  reasonIcon = Icons.soup_kitchen_outlined;
+                } else if (reason.contains('Storage')) {
+                  reasonColor = const Color(0xFF7C3AED);
+                  reasonIcon = Icons.ac_unit_rounded;
+                }
+
+                return DataRow(
+                  cells: [
+                    // Date & Time
+                    DataCell(
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            datePart.isNotEmpty ? datePart : '—',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                            ),
                           ),
-                          child: Icon(reasonIcon, size: 18, color: reasonColor),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
+                          if (timePart.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              timePart,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10.5,
+                                color: const Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Item & Category
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: reasonColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(reasonIcon, size: 16, color: reasonColor),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 name,
                                 style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   color: const Color(0xFF0F172A),
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Text(
-                                    category,
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                  ),
-                                  if (formattedDate.isNotEmpty) ...[
-                                    Text(' • $formattedDate', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8))),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFCA5A5)),
-                          ),
-                          child: Text(
-                            '-${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFFDC2626),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: reasonColor.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: reasonColor.withValues(alpha: 0.2)),
-                                ),
-                                child: Text(
-                                  reason,
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w700, color: reasonColor),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'By: $loggedBy',
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                                  category,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10,
+                                    color: const Color(0xFF475569),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        InkWell(
-                          onTap: () => _confirmDeleteLog(log),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey[400]),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    if (notes.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+
+                    // Qty Lost
+                    DataCell(
                       Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: const Color(0xFFFEF2F2),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
                         ),
                         child: Text(
-                          'Note: $notes',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B), fontStyle: FontStyle.italic),
+                          '-${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFDC2626),
+                          ),
                         ),
                       ),
-                    ],
+                    ),
+
+                    // Reason / Type
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: reasonColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: reasonColor.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: reasonColor,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              reason,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: reasonColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Logged By
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1F5F9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.person_outline_rounded,
+                              size: 13,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            loggedBy,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Notes / Details
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 200),
+                        child: Text(
+                          notes.isNotEmpty ? notes : '—',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            color: notes.isNotEmpty ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            fontStyle: notes.isNotEmpty ? FontStyle.italic : FontStyle.normal,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+
+                    // Actions
+                    DataCell(
+                      IconButton(
+                        onPressed: () => _confirmDeleteLog(log),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                        color: const Color(0xFF94A3B8),
+                        hoverColor: const Color(0xFFFEF2F2),
+                        highlightColor: Colors.transparent,
+                        tooltip: 'Delete log',
+                      ),
+                    ),
                   ],
-                ),
-              ),
+                );
+              }).toList(),
             ),
-          ],
-        ),
+          ),
+        );
+      },
+    ),
+  ),
+);
+  }
+
+  Widget _tableHeader(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.plusJakartaSans(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF475569),
+        letterSpacing: 0.8,
       ),
     );
   }
@@ -1335,6 +1468,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
 
                               // 2. Record in stock_transactions table
                               String? insertedTxId;
+                              String? insertedCreatedAt;
                               try {
                                 final txRes = await _supabase.from('stock_transactions').insert({
                                   'item_name': itemDbName,
@@ -1344,8 +1478,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                   'purpose': 'Wastage: $selectedReason',
                                   'requested_by': selectedStaffName,
                                   'processed_by': selectedStaffName,
-                                }).select('id').single();
+                                  'notes': notes,
+                                }).select('id, created_at').single();
                                 insertedTxId = txRes['id']?.toString();
+                                insertedCreatedAt = txRes['created_at']?.toString();
                               } catch (e) {
                                 debugPrint('Note: error inserting to stock_transactions: $e');
                               }
@@ -1362,7 +1498,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                 'reason': selectedReason,
                                 'logged_by': selectedStaffName,
                                 'notes': notes,
-                                'created_at': DateTime.now().toIso8601String(),
+                                'created_at': insertedCreatedAt ?? DateTime.now().toIso8601String(),
                               };
 
                               setState(() {

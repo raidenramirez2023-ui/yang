@@ -153,6 +153,7 @@ class _LandingPageState extends State<LandingPage>
     if (!_categoryScrollController.hasClients) return;
     
     final position = _categoryScrollController.position;
+    if (!position.hasContentDimensions) return;
     final atLeft = position.pixels <= 0;
     final atRight = position.pixels >= position.maxScrollExtent;
     

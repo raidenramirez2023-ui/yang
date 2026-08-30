@@ -1127,366 +1127,381 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
           }
 
           return Dialog(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22)),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 440),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 440,
+                maxHeight: MediaQuery.of(context).size.height * 0.86,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Modal Header Banner
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [_emerald, const Color(0xFF1E4A42)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(22),
-                        topRight: Radius.circular(22),
-                      ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 25,
+                      offset: const Offset(0, 10),
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Modal Header Banner
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [_emerald, const Color(0xFF1E4A42)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Column(
                           children: [
-                            Text(
-                              'CUSTOMER PROFILE',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: _goldLight,
-                                letterSpacing: 1.2,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'CUSTOMER PROFILE',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: _goldLight,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded,
+                                      color: Colors.white70, size: 20),
+                                  onPressed: () => Navigator.pop(context),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: avatarColor,
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  initials,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded,
-                                  color: Colors.white60, size: 20),
-                              onPressed: () => Navigator.pop(context),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'
+                                  .trim(),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: _gold.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: _gold.withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                'CUSTOMER ACCOUNT',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: _goldLight,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        Container(
-                          width: 68,
-                          height: 68,
-                          decoration: BoxDecoration(
-                            color: avatarColor,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              initials,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'
-                              .trim(),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _gold.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: _gold.withValues(alpha: 0.4)),
-                          ),
-                          child: Text(
-                            'CUSTOMER ACCOUNT',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: _goldLight,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                  // Details Body
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _modalDetailRow(Icons.email_rounded, 'Email',
-                            customer['email']?.toString() ?? 'N/A'),
-                        _modalDetailRow(Icons.phone_rounded, 'Phone',
-                            customer['phone']?.toString() ?? 'N/A'),
-                        _modalDetailRow(Icons.calendar_today_rounded,
-                            'Registered',
-                            _formatDate(customer['created_at'])),
-                        const SizedBox(height: 14),
-
-                        // Customer Reliability Stats Banner
-                        () {
-                          final custEmail = (customer['email'] ?? '').toString().trim().toLowerCase();
-                          final stat = _customerReservationStats[custEmail] ?? {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0};
-                          final totalBookings = stat['total'] ?? 0;
-                          final completed = stat['completed'] ?? 0;
-                          final noShows = stat['no_show'] ?? 0;
-
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: noShows >= 2
-                                  ? const Color(0xFFFEF2F2)
-                                  : (noShows == 1 ? const Color(0xFFFFFBEB) : const Color(0xFFF8FAFC)),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: noShows >= 2
-                                    ? const Color(0xFFFECACA)
-                                    : (noShows == 1 ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      noShows >= 2
-                                          ? Icons.warning_amber_rounded
-                                          : (noShows == 1 ? Icons.info_outline_rounded : Icons.history_rounded),
-                                      size: 16,
-                                      color: noShows >= 2
-                                          ? const Color(0xFFDC2626)
-                                          : (noShows == 1 ? const Color(0xFFD97706) : _slate),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'BOOKING & RELIABILITY HISTORY',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: noShows >= 2
-                                            ? const Color(0xFFDC2626)
-                                            : (noShows == 1 ? const Color(0xFFD97706) : _slate),
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _statMiniBox('Total Bookings', '$totalBookings', _slate),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _statMiniBox('Completed', '$completed', const Color(0xFF15803D)),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _statMiniBox('No-Shows', '$noShows', noShows > 0 ? const Color(0xFFDC2626) : _slate),
-                                    ),
-                                  ],
-                                ),
-                                if (noShows >= 2) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '⚠️ High-Risk: Requires 100% full advance payment before confirming future events.',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFFB91C1C),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        }(),
-
-                        const SizedBox(height: 14),
-                        const Divider(color: Color(0xFFE2E8F0), height: 1),
-                        const SizedBox(height: 14),
-
-                        // Verification ID
-                        Text(
-                          'GOVERNMENT-ISSUED ID',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: _slate,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        if (isLoadingId)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16.0),
-                              child: CircularProgressIndicator(color: _gold),
-                            ),
-                          )
-                        else if (uploadedIdUrl != null &&
-                            uploadedIdUrl!.isNotEmpty)
-                          Column(
+                      // Details Body (Scrollable inside Flexible)
+                      Flexible(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              InkWell(
-                                onTap: () => _showIdLightbox(uploadedIdUrl!),
-                                borderRadius: BorderRadius.circular(14),
-                                child: Container(
-                                  height: 160,
-                                  width: double.infinity,
+                              _modalDetailRow(Icons.email_rounded, 'Email',
+                                  customer['email']?.toString() ?? 'N/A'),
+                              _modalDetailRow(Icons.phone_rounded, 'Phone',
+                                  customer['phone']?.toString() ?? 'N/A'),
+                              _modalDetailRow(Icons.calendar_today_rounded,
+                                  'Registered',
+                                  _formatDate(customer['created_at'])),
+                              const SizedBox(height: 14),
+
+                              // Customer Reliability Stats Banner
+                              () {
+                                final custEmail = (customer['email'] ?? '').toString().trim().toLowerCase();
+                                final stat = _customerReservationStats[custEmail] ?? {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0};
+                                final totalBookings = stat['total'] ?? 0;
+                                final completed = stat['completed'] ?? 0;
+                                final noShows = stat['no_show'] ?? 0;
+
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
+                                    color: noShows >= 2
+                                        ? const Color(0xFFFEF2F2)
+                                        : (noShows == 1 ? const Color(0xFFFFFBEB) : const Color(0xFFF8FAFC)),
+                                    borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                        color: const Color(0xFFE2E8F0)),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _darkBg.withValues(alpha: 0.04),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
+                                      color: noShows >= 2
+                                          ? const Color(0xFFFECACA)
+                                          : (noShows == 1 ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
+                                    ),
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.network(
-                                          uploadedIdUrl!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (c, e, s) =>
-                                              const Center(
-                                            child: Icon(
-                                                Icons.broken_image_rounded,
-                                                size: 40,
-                                                color: Color(0xFF94A3B8)),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            noShows >= 2
+                                                ? Icons.warning_amber_rounded
+                                                : (noShows == 1 ? Icons.info_outline_rounded : Icons.history_rounded),
+                                            size: 16,
+                                            color: noShows >= 2
+                                                ? const Color(0xFFDC2626)
+                                                : (noShows == 1 ? const Color(0xFFD97706) : _slate),
                                           ),
-                                        ),
-                                        Positioned(
-                                          bottom: 8,
-                                          right: 8,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.55),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'BOOKING & RELIABILITY HISTORY',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: noShows >= 2
+                                                  ? const Color(0xFFDC2626)
+                                                  : (noShows == 1 ? const Color(0xFFD97706) : _slate),
+                                              letterSpacing: 0.8,
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                    Icons
-                                                        .zoom_in_rounded,
-                                                    size: 12,
-                                                    color: Colors.white),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'Tap to enlarge',
-                                                  style:
-                                                      GoogleFonts.plusJakartaSans(
-                                                    fontSize: 10,
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _statMiniBox('Total Bookings', '$totalBookings', _slate),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _statMiniBox('Completed', '$completed', const Color(0xFF15803D)),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _statMiniBox('No-Shows', '$noShows', noShows > 0 ? const Color(0xFFDC2626) : _slate),
+                                          ),
+                                        ],
+                                      ),
+                                      if (noShows >= 2) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '⚠️ High-Risk: Requires 100% full advance payment before confirming future events.',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFFB91C1C),
                                           ),
                                         ),
                                       ],
+                                    ],
+                                  ),
+                                );
+                              }(),
+
+                              const SizedBox(height: 14),
+                              const Divider(color: Color(0xFFE2E8F0), height: 1),
+                              const SizedBox(height: 14),
+
+                              // Verification ID
+                              Text(
+                                'GOVERNMENT-ISSUED ID',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: _slate,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              if (isLoadingId)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                                    child: CircularProgressIndicator(color: _gold),
+                                  ),
+                                )
+                              else if (uploadedIdUrl != null &&
+                                  uploadedIdUrl!.isNotEmpty)
+                                Column(
+                                  children: [
+                                    InkWell(
+                                      onTap: () => _showIdLightbox(uploadedIdUrl!),
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Container(
+                                        height: 160,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(14),
+                                          border: Border.all(
+                                              color: const Color(0xFFE2E8F0)),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: _darkBg.withValues(alpha: 0.04),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              Image.network(
+                                                uploadedIdUrl!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (c, e, s) =>
+                                                    const Center(
+                                                  child: Icon(
+                                                      Icons.broken_image_rounded,
+                                                      size: 40,
+                                                      color: Color(0xFF94A3B8)),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                bottom: 8,
+                                                right: 8,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.55),
+                                                    borderRadius:
+                                                        BorderRadius.circular(6),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                          Icons
+                                                              .zoom_in_rounded,
+                                                          size: 12,
+                                                          color: Colors.white),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        'Tap to enlarge',
+                                                        style:
+                                                            GoogleFonts.plusJakartaSans(
+                                                          fontSize: 10,
+                                                          color: Colors.white,
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border:
+                                        Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.no_photography_outlined,
+                                          color: Color(0xFF94A3B8), size: 28),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'No ID uploaded yet',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF94A3B8),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _emerald,
+                                    foregroundColor: Colors.white,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                    elevation: 0,
+                                  ),
+                                  child: Text(
+                                    'Close',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
                               ),
                             ],
-                          )
-                        else
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.no_photography_outlined,
-                                    color: Color(0xFF94A3B8), size: 28),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'No ID uploaded yet',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _emerald,
-                              foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              elevation: 0,
-                            ),
-                            child: Text(
-                              'Close',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           );
