@@ -643,6 +643,337 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
     }
   }
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Confirm Logout',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to end your POS session and logout?',
+          style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await Supabase.instance.client.auth.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/staff-login');
+              }
+            },
+            child: Text(
+              'Logout',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserProfileMenu() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          color: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF334155), width: 1.2),
+          ),
+          elevation: 16,
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        tooltip: 'Staff Account & Shift Status',
+        offset: const Offset(0, 44),
+        onSelected: (value) {
+          if (value == 'logout') {
+            _showLogoutDialog();
+          }
+        },
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFD9A441), Color(0xFFB45309)],
+                        ),
+                        border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.person_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _userName,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Staff Cashier • POS Active',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF94A3B8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _isDelegationActive
+                        ? const Color(0xFF065F46).withValues(alpha: 0.4)
+                        : const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _isDelegationActive
+                          ? const Color(0xFF34D399).withValues(alpha: 0.5)
+                          : const Color(0xFF475569),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isDelegationActive ? Icons.beach_access_rounded : Icons.admin_panel_settings_rounded,
+                        color: _isDelegationActive ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                        size: 15,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          _isDelegationActive
+                              ? 'Rest Day Mode: Active (Authorized)'
+                              : 'Admin on Duty (Normal Mode)',
+                          style: GoogleFonts.inter(
+                            color: _isDelegationActive ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 16),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Sign Out / End Shift',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFF87171),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFD9A441), width: 1.2),
+                  color: const Color(0xFF14332E),
+                ),
+                child: const Center(
+                  child: Icon(Icons.person_rounded, color: Color(0xFFD9A441), size: 14),
+                ),
+              ),
+              const SizedBox(width: 7),
+              _isLoading
+                  ? const SizedBox(
+                      width: 28,
+                      height: 10,
+                      child: LinearProgressIndicator(
+                        backgroundColor: Colors.white24,
+                        color: Color(0xFFD9A441),
+                      ),
+                    )
+                  : Text(
+                      _userName,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isBannerDismissed = false;
+
+  Widget _buildRestDayAuthorizationBanner() {
+    if (!_isDelegationActive || _isBannerDismissed) {
+      return const SizedBox.shrink();
+    }
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 8, bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: const Color(0xFF10B981).withValues(alpha: 0.6),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.verified_user_rounded,
+                color: Color(0xFF34D399),
+                size: 14,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Authorized by Admin Operations',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE2E8F0),
+                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
+              ),
+            ),
+            const SizedBox(width: 10),
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _isBannerDismissed = true;
+                });
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(2.5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white70,
+                  size: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -724,32 +1055,9 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                   // ── Push all actions to the right side ──
                   const Spacer(),
 
-                  // ── Offline Mode & Sync Status (Katabi ng Scan Pass) ──
+                  // ── Offline Mode & Sync Status (if offline or pending) ──
                   _buildTopOfflineSyncBadge(),
                   const SizedBox(width: 8),
-
-                  if (_isDelegationActive) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF065F46).withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF34D399), width: 1.1),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.beach_access_rounded, color: Color(0xFF34D399), size: 14),
-                          SizedBox(width: 5),
-                          Text(
-                            'Rest Day Mode: Active',
-                            style: TextStyle(color: Color(0xFF6EE7B7), fontSize: 10.5, fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
 
                   // ── Scan Guest Pass QR Button ──
                   AnimatedTapScale(
@@ -758,7 +1066,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                       QrScannerDialog.show(context);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF15803D), Color(0xFF166534)],
@@ -800,11 +1108,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-
-                  // ── Operations Hub Dropdown Button (Groups Reservations, Approvals, Balances, Refunds) ──
-                  _buildOperationsDropdownButton(),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
 
                   // ── Order History Button ──
                   AnimatedTapScale(
@@ -818,7 +1122,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
@@ -833,136 +1137,43 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                           const Icon(
                             Icons.receipt_long_rounded,
                             color: Colors.white,
-                            size: 16,
+                            size: 15,
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 5),
                           Text(
                             'History',
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12,
+                              fontSize: 11.5,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
 
-                  // ── Staff Profile Badge ──
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFFD9A441), width: 1.2),
-                            color: const Color(0xFF14332E),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.person, color: Color(0xFFD9A441), size: 14),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _isLoading
-                            ? const SizedBox(
-                                width: 30,
-                                height: 10,
-                                child: LinearProgressIndicator(
-                                  backgroundColor: Colors.white24,
-                                  color: Color(0xFFD9A441),
-                                ),
-                              )
-                            : Text(
-                                _userName,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 4),
+                  // ── Operations Hub Dropdown Button (Groups Reservations, Approvals, Balances, Refunds) ──
+                  _buildOperationsDropdownButton(),
+                  const SizedBox(width: 8),
 
-                  // ── Logout Button ──
-                  IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Color(0xFFFCA5A5), size: 20),
-                    tooltip: 'Logout',
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          title: Row(
-                            children: [
-                              const Icon(Icons.logout_rounded, color: Color(0xFFDC2626)),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Confirm Logout',
-                                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-                              ),
-                            ],
-                          ),
-                          content: Text(
-                            'Are you sure you want to end your POS session and logout?',
-                            style: GoogleFonts.inter(color: const Color(0xFF64748B)),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                'Cancel',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF64748B),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFDC2626),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              onPressed: () async {
-                                Navigator.pop(context);
-                                await Supabase.instance.client.auth.signOut();
-                                if (context.mounted) {
-                                  Navigator.pushReplacementNamed(context, '/staff-login');
-                                }
-                              },
-                              child: Text(
-                                'Logout',
-                                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  // ── Staff Profile & Logout Menu ──
+                  _buildUserProfileMenu(),
                 ],
               ),
             ),
           ),
         ),
       ),
-      body: const SharedPOSWidget(userRole: 'Staff'),
+      body: Column(
+        children: [
+          _buildRestDayAuthorizationBanner(),
+          const Expanded(
+            child: SharedPOSWidget(userRole: 'Staff'),
+          ),
+        ],
+      ),
     );
   }
 

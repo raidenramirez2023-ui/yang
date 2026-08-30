@@ -3461,17 +3461,39 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                     _buildCategorySidebar(),
 
-                    // ── Center: Food Grid ──────────────────────────────────────
+                    // ── Center: Search + Food Grid ──────────────────────────────
 
                     Expanded(
 
                       flex: 13,
 
-                      child: _buildMenuGrid(
+                      child: Column(
 
-                        crossAxisCount: 5,
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
-                        childAspectRatio: 0.82,
+                        children: [
+
+                          Padding(
+
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+
+                            child: _buildSearchBar(),
+
+                          ),
+
+                          Expanded(
+
+                            child: _buildMenuGrid(
+
+                              crossAxisCount: 5,
+
+                              childAspectRatio: 0.82,
+
+                            ),
+
+                          ),
+
+                        ],
 
                       ),
 
@@ -4318,7 +4340,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     return Container(
 
-      height: 40,
+      height: 42,
 
       decoration: BoxDecoration(
 
@@ -4326,13 +4348,23 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
         borderRadius: BorderRadius.circular(12),
 
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        border: Border.all(
+
+          color: _searchQuery.isNotEmpty
+
+              ? const Color(0xFF0F766E)
+
+              : const Color(0xFFE2E8F0),
+
+          width: 1.2,
+
+        ),
 
         boxShadow: [
 
           BoxShadow(
 
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
 
             blurRadius: 8,
 
@@ -4348,21 +4380,49 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
         controller: _searchController,
 
-        onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+        onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
 
-        style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B)),
+        style: GoogleFonts.inter(
+
+          fontSize: 13.5,
+
+          color: const Color(0xFF1E293B),
+
+          fontWeight: FontWeight.w500,
+
+        ),
 
         decoration: InputDecoration(
 
-          hintText: 'Search menu items...',
+          hintText: 'Search food or beverage by name...',
 
           hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
 
-          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 18),
+          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0F766E), size: 20),
+
+          suffixIcon: _searchQuery.isNotEmpty
+
+              ? IconButton(
+
+                  icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 18),
+
+                  splashRadius: 16,
+
+                  onPressed: () {
+
+                    _searchController.clear();
+
+                    setState(() => _searchQuery = '');
+
+                  },
+
+                )
+
+              : null,
 
           border: InputBorder.none,
 
-          contentPadding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
 
           isDense: true,
 
@@ -4450,31 +4510,147 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   }) {
 
-    final cat = MenuService.categories[_selectedCategoryIndex];
+    List<MenuItem> items;
 
-    final allItems = menu[cat]!;
+    if (_searchQuery.isNotEmpty) {
 
-    final items = _searchQuery.isEmpty
+      // Search across ALL categories so staff can find any item instantly
 
-        ? allItems
+      final allItemsAcrossMenu = <MenuItem>[];
 
-        : allItems
+      for (final catList in menu.values) {
 
-              .where((m) => m.name.toLowerCase().contains(_searchQuery))
+        allItemsAcrossMenu.addAll(catList);
 
-              .toList();
+      }
+
+      final seenNames = <String>{};
+
+      final uniqueItems = <MenuItem>[];
+
+      for (final it in allItemsAcrossMenu) {
+
+        if (seenNames.add(it.name.toLowerCase())) {
+
+          uniqueItems.add(it);
+
+        }
+
+      }
+
+      items = uniqueItems
+
+          .where((m) => m.name.toLowerCase().contains(_searchQuery))
+
+          .toList();
+
+    } else {
+
+      final cat = MenuService.categories.isNotEmpty && _selectedCategoryIndex < MenuService.categories.length
+
+          ? MenuService.categories[_selectedCategoryIndex]
+
+          : '';
+
+      items = menu[cat] ?? [];
+
+    }
 
 
 
     if (items.isEmpty) {
 
-      return const Center(
+      return Center(
 
-        child: Text(
+        child: Padding(
 
-          'No items found',
+          padding: const EdgeInsets.all(24),
 
-          style: TextStyle(color: Color(0xFF9CA3AF)),
+          child: Column(
+
+            mainAxisAlignment: MainAxisAlignment.center,
+
+            children: [
+
+              Icon(
+
+                _searchQuery.isNotEmpty
+
+                    ? Icons.search_off_rounded
+
+                    : Icons.restaurant_menu_rounded,
+
+                size: 46,
+
+                color: const Color(0xFF94A3B8),
+
+              ),
+
+              const SizedBox(height: 12),
+
+              Text(
+
+                _searchQuery.isNotEmpty
+
+                    ? 'No food items found matching "$_searchQuery"'
+
+                    : 'No items in this category',
+
+                style: GoogleFonts.inter(
+
+                  color: const Color(0xFF64748B),
+
+                  fontSize: 14,
+
+                  fontWeight: FontWeight.w600,
+
+                ),
+
+                textAlign: TextAlign.center,
+
+              ),
+
+              if (_searchQuery.isNotEmpty) ...[
+
+                const SizedBox(height: 10),
+
+                ElevatedButton.icon(
+
+                  onPressed: () {
+
+                    _searchController.clear();
+
+                    setState(() => _searchQuery = '');
+
+                  },
+
+                  icon: const Icon(Icons.clear_rounded, size: 16),
+
+                  label: const Text('Clear Search', style: TextStyle(fontWeight: FontWeight.w600)),
+
+                  style: ElevatedButton.styleFrom(
+
+                    backgroundColor: const Color(0xFF0F766E),
+
+                    foregroundColor: Colors.white,
+
+                    elevation: 0,
+
+                    shape: RoundedRectangleBorder(
+
+                      borderRadius: BorderRadius.circular(8),
+
+                    ),
+
+                  ),
+
+                ),
+
+              ],
+
+            ],
+
+          ),
 
         ),
 
