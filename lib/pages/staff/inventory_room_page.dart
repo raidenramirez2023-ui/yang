@@ -78,12 +78,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   String _selectedStorageRoom = 'All';
   String _incomingSearchQuery = '';
   String _pettyCashSearchQuery = '';
-  // ignore: unused_field
   int _incomingCurrentPage = 1;
-  // ignore: unused_field
-  int _incomingItemsPerPage = 10;
+  final int _incomingItemsPerPage = 15;
   int _pettyCashCurrentPage = 1;
-  int _pettyCashItemsPerPage = 10;
+  int _pettyCashItemsPerPage = 15;
   
   static const List<String> storageRooms = [
     'All',
@@ -2816,134 +2814,121 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     );
   }
 
-  Future<void> _processIncomingStock(
-    String name,
-    String category,
-    int quantity,
-    String unit,
-    String supplier,
-    String receiver,
-    String? drNumber,
-    String? deliveryTimestamp,
-    String? purpose, {
-    bool showNotification = true,
-  }) async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      final cleanName = name.trim();
-
-      // 1. Check if item exists in inventory (Case-insensitive)
-      final existingItems = await Supabase.instance.client
-          .from('inventory')
-          .select()
-          .ilike('name', cleanName)
-          .limit(1);
-
-      if (existingItems.isNotEmpty) {
-        final existingItem = existingItems.first;
-        final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
-        await Supabase.instance.client
-            .from('inventory')
-            .update({
-              'quantity': currentQty + quantity,
-              if (supplier.isNotEmpty) 'supplier': supplier,
-            })
-            .eq('id', existingItem['id']);
-      } else {
-        // Fallback: check normalized name across all inventory
-        final allInv = await Supabase.instance.client
-            .from('inventory')
-            .select('id, name, quantity');
-        final normTarget = cleanName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
-        final match = allInv.firstWhere(
-          (inv) => (inv['name'] ?? '').toString().trim().toLowerCase().replaceAll(RegExp(r'\s+'), '') == normTarget,
-          orElse: () => {},
-        );
-
-        if (match.isNotEmpty) {
-          final currentQty = (match['quantity'] as num?)?.toInt() ?? 0;
-          await Supabase.instance.client
-              .from('inventory')
-              .update({'quantity': currentQty + quantity})
-              .eq('id', match['id']);
-        } else {
-          await Supabase.instance.client.from('inventory').insert({
-            'name': cleanName,
-            'category': category,
-            'quantity': quantity,
-            'unit': unit,
-            'supplier': supplier,
-            'created_by': user?.email,
-            'created_at': DateTime.now().toUtc().toIso8601String(),
-          });
-        }
-      }
-
-      await Supabase.instance.client.from('stock_transactions').insert({
-        'item_name': cleanName,
-        'transaction_type': 'incoming',
-        'quantity': quantity,
-        'unit': unit,
-        'supplier': supplier,
-        'processed_by': receiver,
-        'created_at': deliveryTimestamp ?? DateTime.now().toUtc().toIso8601String(),
-        if (drNumber != null) 'purpose': 'DR: $drNumber',
-        if (purpose != null) 'purpose': purpose,
-      });
-
-      if (showNotification) {
-        _showSuccessSnackBar('Stock added successfully!');
-      }
-    } catch (e) {
-      if (showNotification) {
-        _showErrorSnackBar('Failed to add stock: $e');
-      }
-      rethrow;
-    }
-  }
 
   Future<void> _processBulkIncomingStock(
     List<Map<String, dynamic>> bulkItems,
     String receiver,
     String? purpose,
   ) async {
-    int successCount = 0;
-    int failureCount = 0;
-    List<String> failedItems = [];
-    
-    // Generate a single DR Number (5-digit random) for this bulk delivery
-    final drNumber = (10000 + Random().nextInt(90000)).toString();
-    final deliveryTimestamp = DateTime.now().toUtc().toIso8601String();
+    if (bulkItems.isEmpty) return;
 
-    for (var item in bulkItems) {
-      try {
-        await _processIncomingStock(
-          item['name'] as String,
-          item['category'] as String,
-          item['quantity'] as int,
-          item['unit'] as String,
-          item['supplier'] as String,
-          receiver,
-          drNumber, // Pass DR Number
-          deliveryTimestamp, // Pass delivery timestamp
-          purpose, // Pass purpose
-          showNotification: false,
-        );
-        successCount++;
-      } catch (e) {
-        failureCount++;
-        failedItems.add(item['name'] as String);
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      
+      // Determine DR Number and purpose
+      final String drNumber;
+      final String purposeString;
+      if (purpose != null && purpose.trim().isNotEmpty) {
+        purposeString = purpose.trim();
+        drNumber = purposeString.startsWith('DR: ') ? purposeString.substring(4) : purposeString;
+      } else {
+        drNumber = (10000 + Random().nextInt(90000)).toString();
+        purposeString = 'DR: $drNumber';
       }
-    }
+      
+      final deliveryTimestamp = DateTime.now().toUtc().toIso8601String();
 
-    if (failureCount > 0) {
-      _showErrorSnackBar(
-        'Processed $successCount items successfully. Failed to process $failureCount items: ${failedItems.join(", ")}',
-      );
-    } else {
+      // 1. Fetch all inventory items once for fast batch matching
+      final allInv = await Supabase.instance.client
+          .from('inventory')
+          .select('id, name, quantity');
+      
+      final Map<String, Map<String, dynamic>> invMap = {};
+      for (final inv in (allInv as List)) {
+        final invMapItem = inv as Map<String, dynamic>;
+        final normName = (invMapItem['name'] ?? '').toString().trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        if (normName.isNotEmpty) {
+          invMap[normName] = invMapItem;
+        }
+      }
+
+      // 2. Prepare inventory updates and new inserts
+      final List<Future<dynamic>> invOps = [];
+      final List<Map<String, dynamic>> newInvItemsToInsert = [];
+      final List<Map<String, dynamic>> transactionsToInsert = [];
+
+      for (var item in bulkItems) {
+        final rawName = item['name'] as String;
+        final cleanName = rawName.trim();
+        final normName = cleanName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        final category = item['category'] as String? ?? 'General';
+        final quantity = item['quantity'] as int? ?? 0;
+        final unit = item['unit'] as String? ?? 'pcs';
+        final supplier = (item['supplier'] as String?)?.trim() ?? '';
+
+        if (invMap.containsKey(normName)) {
+          final existing = invMap[normName]!;
+          final currentQty = (existing['quantity'] as num?)?.toInt() ?? 0;
+          final newQty = currentQty + quantity;
+          existing['quantity'] = newQty; // update local lookup
+
+          invOps.add(
+            Supabase.instance.client
+                .from('inventory')
+                .update({
+                  'quantity': newQty,
+                  if (supplier.isNotEmpty) 'supplier': supplier,
+                })
+                .eq('id', existing['id']),
+          );
+        } else {
+          final newRecord = {
+            'name': cleanName,
+            'category': category,
+            'quantity': quantity,
+            'unit': unit,
+            'supplier': supplier,
+            'created_by': user?.email,
+            'created_at': deliveryTimestamp,
+          };
+          newInvItemsToInsert.add(newRecord);
+        }
+
+        // Prepare transaction for single batch insertion
+        transactionsToInsert.add({
+          'item_name': cleanName,
+          'transaction_type': 'incoming',
+          'quantity': quantity,
+          'unit': unit,
+          'supplier': supplier,
+          'processed_by': receiver,
+          'created_at': deliveryTimestamp,
+          'purpose': purposeString,
+        });
+      }
+
+      // 3. Execute inventory updates & inserts in parallel
+      if (newInvItemsToInsert.isNotEmpty) {
+        invOps.add(
+          Supabase.instance.client.from('inventory').insert(newInvItemsToInsert),
+        );
+      }
+      
+      if (invOps.isNotEmpty) {
+        await Future.wait(invOps);
+      }
+
+      // 4. Batch insert ALL transactions in a single call to prevent multi-refresh stream triggers!
+      if (transactionsToInsert.isNotEmpty) {
+        await Supabase.instance.client.from('stock_transactions').insert(transactionsToInsert);
+      }
+
       _showSuccessSnackBar(
-        'Successfully processed all $successCount items! DR Number: $drNumber',
+        'Successfully processed all ${bulkItems.length} items! DR Number: $drNumber',
       );
+    } catch (e) {
+      debugPrint('Error in _processBulkIncomingStock: $e');
+      _showErrorSnackBar('Failed to process bulk items: $e');
     }
   }
 
@@ -3111,11 +3096,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   void _showDeliveryDetailsModal(String drNumber, List<Map<String, dynamic>> transactions) {
     final deliveryDateTime = _formatExactDate(transactions.first['created_at']);
     final receiver = transactions.first['processed_by']?.toString() ?? 'Unknown';
+    final totalUnits = transactions.fold<num>(0, (sum, t) => sum + ((t['quantity'] as num?) ?? 0));
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 16, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         title: Row(
           children: [
             Container(
@@ -3139,14 +3128,28 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       color: Color(0xFF0F172A),
                     ),
                   ),
-                  Text(
-                    'DR Number: $drNumber',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _emeraldMedium,
-                    ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Text(
+                        'DR Number: ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      Text(
+                        drNumber,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _emeraldMedium,
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 1),
                   Text(
                     'Receiver: $receiver  •  $deliveryDateTime',
                     style: const TextStyle(
@@ -3164,76 +3167,223 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           ],
         ),
         content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: transactions.length,
-            itemBuilder: (context, index) {
-              final transaction = transactions[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
+          width: 720,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.65,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Table Header (4 Columns: Item Name, Quantity, Unit, Supplier)
+                Container(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.inventory_2_rounded, size: 16, color: _emeraldDeep),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            transaction['item_name'] ?? 'Unknown Item',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                            ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  child: const Row(
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: Text(
+                          'Item Name',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF475569),
+                            letterSpacing: 0.2,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.numbers_rounded, size: 14, color: _emeraldMedium),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'.trim(),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _emeraldMedium,
+                      ),
+                      SizedBox(
+                        width: 85,
+                        child: Text(
+                          'Quantity',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF475569),
+                            letterSpacing: 0.2,
                           ),
                         ),
-                      ],
-                    ),
-                    if (transaction['supplier'] != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.business_rounded, size: 14, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Supplier: ${transaction['supplier']}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
+                      ),
+                      SizedBox(
+                        width: 85,
+                        child: Text(
+                          'Unit',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF475569),
+                            letterSpacing: 0.2,
                           ),
-                        ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          'Supplier',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF475569),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              );
-            },
+                const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+
+                // Table Rows
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: transactions.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFF1F5F9),
+                    ),
+                    itemBuilder: (context, index) {
+                      final transaction = transactions[index];
+                      final itemName = transaction['item_name']?.toString() ?? 'Unknown Item';
+                      final qty = transaction['quantity']?.toString() ?? '0';
+                      final unit = transaction['unit']?.toString().trim() ?? 'pcs';
+                      final supplier = transaction['supplier']?.toString().trim() ?? '';
+                      final isEven = index % 2 == 0;
+
+                      return Container(
+                        color: isEven ? Colors.white : const Color(0xFFFAFAFA),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        child: Row(
+                          children: [
+                            // 1. Item Name Column
+                            Expanded(
+                              flex: 4,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.inventory_2_outlined, size: 15, color: _emeraldMedium),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      itemName,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // 2. Quantity Column
+                            SizedBox(
+                              width: 85,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECFDF5),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                                  ),
+                                  child: Text(
+                                    qty,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF065F46),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // 3. Unit Column
+                            SizedBox(
+                              width: 85,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    unit,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // 4. Supplier Column
+                            Expanded(
+                              flex: 3,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.storefront_outlined, size: 14, color: Colors.amber.shade800),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      supplier.isNotEmpty ? supplier : 'N/A',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: supplier.isNotEmpty ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Table Summary Footer
+                Container(
+                  color: const Color(0xFFF8FAFC),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total: ${transactions.length} item${transactions.length > 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      Text(
+                        '$totalUnits total units',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: _emeraldMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -3929,8 +4079,17 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           (t['supplier']?.toString() ?? '').toLowerCase().contains(q);
                     }).toList();
 
+              final totalPettyCashItems = filteredTransactions.length;
+              final totalPettyCashPages = (totalPettyCashItems / _pettyCashItemsPerPage).ceil().clamp(1, 999999);
+              if (_pettyCashCurrentPage > totalPettyCashPages) {
+                _pettyCashCurrentPage = totalPettyCashPages;
+              }
+              if (_pettyCashCurrentPage < 1) {
+                _pettyCashCurrentPage = 1;
+              }
+
               final startIndex = (_pettyCashCurrentPage - 1) * _pettyCashItemsPerPage;
-              final endIndex = startIndex + _pettyCashItemsPerPage;
+              final endIndex = (startIndex + _pettyCashItemsPerPage < totalPettyCashItems) ? startIndex + _pettyCashItemsPerPage : totalPettyCashItems;
               final paginatedTransactions = filteredTransactions.skip(startIndex).take(_pettyCashItemsPerPage).toList();
 
               return Column(
@@ -4106,46 +4265,132 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       },
                     ),
                   ),
-                  // Pagination
-                  if (filteredTransactions.length > _pettyCashItemsPerPage)
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            onPressed: _pettyCashCurrentPage > 1
-                                ? () => setState(() => _pettyCashCurrentPage--)
-                                : null,
-                            icon: const Icon(Icons.chevron_left_rounded),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _emeraldDeep.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: _emeraldDeep.withValues(alpha: 0.2)),
-                            ),
-                            child: Text(
-                              'Page $_pettyCashCurrentPage',
-                              style: const TextStyle(color: _emeraldDeep, fontWeight: FontWeight.w800, fontSize: 13),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: endIndex < filteredTransactions.length
-                                ? () => setState(() => _pettyCashCurrentPage++)
-                                : null,
-                            icon: const Icon(Icons.chevron_right_rounded),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // Pagination Controls with Numeric Input
+                  _buildPettyCashPagination(totalPettyCashItems, totalPettyCashPages, startIndex, endIndex),
                 ],
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPettyCashPagination(int totalItems, int totalPages, int startItem, int endItem) {
+    final TextEditingController pageInputController = TextEditingController(text: '$_pettyCashCurrentPage');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            totalItems == 0
+                ? 'No transactions found'
+                : 'Showing ${startItem + 1}-$endItem of $totalItems transactions',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Previous button
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                onPressed: _pettyCashCurrentPage > 1
+                    ? () => setState(() => _pettyCashCurrentPage--)
+                    : null,
+                color: _emeraldDeep,
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Previous Page',
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                'Page',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Numeric Page Input Field
+              SizedBox(
+                width: 48,
+                height: 32,
+                child: TextField(
+                  controller: pageInputController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: _emeraldDeep, width: 1.5),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final enteredPage = int.tryParse(value);
+                    if (enteredPage != null && enteredPage >= 1 && enteredPage <= totalPages) {
+                      setState(() => _pettyCashCurrentPage = enteredPage);
+                    } else {
+                      pageInputController.text = '$_pettyCashCurrentPage';
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'of $totalPages',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Next button
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                onPressed: _pettyCashCurrentPage < totalPages
+                    ? () => setState(() => _pettyCashCurrentPage++)
+                    : null,
+                color: _emeraldDeep,
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Next Page',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -4320,26 +4565,388 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 }).toList();
               }
 
-              return ListView.builder(
-                padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 10 : 16),
-                itemCount: filteredDrNumbers.length,
-                itemBuilder: (context, index) {
-                  final drNumber = filteredDrNumbers[index];
-                  final drTransactions = groupedTransactions[drNumber]!;
-                  return _IncomingDeliveryItem(
-                    drNumber: drNumber,
-                    drTransactions: drTransactions,
-                    itemCount: drTransactions.length,
-                    firstTransaction: drTransactions.first,
-                    onTap: () => _showDeliveryDetailsModal(drNumber, drTransactions),
-                    formatDate: _formatExactDate,
-                  );
-                },
+              final int totalItems = filteredDrNumbers.length;
+              final int totalPages = totalItems == 0 ? 1 : (totalItems / _incomingItemsPerPage).ceil();
+              if (_incomingCurrentPage > totalPages) {
+                _incomingCurrentPage = totalPages;
+              }
+              if (_incomingCurrentPage < 1) {
+                _incomingCurrentPage = 1;
+              }
+              final int startIndex = (_incomingCurrentPage - 1) * _incomingItemsPerPage;
+              final int endIndex = (startIndex + _incomingItemsPerPage < totalItems)
+                  ? startIndex + _incomingItemsPerPage
+                  : totalItems;
+              final paginatedDrNumbers = totalItems == 0
+                  ? <String>[]
+                  : filteredDrNumbers.sublist(startIndex, endIndex);
+
+              return Container(
+                margin: EdgeInsets.fromLTRB(
+                  ResponsiveUtils.isMobile(context) ? 10 : 16,
+                  0,
+                  ResponsiveUtils.isMobile(context) ? 10 : 16,
+                  16,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final double minTableWidth = constraints.maxWidth > 850 ? constraints.maxWidth : 850;
+                            return Scrollbar(
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                physics: const BouncingScrollPhysics(),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(minWidth: minTableWidth),
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.vertical,
+                                    physics: const BouncingScrollPhysics(),
+                                    child: DataTable(
+                                      headingRowHeight: 48,
+                                      dataRowMinHeight: 56,
+                                      dataRowMaxHeight: 68,
+                                      horizontalMargin: 20,
+                                      columnSpacing: 24,
+                                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                                      dividerThickness: 1,
+                                      border: const TableBorder(
+                                        horizontalInside: BorderSide(
+                                          color: Color(0xFFF1F5F9),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      columns: const [
+                                        DataColumn(
+                                          label: Text(
+                                            'DR #',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF475569),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'ITEMS',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF475569),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'RECEIVER',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF475569),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'DATE & TIME',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF475569),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'ACTION',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF475569),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      rows: paginatedDrNumbers.map((drNumber) {
+                                        final drTransactions = groupedTransactions[drNumber]!;
+                                        final firstTx = drTransactions.first;
+                                        final receiver = firstTx['processed_by']?.toString() ?? 'Staff';
+                                        final dateStr = _formatExactDate(firstTx['created_at']);
+                                        final itemCount = drTransactions.length;
+
+                                        return DataRow(
+                                          cells: [
+                                            // 1. DR #
+                                            DataCell(
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.all(7),
+                                                    decoration: BoxDecoration(
+                                                      color: _emeraldDeep.withValues(alpha: 0.08),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.local_shipping_rounded,
+                                                      color: _emeraldMedium,
+                                                      size: 16,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    'DR #$drNumber',
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.w800,
+                                                      fontSize: 13,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // 2. ITEMS
+                                            DataCell(
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFE6C374).withValues(alpha: 0.2),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.6)),
+                                                ),
+                                                child: Text(
+                                                  '$itemCount item${itemCount > 1 ? 's' : ''}',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF9A7B2C),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+
+                                            // 3. RECEIVER
+                                            DataCell(
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.person_outline_rounded, size: 15, color: Color(0xFF94A3B8)),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    receiver,
+                                                    style: const TextStyle(
+                                                      fontSize: 12.5,
+                                                      color: Color(0xFF334155),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // 4. DATE & TIME
+                                            DataCell(
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    dateStr,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: Color(0xFF64748B),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // 5. VIEW BUTTON
+                                            DataCell(
+                                              ElevatedButton.icon(
+                                                onPressed: () => _showDeliveryDetailsModal(drNumber, drTransactions),
+                                                icon: const Icon(Icons.visibility_outlined, size: 14, color: Colors.white),
+                                                label: const Text(
+                                                  'View',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: _emeraldDeep,
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                  minimumSize: const Size(0, 32),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  elevation: 0,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      _buildIncomingPagination(totalItems, totalPages, startIndex, endIndex),
+                    ],
+                  ),
+                ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildIncomingPagination(int totalItems, int totalPages, int startItem, int endItem) {
+    final TextEditingController pageInputController = TextEditingController(text: '$_incomingCurrentPage');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            totalItems == 0
+                ? 'No deliveries found'
+                : 'Showing ${startItem + 1}-$endItem of $totalItems deliveries',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Previous button
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                onPressed: _incomingCurrentPage > 1
+                    ? () => setState(() => _incomingCurrentPage--)
+                    : null,
+                color: _emeraldDeep,
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Previous Page',
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                'Page',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Numeric Page Input Field
+              SizedBox(
+                width: 48,
+                height: 32,
+                child: TextField(
+                  controller: pageInputController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: _emeraldDeep, width: 1.5),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final enteredPage = int.tryParse(value);
+                    if (enteredPage != null && enteredPage >= 1 && enteredPage <= totalPages) {
+                      setState(() => _incomingCurrentPage = enteredPage);
+                    } else {
+                      pageInputController.text = '$_incomingCurrentPage';
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'of $totalPages',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Next button
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                onPressed: _incomingCurrentPage < totalPages
+                    ? () => setState(() => _incomingCurrentPage++)
+                    : null,
+                color: _emeraldDeep,
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Next Page',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -4377,166 +4984,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     } catch (e) {
       return 'Unknown';
     }
-  }
-}
-
-class _IncomingDeliveryItem extends StatefulWidget {
-  final String drNumber;
-  final List<Map<String, dynamic>> drTransactions;
-  final int itemCount;
-  final Map<String, dynamic> firstTransaction;
-  final VoidCallback onTap;
-  final String Function(String?) formatDate;
-
-  const _IncomingDeliveryItem({
-    required this.drNumber,
-    required this.drTransactions,
-    required this.itemCount,
-    required this.firstTransaction,
-    required this.onTap,
-    required this.formatDate,
-  });
-
-  @override
-  State<_IncomingDeliveryItem> createState() => _IncomingDeliveryItemState();
-}
-
-class _IncomingDeliveryItemState extends State<_IncomingDeliveryItem> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final receiver = widget.firstTransaction['processed_by']?.toString();
-    final dateStr = widget.formatDate(widget.firstTransaction['created_at']);
-    final itemCount = widget.itemCount;
-
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: _isHovered ? const Color(0xFFF8FAFC) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: _isHovered ? const Color(0xFF163E37) : const Color(0xFFE2E8F0),
-              width: _isHovered ? 1.5 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _isHovered
-                    ? const Color(0xFF133831).withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.05),
-                blurRadius: _isHovered ? 14 : 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left accent bar
-                  Container(width: 5, color: const Color(0xFF133831)),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF133831).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.local_shipping_rounded, color: Color(0xFF133831), size: 18),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'DR #${widget.drNumber}',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFE6C374).withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.6)),
-                                          ),
-                                          child: Text(
-                                            '$itemCount item${itemCount > 1 ? 's' : ''}',
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF9A7B2C)),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      dateStr,
-                                      style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Icon(Icons.chevron_right_rounded, color: Color(0xFF133831), size: 20),
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (receiver != null) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF94A3B8)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Received by: $receiver',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

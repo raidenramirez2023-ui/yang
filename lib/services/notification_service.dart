@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 class NotificationService {
   static final _supabase = Supabase.instance.client;
@@ -50,6 +51,87 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('Error checking/sending stock alert: $e');
+    }
+  }
+
+  /// Automatically checks for approved upcoming event reservations that are within 2 days
+  /// and sends an 'event_reminder' notification to the kitchen/chef if one hasn't been sent yet.
+  static Future<void> checkAndSendUpcomingEventReminders() async {
+    try {
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+
+      // Query reservations that are menu-based and not marked as Done/Served
+      final rows = await _supabase
+          .from('reservations')
+          .select()
+          .eq('is_menu_based', true)
+          .neq('kitchen_status', 'Done');
+
+      for (final r in rows) {
+        final status = r['status']?.toString().toLowerCase();
+        final isApproved = status == 'confirmed' || status == 'completed';
+        final ps = r['payment_status']?.toString().toLowerCase();
+        final isPaid = ps == 'paid' || ps == 'deposit_paid' || ps == 'fully_paid';
+        final eventDateStr = r['event_date']?.toString();
+
+        if (!isApproved || !isPaid || eventDateStr == null) continue;
+
+        try {
+          final eventDate = DateTime.parse(eventDateStr);
+          final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
+          final daysUntil = eventDateOnly.difference(todayDate).inDays;
+
+          // Trigger for events that are within 2 days before the event date (e.g. 2 days, 1 day, or today)
+          if (daysUntil >= 0 && daysUntil <= 2) {
+            final resId = r['id'].toString();
+
+            // Check if reminder notification already exists for this reservation
+            final existing = await _supabase
+                .from('notifications')
+                .select('id')
+                .eq('is_for_admin', true)
+                .eq('action_type', 'event_reminder')
+                .eq('reservation_id', resId)
+                .limit(1);
+
+            if (existing.isEmpty) {
+              final formattedDate = DateFormat('MMM d, yyyy').format(eventDate);
+              String formattedTime = r['start_time']?.toString() ?? '';
+              try {
+                final parts = formattedTime.split(':');
+                if (parts.length >= 2) {
+                  final dt = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+                  formattedTime = DateFormat('h:mm a').format(dt);
+                }
+              } catch (_) {}
+
+              final urgency = daysUntil == 0
+                  ? 'Today'
+                  : (daysUntil == 1 ? 'Tomorrow' : 'In 2 days');
+              final customerName = r['customer_name']?.toString() ?? 'Guest';
+              final eventType = r['event_type']?.toString() ?? 'Event';
+              final guests = r['number_of_guests']?.toString() ?? '0';
+
+              await sendNotification(
+                isForAdmin: true,
+                actorName: 'System',
+                actionType: 'event_reminder',
+                reservationId: resId,
+                eventType: 'Upcoming Event ($urgency): $eventType for $customerName ($guests guests) on $formattedDate at $formattedTime',
+                customerEmail: r['customer_email'],
+                eventDate: r['event_date'],
+                startTime: r['start_time'],
+                guestCount: r['number_of_guests'],
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error parsing event date for reminder: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking upcoming event reminders: $e');
     }
   }
 
@@ -272,14 +354,15 @@ class NotificationService {
         .order('created_at', ascending: false);
   }
 
-  /// Stream for Kitchen Side (POS orders, stock approval & rejection from inventory, advance order tickets, kitchen alerts)
+  /// Stream for Kitchen Side (POS orders, stock approval & rejection from inventory, advance order tickets, kitchen alerts, event reminders)
   static Stream<List<Map<String, dynamic>>> getKitchenNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
-          // Kitchen receives approvals/rejections from inventory and new incoming orders
+          // Kitchen receives approvals/rejections from inventory, event reminders, and new incoming orders
           if (actionType == 'pos_order' ||
               actionType == 'stock_approved' ||
-              actionType == 'stock_rejected') {
+              actionType == 'stock_rejected' ||
+              actionType == 'event_reminder') {
             return true;
           }
           if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
@@ -328,7 +411,7 @@ class NotificationService {
   static Stream<List<Map<String, dynamic>>> getAdminOnlyNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
-          final kitchenTypes = ['pos_order', 'stock_approved', 'stock_rejected', 'advance_order_ticket'];
+          final kitchenTypes = ['pos_order', 'stock_approved', 'stock_rejected', 'advance_order_ticket', 'event_reminder'];
           final inventoryTypes = ['stock_request'];
           if (kitchenTypes.contains(actionType) || inventoryTypes.contains(actionType)) {
             return false;
