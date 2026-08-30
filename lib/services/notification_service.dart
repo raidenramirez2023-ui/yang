@@ -54,8 +54,9 @@ class NotificationService {
     }
   }
 
-  /// Automatically checks for approved upcoming event reservations that are within 2 days
-  /// and sends an 'event_reminder' notification to the kitchen/chef if one hasn't been sent yet.
+  /// Automatically checks for approved upcoming event reservations:
+  /// 1. If it's the day of the event (daysUntil == 0), sends an 'event_today' automatic notification.
+  /// 2. If it's within 1 to 5 days ahead (daysUntil between 1 and 5), sends an 'event_reminder' notification.
   static Future<void> checkAndSendUpcomingEventReminders() async {
     try {
       final now = DateTime.now();
@@ -81,13 +82,50 @@ class NotificationService {
           final eventDate = DateTime.parse(eventDateStr);
           final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
           final daysUntil = eventDateOnly.difference(todayDate).inDays;
+          final resId = r['id'].toString();
 
-          // Trigger for events that are within 2 days before the event date (e.g. 2 days, 1 day, or today)
-          if (daysUntil >= 0 && daysUntil <= 2) {
-            final resId = r['id'].toString();
+          final formattedDate = DateFormat('MMM d, yyyy').format(eventDate);
+          String formattedTime = r['start_time']?.toString() ?? '';
+          try {
+            final parts = formattedTime.split(':');
+            if (parts.length >= 2) {
+              final dt = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+              formattedTime = DateFormat('h:mm a').format(dt);
+            }
+          } catch (_) {}
 
-            // Check if reminder notification already exists for this reservation
-            final existing = await _supabase
+          final customerName = r['customer_name']?.toString() ?? 'Guest';
+          final eventType = r['event_type']?.toString() ?? 'Event';
+          final guests = r['number_of_guests']?.toString() ?? '0';
+
+          // 1. Day of Event Automatic Notification (Today)
+          if (daysUntil == 0) {
+            final existingToday = await _supabase
+                .from('notifications')
+                .select('id')
+                .eq('is_for_admin', true)
+                .eq('action_type', 'event_today')
+                .eq('reservation_id', resId)
+                .limit(1);
+
+            if (existingToday.isEmpty) {
+              await sendNotification(
+                isForAdmin: true,
+                actorName: 'System',
+                actionType: 'event_today',
+                reservationId: resId,
+                eventType: 'TODAY\'S EVENT: $eventType for $customerName ($guests guests) scheduled today at $formattedTime!',
+                customerEmail: r['customer_email'],
+                eventDate: r['event_date'],
+                startTime: r['start_time'],
+                guestCount: r['number_of_guests'],
+              );
+            }
+          }
+
+          // 2. Advance Reminder (1 to 5 days before the event)
+          if (daysUntil >= 1 && daysUntil <= 5) {
+            final existingReminder = await _supabase
                 .from('notifications')
                 .select('id')
                 .eq('is_for_admin', true)
@@ -95,24 +133,8 @@ class NotificationService {
                 .eq('reservation_id', resId)
                 .limit(1);
 
-            if (existing.isEmpty) {
-              final formattedDate = DateFormat('MMM d, yyyy').format(eventDate);
-              String formattedTime = r['start_time']?.toString() ?? '';
-              try {
-                final parts = formattedTime.split(':');
-                if (parts.length >= 2) {
-                  final dt = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
-                  formattedTime = DateFormat('h:mm a').format(dt);
-                }
-              } catch (_) {}
-
-              final urgency = daysUntil == 0
-                  ? 'Today'
-                  : (daysUntil == 1 ? 'Tomorrow' : 'In 2 days');
-              final customerName = r['customer_name']?.toString() ?? 'Guest';
-              final eventType = r['event_type']?.toString() ?? 'Event';
-              final guests = r['number_of_guests']?.toString() ?? '0';
-
+            if (existingReminder.isEmpty) {
+              final urgency = daysUntil == 1 ? 'Tomorrow' : 'In $daysUntil days';
               await sendNotification(
                 isForAdmin: true,
                 actorName: 'System',
@@ -358,11 +380,12 @@ class NotificationService {
   static Stream<List<Map<String, dynamic>>> getKitchenNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
-          // Kitchen receives approvals/rejections from inventory, event reminders, and new incoming orders
+          // Kitchen receives approvals/rejections from inventory, event reminders, day-of-event notifications, and new incoming orders
           if (actionType == 'pos_order' ||
               actionType == 'stock_approved' ||
               actionType == 'stock_rejected' ||
-              actionType == 'event_reminder') {
+              actionType == 'event_reminder' ||
+              actionType == 'event_today') {
             return true;
           }
           if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
@@ -411,7 +434,7 @@ class NotificationService {
   static Stream<List<Map<String, dynamic>>> getAdminOnlyNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
-          final kitchenTypes = ['pos_order', 'stock_approved', 'stock_rejected', 'advance_order_ticket', 'event_reminder'];
+          final kitchenTypes = ['pos_order', 'stock_approved', 'stock_rejected', 'advance_order_ticket', 'event_reminder', 'event_today'];
           final inventoryTypes = ['stock_request'];
           if (kitchenTypes.contains(actionType) || inventoryTypes.contains(actionType)) {
             return false;

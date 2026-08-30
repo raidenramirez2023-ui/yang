@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +30,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
   String _searchQuery = '';
   String _selectedReasonFilter = 'All';
   String _selectedTimeFilter = 'This Month'; // 'This Week', 'This Month', 'All Time'
+  int _currentPage = 1;
+  static const int _rowsPerPage = 15;
 
   @override
   void initState() {
@@ -229,6 +232,22 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     final isMobile = ResponsiveUtils.isMobile(context);
     final filtered = _filteredLogs;
 
+    final totalItems = filtered.length;
+    final totalPages = (totalItems / _rowsPerPage).ceil().clamp(1, 999999);
+    if (_currentPage > totalPages && totalPages > 0) {
+      _currentPage = totalPages;
+    }
+    if (_currentPage < 1) {
+      _currentPage = 1;
+    }
+
+    final startIndex = (_currentPage - 1) * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage < totalItems) ? startIndex + _rowsPerPage : totalItems;
+    final paginatedLogs = filtered.sublist(
+      startIndex < totalItems ? startIndex : 0,
+      endIndex <= totalItems ? endIndex : totalItems,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: _isLoading
@@ -271,7 +290,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ),
                             ),
                             Text(
-                              '${filtered.length} recorded waste log${filtered.length == 1 ? '' : 's'}',
+                              '$totalItems recorded waste log${totalItems == 1 ? '' : 's'}',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 color: const Color(0xFF64748B),
@@ -309,7 +328,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     if (filtered.isEmpty)
                       _buildEmptyState()
                     else
-                      _buildWastageTable(filtered, isMobile),
+                      _buildWastageTable(
+                        logs: paginatedLogs,
+                        totalItems: totalItems,
+                        totalPages: totalPages,
+                        startIndex: startIndex,
+                        endIndex: endIndex,
+                        isMobile: isMobile,
+                      ),
 
                     const SizedBox(height: 60),
                   ],
@@ -544,7 +570,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 ),
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (v) => setState(() => _searchQuery = v),
+                  onChanged: (v) => setState(() {
+                    _searchQuery = v;
+                    _currentPage = 1;
+                  }),
                   decoration: InputDecoration(
                     hintText: isMobile ? 'Search by item or reason...' : 'Search by item name, reason, or staff...',
                     hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8)),
@@ -570,7 +599,12 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
                   items: ['This Week', 'This Month', 'All Time'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.w600)))).toList(),
                   onChanged: (v) {
-                    if (v != null) setState(() => _selectedTimeFilter = v);
+                    if (v != null) {
+                      setState(() {
+                        _selectedTimeFilter = v;
+                        _currentPage = 1;
+                      });
+                    }
                   },
                 ),
               ),
@@ -589,7 +623,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: InkWell(
-                  onTap: () => setState(() => _selectedReasonFilter = r),
+                  onTap: () => setState(() {
+                    _selectedReasonFilter = r;
+                    _currentPage = 1;
+                  }),
                   borderRadius: BorderRadius.circular(10),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
@@ -618,7 +655,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
   }
 
   // ── Wastage Data Table ───────────────────────────────────────────────────
-  Widget _buildWastageTable(List<Map<String, dynamic>> logs, bool isMobile) {
+  Widget _buildWastageTable({
+    required List<Map<String, dynamic>> logs,
+    required int totalItems,
+    required int totalPages,
+    required int startIndex,
+    required int endIndex,
+    required bool isMobile,
+  }) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -635,287 +679,428 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double tableWidth = constraints.maxWidth > 960 ? constraints.maxWidth : 960;
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: SizedBox(
-                width: tableWidth,
-                child: DataTable(
-                  headingRowHeight: 46,
-                  dataRowMinHeight: 56,
-                  dataRowMaxHeight: 74,
-                  horizontalMargin: 20,
-                  columnSpacing: 24,
-                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                  dividerThickness: 1,
-              border: const TableBorder(
-                horizontalInside: BorderSide(
-                  color: Color(0xFFF1F5F9),
-                  width: 1,
-                ),
-              ),
-              columns: [
-                DataColumn(
-                  label: _tableHeader('DATE & TIME'),
-                ),
-                DataColumn(
-                  label: _tableHeader('ITEM & CATEGORY'),
-                ),
-                DataColumn(
-                  label: _tableHeader('QTY LOST'),
-                ),
-                DataColumn(
-                  label: _tableHeader('REASON / TYPE'),
-                ),
-                DataColumn(
-                  label: _tableHeader('LOGGED BY'),
-                ),
-                DataColumn(
-                  label: _tableHeader('NOTES / DETAILS'),
-                ),
-                DataColumn(
-                  label: _tableHeader('ACTIONS'),
-                ),
-              ],
-              rows: logs.map((log) {
-                final name = (log['item_name'] ?? 'Unnamed Item').toString();
-                final category = (log['category'] ?? 'General').toString();
-                final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
-                final unit = (log['unit'] ?? 'units').toString();
-                final reason = (log['reason'] ?? 'Spoilage').toString();
-                final loggedBy = (log['logged_by'] ?? 'Staff').toString();
-                final notes = (log['notes'] ?? '').toString();
-                final createdAt = log['created_at']?.toString();
-
-                String datePart = '';
-                String timePart = '';
-                if (createdAt != null) {
-                  final dt = DateTime.tryParse(createdAt)?.toLocal();
-                  if (dt != null) {
-                    datePart = DateFormat('MMM dd, yyyy').format(dt);
-                    timePart = DateFormat('hh:mm a').format(dt);
-                  }
-                }
-
-                Color reasonColor = const Color(0xFFDC2626);
-                IconData reasonIcon = Icons.delete_outline_rounded;
-                if (reason.contains('Expired')) {
-                  reasonColor = const Color(0xFFD97706);
-                  reasonIcon = Icons.timer_off_outlined;
-                } else if (reason.contains('Prep')) {
-                  reasonColor = const Color(0xFF0284C7);
-                  reasonIcon = Icons.soup_kitchen_outlined;
-                } else if (reason.contains('Storage')) {
-                  reasonColor = const Color(0xFF7C3AED);
-                  reasonIcon = Icons.ac_unit_rounded;
-                }
-
-                return DataRow(
-                  cells: [
-                    // Date & Time
-                    DataCell(
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            datePart.isNotEmpty ? datePart : '—',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          if (timePart.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              timePart,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10.5,
-                                color: const Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final double tableWidth = constraints.maxWidth > 960 ? constraints.maxWidth : 960;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: DataTable(
+                      headingRowHeight: 46,
+                      dataRowMinHeight: 56,
+                      dataRowMaxHeight: 74,
+                      horizontalMargin: 20,
+                      columnSpacing: 24,
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      dividerThickness: 1,
+                      border: const TableBorder(
+                        horizontalInside: BorderSide(
+                          color: Color(0xFFF1F5F9),
+                          width: 1,
+                        ),
                       ),
-                    ),
+                      columns: [
+                        DataColumn(
+                          label: _tableHeader('DATE & TIME'),
+                        ),
+                        DataColumn(
+                          label: _tableHeader('ITEM & CATEGORY'),
+                        ),
+                        DataColumn(
+                          label: _tableHeader('QTY LOST'),
+                        ),
+                        DataColumn(
+                          label: _tableHeader('REASON / TYPE'),
+                        ),
+                        DataColumn(
+                          label: _tableHeader('LOGGED BY'),
+                        ),
+                        DataColumn(
+                          label: _tableHeader('NOTES / DETAILS'),
+                        ),
+                        DataColumn(
+                          label: _tableHeader('ACTIONS'),
+                        ),
+                      ],
+                      rows: logs.map((log) {
+                        final name = (log['item_name'] ?? 'Unnamed Item').toString();
+                        final category = (log['category'] ?? 'General').toString();
+                        final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
+                        final unit = (log['unit'] ?? 'units').toString();
+                        final reason = (log['reason'] ?? 'Spoilage').toString();
+                        final loggedBy = (log['logged_by'] ?? 'Staff').toString();
+                        final notes = (log['notes'] ?? '').toString();
+                        final createdAt = log['created_at']?.toString();
 
-                    // Item & Category
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: reasonColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(reasonIcon, size: 16, color: reasonColor),
-                          ),
-                          const SizedBox(width: 10),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                name,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
+                        String datePart = '';
+                        String timePart = '';
+                        if (createdAt != null) {
+                          final dt = DateTime.tryParse(createdAt)?.toLocal();
+                          if (dt != null) {
+                            datePart = DateFormat('MMM dd, yyyy').format(dt);
+                            timePart = DateFormat('hh:mm a').format(dt);
+                          }
+                        }
+
+                        Color reasonColor = const Color(0xFFDC2626);
+                        IconData reasonIcon = Icons.delete_outline_rounded;
+                        if (reason.contains('Expired')) {
+                          reasonColor = const Color(0xFFD97706);
+                          reasonIcon = Icons.timer_off_outlined;
+                        } else if (reason.contains('Prep')) {
+                          reasonColor = const Color(0xFF0284C7);
+                          reasonIcon = Icons.soup_kitchen_outlined;
+                        } else if (reason.contains('Storage')) {
+                          reasonColor = const Color(0xFF7C3AED);
+                          reasonIcon = Icons.ac_unit_rounded;
+                        }
+
+                        return DataRow(
+                          cells: [
+                            // Date & Time
+                            DataCell(
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    datePart.isNotEmpty ? datePart : '—',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  if (timePart.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      timePart,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10.5,
+                                        color: const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              const SizedBox(height: 2),
+                            ),
+
+                            // Item & Category
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(
+                                      color: reasonColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(reasonIcon, size: 16, color: reasonColor),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          category,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10,
+                                            color: const Color(0xFF475569),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Qty Lost
+                            DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFFCA5A5)),
                                 ),
                                 child: Text(
-                                  category,
+                                  '-${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit',
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 10,
-                                    color: const Color(0xFF475569),
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFFDC2626),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                            ),
 
-                    // Qty Lost
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
-                        ),
-                        child: Text(
-                          '-${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFDC2626),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Reason / Type
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: reasonColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: reasonColor.withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: reasonColor,
+                            // Reason / Type
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: reasonColor.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: reasonColor.withValues(alpha: 0.25)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: reasonColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      reason,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: reasonColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              reason,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: reasonColor,
+
+                            // Logged By
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF1F5F9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.person_outline_rounded,
+                                      size: 13,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    loggedBy,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Notes / Details
+                            DataCell(
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 200),
+                                child: Text(
+                                  notes.isNotEmpty ? notes : '—',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11.5,
+                                    color: notes.isNotEmpty ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                    fontStyle: notes.isNotEmpty ? FontStyle.italic : FontStyle.normal,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+
+                            // Actions
+                            DataCell(
+                              IconButton(
+                                onPressed: () => _confirmDeleteLog(log),
+                                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                color: const Color(0xFF94A3B8),
+                                hoverColor: const Color(0xFFFEF2F2),
+                                highlightColor: Colors.transparent,
+                                tooltip: 'Delete log',
                               ),
                             ),
                           ],
-                        ),
-                      ),
+                        );
+                      }).toList(),
                     ),
-
-                    // Logged By
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF1F5F9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.person_outline_rounded,
-                              size: 13,
-                              color: Color(0xFF475569),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            loggedBy,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF334155),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Notes / Details
-                    DataCell(
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 200),
-                        child: Text(
-                          notes.isNotEmpty ? notes : '—',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            color: notes.isNotEmpty ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                            fontStyle: notes.isNotEmpty ? FontStyle.italic : FontStyle.normal,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-
-                    // Actions
-                    DataCell(
-                      IconButton(
-                        onPressed: () => _confirmDeleteLog(log),
-                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                        color: const Color(0xFF94A3B8),
-                        hoverColor: const Color(0xFFFEF2F2),
-                        highlightColor: Colors.transparent,
-                        tooltip: 'Delete log',
-                      ),
-                    ),
-                  ],
+                  ),
                 );
-              }).toList(),
+              },
+            ),
+
+            // Pagination Controls attached to bottom of table
+            _buildTablePaginationControls(
+              currentPage: _currentPage,
+              totalItems: totalItems,
+              totalPages: totalPages,
+              startIndex: startIndex,
+              endIndex: endIndex,
+              onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Pagination Controls ───────────────────────────────────────────────────
+  Widget _buildTablePaginationControls({
+    required int currentPage,
+    required int totalItems,
+    required int totalPages,
+    required int startIndex,
+    required int endIndex,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    final TextEditingController pageInputController = TextEditingController(text: '$currentPage');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(18),
+          bottomRight: Radius.circular(18),
+        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            totalItems == 0
+                ? 'No waste logs found'
+                : 'Showing ${startIndex + 1}–$endIndex of $totalItems logs',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF64748B),
             ),
           ),
-        );
-      },
-    ),
-  ),
-);
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Previous button
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+                color: const Color(0xFFDC2626),
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Previous Page',
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Page',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Numeric Page Input Field
+              SizedBox(
+                width: 48,
+                height: 32,
+                child: TextField(
+                  controller: pageInputController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final enteredPage = int.tryParse(value);
+                    if (enteredPage != null && enteredPage >= 1 && enteredPage <= totalPages) {
+                      onPageChanged(enteredPage);
+                    } else {
+                      pageInputController.text = '$currentPage';
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'of $totalPages',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Next button
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+                color: const Color(0xFFDC2626),
+                disabledColor: const Color(0xFFCBD5E1),
+                splashRadius: 18,
+                tooltip: 'Next Page',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _tableHeader(String text) {
