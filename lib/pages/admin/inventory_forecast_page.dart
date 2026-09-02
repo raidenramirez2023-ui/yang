@@ -299,14 +299,28 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         date.isBefore(weekEnd.add(const Duration(days: 1)));
   }
 
-  double _getBarChartMaxY() {
-    switch (_selectedTimeFilter) {
-      case 'Daily': return 150;
-      case 'Weekly': return 300;
-      case 'Monthly': return 800;
-      case 'Annually': return 4000;
-      default: return 100;
+  double _calculateDynamicMaxY(double maxValue) {
+    if (maxValue <= 0) return 50.0;
+    // Add 25% headroom so the tallest bar, its label, and the tooltip fit comfortably
+    final double rawMax = maxValue * 1.25;
+    if (rawMax <= 10) return 10.0;
+    if (rawMax <= 50) return (rawMax / 10).ceil() * 10.0;
+    if (rawMax <= 200) return (rawMax / 25).ceil() * 25.0;
+    if (rawMax <= 1000) return (rawMax / 100).ceil() * 100.0;
+    if (rawMax <= 5000) return (rawMax / 500).ceil() * 500.0;
+    if (rawMax <= 20000) return (rawMax / 1000).ceil() * 1000.0;
+    return (rawMax / 5000).ceil() * 5000.0;
+  }
+
+  String _formatAxisValue(double value) {
+    if (value >= 1000000) {
+      final formatted = (value / 1000000).toStringAsFixed(value % 1000000 == 0 ? 0 : 1);
+      return '${formatted}M';
+    } else if (value >= 1000) {
+      final formatted = (value / 1000).toStringAsFixed(value % 1000 == 0 ? 0 : 1);
+      return '${formatted}k';
     }
+    return value.toInt().toString();
   }
 
   Map<String, dynamic> _getTopItemsData(List<Map<String, dynamic>> forecast) {
@@ -1087,6 +1101,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       );
     }
 
+    final double maxVal = topItems.fold<double>(
+      0.0,
+      (prev, elem) => math.max(prev, elem.value),
+    );
+    final double calculatedMaxY = _calculateDynamicMaxY(maxVal);
+    final double gridInterval = (calculatedMaxY / 4).clamp(1.0, double.infinity);
+
     final double? chartWidth = isMobile
         ? math.max(MediaQuery.of(context).size.width - 64, topItems.length * 64.0)
         : null;
@@ -1094,10 +1115,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     final chartWidget = BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: _getBarChartMaxY(),
+        maxY: calculatedMaxY,
+        minY: 0,
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipColor: (_) => const Color(0xFF14332E),
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            tooltipMargin: 6,
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final item = topItems[group.x];
               return BarTooltipItem(
@@ -1116,14 +1142,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         titlesData: FlTitlesData(
           show: true,
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false, reservedSize: 18),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 34,
+              reservedSize: calculatedMaxY >= 1000 ? 42 : 36,
+              interval: gridInterval,
               getTitlesWidget: (value, meta) {
+                if (value < 0 || value > calculatedMaxY) return const SizedBox.shrink();
                 return Text(
-                  value.toInt().toString(),
+                  _formatAxisValue(value),
                   style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.bold),
                 );
               },
@@ -1132,7 +1162,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 42,
+              reservedSize: 52,
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
                 if (index >= 0 && index < topItems.length) {
@@ -1140,17 +1170,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: SizedBox(
-                      width: 58,
+                      width: isMobile ? 64 : 88,
                       child: Text(
                         label,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 8.5,
+                        style: TextStyle(
+                          fontSize: isMobile ? 8.5 : 9.5,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.darkGrey,
-                          height: 1.1,
+                          height: 1.15,
                         ),
                       ),
                     ),
@@ -1164,6 +1194,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
+          horizontalInterval: gridInterval,
           getDrawingHorizontalLine: (_) => FlLine(
             color: AppTheme.cardBorder,
             strokeWidth: 1,
@@ -1233,14 +1264,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           const SizedBox(height: 20),
 
           SizedBox(
-            height: 280,
+            height: 310,
             child: isMobile
                 ? SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     child: SizedBox(
                       width: chartWidth,
-                      height: 280,
+                      height: 310,
                       child: chartWidget,
                     ),
                   )

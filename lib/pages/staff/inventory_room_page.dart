@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/delivery_receipt_ocr_service.dart';
+import 'package:yang_chow/services/petty_cash_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -78,6 +79,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   String _selectedStorageRoom = 'All';
   String _incomingSearchQuery = '';
   String _pettyCashSearchQuery = '';
+  bool _isPettyCashTableView = true;
+  TextEditingController? _pettyCashSearchCtrl;
+  TextEditingController get _pettyCashSearchController =>
+      _pettyCashSearchCtrl ??= TextEditingController(text: _pettyCashSearchQuery);
+
   int _incomingCurrentPage = 1;
   final int _incomingItemsPerPage = 15;
   int _pettyCashCurrentPage = 1;
@@ -105,6 +111,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     'Janitorial',
   ];
 
+  Set<String> _validInventoryPurchaseNames = {};
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +121,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       vsync: this,
       initialIndex: widget.initialTabIndex.clamp(0, 2),
     );
+    _loadValidInventoryNames();
+    PettyCashService().syncMissingPettyCashToStockTransactions();
     if (widget.autoOpenIntake) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showBulkReplenishDialog(
@@ -124,6 +134,36 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     }
   }
 
+  Future<void> _loadValidInventoryNames() async {
+    try {
+      final Set<String> validNames = {};
+      final invRes = await Supabase.instance.client.from('inventory').select('name');
+      for (var it in invRes) {
+        final n = (it['name'] ?? '').toString().toLowerCase().trim();
+        if (n.isNotEmpty) validNames.add(n);
+      }
+      final expRes = await Supabase.instance.client
+          .from('petty_cash_expenses')
+          .select('inventory_items, inventory_item_name')
+          .eq('category', 'inventory_purchase');
+      for (var exp in expRes) {
+        if (exp['inventory_items'] != null && exp['inventory_items'] is List) {
+          for (var it in (exp['inventory_items'] as List)) {
+            final n = (it['item_name'] ?? it['name'] ?? '').toString().toLowerCase().trim();
+            if (n.isNotEmpty) validNames.add(n);
+          }
+        }
+        final single = (exp['inventory_item_name'] ?? '').toString().toLowerCase().trim();
+        if (single.isNotEmpty) validNames.add(single);
+      }
+      if (mounted) {
+        setState(() {
+          _validInventoryPurchaseNames = validNames;
+        });
+      }
+    } catch (_) {}
+  }
+
   void switchToTab(int index) {
     if (index >= 0 && index < _tabController.length) {
       _tabController.animateTo(index);
@@ -132,6 +172,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
   @override
   void dispose() {
+    _pettyCashSearchCtrl?.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -2980,16 +3021,32 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         });
       }
 
-      // Update purpose to mark as transferred (no need to delete due to RLS policy)
-      print('Updating transaction $transactionId purpose to Transferred to Storage');
-      final updateResult = await Supabase.instance.client
-          .from('stock_transactions')
-          .update({'purpose': 'Transferred to Storage'})
-          .eq('id', transactionId)
-          .select();
+      // Update purpose to mark as transferred — keep in Petty Cash tab but labeled as already transferred
+      print('Updating transaction $transactionId and item $itemName purpose to Petty Cash Purchase (Transferred)');
+      try {
+        await Supabase.instance.client
+            .from('stock_transactions')
+            .update({
+              'purpose': 'Petty Cash Purchase (Transferred)',
+              'processed_by': 'pagsanjaninv@gmail.com',
+            })
+            .eq('id', transactionId);
+      } catch (e) {
+        print('Error updating by ID: $e');
+      }
 
-      print('Update result: $updateResult');
-      print('Update successful: ${updateResult.isNotEmpty}');
+      try {
+        await Supabase.instance.client
+            .from('stock_transactions')
+            .update({
+              'purpose': 'Petty Cash Purchase (Transferred)',
+              'processed_by': 'pagsanjaninv@gmail.com',
+            })
+            .ilike('item_name', itemName.trim())
+            .eq('purpose', 'Petty Cash Purchase');
+      } catch (e) {
+        print('Error updating by item_name: $e');
+      }
 
       // Force UI refresh
       setState(() {});
@@ -3004,91 +3061,195 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   void _showPettyCashModal(String itemName, int quantity, String unit) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _emeraldDeep.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _emeraldDeep.withValues(alpha: 0.2)),
-              ),
-              child: const Icon(Icons.account_balance_wallet_rounded, color: _emeraldDeep, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Petty Cash Transferred',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        elevation: 12,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Success Icon Badge
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF10B981),
+                    size: 32,
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _emeraldDeep.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _emeraldDeep.withValues(alpha: 0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    itemName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: _emeraldDeep,
+                const SizedBox(height: 16),
+
+                // Title & Subtitle
+                const Text(
+                  'Petty Cash Transferred',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Item has been successfully added to storage inventory',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Full-width Detail Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Item Name & Quantity Row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.inventory_2_outlined, size: 18, color: Color(0xFF14332E)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  itemName,
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Petty Cash Purchase',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              '+$quantity $unit',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+
+                      // Destination Info Row
+                      Row(
+                        children: [
+                          const Icon(Icons.warehouse_rounded, size: 14, color: Color(0xFF64748B)),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Destination:',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Storage Room',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF0F172A), fontWeight: FontWeight.w800),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_rounded, size: 11, color: Color(0xFF059669)),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Stock Updated',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF059669)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Done Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {});
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14332E),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$quantity $unit',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF334155),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'This item was purchased via petty cash and has been successfully added to the storage room.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {});
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _emeraldDeep,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -3914,365 +4075,765 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   }
 
   Widget _buildPettyCashTab() {
-    return Column(
-      children: [
-        // ── Unified Obsidian Emerald Header ──
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [_obsidianDark, _emeraldDeep],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _goldAccent.withValues(alpha: 0.25)),
-            boxShadow: [
-              BoxShadow(
-                color: _obsidianDark.withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _goldAccent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _goldAccent.withValues(alpha: 0.3)),
-                ),
-                child: const Icon(Icons.account_balance_wallet_rounded, color: _goldAccent, size: 26),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Petty Cash Purchases',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Purchases pending transfer into storage inventory',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _goldAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _goldAccent.withValues(alpha: 0.6)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.pending_actions_rounded, size: 12, color: _goldAccent),
-                    SizedBox(width: 4),
-                    Text(
-                      'PENDING',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _goldAccent),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: Supabase.instance.client
+          .from('stock_transactions')
+          .stream(primaryKey: ['id'])
+          .order('created_at', ascending: false),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: _emeraldMedium));
+        }
 
-        // ── Search bar ──
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3)),
-            ],
-          ),
-          child: TextField(
-            onChanged: (v) => setState(() { _pettyCashSearchQuery = v; _pettyCashCurrentPage = 1; }),
-            decoration: InputDecoration(
-              hintText: 'Search petty cash items or suppliers...',
-              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-              prefixIcon: const Icon(Icons.search_rounded, color: _emeraldMedium, size: 22),
-              suffixIcon: _pettyCashSearchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
-                      onPressed: () => setState(() { _pettyCashSearchQuery = ''; _pettyCashCurrentPage = 1; }),
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _emeraldMedium, width: 1.5),
+        final transactions = snapshot.data ?? [];
+        final rawPettyCashTransactions = transactions.where((t) {
+          final isIncoming = t['transaction_type'] == 'incoming';
+          final isPetty = t['purpose'] == 'Petty Cash Purchase';
+          if (!isIncoming || !isPetty) return false;
+
+          final name = (t['item_name']?.toString() ?? '').toLowerCase().trim();
+          if (_validInventoryPurchaseNames.isNotEmpty && !_validInventoryPurchaseNames.contains(name)) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+        // Distinct deduplication by item_name
+        final seenItemNames = <String>{};
+        final pettyCashTransactions = <Map<String, dynamic>>[];
+        for (var t in rawPettyCashTransactions) {
+          final name = (t['item_name']?.toString() ?? '').toLowerCase().trim();
+          if (name.isNotEmpty && !seenItemNames.contains(name)) {
+            seenItemNames.add(name);
+            pettyCashTransactions.add(t);
+          }
+        }
+
+        final filteredTransactions = _pettyCashSearchQuery.trim().isEmpty
+            ? pettyCashTransactions
+            : pettyCashTransactions.where((t) {
+                final q = _pettyCashSearchQuery.toLowerCase();
+                return (t['item_name']?.toString() ?? '').toLowerCase().contains(q) ||
+                    (t['supplier']?.toString() ?? '').toLowerCase().contains(q) ||
+                    (t['processed_by']?.toString() ?? '').toLowerCase().contains(q);
+              }).toList();
+
+        final totalPettyCashItems = filteredTransactions.length;
+        final totalPettyCashPages = (totalPettyCashItems / _pettyCashItemsPerPage).ceil().clamp(1, 999999);
+        if (_pettyCashCurrentPage > totalPettyCashPages) {
+          _pettyCashCurrentPage = totalPettyCashPages;
+        }
+        if (_pettyCashCurrentPage < 1) {
+          _pettyCashCurrentPage = 1;
+        }
+
+        final startIndex = (_pettyCashCurrentPage - 1) * _pettyCashItemsPerPage;
+        final endIndex = (startIndex + _pettyCashItemsPerPage < totalPettyCashItems)
+            ? startIndex + _pettyCashItemsPerPage
+            : totalPettyCashItems;
+        final paginatedTransactions = filteredTransactions.skip(startIndex).take(_pettyCashItemsPerPage).toList();
+
+        final isTableView = _isPettyCashTableView;
+
+        return Column(
+          children: [
+            // ── COMPACT UNIFIED ACTION & SEARCH TOOLBAR ──
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-          ),
-        ),
-
-        // ── Transactions ──
-        Expanded(
-          child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: Supabase.instance.client
-                .from('stock_transactions')
-                .stream(primaryKey: ['id'])
-                .order('created_at', ascending: false),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: _emeraldMedium));
-              }
-
-              final transactions = snapshot.data ?? [];
-              final pettyCashTransactions = transactions
-                  .where((t) => t['transaction_type'] == 'incoming' && t['purpose'] == 'Petty Cash Purchase')
-                  .toList();
-
-              if (pettyCashTransactions.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
+                children: [
+                  // Row 1: Header Badge & Info (Left) + View Switcher (Right)
+                  Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
-                          color: _emeraldDeep.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(50),
-                          border: Border.all(color: _emeraldDeep.withValues(alpha: 0.2)),
+                          color: _emeraldDeep,
+                          borderRadius: BorderRadius.circular(9),
                         ),
-                        child: const Icon(Icons.account_balance_wallet_outlined, size: 52, color: _emeraldMedium),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.account_balance_wallet_rounded, size: 15, color: _goldAccent),
+                            const SizedBox(width: 7),
+                            const Text(
+                              'Pending Purchases',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _goldAccent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${pettyCashTransactions.length}',
+                                style: const TextStyle(
+                                  color: _emeraldDeep,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      const Text('No pending petty cash purchases', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-                      const SizedBox(height: 4),
-                      const Text('Items purchased via petty cash will appear here for storage transfer', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Purchases pending transfer into storage room inventory',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // View Switcher (Table vs Grid)
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: 'Table View',
+                              child: InkWell(
+                                onTap: () => setState(() => _isPettyCashTableView = true),
+                                borderRadius: BorderRadius.circular(7),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isTableView ? Colors.white : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(7),
+                                    boxShadow: isTableView
+                                        ? [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.06),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Icon(
+                                    Icons.table_rows_rounded,
+                                    size: 16,
+                                    color: isTableView ? _emeraldDeep : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Tooltip(
+                              message: 'Card Grid View',
+                              child: InkWell(
+                                onTap: () => setState(() => _isPettyCashTableView = false),
+                                borderRadius: BorderRadius.circular(7),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: !isTableView ? Colors.white : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(7),
+                                    boxShadow: !isTableView
+                                        ? [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.06),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Icon(
+                                    Icons.grid_view_rounded,
+                                    size: 16,
+                                    color: !isTableView ? _emeraldDeep : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                );
-              }
 
-              final filteredTransactions = _pettyCashSearchQuery.isEmpty
-                  ? pettyCashTransactions
-                  : pettyCashTransactions.where((t) {
-                      final q = _pettyCashSearchQuery.toLowerCase();
-                      return (t['item_name']?.toString() ?? '').toLowerCase().contains(q) ||
-                          (t['supplier']?.toString() ?? '').toLowerCase().contains(q);
-                    }).toList();
+                  const SizedBox(height: 10),
 
-              final totalPettyCashItems = filteredTransactions.length;
-              final totalPettyCashPages = (totalPettyCashItems / _pettyCashItemsPerPage).ceil().clamp(1, 999999);
-              if (_pettyCashCurrentPage > totalPettyCashPages) {
-                _pettyCashCurrentPage = totalPettyCashPages;
-              }
-              if (_pettyCashCurrentPage < 1) {
-                _pettyCashCurrentPage = 1;
-              }
+                  // Row 2: Search Bar
+                  SizedBox(
+                    height: 38,
+                    child: TextField(
+                      controller: _pettyCashSearchController,
+                      onChanged: (v) => setState(() {
+                        _pettyCashSearchQuery = v;
+                        _pettyCashCurrentPage = 1;
+                      }),
+                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF0F172A)),
+                      decoration: InputDecoration(
+                        hintText: 'Search petty cash purchases by item name, supplier, or staff...',
+                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: _emeraldMedium),
+                        suffixIcon: _pettyCashSearchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFF64748B)),
+                                onPressed: () {
+                                  _pettyCashSearchController.clear();
+                                  setState(() {
+                                    _pettyCashSearchQuery = '';
+                                    _pettyCashCurrentPage = 1;
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: _emeraldMedium, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-              final startIndex = (_pettyCashCurrentPage - 1) * _pettyCashItemsPerPage;
-              final endIndex = (startIndex + _pettyCashItemsPerPage < totalPettyCashItems) ? startIndex + _pettyCashItemsPerPage : totalPettyCashItems;
-              final paginatedTransactions = filteredTransactions.skip(startIndex).take(_pettyCashItemsPerPage).toList();
-
-              return Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: paginatedTransactions.length,
-                      itemBuilder: (context, index) {
-                        final t = paginatedTransactions[index];
-                        final itemName = t['item_name']?.toString() ?? 'Unknown';
-                        final qty = t['quantity']?.toString() ?? '0';
-                        final unit = t['unit']?.toString() ?? 'pcs';
-                        final supplier = t['supplier']?.toString() ?? 'Unknown';
-                        final processedBy = t['processed_by']?.toString() ?? 'Unknown';
-                        String timeStr = '';
-                        try {
-                          final dt = DateTime.parse(t['created_at'] as String).toLocal();
-                          final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-                          final m = dt.minute.toString().padLeft(2, '0');
-                          final ap = dt.hour >= 12 ? 'PM' : 'AM';
-                          timeStr = '${dt.month}/${dt.day}/${dt.year}  $h:$m $ap';
-                        } catch (_) {}
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
+            // ── DATA CONTENT: TABLE OR GRID VIEW ──
+            Expanded(
+              child: filteredTransactions.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: _emeraldDeep.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.account_balance_wallet_outlined, size: 44, color: _emeraldMedium),
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Left accent bar
-                                  Container(width: 5, color: _emeraldMedium),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(14),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // Top row: name + badge
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  itemName,
-                                                  style: const TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF0F172A),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                decoration: BoxDecoration(
-                                                  color: _emeraldDeep.withValues(alpha: 0.08),
-                                                  borderRadius: BorderRadius.circular(20),
-                                                  border: Border.all(color: _emeraldDeep.withValues(alpha: 0.25)),
-                                                ),
-                                                child: const Text(
-                                                  'Petty Cash',
-                                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _emeraldDeep),
-                                                ),
-                                              ),
-                                            ],
+                          const SizedBox(height: 14),
+                          Text(
+                            _pettyCashSearchQuery.isNotEmpty
+                                ? 'No purchases matching "$_pettyCashSearchQuery"'
+                                : 'No pending petty cash purchases',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _pettyCashSearchQuery.isNotEmpty
+                                ? 'Try searching with different keywords or supplier names'
+                                : 'Items purchased via petty cash will appear here for storage transfer',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                          if (_pettyCashSearchQuery.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              onPressed: () {
+                                _pettyCashSearchController.clear();
+                                setState(() {
+                                  _pettyCashSearchQuery = '';
+                                  _pettyCashCurrentPage = 1;
+                                });
+                              },
+                              icon: const Icon(Icons.clear_all_rounded, size: 16),
+                              label: const Text('Clear Search Filter', style: TextStyle(fontSize: 12)),
+                              style: TextButton.styleFrom(foregroundColor: _emeraldDeep),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
+                  : (isTableView
+                      ? _buildPettyCashTable(paginatedTransactions)
+                      : _buildPettyCashGrid(paginatedTransactions)),
+            ),
+
+            // ── PAGINATION CONTROLS ──
+            if (filteredTransactions.isNotEmpty)
+              _buildPettyCashPagination(totalPettyCashItems, totalPettyCashPages, startIndex, endIndex),
+          ],
+        );
+      },
+    );
+  }
+
+  // -------------------------------------------------------------
+  // FULL-WIDTH RESPONSIVE DATA TABLE VIEW FOR PETTY CASH
+  // -------------------------------------------------------------
+  Widget _buildPettyCashTable(List<Map<String, dynamic>> transactions) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double tableWidth = constraints.maxWidth < 950 ? 950.0 : constraints.maxWidth;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: SizedBox(
+                width: tableWidth,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Header Row
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAFC),
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Expanded(
+                              flex: 26,
+                              child: Text(
+                                'ITEM SPECIFICATION',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 12,
+                              child: Text(
+                                'QUANTITY',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 16,
+                              child: Text(
+                                'SUPPLIER',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 20,
+                              child: Text(
+                                'PURCHASED BY',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 13,
+                              child: Text(
+                                'PURCHASE DATE',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 13,
+                              child: Text(
+                                'ACTION',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Data Rows
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: transactions.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9), thickness: 1),
+                        itemBuilder: (context, index) {
+                          final t = transactions[index];
+                          final itemName = t['item_name']?.toString() ?? 'Unknown';
+                          final qty = t['quantity']?.toString() ?? '0';
+                          final unit = (t['unit']?.toString() ?? 'pcs').toUpperCase();
+                          final supplier = t['supplier']?.toString() ?? 'Unknown';
+                          final processedBy = t['processed_by']?.toString() ?? 'Unknown';
+                          String timeStr = '';
+                          try {
+                            final dt = DateTime.parse(t['created_at'] as String).toLocal();
+                            final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+                            final m = dt.minute.toString().padLeft(2, '0');
+                            final ap = dt.hour >= 12 ? 'PM' : 'AM';
+                            timeStr = '${dt.month}/${dt.day}/${dt.year} $h:$m $ap';
+                          } catch (_) {}
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                            color: index.isEven ? Colors.white : const Color(0xFFFCFDFE),
+                            child: Row(
+                              children: [
+                                // Item Spec
+                                Expanded(
+                                  flex: 26,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(7),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.inventory_2_outlined, size: 15, color: Color(0xFF14332E)),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          itemName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                            color: Color(0xFF0F172A),
                                           ),
-                                          const SizedBox(height: 8),
-                                          // Qty + Supplier row
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: _emeraldMedium.withValues(alpha: 0.1),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                  border: Border.all(color: _emeraldMedium.withValues(alpha: 0.25)),
-                                                ),
-                                                child: Text(
-                                                  '$qty $unit',
-                                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _emeraldMedium),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              const Icon(Icons.business_rounded, size: 14, color: Color(0xFF64748B)),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  supplier,
-                                                  style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w600),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          // Processed by + timestamp
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF94A3B8)),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  processedBy,
-                                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFF1F5F9),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  timeStr,
-                                                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          // Unified Action Button
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton.icon(
-                                              onPressed: () async {
-                                                await _processPettyCashToStorage(
-                                                  itemName,
-                                                  t['quantity'] as int? ?? 0,
-                                                  unit,
-                                                  supplier,
-                                                  t['id']?.toString() ?? '',
-                                                );
-                                              },
-                                              icon: const Icon(Icons.add_to_photos_rounded, size: 17, color: _goldAccent),
-                                              label: const Text(
-                                                'Add to Storage Room',
-                                                style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.3),
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: _emeraldDeep,
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                                elevation: 2,
-                                                shadowColor: _emeraldDeep.withValues(alpha: 0.3),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Quantity & Unit Pill
+                                Expanded(
+                                  flex: 12,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF14332E).withValues(alpha: 0.06),
+                                        borderRadius: BorderRadius.circular(7),
+                                        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.12)),
+                                      ),
+                                      child: RichText(
+                                        text: TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: '$qty ',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w900,
+                                                color: Color(0xFF0F172A),
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                            TextSpan(
+                                              text: unit,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF14332E),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+
+                                // Supplier
+                                Expanded(
+                                  flex: 16,
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.storefront_rounded, size: 14, color: Color(0xFF64748B)),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                        child: Text(
+                                          supplier,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: supplier == 'Unknown' ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+                                            fontWeight: FontWeight.w600,
+                                            fontStyle: supplier == 'Unknown' ? FontStyle.italic : FontStyle.normal,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Purchased By
+                                Expanded(
+                                  flex: 20,
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                        child: Text(
+                                          processedBy,
+                                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Purchase Date
+                                Expanded(
+                                  flex: 13,
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.schedule_rounded, size: 13, color: Color(0xFF94A3B8)),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          timeStr,
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Crisp Vibrant Action Button
+                                Expanded(
+                                  flex: 13,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        await _processPettyCashToStorage(
+                                          itemName,
+                                          t['quantity'] as int? ?? 0,
+                                          t['unit']?.toString() ?? 'pcs',
+                                          supplier,
+                                          t['id']?.toString() ?? '',
+                                        );
+                                      },
+                                      icon: const Icon(Icons.add_circle_outline_rounded, size: 14, color: Colors.white),
+                                      label: const Text(
+                                        'Add to Storage',
+                                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.white),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF10B981),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // -------------------------------------------------------------
+  // COMPACT CARD GRID VIEW FOR PETTY CASH
+  // -------------------------------------------------------------
+  Widget _buildPettyCashGrid(List<Map<String, dynamic>> transactions) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 1;
+        if (constraints.maxWidth >= 1400) {
+          crossAxisCount = 4;
+        } else if (constraints.maxWidth >= 1000) {
+          crossAxisCount = 3;
+        } else if (constraints.maxWidth >= 650) {
+          crossAxisCount = 2;
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.15,
+          ),
+          itemCount: transactions.length,
+          itemBuilder: (context, index) {
+            final t = transactions[index];
+            final itemName = t['item_name']?.toString() ?? 'Unknown';
+            final qty = t['quantity']?.toString() ?? '0';
+            final unit = (t['unit']?.toString() ?? 'pcs').toUpperCase();
+            final supplier = t['supplier']?.toString() ?? 'Unknown';
+            final processedBy = t['processed_by']?.toString() ?? 'Unknown';
+            String timeStr = '';
+            try {
+              final dt = DateTime.parse(t['created_at'] as String).toLocal();
+              final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+              final m = dt.minute.toString().padLeft(2, '0');
+              final ap = dt.hour >= 12 ? 'PM' : 'AM';
+              timeStr = '${dt.month}/${dt.day}/${dt.year} $h:$m $ap';
+            } catch (_) {}
+
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top: Item Name + Qty Pill
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          itemName,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _emeraldMedium.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: _emeraldMedium.withValues(alpha: 0.25)),
+                        ),
+                        child: Text(
+                          '$qty $unit',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: _emeraldDeep),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Supplier & Staff
+                  Row(
+                    children: [
+                      const Icon(Icons.storefront_rounded, size: 12, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '$supplier • $processedBy',
+                          style: const TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF94A3B8)),
+                      const SizedBox(width: 3),
+                      Text(
+                        timeStr,
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+
+                  // Compact Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 32,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await _processPettyCashToStorage(
+                          itemName,
+                          t['quantity'] as int? ?? 0,
+                          t['unit']?.toString() ?? 'pcs',
+                          supplier,
+                          t['id']?.toString() ?? '',
                         );
                       },
+                      icon: const Icon(Icons.add_to_photos_rounded, size: 13, color: _goldAccent),
+                      label: const Text(
+                        'Add to Storage Room',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _emeraldDeep,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
                     ),
                   ),
-                  // Pagination Controls with Numeric Input
-                  _buildPettyCashPagination(totalPettyCashItems, totalPettyCashPages, startIndex, endIndex),
                 ],
-              );
-            },
-          ),
-        ),
-      ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -4291,7 +4852,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           Text(
             totalItems == 0
                 ? 'No transactions found'
-                : 'Showing ${startItem + 1}-$endItem of $totalItems transactions',
+                : 'Showing ${startItem + 1}–$endItem of $totalItems transactions',
             style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
@@ -4519,9 +5080,25 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               }
 
               final transactions = snapshot.data ?? [];
-              final filteredTransactions = transactions
-                  .where((t) => t['purpose'] != 'Petty Cash Purchase')
-                  .toList();
+              final rawFiltered = transactions.where((t) {
+                final type = (t['transaction_type'] ?? '').toString().toLowerCase();
+                final purpose = (t['purpose'] ?? '').toString().toLowerCase();
+                if (type == 'archived' || purpose.contains('duplicate') || purpose.contains('non-inventory')) return false;
+                // Only block PENDING petty cash (not yet transferred) — let transferred ones appear as arrivals
+                if (purpose == 'petty cash purchase') return false;
+                return true;
+              }).toList();
+
+              // Deduplicate by item_name — show one entry per item in Incoming tab
+              final seenIncomingNames = <String>{};
+              final filteredTransactions = <Map<String, dynamic>>[];
+              for (var t in rawFiltered) {
+                final name = (t['item_name'] ?? '').toString().toLowerCase().trim();
+                if (!seenIncomingNames.contains(name)) {
+                  seenIncomingNames.add(name);
+                  filteredTransactions.add(t);
+                }
+              }
 
               if (filteredTransactions.isEmpty) {
                 return Center(
@@ -4546,11 +5123,32 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 );
               }
 
+  String _getFormattedDrNumber(String rawDr) {
+    final clean = rawDr.trim();
+    if (clean.isEmpty) return '10001';
+
+    // If it's already a short human DR number (like 10387 or DR-10387), keep it
+    if (clean.length <= 10 && !clean.contains('-')) {
+      return clean;
+    }
+
+    // If it's a long UUID (e.g. 610cb844-b92c-41d1-b8c7-104b3983a92d),
+    // convert it deterministically to a clean 5-digit number (e.g. 10388, 24819)
+    // based directly on the unique database record ID!
+    if (clean.contains('-') || clean.length > 10) {
+      final code = 10000 + (clean.hashCode.abs() % 90000);
+      return '$code';
+    }
+
+    return clean;
+  }
+
               // Group by DR Number
               final Map<String, List<Map<String, dynamic>>> groupedTransactions = {};
               for (final transaction in filteredTransactions) {
                 final purpose = transaction['purpose']?.toString() ?? '';
-                final drNumber = purpose.startsWith('DR: ') ? purpose.substring(4) : transaction['id'].toString();
+                final rawDr = purpose.startsWith('DR: ') ? purpose.substring(4) : transaction['id'].toString();
+                final drNumber = _getFormattedDrNumber(rawDr);
                 groupedTransactions.putIfAbsent(drNumber, () => []).add(transaction);
               }
 

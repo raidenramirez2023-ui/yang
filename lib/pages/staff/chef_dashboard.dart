@@ -4144,16 +4144,29 @@ class _FinishedOrdersTab extends StatefulWidget {
 
 class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
   int _currentPage = 1;
-  static const int _itemsPerPage = 50;
+  static const int _itemsPerPage = 25;
   int _selectedFilter = 0; // 0: All, 1: Regular, 2: Advance, 3: Events
+  String _searchQuery = '';
   late Future<List<Map<String, dynamic>>> _ordersFuture;
-  
-  final List<String> _filterLabels = ['All', 'Regular', 'Advance', 'Events'];
+
+  final List<String> _filterLabels = ['All Orders', 'Dine-In & Takeout', 'Advance Orders', 'Events & Catering'];
+  final List<IconData> _filterIcons = [
+    Icons.restaurant_menu_rounded,
+    Icons.receipt_long_rounded,
+    Icons.schedule_rounded,
+    Icons.celebration_rounded,
+  ];
 
   @override
   void initState() {
     super.initState();
     _ordersFuture = _fetchDoneOrders();
+  }
+
+  void _reloadOrders() {
+    setState(() {
+      _ordersFuture = _fetchDoneOrders();
+    });
   }
 
   Future<List<Map<String, dynamic>>> _fetchDoneOrders() async {
@@ -4166,6 +4179,7 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           .select()
           .order('created_at', ascending: false);
 
+      final List<Map<String, dynamic>> posDoneOrders = [];
       for (final o in ordersRaw) {
         final ks = o['kitchen_status']?.toString() ?? '';
         final rs = o['refund_status']?.toString() ?? 'none';
@@ -4179,12 +4193,45 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
             st == 'cancelled';
 
         if (isDone) {
-          result.add({
-            ...o,
-            '_is_advance': false,
-            '_is_reservation': false,
-          });
+          posDoneOrders.add(o);
         }
+      }
+
+      // Batch fetch order_items for finished POS orders
+      final orderIds = posDoneOrders.map((o) => o['id'].toString()).toList();
+      final Map<String, List<Map<String, dynamic>>> itemsByOrderId = {};
+
+      if (orderIds.isNotEmpty) {
+        try {
+          final itemsRaw = await Supabase.instance.client
+              .from('order_items')
+              .select('order_id, item_name, quantity, unit_price')
+              .inFilter('order_id', orderIds);
+
+          for (final it in itemsRaw) {
+            final oid = it['order_id']?.toString() ?? '';
+            if (oid.isNotEmpty) {
+              itemsByOrderId.putIfAbsent(oid, () => []).add({
+                'item_name': it['item_name'] ?? 'Dish Item',
+                'name': it['item_name'] ?? 'Dish Item',
+                'quantity': it['quantity'] ?? 1,
+                'price': it['unit_price'] ?? 0.0,
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('Error batch fetching order items: $e');
+        }
+      }
+
+      for (final o in posDoneOrders) {
+        final oid = o['id'].toString();
+        result.add({
+          ...o,
+          '_is_advance': false,
+          '_is_reservation': false,
+          'items': itemsByOrderId[oid] ?? (o['items'] is List ? o['items'] : []),
+        });
       }
     } catch (e) {
       debugPrint('Error fetching POS finished orders: $e');
@@ -4242,14 +4289,18 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
             rs == 'partial_refund';
 
         if (isDone) {
+          final resPrice = (r['total_price'] ?? r['total_amount'] ?? r['package_price'] ?? r['deposit_amount'] ?? 0.0) is num
+              ? (r['total_price'] ?? r['total_amount'] ?? r['package_price'] ?? r['deposit_amount'] ?? 0.0).toDouble()
+              : double.tryParse(r['total_price']?.toString() ?? '') ?? 0.0;
+
           result.add({
             ...r,
             '_is_advance': false,
             '_is_reservation': true,
             'kitchen_status': 'Done',
-            'customer_name': r['customer_name'],
+            'customer_name': r['customer_name'] ?? 'Event Guest',
             'created_at': r['event_date'],
-            'total_price': 0.0,
+            'total_price': resPrice,
           });
         }
       }
@@ -4259,10 +4310,8 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
 
     // Sort by creation time descending
     result.sort((a, b) {
-      final aTime =
-          DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(0);
-      final bTime =
-          DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(0);
+      final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(0);
+      final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(0);
       return bTime.compareTo(aTime);
     });
 
@@ -4270,18 +4319,45 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
   }
 
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> allOrders) {
+    List<Map<String, dynamic>> filtered = allOrders;
+
+    // Filter by type
     switch (_selectedFilter) {
       case 1: // Regular
-        return allOrders.where((o) => o['_is_reservation'] != true && o['_is_advance'] != true).toList();
+        filtered = filtered.where((o) => o['_is_reservation'] != true && o['_is_advance'] != true).toList();
+        break;
       case 2: // Advance
-        return allOrders.where((o) => o['_is_advance'] == true).toList();
+        filtered = filtered.where((o) => o['_is_advance'] == true).toList();
+        break;
       case 3: // Events
-        return allOrders.where((o) => o['_is_reservation'] == true).toList();
-      default: // All
-        return allOrders;
+        filtered = filtered.where((o) => o['_is_reservation'] == true).toList();
+        break;
+      default:
+        break;
     }
-  }
 
+    // Filter by search query
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.toLowerCase().trim();
+      filtered = filtered.where((o) {
+        final cust = (o['customer_name'] ?? '').toString().toLowerCase();
+        final id = (o['id'] ?? '').toString().toLowerCase();
+        final txn = (o['transaction_id'] ?? '').toString().toLowerCase();
+        final table = (o['table_number'] ?? '').toString().toLowerCase();
+        final eventType = (o['event_type'] ?? '').toString().toLowerCase();
+        final orderType = (o['order_type'] ?? '').toString().toLowerCase();
+
+        return cust.contains(q) ||
+            id.contains(q) ||
+            txn.contains(q) ||
+            table.contains(q) ||
+            eventType.contains(q) ||
+            orderType.contains(q);
+      }).toList();
+    }
+
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4290,27 +4366,19 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+            child: CircularProgressIndicator(color: Color(0xFFE6C374)),
           );
         }
         final allOrders = snap.data ?? [];
         final filteredOrders = _filterOrders(allOrders);
-        
-        if (allOrders.isEmpty) {
-          return _buildEmptyState(
-            Icons.hourglass_empty,
-            'No finished orders yet',
-            '',
-          );
-        }
 
-        if (filteredOrders.isEmpty) {
-          return _buildEmptyState(
-            Icons.filter_list_off,
-            'No ${_filterLabels[_selectedFilter]} orders',
-            'Try selecting a different filter.',
-          );
-        }
+        // Counts per filter category
+        final counts = [
+          allOrders.length,
+          allOrders.where((o) => o['_is_reservation'] != true && o['_is_advance'] != true).length,
+          allOrders.where((o) => o['_is_advance'] == true).length,
+          allOrders.where((o) => o['_is_reservation'] == true).length,
+        ];
 
         final int totalPages = (filteredOrders.length / _itemsPerPage).ceil();
         if (_currentPage > totalPages && totalPages > 0) {
@@ -4327,138 +4395,318 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
             ? filteredOrders.sublist(startIndex, endIndex)
             : <Map<String, dynamic>>[];
 
-        // Count per filter
-        final counts = [
-          allOrders.length,
-          allOrders.where((o) => o['_is_reservation'] != true && o['_is_advance'] != true).length,
-          allOrders.where((o) => o['_is_advance'] == true).length,
-          allOrders.where((o) => o['_is_reservation'] == true).length,
-        ];
-        final filterIcons = [Icons.list_alt_rounded, Icons.receipt_long_rounded, Icons.schedule_rounded, Icons.celebration_rounded];
-
         return Column(
           children: [
-            // ── Premium Filter Tab Bar ──
+            // ── Top Bar with Metrics & Search ──
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF0B211D), Color(0xFF133831)],
+                  colors: [Color(0xFF081815), Color(0xFF102D26)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
+                border: Border(bottom: BorderSide(color: Color(0x33E6C374), width: 1)),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              child: Row(
-                children: List.generate(_filterLabels.length, (index) {
-                  final isSelected = _selectedFilter == index;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() { _selectedFilter = index; _currentPage = 1; }),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        margin: const EdgeInsets.symmetric(horizontal: 5),
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFFE6C374) : Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected ? const Color(0xFFE6C374) : Colors.white.withValues(alpha: 0.10),
-                            width: 1.2,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Column(
+                children: [
+                  // Metric Cards Row
+                  Row(
+                    children: List.generate(_filterLabels.length, (index) {
+                      final isSelected = _selectedFilter == index;
+                      final accentColor = index == 1
+                          ? const Color(0xFF10B981)
+                          : (index == 2
+                              ? const Color(0xFF38BDF8)
+                              : (index == 3 ? const Color(0xFFA78BFA) : const Color(0xFFE6C374)));
+
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _selectedFilter = index;
+                            _currentPage = 1;
+                          }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? accentColor.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected ? accentColor : Colors.white.withValues(alpha: 0.08),
+                                width: isSelected ? 1.3 : 1.0,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: accentColor.withValues(alpha: 0.20),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(_filterIcons[index], size: 14, color: accentColor),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _filterLabels[index],
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white : Colors.white70,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                                          fontSize: 10,
+                                          letterSpacing: 0.2,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        NumberFormat('#,###').format(counts[index]),
+                                        style: TextStyle(
+                                          color: isSelected ? accentColor : Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          boxShadow: isSelected ? [
-                            BoxShadow(
-                              color: const Color(0xFFE6C374).withValues(alpha: 0.35),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            )
-                          ] : null,
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              filterIcons[index],
-                              size: 16,
-                              color: isSelected ? const Color(0xFF0B211D) : Colors.white.withValues(alpha: 0.55),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  // Search & Toolbar Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                          ),
+                          child: TextField(
+                            onChanged: (val) => setState(() {
+                              _searchQuery = val;
+                              _currentPage = 1;
+                            }),
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            decoration: InputDecoration(
+                              hintText: 'Search order #, customer, table, or event type...',
+                              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11.5),
+                              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFE6C374), size: 16),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 14),
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () => setState(() {
+                                        _searchQuery = '';
+                                        _currentPage = 1;
+                                      }),
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _filterLabels[index],
-                              style: TextStyle(
-                                color: isSelected ? const Color(0xFF0B211D) : Colors.white.withValues(alpha: 0.70),
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                fontSize: 11,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${counts[index]}',
-                              style: TextStyle(
-                                color: isSelected ? const Color(0xFF0B211D) : Colors.white.withValues(alpha: 0.90),
-                                fontWeight: FontWeight.w900,
-                                fontSize: 18,
-                                height: 1.1,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-            // ── Dark Column Header ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1E2D2A),
-              ),
-              child: Row(
-                children: const [
-                  SizedBox(width: 6),
-                  Expanded(
-                    flex: 2,
-                    child: Text('ORDER', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF94A3B8), fontSize: 10, letterSpacing: 1.2)),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: Text('DETAILS', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF94A3B8), fontSize: 10, letterSpacing: 1.2)),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text('AMOUNT', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF94A3B8), fontSize: 10, letterSpacing: 1.2)),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text('STATUS', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF94A3B8), fontSize: 10, letterSpacing: 1.2)),
+                      const SizedBox(width: 8),
+                      // Refresh button
+                      InkWell(
+                        onTap: _reloadOrders,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 34,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE6C374).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.refresh_rounded, color: Color(0xFFE6C374), size: 14),
+                              SizedBox(width: 5),
+                              Text(
+                                'Refresh',
+                                style: TextStyle(color: Color(0xFFE6C374), fontSize: 11, fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+
+            // ── Main Content Area: Compact Data Table ──
             Expanded(
-              child: Container(
-                color: const Color(0xFFF1F4F3),
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: currentOrders.length,
-                  itemBuilder: (_, i) => _FinishedOrderCard(order: currentOrders[i]),
-                ),
-              ),
+              child: filteredOrders.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0B211D).withValues(alpha: 0.06),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.restaurant_rounded, size: 36, color: Color(0xFF0B211D)),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _searchQuery.isNotEmpty ? 'No orders match "$_searchQuery"' : 'No finished orders in this category',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Completed kitchen tickets will automatically appear here with full recipe breakdown.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      color: const Color(0xFFF1F5F4),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Column(
+                            children: [
+                              // ── Table Header ──
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF0B211D),
+                                  border: Border(bottom: BorderSide(color: Color(0x33E6C374))),
+                                ),
+                                child: Row(
+                                  children: const [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'ORDER #',
+                                        style: TextStyle(color: Color(0xFFE6C374), fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        'CUSTOMER & DINING',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 4,
+                                      child: Text(
+                                        'PREPARED DISHES / ITEMS',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'DATE & TIME',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'AMOUNT',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'STATUS',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 75,
+                                      child: Text(
+                                        'ACTION',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Color(0xFFE6C374), fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // ── Table Body Rows ──
+                              Expanded(
+                                child: ListView.separated(
+                                  itemCount: currentOrders.length,
+                                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                  itemBuilder: (ctx, i) {
+                                    return _FinishedOrderTableRow(
+                                      order: currentOrders[i],
+                                      isEven: i % 2 == 0,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
             ),
-            if (totalPages > 1) _buildPagination(totalPages),
+
+            // ── Clean Floating Pagination Footer ──
+            if (totalPages > 1) _buildPagination(totalPages, filteredOrders.length),
           ],
         );
       },
     );
   }
 
-  Widget _buildPagination(int totalPages) {
+  Widget _buildPagination(int totalPages, int totalItems) {
     List<Widget> pageWidgets = [];
     bool lastWasEllipsis = false;
 
-    // Show more numbers: current +/- 2
     for (int i = 1; i <= totalPages; i++) {
       if (totalPages <= 7 || i == 1 || i == totalPages || (i >= _currentPage - 2 && i <= _currentPage + 2)) {
         final isSelected = i == _currentPage;
@@ -4466,32 +4714,34 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           GestureDetector(
             onTap: () => setState(() => _currentPage = i),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 40,
-              height: 40,
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: isSelected ? AppTheme.primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(10),
+                color: isSelected ? const Color(0xFF0B211D) : Colors.white,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: isSelected ? AppTheme.primaryColor : const Color(0xFFE2E8F0),
-                  width: 1.5,
+                  color: isSelected ? const Color(0xFF0B211D) : const Color(0xFFE2E8F0),
+                  width: 1.0,
                 ),
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  )
-                ] : null,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF0B211D).withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
               ),
               alignment: Alignment.center,
               child: Text(
                 '$i',
                 style: TextStyle(
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  fontSize: 14,
+                  color: isSelected ? const Color(0xFFE6C374) : const Color(0xFF475569),
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                  fontSize: 11.5,
                 ),
               ),
             ),
@@ -4501,42 +4751,49 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
       } else {
         if (!lastWasEllipsis) {
           pageWidgets.add(const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Text('...', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 16)),
+            padding: EdgeInsets.symmetric(horizontal: 3),
+            child: Text('...', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 12)),
           ));
           lastWasEllipsis = true;
         }
       }
     }
 
+    final start = (_currentPage - 1) * _itemsPerPage + 1;
+    final end = (_currentPage * _itemsPerPage).clamp(1, totalItems);
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Prev button
-          _buildNavButton(
-            label: 'PREV',
-            icon: Icons.chevron_left_rounded,
-            isEnabled: _currentPage > 1,
-            onTap: () => setState(() => _currentPage--),
+          Text(
+            'Showing $start–$end of ${NumberFormat('#,###').format(totalItems)} tickets',
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(width: 16),
-          ...pageWidgets,
-          const SizedBox(width: 16),
-          // Next button
-          _buildNavButton(
-            label: 'NEXT',
-            icon: Icons.chevron_right_rounded,
-            isEnabled: _currentPage < totalPages,
-            onTap: () => setState(() => _currentPage++),
-            isTrailing: true,
+          Row(
+            children: [
+              _buildNavButton(
+                label: 'Prev',
+                icon: Icons.chevron_left_rounded,
+                isEnabled: _currentPage > 1,
+                onTap: () => setState(() => _currentPage--),
+              ),
+              const SizedBox(width: 6),
+              ...pageWidgets,
+              const SizedBox(width: 6),
+              _buildNavButton(
+                label: 'Next',
+                icon: Icons.chevron_right_rounded,
+                isEnabled: _currentPage < totalPages,
+                onTap: () => setState(() => _currentPage++),
+                isTrailing: true,
+              ),
+            ],
           ),
         ],
       ),
@@ -4552,37 +4809,27 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
   }) {
     return InkWell(
       onTap: isEnabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
         decoration: BoxDecoration(
-          color: isEnabled ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isEnabled ? [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            )
-          ] : null,
+          color: isEnabled ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: isEnabled ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
-            if (!isTrailing) const SizedBox(width: 6),
+            if (!isTrailing) Icon(icon, color: isEnabled ? const Color(0xFF0F2C27) : const Color(0xFF94A3B8), size: 14),
             Text(
               label,
               style: TextStyle(
-                color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 1.1,
+                color: isEnabled ? const Color(0xFF0F2C27) : const Color(0xFF94A3B8),
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
               ),
             ),
-            if (isTrailing) const SizedBox(width: 6),
-            if (isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
+            if (isTrailing) Icon(icon, color: isEnabled ? const Color(0xFF0F2C27) : const Color(0xFF94A3B8), size: 14),
           ],
         ),
       ),
@@ -4590,191 +4837,251 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
   }
 }
 
-class _FinishedOrderCard extends StatelessWidget {
+// ══════════════════════════════════════════════════════════
+//  REALISTIC FINISHED ORDER TABLE ROW
+// ══════════════════════════════════════════════════════════
+class _FinishedOrderTableRow extends StatelessWidget {
   final Map<String, dynamic> order;
-  const _FinishedOrderCard({required this.order});
+  final bool isEven;
 
-  @override
-  Widget build(BuildContext context) {
-    final isAdvance = order['_is_advance'] == true;
-    final isReservation = order['_is_reservation'] == true;
+  const _FinishedOrderTableRow({required this.order, required this.isEven});
 
-    final orderId = isReservation
-        ? 'EVENT'
-        : (isAdvance
-            ? 'ADV-${order['id'].toString().substring(0, 4).toUpperCase()}'
-            : _formatOrderId(order));
+  List<Map<String, dynamic>> _extractOrderItems() {
+    final List<Map<String, dynamic>> itemsList = [];
 
-    final customer = order['customer_name']?.toString() ?? 'Guest';
-    final total = isReservation
-        ? null
-        : (order['total_price'] ?? order['total_amount'] ?? 0.0).toDouble();
-
-    final createdAt = order['created_at'] != null
-        ? DateTime.tryParse(order['created_at'].toString())
-        : null;
-
-    String timeStr;
-    if (isReservation) {
-      timeStr = order['event_date']?.toString() ?? '—';
-    } else if (isAdvance) {
-      timeStr = '${order['order_date']} ${order['order_time']}';
-    } else {
-      timeStr = createdAt != null ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal()) : '—';
+    final dynamic rawItems = order['items'] ?? order['order_items'];
+    if (rawItems is List) {
+      for (var it in rawItems) {
+        if (it is Map) {
+          itemsList.add({
+            'name': (it['name'] ?? it['item_name'] ?? it['dish_name'] ?? 'Dish Item').toString(),
+            'quantity': (it['quantity'] ?? it['qty'] ?? 1) as num,
+            'price': (it['price'] ?? it['unit_price'] ?? 0.0) as num,
+            'notes': (it['notes'] ?? it['special_instructions'] ?? '').toString(),
+          });
+        } else if (it is String) {
+          itemsList.add({'name': it, 'quantity': 1, 'price': 0.0, 'notes': ''});
+        }
+      }
     }
 
-    final tableNumber = order['table_number']?.toString();
-    final orderType = isReservation
-        ? (order['event_type']?.toString())
-        : order['order_type']?.toString();
-    final numberOfGuests = order['number_of_guests'];
+    final dynamic menuItems = order['selected_menu_items'];
+    if (menuItems is Map) {
+      menuItems.forEach((key, val) {
+        int qty = 1;
+        if (val is num) {
+          qty = val.toInt();
+        } else if (val is Map) {
+          qty = (val['quantity'] as num?)?.toInt() ?? 1;
+        } else if (val is String) {
+          qty = int.tryParse(val) ?? 1;
+        }
+        itemsList.add({'name': key.toString(), 'quantity': qty, 'price': 0.0, 'notes': ''});
+      });
+    } else if (menuItems is List) {
+      for (var it in menuItems) {
+        if (it is Map) {
+          itemsList.add({
+            'name': (it['name'] ?? it['item_name'] ?? 'Dish Item').toString(),
+            'quantity': (it['quantity'] ?? 1) as num,
+            'price': (it['price'] ?? 0.0) as num,
+            'notes': (it['notes'] ?? '').toString(),
+          });
+        } else if (it is String) {
+          itemsList.add({'name': it, 'quantity': 1, 'price': 0.0, 'notes': ''});
+        }
+      }
+    }
 
-    // Left-side accent color per order type
-    final Color accentColor = isReservation
-        ? const Color(0xFF7C3AED)
-        : (isAdvance ? const Color(0xFF0284C7) : const Color(0xFF0B211D));
+    return itemsList;
+  }
 
-    // Status info
-    final rs = order['refund_status']?.toString() ?? 'none';
-    final statusStr = order['status']?.toString().toLowerCase() ?? '';
-    final isRefunded = rs == 'full_refund' || rs == 'partial_refund' || statusStr == 'refunded' || statusStr == 'cancelled';
-    final badgeText = (rs == 'full_refund' || statusStr == 'refunded')
-        ? 'REFUNDED'
-        : (statusStr == 'cancelled' ? 'CANCELLED' : 'SERVED');
-    final Color statusBg = isRefunded
-        ? (statusStr == 'cancelled' ? const Color(0xFFDC2626) : const Color(0xFFEF4444))
-        : const Color(0xFF059669);
-    final IconData statusIcon = isRefunded ? Icons.cancel_outlined : Icons.check_circle_outline_rounded;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE8EDEB), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+  void _showOrderDetailsModal(BuildContext context, List<Map<String, dynamic>> items, String orderId, String customer, String timeStr, double? total, String badgeText, Color statusBg, IconData statusIcon, Color accentColor, bool isReservation, bool isAdvance) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          width: 480,
+          constraints: const BoxConstraints(maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Colored left accent bar
-              Container(width: 5, color: accentColor),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  child: Row(
-                    children: [
-                      // Order ID badge column
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: accentColor.withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(7),
-                                border: Border.all(color: accentColor.withValues(alpha: 0.25), width: 1),
-                              ),
-                              child: Text(
-                                orderId,
-                                style: TextStyle(
-                                  color: accentColor,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0B211D), Color(0xFF133831)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(14),
+                    topRight: Radius.circular(14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE6C374).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      // Details column
-                      Expanded(
-                        flex: 4,
-                        child: Wrap(
-                          spacing: 14,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _detailChip(Icons.person_outline_rounded, customer.toUpperCase(), bold: true),
-                            _detailChip(Icons.schedule_outlined, timeStr),
-                            if (numberOfGuests != null)
-                              _detailChip(Icons.people_outline_rounded, '$numberOfGuests pax'),
-                            if ((isAdvance || isReservation) && orderType != null)
-                              _detailChip(
-                                isReservation ? Icons.celebration_outlined : (orderType == 'Pickup' ? Icons.shopping_bag_outlined : Icons.restaurant_outlined),
-                                orderType.toUpperCase(),
-                              ),
-                            if (!isAdvance && !isReservation && tableNumber != null && tableNumber.isNotEmpty)
-                              _detailChip(Icons.table_restaurant_outlined, 'Table $tableNumber'),
-                          ],
-                        ),
-                      ),
-                      // Amount column
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          total != null ? '₱${NumberFormat('#,##0.00').format(total)}' : '—',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: Color(0xFF0F2C27),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            fontFeatures: [FontFeature.tabularFigures()],
+                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFE6C374), size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'KITCHEN TICKET: $orderId',
+                            style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w900, letterSpacing: 0.6),
                           ),
-                        ),
+                          const SizedBox(height: 1),
+                          Text(
+                            '$customer • $timeStr',
+                            style: const TextStyle(color: Color(0xFFE6C374), fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      // Status badge column
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: statusBg,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: statusBg.withValues(alpha: 0.30),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, color: Colors.white, size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            badgeText,
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Dishes & Recipe Items List
+              Flexible(
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  shrinkWrap: true,
+                  children: [
+                    const Text(
+                      'PREPARED DISHES & RECIPES',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.6),
+                    ),
+                    const SizedBox(height: 8),
+                    if (items.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Text('Standard Chef Set Menu (Dishes logged under catering schedule)', style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontStyle: FontStyle.italic)),
+                      )
+                    else
+                      ...items.map((it) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0B211D),
+                                  borderRadius: BorderRadius.circular(5),
                                 ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(statusIcon, color: Colors.white, size: 13),
-                                const SizedBox(width: 5),
+                                child: Text(
+                                  '${it['quantity']}x',
+                                  style: const TextStyle(color: Color(0xFFE6C374), fontWeight: FontWeight.w900, fontSize: 11),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      it['name']?.toString() ?? 'Dish',
+                                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF1E293B)),
+                                    ),
+                                    if ((it['notes'] ?? '').toString().isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          'Note: ${it['notes']}',
+                                          style: const TextStyle(color: Color(0xFFDC2626), fontSize: 10.5, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if ((it['price'] as num) > 0)
                                 Text(
-                                  badgeText,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 11,
-                                    letterSpacing: 0.6,
-                                  ),
+                                  '₱${NumberFormat('#,##0.00').format(it['price'])}',
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF0F2C27)),
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
+                        );
+                      }),
+                    const SizedBox(height: 10),
+                    if (total != null && total > 0)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0B211D).withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF0B211D).withValues(alpha: 0.1)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('TOTAL TICKET AMOUNT', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF0F2C27))),
+                            Text(
+                              '₱${NumberFormat('#,##0.00').format(total)}',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F2C27)),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                  ],
+                ),
+              ),
+
+              // Close Button
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0B211D),
+                      foregroundColor: const Color(0xFFE6C374),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Text('Close Ticket', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
                   ),
                 ),
               ),
@@ -4785,21 +5092,299 @@ class _FinishedOrderCard extends StatelessWidget {
     );
   }
 
-  Widget _detailChip(IconData icon, String label, {bool bold = false}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: const Color(0xFF94A3B8)),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(
-            color: bold ? const Color(0xFF0F2C27) : const Color(0xFF475569),
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 12,
+  @override
+  Widget build(BuildContext context) {
+    final isAdvance = order['_is_advance'] == true;
+    final isReservation = order['_is_reservation'] == true;
+
+    final orderId = isReservation
+        ? (order['id'] != null ? 'EVENT #${order['id'].toString().substring(0, 5).toUpperCase()}' : 'EVENT')
+        : (isAdvance
+            ? (order['id'] != null ? 'ADV #${order['id'].toString().substring(0, 5).toUpperCase()}' : 'ADVANCE')
+            : _formatOrderId(order));
+
+    final customer = order['customer_name']?.toString() ?? 'Guest';
+    final total = (order['total_price'] ?? order['total_amount'] ?? 0.0) is num
+        ? (order['total_price'] ?? order['total_amount'] ?? 0.0).toDouble()
+        : double.tryParse(order['total_price']?.toString() ?? '') ?? 0.0;
+
+    final createdAt = order['created_at'] != null
+        ? DateTime.tryParse(order['created_at'].toString())
+        : null;
+
+    String timeStr;
+    if (isReservation) {
+      if (order['event_date'] != null) {
+        final d = DateTime.tryParse(order['event_date'].toString());
+        timeStr = d != null ? DateFormat('MMM d, yyyy').format(d) : order['event_date'].toString();
+      } else {
+        timeStr = '—';
+      }
+    } else if (isAdvance) {
+      timeStr = '${order['order_date'] ?? ''} ${order['order_time'] ?? ''}'.trim();
+      if (timeStr.isEmpty) timeStr = '—';
+    } else {
+      timeStr = createdAt != null ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal()) : '—';
+    }
+
+    final tableNumber = order['table_number']?.toString();
+    final orderType = isReservation
+        ? (order['event_type']?.toString())
+        : order['order_type']?.toString();
+    final numberOfGuests = order['number_of_guests'];
+
+    // Accent color coding
+    final Color accentColor = isReservation
+        ? const Color(0xFF7C3AED)
+        : (isAdvance ? const Color(0xFF0284C7) : const Color(0xFF059669));
+
+    // Status info
+    final rs = order['refund_status']?.toString() ?? 'none';
+    final statusStr = order['status']?.toString().toLowerCase() ?? '';
+    final isRefunded = rs == 'full_refund' || rs == 'partial_refund' || statusStr == 'refunded' || statusStr == 'cancelled';
+    final badgeText = (rs == 'full_refund' || statusStr == 'refunded')
+        ? 'REFUNDED'
+        : (statusStr == 'cancelled' ? 'CANCELLED' : 'SERVED');
+    final Color statusBg = isRefunded
+        ? (statusStr == 'cancelled' ? const Color(0xFFEF4444) : const Color(0xFFF59E0B))
+        : const Color(0xFF10B981);
+    final IconData statusIcon = isRefunded ? Icons.cancel_outlined : Icons.check_circle_rounded;
+
+    final items = _extractOrderItems();
+
+    return Material(
+      color: isEven ? Colors.white : const Color(0xFFFBFDFD),
+      child: InkWell(
+        onTap: () => _showOrderDetailsModal(context, items, orderId, customer, timeStr, total, badgeText, statusBg, statusIcon, accentColor, isReservation, isAdvance),
+        hoverColor: const Color(0xFFE6C374).withValues(alpha: 0.08),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 1. Order ID & Type Badge
+              Expanded(
+                flex: 2,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isReservation ? Icons.celebration_rounded : (isAdvance ? Icons.schedule_rounded : Icons.restaurant_rounded),
+                            size: 10,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 3.5),
+                          Text(
+                            orderId,
+                            style: TextStyle(
+                              color: accentColor,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 10.5,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. Customer & Dining / Table Details
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      customer,
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0F2C27)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1.5),
+                    Row(
+                      children: [
+                        if (tableNumber != null && tableNumber.isNotEmpty)
+                          _tableSubTag(Icons.table_restaurant_outlined, 'T-$tableNumber'),
+                        if (numberOfGuests != null)
+                          _tableSubTag(Icons.people_outline_rounded, '$numberOfGuests pax'),
+                        if (orderType != null && orderType.isNotEmpty)
+                          _tableSubTag(
+                            isReservation ? Icons.event_note_rounded : Icons.room_service_outlined,
+                            orderType,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 3. Prepared Dishes & Items List
+              Expanded(
+                flex: 4,
+                child: items.isEmpty
+                    ? const Text('Standard Chef Set Menu', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10.5, fontStyle: FontStyle.italic))
+                    : Wrap(
+                        spacing: 3,
+                        runSpacing: 2,
+                        children: [
+                          ...items.take(2).map((it) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                '${it['quantity']}x ${it['name']}',
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }),
+                          if (items.length > 2)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6C374).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                '+${items.length - 2}',
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+                              ),
+                            ),
+                        ],
+                      ),
+              ),
+
+              // 4. Completed Date & Time
+              Expanded(
+                flex: 2,
+                child: Text(
+                  timeStr,
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+
+              // 5. Total Amount
+              Expanded(
+                flex: 2,
+                child: Text(
+                  total > 0 ? '₱${NumberFormat('#,##0.00').format(total)}' : '—',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Color(0xFF0F2C27),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+
+              // 6. Status Badge
+              Expanded(
+                flex: 2,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: statusBg.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: statusBg.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, color: statusBg, size: 10.5),
+                        const SizedBox(width: 3),
+                        Text(
+                          badgeText,
+                          style: TextStyle(
+                            color: statusBg,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 9.5,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // 7. Action: View Ticket
+              SizedBox(
+                width: 75,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0B211D).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: const Color(0xFF0B211D).withValues(alpha: 0.15)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.visibility_outlined, size: 11, color: Color(0xFF0B211D)),
+                        SizedBox(width: 3),
+                        Text(
+                          'Ticket',
+                          style: TextStyle(color: Color(0xFF0B211D), fontWeight: FontWeight.w800, fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _tableSubTag(IconData icon, String label) {
+    return Container(
+      margin: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 9.5, color: const Color(0xFF94A3B8)),
+          const SizedBox(width: 2.5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+              fontSize: 9.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

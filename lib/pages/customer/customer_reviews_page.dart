@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 
@@ -30,6 +30,13 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
   bool _isLoading = true;
   bool _isSubmitting = false;
 
+  // Brand Palette matching Yang Chow aesthetic
+  static const Color _forestGreen = Color(0xFF14332E);
+  static const Color _darkForest = Color(0xFF0F221E);
+  static const Color _deepBurgundy = Color(0xFF1E0B0B);
+  static const Color _primaryGold = Color(0xFFC9922E);
+  static const Color _warmGold = Color(0xFFD9A441);
+
   @override
   void initState() {
     super.initState();
@@ -52,20 +59,28 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
         currentUser.email!,
       );
 
-      // Filter to only COMPLETED reservations as per requirement
-      final pastReservations = reservations.where((r) => r['status'] == 'completed').toList();
+      // Filter to all active, confirmed, paid, or completed reservations (exclude cancelled/rejected)
+      final pastReservations = reservations.where((r) {
+        final st = (r['status']?.toString() ?? '').toLowerCase().trim();
+        return st != 'cancelled' && st != 'rejected' && st != 'declined';
+      }).toList();
 
       if (mounted) {
         setState(() {
           _pastReservations = pastReservations;
           _isLoading = false;
 
-          // If a specific reservation was passed, select it
-          if (widget.reservationId != null) {
-            _selectedReservation = pastReservations.firstWhere(
-              (r) => r['id'] == widget.reservationId,
-              orElse: () => {},
-            );
+          // Auto-select event: if a specific reservation was passed, select it; otherwise default to the latest
+          if (pastReservations.isNotEmpty) {
+            if (widget.reservationId != null) {
+              _selectedReservation = pastReservations.firstWhere(
+                (r) => r['id'] == widget.reservationId,
+                orElse: () => pastReservations.first,
+              );
+            } else {
+              _selectedReservation = pastReservations.first;
+            }
+
             if (_selectedReservation != null &&
                 _selectedReservation!.isNotEmpty) {
               _loadExistingReview(_selectedReservation!['id']);
@@ -176,243 +191,345 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey, size: 22),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Guest Feedback',
-          style: TextStyle(
-            color: AppTheme.darkGrey,
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            letterSpacing: -0.3,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-          : RefreshIndicator(
-              onRefresh: () async {
-                _loadPastReservations();
-              },
-              color: AppTheme.primaryColor,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: ResponsiveUtils.getMaxContentWidth()),
-                    child: Padding(
-                      padding: ResponsiveUtils.getResponsivePadding(context),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionHeader(
-                            title: 'Select Reservation',
-                            subtitle: 'Review any of your completed events',
-                          ),
-                          const SizedBox(height: 24),
-                          if (_pastReservations.isEmpty)
-                            _buildEmptyState()
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _pastReservations.length,
-                              itemBuilder: (context, index) {
-                                final reservation = _pastReservations[index];
-                                final isSelected =
-                                    _selectedReservation?['id'] == reservation['id'];
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
 
-                                return _buildReservationCard(reservation, isSelected);
-                              },
+    return Scaffold(
+      backgroundColor: _deepBurgundy,
+      body: Stack(
+        children: [
+          _buildBackground(),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeaderBar(context),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: _warmGold,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () async => _loadPastReservations(),
+                          color: _warmGold,
+                          backgroundColor: _darkForest,
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
                             ),
-                          if (_selectedReservation != null &&
-                              _selectedReservation!.isNotEmpty) ...[
-                            const SizedBox(height: 40),
-                            _buildSectionHeader(
-                              title: 'Your Experience',
-                              subtitle: 'How was the food, service, and ambiance?',
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isDesktop ? 48 : (isTablet ? 28 : 16),
+                              vertical: 20,
                             ),
-                            const SizedBox(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: AppTheme.cardDecoration(),
-                              child: Column(
-                                children: [
-                                  _buildRatingCategory(
-                                    title: 'Overall Rating',
-                                    rating: _overallRating,
-                                    onRatingChanged: (rating) {
-                                      setState(() => _overallRating = rating);
-                                    },
-                                  ),
-                                  const Divider(height: 40),
-                                  _buildRatingCategory(
-                                    title: 'FOOD QUALITY',
-                                    rating: _foodQuality,
-                                    onRatingChanged: (rating) {
-                                      setState(() => _foodQuality = rating);
-                                    },
-                                  ),
-                                  const Divider(height: 40),
-                                  _buildRatingCategory(
-                                    title: 'SERVICE QUALITY',
-                                    rating: _serviceQuality,
-                                    onRatingChanged: (rating) {
-                                      setState(() => _serviceQuality = rating);
-                                    },
-                                  ),
-                                  const Divider(height: 40),
-                                  _buildRatingCategory(
-                                    title: 'AMBIANCE',
-                                    rating: _ambiance,
-                                    onRatingChanged: (rating) {
-                                      setState(() => _ambiance = rating);
-                                    },
-                                  ),
-                                ],
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: isDesktop ? 1100 : (isTablet ? 780 : 540),
+                                ),
+                                child: _pastReservations.isEmpty
+                                    ? _buildEmptyState()
+                                    : (isDesktop
+                                        ? _buildDesktopLayout()
+                                        : _buildMobileOrTabletLayout()),
                               ),
                             ),
-                            const SizedBox(height: 32),
-                            _buildSectionHeader(
-                              title: 'Additional Comments',
-                              subtitle: 'Optional feedback to help us improve',
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _reviewTextController,
-                              maxLines: 5,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, letterSpacing: -0.2),
-                              decoration: InputDecoration(
-                                hintText: 'Share your experience...',
-                                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
-                                ),
-                                contentPadding: const EdgeInsets.all(20),
-                              ),
-                            ),
-                            const SizedBox(height: 40),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 64,
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _submitReview,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  elevation: 6,
-                                  shadowColor: AppTheme.primaryColor.withOpacity(0.4),
-                                ),
-                                child: _isSubmitting
-                                    ? const SizedBox(
-                                        height: 26,
-                                        width: 26,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                      )
-                                    : Text(
-                                        _existingReview != null ? 'Update Review' : 'Submit Review',
-                                        style: const TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            if (_existingReview != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 24),
-                                child: Container(
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.infoBlue.withAlpha(12),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: AppTheme.infoBlue.withAlpha(51), width: 1.5),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.info_outline_rounded, color: AppTheme.infoBlue, size: 22),
-                                      const SizedBox(width: 14),
-                                      const Expanded(
-                                        child: Text(
-                                          'You have an existing review. Your changes will update the previous entry to keep our landing page focused on your latest experience.',
-                                          style: TextStyle(
-                                            color: AppTheme.infoBlue,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
+                          ),
+                        ),
                 ),
-              ),
+              ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildRatingCategory({
-    required String title,
-    required int rating,
-    required Function(int) onRatingChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 1.5),
+  // Realistic Restaurant Atmosphere Background
+  Widget _buildBackground() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/YangChow.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF220505)),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF280505).withValues(alpha: 0.93),
+                    const Color(0xFF6E0D0D).withValues(alpha: 0.88),
+                    const Color(0xFF8C1414).withValues(alpha: 0.84),
+                    const Color(0xFF1E0303).withValues(alpha: 0.95),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Ambient gold glow top-right
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 350,
+              height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    _primaryGold.withValues(alpha: 0.28),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Ambient rich red glow bottom-left
+          Positioned(
+            bottom: -80,
+            left: -80,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFFBA1717).withValues(alpha: 0.35),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Center-right crimson lighting
+          Positioned(
+            top: 300,
+            right: -60,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF8C1414).withValues(alpha: 0.25),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Top App Bar matching Brand Identity
+  Widget _buildHeaderBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        border: Border(
+          bottom: BorderSide(
+            color: _warmGold.withValues(alpha: 0.25),
+            width: 1,
+          ),
         ),
-        const SizedBox(height: 14),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (int i = 1; i <= 5; i++)
-                GestureDetector(
-                  onTap: () => onRatingChanged(i),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Icon(
-                      i <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: i <= rating ? Colors.amber : AppTheme.lightGrey,
-                      size: 44,
-                    ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+              border: Border.all(color: _warmGold.withValues(alpha: 0.4)),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFFFFE8B2),
+                size: 18,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'GUEST FEEDBACK',
+                  style: GoogleFonts.cinzel(
+                    color: _warmGold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    letterSpacing: 2,
                   ),
                 ),
+                Text(
+                  'Yang Chow Dining Experience',
+                  style: GoogleFonts.poppins(
+                    color: const Color(0xFFFFFAEB).withValues(alpha: 0.8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 44), // balance back button width
+        ],
+      ),
+    );
+  }
+
+  // Desktop Side-by-Side 2-Column Layout (Eliminates Dead Space)
+  Widget _buildDesktopLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left Column: Selected Booking & Dining Highlights Card
+        Expanded(
+          flex: 5,
+          child: Column(
+            children: [
+              _buildCompactEventSelector(),
+              const SizedBox(height: 18),
+              _buildDiningHighlightsCard(),
+            ],
+          ),
+        ),
+        const SizedBox(width: 24),
+        // Right Column: Experience Rating & Comments Card
+        Expanded(
+          flex: 7,
+          child: _buildMainFormCard(),
+        ),
+      ],
+    );
+  }
+
+  // Mobile / Tablet Stacked Layout
+  Widget _buildMobileOrTabletLayout() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildCompactEventSelector(),
+        const SizedBox(height: 16),
+        _buildMainFormCard(),
+      ],
+    );
+  }
+
+  // Left Showcase Card for Desktop
+  Widget _buildDiningHighlightsCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _primaryGold.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 25,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _forestGreen.withValues(alpha: 0.08),
+                  border: Border.all(color: _primaryGold.withValues(alpha: 0.4)),
+                ),
+                child: const Icon(Icons.rate_review_rounded, color: _primaryGold, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your Review Matters',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF330505),
+                      ),
+                    ),
+                    Text(
+                      'Helps us maintain authentic quality',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11.5,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 14),
+          _buildPerkItem(Icons.restaurant_menu_rounded, 'Authentic Chinese Culinary Standards', 'Food taste, aroma, freshness & portion satisfaction.'),
+          const SizedBox(height: 12),
+          _buildPerkItem(Icons.room_service_rounded, 'Attentive Table & Staff Service', 'Warm hospitality, speed, and order accuracy.'),
+          const SizedBox(height: 12),
+          _buildPerkItem(Icons.deck_rounded, 'Atmosphere & Cleanliness', 'Cozy oriental interior, lighting, and comfortable seating.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerkItem(IconData icon, String title, String desc) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: _forestGreen),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  height: 1.3,
+                ),
+              ),
             ],
           ),
         ),
@@ -420,149 +537,809 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     );
   }
 
-  Widget _buildSectionHeader({required String title, required String subtitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.8,
-            color: AppTheme.primaryColor,
-          ),
+  // Main Review Card
+  Widget _buildMainFormCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _primaryGold.withValues(alpha: 0.4),
+          width: 1.5,
         ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: AppTheme.mediumGrey.withAlpha(204),
-            fontWeight: FontWeight.w600,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReservationCard(Map<String, dynamic> reservation, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedReservation = reservation);
-        _loadExistingReview(reservation['id']);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-            width: 2.5,
+          BoxShadow(
+            color: _primaryGold.withValues(alpha: 0.15),
+            blurRadius: 20,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(8),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-        ),
-        child: Row(
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Top Accent Stripe
             Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isSelected ? AppTheme.primaryColor.withOpacity(0.12) : AppTheme.lightGrey.withOpacity(0.4),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.event_available_rounded,
-                color: isSelected ? AppTheme.primaryColor : AppTheme.mediumGrey,
-                size: 26,
+              height: 5,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_primaryGold, _warmGold, _forestGreen],
+                ),
               ),
             ),
-            const SizedBox(width: 18),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    reservation['event_type'],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
-                      color: AppTheme.darkGrey,
-                      letterSpacing: -0.2,
+                  // Category Ratings Header
+                  _buildCardSectionTitle(
+                    'RATE YOUR EXPERIENCE',
+                    'Tap the stars to score each category',
+                    Icons.stars_rounded,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Overall Rating
+                  _buildInteractiveRatingCard(
+                    title: 'OVERALL RATING',
+                    subtitle: 'Overall dining satisfaction',
+                    icon: Icons.star_rounded,
+                    rating: _overallRating,
+                    onRatingChanged: (val) => setState(() => _overallRating = val),
+                    isPrimary: true,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Food Quality
+                  _buildInteractiveRatingCard(
+                    title: 'FOOD QUALITY',
+                    subtitle: 'Taste, temperature & presentation',
+                    icon: Icons.restaurant_rounded,
+                    rating: _foodQuality,
+                    onRatingChanged: (val) => setState(() => _foodQuality = val),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Service Quality
+                  _buildInteractiveRatingCard(
+                    title: 'SERVICE QUALITY',
+                    subtitle: 'Staff attentiveness & friendliness',
+                    icon: Icons.room_service_rounded,
+                    rating: _serviceQuality,
+                    onRatingChanged: (val) => setState(() => _serviceQuality = val),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Ambiance
+                  _buildInteractiveRatingCard(
+                    title: 'AMBIANCE',
+                    subtitle: 'Atmosphere, music & cleanliness',
+                    icon: Icons.deck_rounded,
+                    rating: _ambiance,
+                    onRatingChanged: (val) => setState(() => _ambiance = val),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // Additional Comments Section
+                  _buildCardSectionTitle(
+                    'YOUR FEEDBACK & COMMENTS',
+                    'Share specific details, favorite dishes, or suggestions',
+                    Icons.edit_note_rounded,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Quick Suggestion Chips
+                  _buildQuickReviewChips(),
+                  const SizedBox(height: 10),
+
+                  // Comment Text Field
+                  TextField(
+                    controller: _reviewTextController,
+                    maxLines: 4,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. The Yang Chow Fried Rice and Dimsum were authentic and delicious! The staff were very accommodating...',
+                      hintStyle: GoogleFonts.poppins(
+                        color: Colors.grey.shade400,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFFCFAF7),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide(color: _primaryGold, width: 1.8),
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${reservation['event_date']} • ${reservation['start_time']}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.mediumGrey,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 22),
+
+                  // Submit Button matching Signature Red-Gold Theme
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: const LinearGradient(
+                        colors: [
+                          _forestGreen,
+                          Color(0xFFBA1717),
+                          _darkForest,
+                        ],
+                      ),
+                      border: Border.all(
+                        color: _warmGold.withValues(alpha: 0.55),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _forestGreen.withValues(alpha: 0.4),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _isSubmitting ? null : _submitReview,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Center(
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.send_rounded,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _existingReview != null
+                                          ? 'UPDATE GUEST REVIEW'
+                                          : 'SUBMIT GUEST REVIEW',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 1.2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
                     ),
                   ),
+
+                  if (_existingReview != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Submitting will update your previous review for this booking.',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFF1E40AF),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: AppTheme.primaryColor, size: 26),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildCardSectionTitle(String title, String subtitle, IconData icon) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: _forestGreen, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: const Color(0xFF330505),
+                ),
+              ),
+              Text(
+                subtitle,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Quick Review Tags that add to the text controller
+  Widget _buildQuickReviewChips() {
+    final tags = [
+      'Authentic Flavors! 🍲',
+      'Fast & Courteous Service 🌟',
+      'Generous Portions 🥢',
+      'Cozy Ambiance ✨',
+      'Will Visit Again! 👍',
+    ];
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: tags.map((tag) {
+        return InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            final current = _reviewTextController.text.trim();
+            if (current.isEmpty) {
+              _reviewTextController.text = tag;
+            } else if (!current.contains(tag)) {
+              _reviewTextController.text = '$current $tag';
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFCFAF7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _primaryGold.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              tag,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF330505),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // Interactive Modern Rating Bar Card
+  Widget _buildInteractiveRatingCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int rating,
+    required Function(int) onRatingChanged,
+    bool isPrimary = false,
+  }) {
+    final ratingLabels = [
+      'Tap to rate',
+      'Poor',
+      'Fair',
+      'Good',
+      'Very Good',
+      'Exceptional! ⭐',
+    ];
+
+    final scoreText = ratingLabels[rating.clamp(0, 5)];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isPrimary ? const Color(0xFFFFFBEB) : const Color(0xFFFCFAF7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isPrimary
+              ? _primaryGold.withValues(alpha: 0.5)
+              : Colors.grey.shade200,
+          width: isPrimary ? 1.4 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 16,
+                    color: isPrimary ? _primaryGold : _forestGreen,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: rating > 0
+                      ? Colors.amber.withValues(alpha: 0.15)
+                      : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  rating > 0 ? '$rating ★  $scoreText' : 'Not rated',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: rating > 0 ? const Color(0xFFB45309) : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (int i = 1; i <= 5; i++)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onRatingChanged(i),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: AnimatedScale(
+                          scale: i <= rating ? 1.08 : 0.95,
+                          duration: const Duration(milliseconds: 150),
+                          child: Icon(
+                            i <= rating
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: i <= rating
+                                ? const Color(0xFFF59E0B)
+                                : Colors.grey.shade300,
+                            size: 32,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Compact Booking Event Selector
+  Widget _buildCompactEventSelector() {
+    if (_selectedReservation == null) return const SizedBox.shrink();
+
+    final eventType = _selectedReservation!['event_type'] ?? 'Dining Reservation';
+    final date = _selectedReservation!['event_date'] ?? '';
+    final time = _selectedReservation!['start_time'] ?? '';
+    final guests = _selectedReservation!['guest_count']?.toString() ?? '1';
+    final hasMultiple = _pastReservations.length > 1;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _primaryGold.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: hasMultiple ? _showEventPickerBottomSheet : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  // Gold Emblem Icon
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          _warmGold.withValues(alpha: 0.2),
+                          _primaryGold.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      border: Border.all(color: _warmGold.withValues(alpha: 0.5)),
+                    ),
+                    child: const Icon(
+                      Icons.restaurant_rounded,
+                      color: _primaryGold,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Booking Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                eventType,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: const Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                            if (_existingReview != null) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  'Reviewed',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text(
+                              date,
+                              style: GoogleFonts.poppins(
+                                fontSize: 11.5,
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.access_time_rounded, size: 12, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text(
+                              time,
+                              style: GoogleFonts.poppins(
+                                fontSize: 11.5,
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.people_outline_rounded, size: 12, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$guests pax',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11.5,
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (hasMultiple) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _forestGreen.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _primaryGold.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Change',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _forestGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 14,
+                            color: _forestGreen,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Event Picker Bottom Sheet
+  void _showEventPickerBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 550),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Select Dining Booking',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF330505),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Choose which event you want to rate or review',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.55,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _pastReservations.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final reservation = _pastReservations[index];
+                      final isSelected = _selectedReservation?['id'] == reservation['id'];
+
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          setState(() {
+                            _selectedReservation = reservation;
+                          });
+                          _loadExistingReview(reservation['id']);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? _primaryGold.withValues(alpha: 0.1)
+                                : const Color(0xFFFCFAF7),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected ? _primaryGold : Colors.grey.shade200,
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.restaurant_rounded,
+                                color: isSelected ? _primaryGold : Colors.grey.shade500,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      reservation['event_type'] ?? 'Reservation',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                        fontSize: 13.5,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${reservation['event_date']} • ${reservation['start_time']} • ${reservation['guest_count'] ?? 1} guests',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: _primaryGold,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Empty State when user has no bookings
   Widget _buildEmptyState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 40),
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _primaryGold.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 25,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
+              color: _primaryGold.withValues(alpha: 0.1),
               shape: BoxShape.circle,
+              border: Border.all(color: _primaryGold.withValues(alpha: 0.4)),
             ),
-            child: Icon(Icons.rate_review_rounded, size: 72, color: AppTheme.primaryColor.withOpacity(0.5)),
+            child: const Icon(
+              Icons.rate_review_rounded,
+              size: 54,
+              color: _primaryGold,
+            ),
           ),
-          const SizedBox(height: 28),
-          const Text(
-            'No Completed Events',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppTheme.darkGrey, letterSpacing: -0.3),
+          const SizedBox(height: 20),
+          Text(
+            'No Dining Bookings Found',
+            style: GoogleFonts.playfairDisplay(
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              color: const Color(0xFF330505),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Complete a reservation to unlock feedback options.',
+            'Book an event or table reservation to share your dining experience and help us serve you better.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14, fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(
+              color: Colors.grey.shade600,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_rounded, size: 16),
+            label: Text(
+              'Back to Dashboard',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _forestGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           ),
         ],
       ),
