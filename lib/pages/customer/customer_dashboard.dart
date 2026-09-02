@@ -2125,17 +2125,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildDesktopSidebarColumn({bool closeable = false}) {
-
     final navItems = [
-
       {'icon': Icons.home_rounded, 'label': 'Home', 'subtitle': 'Dashboard'},
-
       {'icon': Icons.event_available_rounded, 'label': 'Reservations', 'subtitle': 'Book an event'},
-
       {'icon': Icons.monetization_on_rounded, 'label': 'Transaction', 'subtitle': 'Payment history'},
-
       {'icon': Icons.assignment_rounded, 'label': 'Activity', 'subtitle': 'Track orders'},
-
     ];
 
 
@@ -2413,9 +2407,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               child: GestureDetector(
 
                 onTap: () {
-
                   HapticFeedback.selectionClick();
-
                   _onSelectTab(index);
                   if (closeable) {
                     setState(() {
@@ -2423,7 +2415,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       _sidebarAnimController.reverse();
                     });
                   }
-
                 },
 
                 child: AnimatedContainer(
@@ -4366,10 +4357,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 if (items.isEmpty) return const SizedBox.shrink();
                 return _buildMenuCategoryBlock(category, items);
               }),
-              if (_isEligibleForReview) ...[
-                const SizedBox(height: 16),
-                _buildFeedbackSection(),
-              ],
               const SizedBox(height: 24),
             ],
           ),
@@ -4385,23 +4372,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildFeedbackSection() {
-
+    final isMobile = ResponsiveUtils.isMobile(context);
     final hasReview = _customerReview != null;
-
     final rating = hasReview ? (_customerReview!['rating'] as num?)?.toDouble() ?? 0.0 : 0.0;
 
-
-
     return Container(
-
-      padding: const EdgeInsets.all(24),
-
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: AppTheme.cardDecoration(),
-
       child: Column(
-
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
 
           Row(
@@ -4536,19 +4515,57 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   if (_customerReview!['review_text'] != null && _customerReview!['review_text'].toString().isNotEmpty) ...[
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
-                    Text(
+                    Container(
 
-                      '"${_customerReview!['review_text']}"',
+                      padding: const EdgeInsets.all(12),
 
-                      style: TextStyle(
+                      decoration: BoxDecoration(
 
-                        fontStyle: FontStyle.italic,
+                        color: Colors.white,
 
-                        color: AppTheme.darkGrey.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(8),
 
-                        fontSize: 13,
+                        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+
+                      ),
+
+                      child: Row(
+
+                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                        children: [
+
+                          const Icon(Icons.format_quote_rounded, color: AppTheme.primaryColor, size: 24),
+
+                          const SizedBox(width: 8),
+
+                          Expanded(
+
+                            child: Text(
+
+                              _customerReview!['review_text'].toString(),
+
+                              style: const TextStyle(
+
+                                fontSize: 15,
+
+                                color: AppTheme.darkGrey,
+
+                                height: 1.4,
+
+                                fontStyle: FontStyle.italic,
+
+                                fontWeight: FontWeight.w500,
+
+                              ),
+
+                            ),
+
+                          ),
+
+                        ],
 
                       ),
 
@@ -6038,46 +6055,53 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  // ── Profile Section (Clean Centered Card Layout) ──
   Widget _buildProfileSection() {
     final currentUser = Supabase.instance.client.auth.currentUser;
     final name = _getUserDisplayName();
     final email = currentUser?.email ?? 'Not provided';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      child: Padding(
-        padding: ResponsiveUtils.getResponsivePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Realistic VIP Patron Card Header
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF14332E), Color(0xFF1B3D37)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF14332E).withValues(alpha: 0.28),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 16 : 24,
+              vertical: isMobile ? 18 : 24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Luxury Profile Header Card ──
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 18 : 22),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF14332E), Color(0xFF1A453E)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFF1E4A42), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF14332E).withValues(alpha: 0.22),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
+                  child: Row(
                     children: [
                       Hero(
                         tag: 'profile_avatar_large',
                         child: Container(
-                          width: 74,
-                          height: 74,
+                          width: isMobile ? 66 : 74,
+                          height: isMobile ? 66 : 74,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: AppTheme.warmGold, width: 2.5),
@@ -6099,7 +6123,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                   child: Text(
                                     initial,
                                     style: GoogleFonts.lora(
-                                      fontSize: 30,
+                                      fontSize: isMobile ? 26 : 28,
                                       fontWeight: FontWeight.w700,
                                       color: AppTheme.warmGold,
                                     ),
@@ -6108,45 +6132,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               : null,
                         ),
                       ),
-                      const SizedBox(width: 18),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                              decoration: BoxDecoration(
-                                gradient: AppTheme.goldGradient,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.stars_rounded, size: 13, color: AppTheme.darkBrownText),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'VIP PATRON',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppTheme.darkBrownText,
-                                      letterSpacing: 0.6,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 6),
                             Text(
                               name,
                               style: GoogleFonts.lora(
-                                fontSize: 20,
+                                fontSize: isMobile ? 18 : 20,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                                 letterSpacing: -0.3,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Text(
                               email,
                               style: GoogleFonts.inter(
@@ -6154,113 +6156,157 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 color: Colors.white.withValues(alpha: 0.75),
                                 fontWeight: FontWeight.w500,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () async {
+                            await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                            if (mounted) setState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  if (currentUser?.userMetadata?['avatar_url'] == null) ...[
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: InkWell(
+                ),
+                const SizedBox(height: 16),
+                // ── Member Stats Row ──
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildProfileStat(
+                          '${customerReservations.length}',
+                          'Total Bookings',
+                          Icons.event_available_rounded,
+                        ),
+                      ),
+                      _buildProfileDivider(),
+                      Expanded(
+                        child: _buildProfileStat(
+                          DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toUtc().toIso8601String())),
+                          'Member Since',
+                          Icons.calendar_today_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'ACCOUNT & SETTINGS',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF64748B),
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // ── Grouped Settings Card ──
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      _buildSettingsTile(
+                        icon: Icons.person_outline_rounded,
+                        title: 'Edit Profile',
                         onTap: () async {
                           await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
                           if (mounted) setState(() {});
                         },
-                        child: Text(
-                          'Update profile details or avatar →',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: AppTheme.warmGold,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            // Member Stats Row
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.cardBorder, width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                      const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                      if (currentUser?.appMetadata['provider'] == 'email') ...[
+                        _buildSettingsTile(
+                          icon: Icons.lock_outline_rounded,
+                          title: 'Change Password',
+                          onTap: _showChangePasswordDialog,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                      ],
+                      _buildSettingsTile(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Transaction History',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => TransactionsPage(initialTransactions: customerReservations),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildProfileStat('${customerReservations.length}', 'Total Bookings', Icons.event_seat_rounded),
-                  _buildProfileDivider(),
-                  _buildProfileStat(
-                    DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toUtc().toIso8601String())),
-                    'Member Since',
-                    Icons.verified_user_rounded,
+                ),
+                const SizedBox(height: 16),
+                // ── Log Out Action Tile ──
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'ACCOUNT & PREFERENCES',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.mediumGrey,
-                letterSpacing: 1.1,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Menu Cards
-            _buildAccountMenuCard(
-              icon: Icons.person_outline_rounded,
-              title: 'Edit Profile',
-              subtitle: 'Update your contact information and display name',
-              onTap: () async {
-                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
-                if (mounted) setState(() {});
-              },
-            ),
-            if (currentUser?.appMetadata['provider'] == 'email')
-              _buildAccountMenuCard(
-                icon: Icons.lock_outline_rounded,
-                title: 'Change Password',
-                subtitle: 'Update your account security and authentication',
-                onTap: _showChangePasswordDialog,
-              ),
-            _buildAccountMenuCard(
-              icon: Icons.history_rounded,
-              title: 'Transaction History',
-              subtitle: 'View receipts, payments, and past event orders',
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => TransactionsPage(initialTransactions: customerReservations),
+                  clipBehavior: Clip.antiAlias,
+                  child: _buildSettingsTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Log Out',
+                    isDestructive: true,
+                    onTap: _showLogoutDialog,
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-            const SizedBox(height: 8),
-            _buildAccountMenuCard(
-              icon: Icons.logout_rounded,
-              title: 'Log Out',
-              subtitle: 'Securely sign out of your Yang Chow account',
-              isDestructive: true,
-              onTap: _showLogoutDialog,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -6268,6 +6314,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   Widget _buildProfileStat(String value, String label, IconData icon) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
@@ -6275,7 +6322,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             color: AppTheme.forestGreen.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 20, color: AppTheme.forestGreen),
+          child: Icon(icon, size: 18, color: AppTheme.forestGreen),
         ),
         const SizedBox(width: 10),
         Column(
@@ -6284,7 +6331,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             Text(
               value,
               style: GoogleFonts.inter(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.darkGrey,
               ),
@@ -6305,342 +6352,360 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   Widget _buildProfileDivider() {
     return Container(
-      height: 36,
+      height: 32,
       width: 1,
-      color: AppTheme.cardBorder,
+      color: const Color(0xFFE2E8F0),
     );
   }
 
-
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDestructive
+                      ? const Color(0xFFFEF2F2)
+                      : AppTheme.forestGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: isDestructive
+                      ? const Color(0xFFDC2626)
+                      : AppTheme.forestGreen,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDestructive
+                        ? const Color(0xFFDC2626)
+                        : AppTheme.darkGrey,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: isDestructive
+                    ? const Color(0xFFFCA5A5)
+                    : const Color(0xFF94A3B8),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showChangePasswordDialog() {
-
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
     final TextEditingController newPasswordController = TextEditingController();
-
     final TextEditingController confirmPasswordController = TextEditingController();
-
     bool isPasswordVisible = false;
-
     bool isConfirmVisible = false;
-
     bool isUpdating = false;
 
-
-
     showDialog(
-
       context: context,
-
       barrierDismissible: !isUpdating,
-
       builder: (context) => StatefulBuilder(
-
         builder: (context, setDialogState) {
-
-          return AlertDialog(
-
-            titlePadding: EdgeInsets.zero,
-
-            contentPadding: EdgeInsets.zero,
-
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-
-            title: Container(
-
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-
-              decoration: BoxDecoration(
-
-                color: AppTheme.primaryColor,
-
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-
-              ),
-
-              child: Row(
-
-                children: [
-
-                  const Icon(Icons.lock_rounded, color: Colors.white, size: 24),
-
-                  const SizedBox(width: 12),
-
-                  const Text(
-
-                    'Change Password',
-
-                    style: TextStyle(
-
-                      color: Colors.white,
-
-                      fontSize: 18,
-
-                      fontWeight: FontWeight.bold,
-
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Modern Emerald Banner Header ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF14332E), Color(0xFF1A453E)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: const Icon(Icons.lock_reset_rounded, color: Colors.white, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Change Password',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          if (!isUpdating)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                              onPressed: () => Navigator.pop(context),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              splashRadius: 18,
+                            ),
+                        ],
+                      ),
                     ),
 
-                  ),
-
-                ],
-
-              ),
-
-            ),
-
-            content: SingleChildScrollView(
-
-              child: Padding(
-
-                padding: const EdgeInsets.all(24),
-
-                child: Form(
-
-                  key: formKey,
-
-                  child: Column(
-
-                    mainAxisSize: MainAxisSize.min,
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-
-                      const Text(
-
-                        'New Password',
-
-                        style: TextStyle(
-
-                          fontWeight: FontWeight.bold,
-
-                          fontSize: 14,
-
-                          color: AppTheme.darkGrey,
-
-                        ),
-
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      TextFormField(
-
-                        controller: newPasswordController,
-
-                        obscureText: !isPasswordVisible,
-
-                        enabled: !isUpdating,
-
-                        decoration: InputDecoration(
-
-                          hintText: 'Enter new password',
-
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
-
-                          suffixIcon: IconButton(
-
-                            icon: Icon(
-
-                              isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-
-                              size: 20,
-
+                    // ── Form Content ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'New Password',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: const Color(0xFF334155),
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            TextFormField(
+                              controller: newPasswordController,
+                              obscureText: !isPasswordVisible,
+                              enabled: !isUpdating,
+                              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.darkGrey),
+                              decoration: InputDecoration(
+                                hintText: 'Enter new password',
+                                hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    isPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                    size: 19,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                  onPressed: () => setDialogState(() => isPasswordVisible = !isPasswordVisible),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.6),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFDC2626)),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Please enter a password';
+                                if (value.length < 8) return 'Minimum 8 characters required';
+                                if (!RegExp(r'[A-Z]').hasMatch(value)) return 'Must contain an uppercase letter';
+                                if (!RegExp(r'[a-z]').hasMatch(value)) return 'Must contain a lowercase letter';
+                                if (!RegExp(r'[0-9]').hasMatch(value)) return 'Must contain a number';
+                                if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]+').hasMatch(value)) return 'Must contain a special character';
+                                return null;
+                              },
                             ),
 
-                            onPressed: () => setDialogState(() => isPasswordVisible = !isPasswordVisible),
+                            const SizedBox(height: 16),
 
-                          ),
-
-                        ),
-
-                        validator: (value) {
-
-                          if (value == null || value.isEmpty) return 'Please enter a password';
-
-                          if (value.length < 8) return 'Minimum 8 characters required';
-
-                          if (!RegExp(r'[A-Z]').hasMatch(value)) return 'Must contain an uppercase letter';
-
-                          if (!RegExp(r'[a-z]').hasMatch(value)) return 'Must contain a lowercase letter';
-
-                          if (!RegExp(r'[0-9]').hasMatch(value)) return 'Must contain a number';
-
-                          if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(value)) return 'Must contain a special character';
-
-                          return null;
-
-                        },
-
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      const Text(
-
-                        'Confirm New Password',
-
-                        style: TextStyle(
-
-                          fontWeight: FontWeight.bold,
-
-                          fontSize: 14,
-
-                          color: AppTheme.darkGrey,
-
-                        ),
-
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      TextFormField(
-
-                        controller: confirmPasswordController,
-
-                        obscureText: !isConfirmVisible,
-
-                        enabled: !isUpdating,
-
-                        decoration: InputDecoration(
-
-                          hintText: 'Re-enter new password',
-
-                          prefixIcon: const Icon(Icons.verified_user_outlined),
-
-                          suffixIcon: IconButton(
-
-                            icon: Icon(
-
-                              isConfirmVisible ? Icons.visibility_off : Icons.visibility,
-
-                              size: 20,
-
+                            Text(
+                              'Confirm New Password',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: const Color(0xFF334155),
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            TextFormField(
+                              controller: confirmPasswordController,
+                              obscureText: !isConfirmVisible,
+                              enabled: !isUpdating,
+                              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.darkGrey),
+                              decoration: InputDecoration(
+                                hintText: 'Re-enter new password',
+                                hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                prefixIcon: const Icon(Icons.verified_user_outlined, size: 18, color: Color(0xFF64748B)),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    isConfirmVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                    size: 19,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                  onPressed: () => setDialogState(() => isConfirmVisible = !isConfirmVisible),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.6),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFDC2626)),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value != newPasswordController.text) return 'Passwords do not match';
+                                return null;
+                              },
                             ),
 
-                            onPressed: () => setDialogState(() => isConfirmVisible = !isConfirmVisible),
+                            const SizedBox(height: 22),
 
-                          ),
-
+                            // ── Action Buttons ──
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 1,
+                                  child: OutlinedButton(
+                                    onPressed: isUpdating ? null : () => Navigator.pop(context),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Text(
+                                      'Cancel',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: ElevatedButton(
+                                    onPressed: isUpdating
+                                        ? null
+                                        : () async {
+                                            if (formKey.currentState!.validate()) {
+                                              setDialogState(() => isUpdating = true);
+                                              try {
+                                                await Supabase.instance.client.auth.updateUser(
+                                                  UserAttributes(password: newPasswordController.text.trim()),
+                                                );
+                                                if (context.mounted) {
+                                                  Navigator.pop(context);
+                                                  _showSnackBar(
+                                                    'Password updated successfully!',
+                                                    AppTheme.successGreen,
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                setDialogState(() => isUpdating = false);
+                                                if (context.mounted) {
+                                                  _showSnackBar(
+                                                    'Error updating password: $e',
+                                                    AppTheme.errorRed,
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF14332E),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    child: isUpdating
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                          )
+                                        : Text(
+                                            'Update Password',
+                                            style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-
-                        validator: (value) {
-
-                          if (value != newPasswordController.text) return 'Passwords do not match';
-
-                          return null;
-
-                        },
-
                       ),
-
-                      if (isUpdating) ...[
-
-                        const SizedBox(height: 24),
-
-                        const Center(
-
-                          child: CircularProgressIndicator(color: AppTheme.primaryColor),
-
-                        ),
-
-                      ],
-
-                    ],
-
-                  ),
-
+                    ),
+                  ],
                 ),
-
               ),
-
             ),
-
-            actions: [
-
-              TextButton(
-
-                onPressed: isUpdating ? null : () => Navigator.pop(context),
-
-                child: Text(
-
-                  'Cancel',
-
-                  style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-
-                ),
-
-              ),
-
-              ElevatedButton(
-
-                onPressed: isUpdating ? null : () async {
-
-                  if (formKey.currentState!.validate()) {
-
-                    setDialogState(() => isUpdating = true);
-
-                    try {
-
-                      await Supabase.instance.client.auth.updateUser(
-
-                        UserAttributes(password: newPasswordController.text.trim()),
-
-                      );
-
-                      
-
-                      if (context.mounted) {
-                        Navigator.pop(context); // Close dialog
-                        _showSnackBar(
-                          'Password updated successfully!',
-                          AppTheme.successGreen,
-                        );
-                      }
-                    } catch (e) {
-                      setDialogState(() => isUpdating = false);
-                      if (context.mounted) {
-                        _showSnackBar(
-                          'Error updating password: $e',
-                          AppTheme.errorRed,
-                        );
-                      }
-                    }
-
-                  }
-
-                },
-
-                style: ElevatedButton.styleFrom(
-
-                  backgroundColor: AppTheme.primaryColor,
-
-                  foregroundColor: Colors.white,
-
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-
-                ),
-
-                child: const Text('Update Password'),
-
-              ),
-
-            ],
-
           );
-
         },
-
       ),
-
     );
-
   }
-
-
-
-
 
   Future<void> _fetchInventory() async {
 
@@ -9314,238 +9379,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  Widget _buildAccountMenuCard({
-
-    required IconData icon,
-
-
-
-    required String title,
-
-
-
-    required String subtitle,
-
-
-
-    required VoidCallback onTap,
-
-
-
-    bool isDestructive = false,
-
-  }) {
-
-    return Container(
-
-      margin: const EdgeInsets.only(bottom: 16),
-
-
-
-      decoration: BoxDecoration(
-
-        color: Colors.white,
-
-
-
-        borderRadius: BorderRadius.circular(16),
-
-
-
-        boxShadow: [
-
-          BoxShadow(
-
-            color: Colors.black.withValues(alpha: 0.04),
-
-
-
-            blurRadius: 10,
-
-
-
-            offset: const Offset(0, 4),
-
-          ),
-
-        ],
-
-      ),
-
-
-
-      child: Material(
-
-        color: Colors.transparent,
-
-
-
-        child: InkWell(
-
-          onTap: onTap,
-
-
-
-          borderRadius: BorderRadius.circular(16),
-
-
-
-          child: Padding(
-
-            padding: const EdgeInsets.all(16),
-
-
-
-            child: Row(
-
-              children: [
-
-                Container(
-
-                  padding: const EdgeInsets.all(12),
-
-
-
-                  decoration: BoxDecoration(
-
-                    color: isDestructive
-
-                        ? Colors.red.shade50
-
-                        : AppTheme.primaryColor.withValues(alpha: 0.07),
-
-
-
-                    shape: BoxShape.circle,
-
-                  ),
-
-
-
-                  child: Icon(
-
-                    icon,
-
-
-
-                    color: isDestructive
-
-                        ? Colors.red.shade600
-
-                        : AppTheme.primaryColor,
-
-
-
-                    size: 24,
-
-                  ),
-
-                ),
-
-
-
-                const SizedBox(width: 16),
-
-
-
-                Expanded(
-
-                  child: Column(
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
-                    children: [
-
-                      Text(
-
-                        title,
-
-
-
-                        style: TextStyle(
-
-                          fontSize: 16,
-
-
-
-                          fontWeight: FontWeight.bold,
-
-
-
-                          color: isDestructive
-
-                              ? Colors.red.shade600
-
-                              : AppTheme.darkGrey,
-
-                        ),
-
-                      ),
-
-
-
-                      const SizedBox(height: 2),
-
-
-
-                      Text(
-
-                        subtitle,
-
-
-
-                        style: TextStyle(
-
-                          fontSize: 13,
-
-
-
-                          color: Colors.grey.shade600,
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-
-
-                Icon(
-
-                  Icons.arrow_forward_ios_rounded,
-
-
-
-                  size: 16,
-
-
-
-                  color: Colors.grey.shade400,
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-        ),
-
-      ),
-
-    );
-
-  }
-
-
-
   Widget _buildActivitySection() {
     final activeBookings = customerReservations.where((r) {
       final status = r['status']?.toString().toLowerCase() ?? '';
@@ -10080,7 +9913,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       reservation['payment_status'] == 'fully_paid' ||
                       reservation['payment_status'] == 'pending_verification' ||
                       reservation['status'] == 'awaiting_verification';
-                  final status = reservation['status'] as String? ?? 'pending';
+                  final status = (reservation['status'] as String? ?? 'pending').toLowerCase().trim();
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 18),
@@ -10164,227 +9997,209 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    _buildStatusChip(status),
-                                    if ((status == 'confirmed' || status == 'pending') &&
-                                        !(isAdvanceOrder && isPaid)) ...[
-                                      const SizedBox(width: 2),
-                                      SizedBox(
-                                        width: 28,
-                                        height: 28,
-                                        child: PopupMenuButton<String>(
-                                          padding: EdgeInsets.zero,
-                                          icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 18),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                          onSelected: (String value) {
-                                            if (value == 'cancel') {
-                                              _showCancellationDialog(reservation);
-                                            } else if (value == 'reschedule') {
-                                              if (reservation['reschedule_status'] == 'pending_approval') {
-                                                _showSnackBar('A reschedule request is already pending approval.', Colors.orange);
-                                              } else if (reservation['reschedule_status'] == 'rescheduled') {
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (context) => AlertDialog(
-                                                    title: Text(
-                                                      'Reschedule Limit Reached',
-                                                      style: GoogleFonts.lora(fontWeight: FontWeight.bold, color: AppTheme.forestGreen),
-                                                    ),
-                                                    content: Text(
-                                                      'You can only reschedule a reservation once. If you need a different schedule, please cancel this booking and create a new one.',
-                                                      style: GoogleFonts.plusJakartaSans(color: Colors.black87),
-                                                    ),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () => Navigator.pop(context),
-                                                        child: Text('OK', style: GoogleFonts.plusJakartaSans(color: AppTheme.forestGreen, fontWeight: FontWeight.bold)),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              } else {
-                                                _showRescheduleDialog(reservation);
-                                              }
-                                            }
-                                          },
-                                          itemBuilder: (BuildContext context) => [
-                                            PopupMenuItem<String>(
-                                              value: 'reschedule',
-                                              child: Row(
-                                                children: [
-                                                  const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 16),
-                                                  const SizedBox(width: 10),
-                                                  Text(
-                                                    reservation['reschedule_status'] == 'pending_approval'
-                                                        ? 'Reschedule Pending'
-                                                        : (reservation['reschedule_status'] == 'reschedule_rejected' ||
-                                                                reservation['reschedule_status'] == 'rejected' ||
-                                                                reservation['reschedule_status'] == 'declined'
-                                                            ? 'Reschedule (Declined)'
-                                                            : 'Reschedule'),
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 13,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: reservation['reschedule_status'] == 'pending_approval'
-                                                          ? Colors.orange
-                                                          : null,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            PopupMenuItem<String>(
-                                              value: 'cancel',
-                                              child: Row(
-                                                children: [
-                                                  const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 16),
-                                                  const SizedBox(width: 10),
-                                                  Text(
-                                                    'Cancel Booking',
-                                                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626)),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
+                                     const SizedBox(width: 8),
+                                     _buildStatusChip(status),
+                                      const SizedBox(width: 10),
+                                      PopupMenuButton<String>(
+                                        padding: EdgeInsets.zero,
+                                        tooltip: 'Booking Options',
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
-                                      ),
-                                    ],
-                                  ],
-                                 ),
-                                 // ── Extra Badges Row (PAID / Pay button / E-Receipt / Review) ──
-                                 const SizedBox(height: 8),
-                                 Wrap(
-                                   spacing: 6,
-                                   runSpacing: 6,
-                                   children: [
-                                     if (isAdvanceOrder && status == 'confirmed' && !isPaid)
-                                       AnimatedTapScale(
-                                         onTap: () => _showPaymentDialog(reservation),
-                                         child: Container(
-                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                           decoration: BoxDecoration(
-                                             gradient: AppTheme.goldGradient,
-                                             borderRadius: BorderRadius.circular(10),
-                                             boxShadow: [
-                                               BoxShadow(
-                                                 color: AppTheme.warmGold.withValues(alpha: 0.35),
-                                                 blurRadius: 6,
-                                                 offset: const Offset(0, 2),
-                                               ),
-                                             ],
-                                           ),
-                                           child: Row(
-                                             mainAxisSize: MainAxisSize.min,
-                                             children: [
-                                               const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
-                                               const SizedBox(width: 4),
-                                               Text(
-                                                 'Pay Now',
-                                                 style: GoogleFonts.inter(
-                                                   fontSize: 11,
-                                                   fontWeight: FontWeight.w900,
-                                                   color: AppTheme.darkBrownText,
+                                        offset: const Offset(0, 38),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: Colors.white.withValues(alpha: 0.28),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.more_vert_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        ),
+                                         onSelected: (String value) {
+                                           if (value == 'receipt') {
+                                             _showOfficialReceiptDialog(reservation);
+                                           } else if (value == 'review') {
+                                             Navigator.push(
+                                               context,
+                                               MaterialPageRoute(
+                                                 builder: (_) => CustomerReviewsPage(
+                                                   reservationId: reservation['id']?.toString(),
                                                  ),
                                                ),
-                                             ],
-                                           ),
-                                         ),
-                                       ),
-                                     if (isPaid)
-                                       Container(
-                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                         decoration: BoxDecoration(
-                                           color: const Color(0xFF34C759).withValues(alpha: 0.2),
-                                           borderRadius: BorderRadius.circular(8),
-                                           border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
-                                         ),
-                                         child: Row(
-                                           mainAxisSize: MainAxisSize.min,
-                                           children: [
-                                             const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
-                                             const SizedBox(width: 4),
-                                             Text(
-                                               'PAID',
-                                               style: GoogleFonts.inter(
-                                                 color: const Color(0xFF86EFAC),
-                                                 fontSize: 10,
-                                                 fontWeight: FontWeight.w900,
-                                                 letterSpacing: 0.4,
-                                               ),
-                                             ),
-                                           ],
-                                         ),
-                                       ),
-                                     // E-Receipt Official Booking Slip Button
-                                     AnimatedTapScale(
-                                       onTap: () => _showOfficialReceiptDialog(reservation),
-                                       child: Container(
-                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                         decoration: BoxDecoration(
-                                           color: const Color(0xFFD9A441).withValues(alpha: 0.16),
-                                           borderRadius: BorderRadius.circular(8),
-                                           border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.45)),
-                                         ),
-                                         child: Row(
-                                           mainAxisSize: MainAxisSize.min,
-                                           children: [
-                                             const Icon(Icons.receipt_long_rounded, color: Color(0xFFD9A441), size: 12),
-                                             const SizedBox(width: 4),
-                                             Text(
-                                               'E-Receipt',
-                                               style: GoogleFonts.inter(
-                                                 color: const Color(0xFFD9A441),
-                                                 fontSize: 10,
-                                                 fontWeight: FontWeight.w800,
-                                               ),
-                                             ),
-                                           ],
-                                         ),
-                                       ),
-                                     ),
-                                     // Rate Dining Experience Button for Completed Orders/Reservations
-                                     if (status == 'completed' ||
-                                         status == 'done' ||
-                                         reservation['kitchen_status']?.toString().toLowerCase() == 'done')
-                                       AnimatedTapScale(
-                                         onTap: () {
-                                           Navigator.push(
-                                             context,
-                                             MaterialPageRoute(
-                                               builder: (_) => CustomerReviewsPage(
-                                                 reservationId: reservation['id']?.toString(),
-                                               ),
-                                             ),
-                                           );
+                                             ).then((_) => _loadReviewEligibility());
+                                           } else if (value == 'cancel') {
+                                             _showCancellationDialog(reservation);
+                                           } else if (value == 'reschedule') {
+                                             if (reservation['reschedule_status'] == 'pending_approval') {
+                                               _showSnackBar('A reschedule request is already pending approval.', Colors.orange);
+                                             } else if (reservation['reschedule_status'] == 'rescheduled') {
+                                               showDialog(
+                                                 context: context,
+                                                 builder: (context) => AlertDialog(
+                                                   title: Text(
+                                                     'Reschedule Limit Reached',
+                                                     style: GoogleFonts.lora(fontWeight: FontWeight.bold, color: AppTheme.forestGreen),
+                                                   ),
+                                                   content: Text(
+                                                     'You can only reschedule a reservation once. If you need a different schedule, please cancel this booking and create a new one.',
+                                                     style: GoogleFonts.plusJakartaSans(color: Colors.black87),
+                                                   ),
+                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                   actions: [
+                                                     TextButton(
+                                                       onPressed: () => Navigator.pop(context),
+                                                       child: Text('OK', style: GoogleFonts.plusJakartaSans(color: AppTheme.forestGreen, fontWeight: FontWeight.bold)),
+                                                     ),
+                                                   ],
+                                                 ),
+                                               );
+                                             } else {
+                                               _showRescheduleDialog(reservation);
+                                             }
+                                           }
                                          },
-                                         child: Container(
-                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                           decoration: BoxDecoration(
-                                             color: const Color(0xFF007AFF).withValues(alpha: 0.15),
-                                             borderRadius: BorderRadius.circular(8),
-                                             border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.4)),
+                                         itemBuilder: (BuildContext context) => [
+                                           PopupMenuItem<String>(
+                                             value: 'receipt',
+                                             child: Row(
+                                               children: [
+                                                 const Icon(Icons.receipt_long_rounded, color: Color(0xFFD9A441), size: 16),
+                                                 const SizedBox(width: 10),
+                                                 Text('View E-Receipt', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                                               ],
+                                             ),
                                            ),
-                                           child: Row(
-                                             mainAxisSize: MainAxisSize.min,
-                                             children: [
-                                               const Icon(Icons.star_rounded, color: Color(0xFF38BDF8), size: 12),
-                                               const SizedBox(width: 4),
-                                               Text(
-                                                 'Rate Dining',
-                                                 style: GoogleFonts.inter(
-                                                   color: const Color(0xFF38BDF8),
-                                                   fontSize: 10,
-                                                   fontWeight: FontWeight.w800,
-                                                 ),
+                                           if (status != 'cancelled' && status != 'rejected' && status != 'declined')
+                                             PopupMenuItem<String>(
+                                               value: 'review',
+                                               child: Row(
+                                                 children: [
+                                                   const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                                                   const SizedBox(width: 10),
+                                                   Text('Rate & Review', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                                                 ],
                                                ),
-                                             ],
-                                           ),
-                                         ),
+                                             ),
+                                           if ((status == 'confirmed' || status == 'pending') && !(isAdvanceOrder && isPaid)) ...[
+                                             PopupMenuItem<String>(
+                                               value: 'reschedule',
+                                               child: Row(
+                                                 children: [
+                                                   const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 16),
+                                                   const SizedBox(width: 10),
+                                                   Text(
+                                                     reservation['reschedule_status'] == 'pending_approval'
+                                                         ? 'Reschedule Pending'
+                                                         : (reservation['reschedule_status'] == 'reschedule_rejected' ||
+                                                                 reservation['reschedule_status'] == 'rejected' ||
+                                                                 reservation['reschedule_status'] == 'declined'
+                                                             ? 'Reschedule (Declined)'
+                                                             : 'Reschedule Booking'),
+                                                     style: GoogleFonts.inter(
+                                                       fontSize: 13,
+                                                       fontWeight: FontWeight.w600,
+                                                       color: reservation['reschedule_status'] == 'pending_approval'
+                                                           ? Colors.orange
+                                                           : null,
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                             PopupMenuItem<String>(
+                                               value: 'cancel',
+                                               child: Row(
+                                                 children: [
+                                                   const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 16),
+                                                   const SizedBox(width: 10),
+                                                   Text(
+                                                     'Cancel Booking',
+                                                     style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626)),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                           ],
+                                         ],
                                        ),
                                    ],
                                  ),
+                                 // ── Extra Badges Row (PAID / Pay button only) ──
+                                 if ((isAdvanceOrder && status == 'confirmed' && !isPaid) || isPaid) ...[
+                                   const SizedBox(height: 8),
+                                   Wrap(
+                                     spacing: 6,
+                                     runSpacing: 6,
+                                     children: [
+                                       if (isAdvanceOrder && status == 'confirmed' && !isPaid)
+                                         AnimatedTapScale(
+                                           onTap: () => _showPaymentDialog(reservation),
+                                           child: Container(
+                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                             decoration: BoxDecoration(
+                                               gradient: AppTheme.goldGradient,
+                                               borderRadius: BorderRadius.circular(10),
+                                               boxShadow: [
+                                                 BoxShadow(
+                                                   color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                                   blurRadius: 6,
+                                                   offset: const Offset(0, 2),
+                                                 ),
+                                               ],
+                                             ),
+                                             child: Row(
+                                               mainAxisSize: MainAxisSize.min,
+                                               children: [
+                                                 const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
+                                                 const SizedBox(width: 4),
+                                                 Text(
+                                                   'Pay Now',
+                                                   style: GoogleFonts.inter(
+                                                     fontSize: 11,
+                                                     fontWeight: FontWeight.w900,
+                                                     color: AppTheme.darkBrownText,
+                                                   ),
+                                                 ),
+                                               ],
+                                             ),
+                                           ),
+                                         ),
+                                       if (isPaid)
+                                         Container(
+                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                           decoration: BoxDecoration(
+                                             color: const Color(0xFF34C759).withValues(alpha: 0.2),
+                                             borderRadius: BorderRadius.circular(8),
+                                             border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
+                                           ),
+                                           child: Row(
+                                             mainAxisSize: MainAxisSize.min,
+                                             children: [
+                                               const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
+                                               const SizedBox(width: 4),
+                                               Text(
+                                                 'PAID',
+                                                 style: GoogleFonts.inter(
+                                                   color: const Color(0xFF86EFAC),
+                                                   fontSize: 10,
+                                                   fontWeight: FontWeight.w900,
+                                                   letterSpacing: 0.4,
+                                                 ),
+                                               ),
+                                             ],
+                                           ),
+                                         ),
+                                     ],
+                                   ),
+                                 ],
                                 // ── Reschedule Status Badge Row ──
                                 if (reservation['reschedule_status'] == 'pending_approval' ||
                                     reservation['reschedule_status'] == 'reschedule_rejected' ||

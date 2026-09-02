@@ -949,13 +949,12 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     );
   }
 
-  // ─── Yang Chow Luxury Emerald Green & Gold Theme Palette ───────────
-  static const Color _forestGreen = Color(0xFF14332E); // Deep Emerald
-  static const Color _activeEmerald = Color(0xFF1E4D40); // Active Emerald
-  static const Color _warmGold = Color(0xFFD9A441); // Muted Gold Accent
-  static const Color _primaryGold = Color(0xFFC9922E); // Primary Gold Accent
-  static const Color _darkForest = Color(0xFF0D231F); // Dark Forest
-  static const Color _deepBurgundy = Color(0xFF071512); // Deep Jade Shadow
+  // ─── Yang Chow Luxury Palette matching LoginPage & Password Reset ───────────
+  static const Color _forestGreen = Color(0xFF14332E);
+  static const Color _warmGold = Color(0xFFD9A441);
+  static const Color _primaryGold = Color(0xFFC9922E);
+  static const Color _darkForest = Color(0xFF0F221E);
+  static const Color _deepBurgundy = Color(0xFF1E0B0B);
 
   @override
   Widget build(BuildContext context) {
@@ -970,11 +969,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withOpacity(0.3),
-                  border: Border.all(color: _warmGold.withOpacity(0.5), width: 1.5),
+                  color: Colors.black.withValues(alpha: 0.3),
+                  border: Border.all(color: _warmGold.withValues(alpha: 0.5), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: _warmGold.withOpacity(0.2),
+                      color: _warmGold.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -1024,6 +1023,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             child: Image.asset(
               'assets/images/YangChow.jpg',
               fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF220505)),
             ),
           ),
           Positioned.fill(
@@ -1033,15 +1033,16 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _deepBurgundy.withOpacity(0.94),
-                    _darkForest.withOpacity(0.90),
-                    _forestGreen.withOpacity(0.86),
-                    const Color(0xFF04120E).withOpacity(0.96),
+                    const Color(0xFF280505).withValues(alpha: 0.93),
+                    const Color(0xFF6E0D0D).withValues(alpha: 0.88),
+                    const Color(0xFF8C1414).withValues(alpha: 0.84),
+                    const Color(0xFF1E0303).withValues(alpha: 0.95),
                   ],
                 ),
               ),
             ),
           ),
+          // Subtle ambient gold glow top-right
           Positioned(
             top: -100,
             right: -100,
@@ -1052,24 +1053,43 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _primaryGold.withOpacity(0.25),
+                    _primaryGold.withValues(alpha: 0.28),
                     Colors.transparent,
                   ],
                 ),
               ),
             ),
           ),
+          // Ambient rich red glow bottom-left
           Positioned(
             bottom: -80,
             left: -80,
             child: Container(
-              width: 300,
-              height: 300,
+              width: 320,
+              height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _warmGold.withOpacity(0.18),
+                    const Color(0xFFBA1717).withValues(alpha: 0.35),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Ambient center warm crimson glow
+          Positioned(
+            top: 250,
+            right: -50,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF8C1414).withValues(alpha: 0.25),
                     Colors.transparent,
                   ],
                 ),
@@ -1121,14 +1141,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.black.withOpacity(0.25),
+                              color: Colors.black.withValues(alpha: 0.25),
                               border: Border.all(
-                                color: _warmGold.withOpacity(0.4),
+                                color: _warmGold.withValues(alpha: 0.4),
                                 width: 2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _warmGold.withOpacity(0.25),
+                                  color: _warmGold.withValues(alpha: 0.25),
                                   blurRadius: 40,
                                   spreadRadius: 4,
                                 ),
@@ -1151,7 +1171,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                               letterSpacing: 3,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.6),
+                                  color: Colors.black.withValues(alpha: 0.6),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
@@ -1175,10 +1195,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.25),
+                              color: Colors.black.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _primaryGold.withOpacity(0.3),
+                                color: _primaryGold.withValues(alpha: 0.3),
                               ),
                             ),
                             child: Wrap(
@@ -1212,17 +1232,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: _primaryGold.withOpacity(0.4),
+                            color: _primaryGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.35),
+                              color: Colors.black.withValues(alpha: 0.35),
                               blurRadius: 30,
                               offset: const Offset(0, 15),
                             ),
                             BoxShadow(
-                              color: _primaryGold.withOpacity(0.15),
+                              color: _primaryGold.withValues(alpha: 0.15),
                               blurRadius: 20,
                               spreadRadius: 1,
                             ),
@@ -1280,14 +1300,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.25),
+                    color: Colors.black.withValues(alpha: 0.25),
                     border: Border.all(
-                      color: _warmGold.withOpacity(0.4),
+                      color: _warmGold.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _warmGold.withOpacity(0.2),
+                        color: _warmGold.withValues(alpha: 0.2),
                         blurRadius: 25,
                       ),
                     ],
@@ -1315,17 +1335,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: _primaryGold.withOpacity(0.4),
+                      color: _primaryGold.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.35),
+                        color: Colors.black.withValues(alpha: 0.35),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
                       BoxShadow(
-                        color: _primaryGold.withOpacity(0.15),
+                        color: _primaryGold.withValues(alpha: 0.15),
                         blurRadius: 20,
                       ),
                     ],
@@ -1388,14 +1408,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                         padding: EdgeInsets.all(isSmallPhone ? 10 : 12),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withOpacity(0.25),
+                          color: Colors.black.withValues(alpha: 0.25),
                           border: Border.all(
-                            color: _warmGold.withOpacity(0.4),
+                            color: _warmGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: _warmGold.withOpacity(0.2),
+                              color: _warmGold.withValues(alpha: 0.2),
                               blurRadius: 20,
                             ),
                           ],
@@ -1423,17 +1443,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: _primaryGold.withOpacity(0.4),
+                            color: _primaryGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 25,
                               offset: const Offset(0, 10),
                             ),
                             BoxShadow(
-                              color: _primaryGold.withOpacity(0.12),
+                              color: _primaryGold.withValues(alpha: 0.12),
                               blurRadius: 15,
                             ),
                           ],
@@ -1484,74 +1504,81 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Role Indicator Badge
         Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: _forestGreen.withOpacity(0.08),
+              color: _forestGreen.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: _primaryGold.withOpacity(0.5),
+                color: _primaryGold.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.person_add_alt_1, size: 14, color: _forestGreen),
-                const SizedBox(width: 6),
+                const Icon(Icons.person_add_alt_1, size: 13, color: _forestGreen),
+                const SizedBox(width: 5),
                 Text(
                   'CREATE ACCOUNT',
                   style: GoogleFonts.poppins(
                     color: _forestGreen,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                    fontSize: 11,
+                    letterSpacing: 1.1,
+                    fontSize: 10.5,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Welcome Header
         Text(
           'Join Yang Chow',
           textAlign: TextAlign.center,
           style: GoogleFonts.playfairDisplay(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             color: const Color(0xFF0F2B24),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           'Create an account to start ordering & reserving',
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
-            fontSize: 12,
+            fontSize: 11.5,
             color: Colors.grey.shade600,
             fontWeight: FontWeight.w400,
           ),
         ),
-        const SizedBox(height: 20),
-
-        // First Name Input
-        _buildInputField(
-          controller: firstNameController,
-          hint: 'First Name',
-          icon: Icons.person_outline,
-          validator: _validateFirstName,
-        ),
         const SizedBox(height: 14),
 
-        // Last Name Input
-        _buildInputField(
-          controller: lastNameController,
-          hint: 'Last Name',
-          icon: Icons.person_outline,
-          validator: _validateLastName,
+        // First Name & Last Name (Side by Side 2-Column Row)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildInputField(
+                controller: firstNameController,
+                hint: 'First Name',
+                icon: Icons.person_outline,
+                validator: _validateFirstName,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildInputField(
+                controller: lastNameController,
+                hint: 'Last Name',
+                icon: Icons.person_outline,
+                validator: _validateLastName,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Phone Number Input
         _buildInputField(
@@ -1565,7 +1592,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             LengthLimitingTextInputFormatter(11),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Email Input with Verify button
         Row(
@@ -1580,14 +1607,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 keyboardType: TextInputType.emailAddress,
                 enabled: !_isLoading && !_isEmailVerified,
                 suffixIcon: _isEmailVerified
-                    ? const Icon(Icons.verified, color: Colors.green, size: 20)
+                    ? const Icon(Icons.verified, color: Colors.green, size: 18)
                     : null,
               ),
             ),
             if (!_isEmailVerified) ...[
               const SizedBox(width: 8),
               SizedBox(
-                height: 48,
+                height: 44,
                 child: ElevatedButton(
                   onPressed: _isVerifyingEmail || _isLoading
                       ? null
@@ -1597,15 +1624,15 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                     foregroundColor: const Color(0xFFFFFAEB),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     elevation: 0,
-                    side: BorderSide(color: _warmGold.withOpacity(0.5)),
+                    side: BorderSide(color: _warmGold.withValues(alpha: 0.5)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   child: _isVerifyingEmail
                       ? const SizedBox(
-                          width: 16,
-                          height: 16,
+                          width: 15,
+                          height: 15,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
@@ -1628,23 +1655,23 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         ),
         if (_isEmailVerified)
           Padding(
-            padding: const EdgeInsets.only(top: 6, left: 4),
+            padding: const EdgeInsets.only(top: 4, left: 4),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 14),
-                const SizedBox(width: 6),
+                const Icon(Icons.check_circle, color: Colors.green, size: 13),
+                const SizedBox(width: 5),
                 Text(
                   'Verified Email Address',
                   style: GoogleFonts.poppins(
                     color: Colors.green.shade700,
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Password Input
         _buildInputField(
@@ -1659,13 +1686,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
               color: Colors.grey.shade600,
-              size: 19,
+              size: 18,
             ),
             onPressed: () =>
                 setState(() => _isPasswordVisible = !_isPasswordVisible),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         // Confirm Password Input
         _buildInputField(
@@ -1680,21 +1707,21 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
               color: Colors.grey.shade600,
-              size: 19,
+              size: 18,
             ),
             onPressed: () => setState(
               () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // Terms and Conditions
+        // Terms and Conditions Checkbox
         Row(
           children: [
             SizedBox(
-              width: 20,
-              height: 20,
+              width: 18,
+              height: 18,
               child: Checkbox(
                 value: _agreeToTerms,
                 onChanged: _isLoading
@@ -1714,14 +1741,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: GestureDetector(
                 onTap: _showTermsAndConditionsModal,
                 child: Text(
                   'I agree to the Terms and Conditions',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1730,14 +1757,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
         // Privacy Policy Checkbox
         Row(
           children: [
             SizedBox(
-              width: 20,
-              height: 20,
+              width: 18,
+              height: 18,
               child: Checkbox(
                 value: _agreeToPrivacy,
                 onChanged: _isLoading
@@ -1757,14 +1784,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: GestureDetector(
                 onTap: _showPrivacyPolicyModal,
                 child: Text(
                   'I agree to the Privacy Policy',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1773,28 +1800,28 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             ),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
 
-        // Register Button with Emerald & Gold Theme
+        // Register Button matching LoginPage
         Container(
-          height: 48,
+          height: 46,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             gradient: const LinearGradient(
               colors: [
                 _forestGreen,
-                _activeEmerald,
+                Color(0xFFBA1717),
                 _darkForest,
               ],
             ),
             border: Border.all(
-              color: _warmGold.withOpacity(0.55),
+              color: _warmGold.withValues(alpha: 0.55),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: _forestGreen.withOpacity(0.4),
-                blurRadius: 14,
+                color: _forestGreen.withValues(alpha: 0.4),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -1807,11 +1834,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               child: Center(
                 child: _isLoading
                     ? const SizedBox(
-                        height: 22,
-                        width: 22,
+                        height: 20,
+                        width: 20,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          valueColor: AlwaysStoppedAnimation<Color>(_warmGold),
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : Row(
@@ -1822,15 +1849,15 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                             style: GoogleFonts.poppins(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w700,
-                              letterSpacing: 1.5,
-                              color: const Color(0xFFFFFAEB),
+                              letterSpacing: 1.3,
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(width: 6),
                           const Icon(
                             Icons.arrow_forward,
-                            size: 16,
-                            color: _warmGold,
+                            size: 15,
+                            color: Colors.white,
                           ),
                         ],
                       ),
@@ -1838,7 +1865,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
 
         // Back to Login Link
         Wrap(
@@ -1848,7 +1875,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             Text(
               'Already have an account? ',
               style: GoogleFonts.poppins(
-                fontSize: 12.5,
+                fontSize: 12,
                 color: Colors.grey.shade600,
               ),
             ),
@@ -1858,7 +1885,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 'Log In',
                 style: GoogleFonts.poppins(
                   color: _forestGreen,
-                  fontSize: 12.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   decoration: TextDecoration.underline,
                   decorationColor: _forestGreen,
@@ -1889,17 +1916,21 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       validator: validator,
       keyboardType: keyboardType,
       inputFormatters: formatters,
-      style: GoogleFonts.poppins(fontSize: 13.5, fontWeight: FontWeight.w500, color: Colors.black87),
+      style: GoogleFonts.poppins(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        color: Colors.black87,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 13),
-        prefixIcon: Icon(icon, color: _primaryGold, size: 19),
+        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 12.5),
+        prefixIcon: Icon(icon, color: _primaryGold, size: 18),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: const Color(0xFFFCFAF7),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
+          horizontal: 12,
+          vertical: 11,
         ),
         border: OutlineInputBorder(
           borderRadius: const BorderRadius.all(Radius.circular(10)),
@@ -1921,7 +1952,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           borderRadius: BorderRadius.all(Radius.circular(10)),
           borderSide: BorderSide(color: Colors.red, width: 1.8),
         ),
-        errorStyle: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w500),
+        errorStyle: GoogleFonts.poppins(fontSize: 10.5, fontWeight: FontWeight.w500),
       ),
     );
   }

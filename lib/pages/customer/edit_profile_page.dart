@@ -1,9 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -101,20 +102,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Phone Number Changed'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.phone_android_rounded, color: AppTheme.primaryColor),
+                const SizedBox(width: 10),
+                Text(
+                  'Confirm Phone Update',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
+                ),
+              ],
+            ),
             content: Text(
               previousPhone.isEmpty
-                  ? 'You added a new phone number. Do you want to save it?'
-                  : 'You want to change your phone number from $previousPhone to $currentPhone. Do you want to save this update?',
+                  ? 'You added $currentPhone as your phone number. Do you want to save it?'
+                  : 'You are updating your phone number from $previousPhone to $currentPhone. Do you want to continue?',
+              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.darkGrey),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppTheme.mediumGrey)),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Confirm'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.forestGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text('Confirm', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -127,41 +144,82 @@ class _EditProfilePageState extends State<EditProfilePage> {
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(24, 20, 24, 10),
-                child: Text(
-                  'Profile Photo',
-                  style: TextStyle(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Upload Profile Photo',
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: AppTheme.darkGrey,
                   ),
                 ),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_rounded,
-                  color: AppTheme.primaryColor,
+                const SizedBox(height: 4),
+                Text(
+                  'Choose where to select your new profile picture',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppTheme.mediumGrey,
+                  ),
                 ),
-                title: const Text('Upload Image'),
-                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.camera_alt_rounded,
-                  color: AppTheme.primaryColor,
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: const Color(0xFFF8FAFC),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.forestGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.photo_library_rounded, color: AppTheme.forestGreen, size: 20),
+                  ),
+                  title: Text('Choose from Gallery', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+                  subtitle: Text('Pick an existing photo or image', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mediumGrey)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.mediumGrey),
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
                 ),
-                title: const Text('Take Photo'),
-                onTap: () => Navigator.of(context).pop(ImageSource.camera),
-              ),
-              const SizedBox(height: 10),
-            ],
+                const SizedBox(height: 10),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: const Color(0xFFF8FAFC),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warmGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, color: Color(0xFFB45309), size: 20),
+                  ),
+                  title: Text('Take a New Photo', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+                  subtitle: Text('Use your camera to snap a picture', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mediumGrey)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.mediumGrey),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         );
       },
@@ -201,11 +259,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Text('Profile photo is required.'),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -234,11 +290,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Text('Please enter a valid first name.'),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -256,11 +310,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Text('Please enter a valid last name.'),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -275,16 +327,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             children: [
               Icon(Icons.error_outline_rounded, color: Colors.white),
               SizedBox(width: 12),
-              Text(
-                'Please enter a valid phone number (11 digits, starting with 09).',
-              ),
+              Text('Please enter a valid phone number (11 digits, starting with 09).'),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -319,7 +367,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final fileName = 'avatar_$userId.$fileExt';
         final filePath = fileName;
 
-        // Upload to 'avatars' bucket (Rethrows error if bucket is missing)
+        // Upload to 'avatars' bucket
         await Supabase.instance.client.storage
             .from('avatars')
             .uploadBinary(
@@ -345,7 +393,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             'lastname': lastName,
             'avatar_url': avatarUrl,
             'phone': currentPhone,
-            // Keep full_name for backward compatibility if needed
             'full_name': '$firstName $lastName'.trim(),
             'name': '$firstName $lastName'.trim(),
           },
@@ -373,17 +420,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Text('Profile updated successfully!'),
             ],
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.successGreen,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
 
       // Return to account page after success
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) Navigator.of(context).pop();
       });
     } catch (e) {
@@ -391,11 +436,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving profile: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -415,18 +458,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Unsaved Changes'),
-        content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppTheme.warningOrange),
+            const SizedBox(width: 10),
+            Text('Unsaved Changes', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18)),
+          ],
+        ),
+        content: Text(
+          'You have unsaved changes in your profile. Are you sure you want to discard them?',
+          style: GoogleFonts.inter(color: AppTheme.darkGrey, fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Stay'),
+            child: Text('Keep Editing', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppTheme.forestGreen)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-            child: const Text('Discard'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Discard', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -440,6 +496,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final initial = _firstNameController.text.isNotEmpty
         ? _firstNameController.text[0].toUpperCase()
         : 'U';
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     return PopScope(
       canPop: false,
@@ -462,7 +519,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           shadowColor: Colors.transparent,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
             onPressed: () async {
               if (!_isChanged) {
                 Navigator.of(context).pop();
@@ -479,337 +536,619 @@ class _EditProfilePageState extends State<EditProfilePage> {
             style: GoogleFonts.lora(
               color: Colors.white,
               fontWeight: FontWeight.w800,
-              fontSize: 22,
+              fontSize: isMobile ? 18 : 20,
+              letterSpacing: 0.3,
             ),
           ),
           centerTitle: true,
         ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+        body: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 16 : 24,
+                  vertical: isMobile ? 20 : 28,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Profile Photo Hero Card ─────────────────────────────
+                      _buildProfileHeroCard(avatarUrl, initial, isMobile),
 
-              // ── Profile Photo ──────────────────────────────────────────
-              Center(
-                child: Stack(
+                      const SizedBox(height: 24),
+
+                      // ── Personal Information Card ───────────────────────────
+                      _buildPersonalInfoCard(isMobile),
+
+                      const SizedBox(height: 20),
+
+                      // ── Contact Information Card ────────────────────────────
+                      _buildContactInfoCard(isMobile),
+
+                      const SizedBox(height: 32),
+
+                      // ── Bottom Action Buttons ───────────────────────────────
+                      _buildActionButtons(isMobile),
+
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Profile Hero & Photo Section ──────────────────────────────────────────
+  Widget _buildProfileHeroCard(String? avatarUrl, String initial, bool isMobile) {
+    final displayName = (_firstNameController.text.trim().isNotEmpty ||
+            _lastNameController.text.trim().isNotEmpty)
+        ? '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
+        : 'Yang Chow Customer';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Gradient Accent Top Banner
+          Container(
+            height: isMobile ? 70 : 85,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF14332E), Color(0xFF1E4A42), Color(0xFF2B5B52)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(23)),
+            ),
+          ),
+
+          // Avatar overlapping top banner
+          Transform.translate(
+            offset: Offset(0, isMobile ? -42 : -48),
+            child: Column(
+              children: [
+                Stack(
                   alignment: Alignment.bottomRight,
                   children: [
-                    // Avatar circle
+                    // Main Avatar Circle
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: isMobile ? 96 : 108,
+                      height: isMobile ? 96 : 108,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFFFFDAD6),
+                        color: Colors.white,
+                        border: Border.all(color: Colors.white, width: 4),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: _pickedFileBytes != null
-                          ? Image.memory(
-                              _pickedFileBytes!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Center(
-                                    child: Text(
-                                      initial,
-                                      style: const TextStyle(
-                                        fontSize: 40,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.darkGrey,
-                                      ),
-                                    ),
-                                  ),
-                            )
-                          : (avatarUrl != null && avatarUrl.isNotEmpty)
-                          ? Image.network(
-                              avatarUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Center(
-                                    child: Text(
-                                      initial,
-                                      style: const TextStyle(
-                                        fontSize: 40,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.darkGrey,
-                                      ),
-                                    ),
-                                  ),
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    );
-                                  },
-                            )
-                          : Center(
-                              child: Text(
-                                initial,
-                                style: const TextStyle(
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.darkGrey,
+                      child: ClipOval(
+                        child: _pickedFileBytes != null
+                            ? Image.memory(_pickedFileBytes!, fit: BoxFit.cover)
+                            : (avatarUrl != null && avatarUrl.isNotEmpty)
+                                ? Image.network(
+                                    avatarUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _buildInitialAvatar(initial),
+                                    loadingBuilder: (_, child, progress) =>
+                                        progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  )
+                                : _buildInitialAvatar(initial),
+                      ),
+                    ),
+
+                    // Camera Action Badge
+                    Positioned(
+                      bottom: 2,
+                      right: 2,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _pickImage,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.goldGradient,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
                                 ),
-                              ),
+                              ],
                             ),
-                    ),
-
-                    // Camera badge
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          color: Colors.white,
-                          size: 18,
+                            child: const Icon(Icons.camera_alt_rounded, color: AppTheme.darkBrownText, size: 16),
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-              // Label & Change Picture
-              const Text(
-                'PROFILE PHOTO',
-                style: TextStyle(
-                  fontSize: 12,
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.mediumGrey,
+                // Live Display Name
+                Text(
+                  displayName,
+                  style: GoogleFonts.inter(
+                    fontSize: isMobile ? 17 : 19,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.darkGrey,
+                    letterSpacing: -0.3,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
 
-              const SizedBox(height: 40),
+                const SizedBox(height: 8),
 
-              // ── Basic Information ──────────────────────────────────────
-              _buildSectionHeader('BASIC INFORMATION'),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: AppTheme.cardDecoration(),
-                child: Column(
-                  children: [
-                    _buildFieldLabel('FIRST NAME'),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _firstNameController,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: _fieldDecoration(
-                        hint: 'Enter your first name',
-                        suffixIcon: Icons.person_outline_rounded,
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'First name is required'
-                          : null,
+                // Change Photo Button
+                InkWell(
+                  onTap: _pickImage,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warmGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.4)),
                     ),
-                    const SizedBox(height: 24),
-                    _buildFieldLabel('LAST NAME'),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _lastNameController,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: _fieldDecoration(
-                        hint: 'Enter your last name',
-                        suffixIcon: Icons.person_outline_rounded,
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Last name is required'
-                          : null,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // ── Contact Information ──────────────────────────────────────
-              _buildSectionHeader('CONTACT DETAILS'),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: AppTheme.cardDecoration(),
-                child: Column(
-                  children: [
-                    _buildFieldLabel('PHONE NUMBER'),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _phoneNumberController,
-                      keyboardType: TextInputType.phone,
-                      decoration: _fieldDecoration(
-                        hint: 'Enter your phone number',
-                        suffixIcon: Icons.phone_outlined,
-                      ),
-                      validator: (v) {
-                        final value = v?.trim() ?? '';
-                        if (value.isEmpty) return 'Phone number is required';
-                        if (!_isValidPhoneNumber(value)) {
-                          return 'Phone number must be 11 digits and start with 09';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    _buildFieldLabel('EMAIL ADDRESS'),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      readOnly: true,
-                      style: TextStyle(color: Colors.grey.shade600),
-                      decoration: _fieldDecoration(
-                        hint: 'Your email address',
-                        suffixIcon: Icons.mail_outline_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 48),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(28, 20, 28, 36),
-        decoration: BoxDecoration(
-          color: AppTheme.backgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 15,
-              offset: const Offset(0, -6),
-            ),
-          ],
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: 58,
-          child: ElevatedButton(
-            onPressed: _isSaving ? null : _saveChanges,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey.shade300,
-              elevation: 6,
-              shadowColor: AppTheme.primaryColor.withOpacity(0.4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            child: _isSaving
-                ? const SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'Save Changes',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit_rounded, color: Color(0xFFB45309), size: 13),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Change Photo',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInitialAvatar(String initial) {
+    return Container(
+      color: const Color(0xFF14332E),
+      child: Center(
+        child: Text(
+          initial,
+          style: GoogleFonts.lora(
+            fontSize: 36,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.warmGold,
           ),
         ),
       ),
+    );
+  }
+
+  // ── Personal Information Card ─────────────────────────────────────────────
+  Widget _buildPersonalInfoCard(bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 18 : 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(
+            icon: Icons.badge_outlined,
+            title: 'Personal Details',
+          ),
+          const SizedBox(height: 18),
+
+          // Side-by-side on wide screens, stacked on mobile
+          if (!isMobile)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFieldLabel('First Name', isRequired: true),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _firstNameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+                        decoration: _fieldDecoration(
+                          hint: 'e.g. Juan',
+                          prefixIcon: Icons.person_outline_rounded,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFieldLabel('Last Name', isRequired: true),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _lastNameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+                        decoration: _fieldDecoration(
+                          hint: 'e.g. Dela Cruz',
+                          prefixIcon: Icons.person_outline_rounded,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            _buildFieldLabel('First Name', isRequired: true),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _firstNameController,
+              textCapitalization: TextCapitalization.words,
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+              decoration: _fieldDecoration(
+                hint: 'e.g. Juan',
+                prefixIcon: Icons.person_outline_rounded,
+              ),
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+            ),
+            const SizedBox(height: 18),
+            _buildFieldLabel('Last Name', isRequired: true),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _lastNameController,
+              textCapitalization: TextCapitalization.words,
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+              decoration: _fieldDecoration(
+                hint: 'e.g. Dela Cruz',
+                prefixIcon: Icons.person_outline_rounded,
+              ),
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          color: AppTheme.primaryColor,
-          letterSpacing: 1.5,
-        ),
+  // ── Contact Information Card ──────────────────────────────────────────────
+  Widget _buildContactInfoCard(bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 18 : 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(
+            icon: Icons.contact_phone_outlined,
+            title: 'Contact Information',
+          ),
+          const SizedBox(height: 18),
+
+          // Phone Number Field
+          _buildFieldLabel('Mobile Phone Number', isRequired: true),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _phoneNumberController,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11),
+            ],
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+            decoration: _fieldDecoration(
+              hint: '09XXXXXXXXX',
+              prefixIcon: Icons.phone_android_rounded,
+            ),
+            validator: (v) {
+              final value = v?.trim() ?? '';
+              if (value.isEmpty) return 'Phone number is required';
+              if (!_isValidPhoneNumber(value)) {
+                return 'Phone number must be 11 digits starting with 09';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 18),
+
+          // Email Address (Read-only with Verified badge)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildFieldLabel('Account Email Address'),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF86EFAC)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 11),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Primary & Verified',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF059669),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            readOnly: true,
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+            decoration: _fieldDecoration(
+              hint: 'your.email@example.com',
+              prefixIcon: Icons.lock_outline_rounded,
+              isReadOnly: true,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFieldLabel(String label) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w700,
-          color: AppTheme.mediumGrey,
+  // ── Action Buttons ────────────────────────────────────────────────────────
+  Widget _buildActionButtons(bool isMobile) {
+    final hasChanges = _isChanged;
+
+    return Row(
+      children: [
+        // Cancel / Discard
+        Expanded(
+          flex: 1,
+          child: SizedBox(
+            height: 52,
+            child: OutlinedButton(
+              onPressed: _isSaving
+                  ? null
+                  : () async {
+                      if (!_isChanged) {
+                        Navigator.of(context).pop();
+                      } else {
+                        final result = await _showUnsavedChangesDialog();
+                        if (result == true && context.mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      }
+                    },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                foregroundColor: AppTheme.darkGrey,
+              ),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
+
+        const SizedBox(width: 14),
+
+        // Save Changes Button
+        Expanded(
+          flex: 2,
+          child: SizedBox(
+            height: 52,
+            child: ElevatedButton(
+              onPressed: (_isSaving || !hasChanges) ? null : _saveChanges,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.forestGreen,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFE2E8F0),
+                disabledForegroundColor: const Color(0xFF94A3B8),
+                elevation: hasChanges ? 4 : 0,
+                shadowColor: AppTheme.forestGreen.withValues(alpha: 0.35),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_rounded, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Save Changes',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Helper Sub-Widgets ────────────────────────────────────────────────────
+  Widget _buildCardHeader({
+    required IconData icon,
+    required String title,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.forestGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppTheme.forestGreen, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.darkGrey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFieldLabel(String label, {bool isRequired = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        if (isRequired) ...[
+          const SizedBox(width: 4),
+          const Text(
+            '*',
+            style: TextStyle(color: AppTheme.errorRed, fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ],
     );
   }
 
   InputDecoration _fieldDecoration({
     required String hint,
-    required IconData suffixIcon,
+    required IconData prefixIcon,
+    bool isReadOnly = false,
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
-      suffixIcon: Icon(suffixIcon, color: Colors.grey.shade400, size: 22),
+      hintStyle: GoogleFonts.inter(
+        color: const Color(0xFF94A3B8),
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+      ),
+      prefixIcon: Icon(
+        prefixIcon,
+        color: isReadOnly ? const Color(0xFF94A3B8) : AppTheme.forestGreen,
+        size: 19,
+      ),
       filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      fillColor: isReadOnly ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.forestGreen, width: 1.8),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.errorRed, width: 1.2),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.red, width: 2),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.errorRed, width: 1.8),
       ),
     );
   }

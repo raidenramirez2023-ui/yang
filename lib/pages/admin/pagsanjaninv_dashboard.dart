@@ -11,6 +11,7 @@ import 'package:yang_chow/pages/staff/petty_cash_expense_page.dart';
 import 'package:yang_chow/pages/staff/spoilage_wastage_page.dart';
 import 'package:yang_chow/widgets/purchase_order_generator_dialog.dart';
 import 'package:yang_chow/services/notification_service.dart';
+import 'package:yang_chow/services/petty_cash_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/url_sync_helper.dart';
@@ -55,6 +56,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   int _selectedWeek = 1;
   int _requestFilter = 0; // 0: All, 1: Pending, 2: Approved, 3: Rejected
   final List<String> _requestFilterLabels = ['All', 'Pending', 'Approved', 'Rejected'];
+  bool _isKitchenTableView = true;
+  String _kitchenSearchQuery = '';
+  TextEditingController? _kitchenSearchController;
+
+  TextEditingController get _kitchenSearchCtrl => _kitchenSearchController ??= TextEditingController();
 
   List<Map<String, dynamic>> _topRequestedItems = [];
   Map<String, Map<String, int>> _inventoryHealthByCategory = {};
@@ -63,6 +69,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Set<String> _previouslyAlertedCriticalIds = {};
   bool _isLineChartForRequests = false;
   bool _isLineChartForHealth = false;
+
+  // ── Stock Transactions Live Table State ──
+  int _txFilterType = 0; // 0: All, 1: Incoming, 2: Outgoing, 3: Petty Cash
+  final List<String> _txFilterLabels = ['All', 'Incoming (Deliveries)', 'Outgoing (Kitchen)', 'Petty Cash'];
+  int _txDateFilter = 0; // 0: Today, 1: This Week, 2: This Month, 3: All Time
+  final List<String> _txDateFilterLabels = ['Today', 'This Week', 'This Month', 'All Time'];
+  String _txSearchQuery = '';
+  TextEditingController? _txSearchController;
+  TextEditingController get _txSearchCtrl => _txSearchController ??= TextEditingController();
+  int _txCurrentPage = 1;
+  int _txPageSize = 10;
+  bool _isTxTableView = true;
+  late Stream<List<Map<String, dynamic>>> _stockTransactionsStream;
+  Set<String> _validInventoryPurchaseNames = {};
 
   RealtimeChannel? _inventorySubscription;
   late Stream<List<Map<String, dynamic>>> _allRequestsStream;
@@ -83,6 +103,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     } catch (e) {
       return dateTimeStr;
     }
+  }
+
+  String _formatPurposeDisplay(String? rawPurpose) {
+    if (rawPurpose == null || rawPurpose.trim().isEmpty) return 'Stock update';
+    final p = rawPurpose.trim();
+    // Replace long UUIDs in purpose references (e.g. Request #f6afc26b-70da-4239-9da2-478f7a0f93ed)
+    // with a clean concise 6-character ID like #F6AFC2
+    final uuidRegex = RegExp(r'#?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})');
+    return p.replaceAllMapped(uuidRegex, (match) {
+      final fullUuid = match.group(1)!;
+      final shortCode = fullUuid.substring(0, 6).toUpperCase();
+      return '#$shortCode';
+    });
   }
 
   // ── Top Toast Notification Overlay for Inventory ──
@@ -149,6 +182,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         .from('kitchen_requests')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false);
+
+    _stockTransactionsStream = _supabase
+        .from('stock_transactions')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+
+    PettyCashService().syncMissingPettyCashToStockTransactions();
+
     final now = DateTime.now();
     _selectedYear = now.year;
     _selectedMonth = now.month;
@@ -189,11 +230,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             if (mounted) _loadDashboardData();
           },
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'stock_transactions',
+          callback: (payload) {
+            if (mounted) _loadDashboardData();
+          },
+        )
         .subscribe();
   }
 
   @override
   void dispose() {
+    _kitchenSearchController?.dispose();
+    _txSearchController?.dispose();
     _cancelPopState?.call();
     _invNotifsSubscription?.cancel();
     _dismissInvTopToast();
@@ -203,6 +254,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Future<void> _loadDashboardData() async {
     try {
+      PettyCashService().syncMissingPettyCashToStockTransactions();
+
       final user = _supabase.auth.currentUser;
       if (user != null) {
         setState(() {
@@ -210,9 +263,41 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         });
       }
 
+      final Set<String> validNames = {};
       final inventoryResponse = await _supabase
           .from('inventory')
           .select('id, name, category, quantity, unit, supplier');
+
+      if (inventoryResponse.isNotEmpty) {
+        for (var item in inventoryResponse) {
+          final n = (item['name'] ?? '').toString().toLowerCase().trim();
+          if (n.isNotEmpty) validNames.add(n);
+        }
+      }
+
+      try {
+        final invExpenses = await _supabase
+            .from('petty_cash_expenses')
+            .select('inventory_items, inventory_item_name')
+            .eq('category', 'inventory_purchase');
+
+        for (var exp in invExpenses) {
+          if (exp['inventory_items'] != null && exp['inventory_items'] is List) {
+            for (var it in (exp['inventory_items'] as List)) {
+              final n = (it['item_name'] ?? it['name'] ?? '').toString().toLowerCase().trim();
+              if (n.isNotEmpty) validNames.add(n);
+            }
+          }
+          final single = (exp['inventory_item_name'] ?? '').toString().toLowerCase().trim();
+          if (single.isNotEmpty) validNames.add(single);
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _validInventoryPurchaseNames = validNames;
+        });
+      }
 
       if (inventoryResponse.isNotEmpty) {
         int total = 0;
@@ -1086,7 +1171,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             _buildChartEmptyState(Icons.bar_chart_rounded, 'No Category Data', 'Stock metrics will display once inventory is added.')
           else if (_isLineChartForHealth)
             SizedBox(
-              height: 260,
+              height: 280,
               child: LineChart(
                 LineChartData(
                   gridData: FlGridData(
@@ -1096,25 +1181,30 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   ),
                   titlesData: FlTitlesData(
                     show: true,
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false, reservedSize: 8),
+                    ),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 45,
+                        reservedSize: 58,
                         interval: 1,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final categoryNames = _inventoryHealthByCategory.keys.toList();
                           final index = value.toInt();
                           if (index >= 0 && index < categoryNames.length) {
-                            String text = categoryNames[index];
-                            if (text.length > 8) text = '${text.substring(0, 7)}…';
+                            final text = categoryNames[index];
                             return SideTitleWidget(
                               meta: meta,
-                              space: 10,
+                              space: 8,
+                              angle: -0.45,
+                              fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
                               child: Text(
                                 text,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                softWrap: false,
                               ),
                             );
                           }
@@ -1125,10 +1215,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 28,
+                        reservedSize: 36,
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox.shrink();
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
+                            child: Text(
+                              value >= 1000 ? NumberFormat.compact().format(value) : value.toInt().toString(),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -1198,7 +1296,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             )
           else
             SizedBox(
-              height: 260,
+              height: 280,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -1226,23 +1324,28 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   titlesData: FlTitlesData(
                     show: true,
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false, reservedSize: 8),
+                    ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 45,
+                        reservedSize: 58,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final categoryNames = _inventoryHealthByCategory.keys.toList();
                           final index = value.toInt();
                           if (index >= 0 && index < categoryNames.length) {
-                            String text = categoryNames[index];
-                            if (text.length > 8) text = '${text.substring(0, 7)}…';
+                            final text = categoryNames[index];
                             return SideTitleWidget(
                               meta: meta,
-                              space: 10,
+                              space: 8,
+                              angle: -0.45,
+                              fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
                               child: Text(
                                 text,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                softWrap: false,
                               ),
                             );
                           }
@@ -1253,10 +1356,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 28,
+                        reservedSize: 36,
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox.shrink();
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
+                            child: Text(
+                              value >= 1000 ? NumberFormat.compact().format(value) : value.toInt().toString(),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -1440,7 +1551,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             _buildChartEmptyState(Icons.trending_up_outlined, 'No Requests Found', 'Top kitchen items for this timeframe will appear here.')
           else if (_isLineChartForRequests)
             SizedBox(
-              height: 260,
+              height: 280,
               child: LineChart(
                 LineChartData(
                   gridData: FlGridData(
@@ -1450,24 +1561,29 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   ),
                   titlesData: FlTitlesData(
                     show: true,
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false, reservedSize: 8),
+                    ),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 45,
+                        reservedSize: 58,
                         interval: 1,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final index = value.toInt();
                           if (index >= 0 && index < _topRequestedItems.length) {
-                            String name = _topRequestedItems[index]['name'];
-                            if (name.length > 8) name = '${name.substring(0, 7)}…';
+                            final name = _topRequestedItems[index]['name'] ?? '';
                             return SideTitleWidget(
                               meta: meta,
-                              space: 10,
+                              space: 8,
+                              angle: -0.35,
+                              fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
                               child: Text(
                                 name,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                softWrap: false,
                               ),
                             );
                           }
@@ -1478,10 +1594,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 28,
+                        reservedSize: 36,
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox.shrink();
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
+                            child: Text(
+                              value >= 1000 ? NumberFormat.compact().format(value) : value.toInt().toString(),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -1551,7 +1675,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             )
           else
             SizedBox(
-              height: 260,
+              height: 280,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -1578,23 +1702,28 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   ),
                   titlesData: FlTitlesData(
                     show: true,
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false, reservedSize: 8),
+                    ),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 45,
+                        reservedSize: 58,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final index = value.toInt();
                           if (index >= 0 && index < _topRequestedItems.length) {
-                            String name = _topRequestedItems[index]['name'];
-                            if (name.length > 8) name = '${name.substring(0, 7)}…';
+                            final name = _topRequestedItems[index]['name'] ?? '';
                             return SideTitleWidget(
                               meta: meta,
-                              space: 10,
+                              space: 8,
+                              angle: -0.35,
+                              fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
                               child: Text(
                                 name,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                softWrap: false,
                               ),
                             );
                           }
@@ -1605,10 +1734,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 28,
+                        reservedSize: 36,
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox.shrink();
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
+                            child: Text(
+                              value >= 1000 ? NumberFormat.compact().format(value) : value.toInt().toString(),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -1884,170 +2021,1093 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   Widget _buildActivityFeed() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _stockTransactionsStream,
+      builder: (context, snapshot) {
+        final rawTransactions = snapshot.data ?? [];
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
+
+        // Exclude archived and non-inventory petty cash expenses
+        final rawFiltered = rawTransactions.where((t) {
+          final type = (t['transaction_type'] ?? '').toString().toLowerCase();
+          final purpose = (t['purpose'] ?? '').toString().toLowerCase();
+          final name = (t['item_name'] ?? '').toString().toLowerCase().trim();
+          if (type == 'archived' || purpose.contains('non-inventory') || purpose.contains('duplicate')) return false;
+          // For petty cash purchases, only show inventory_purchase items
+          if (purpose == 'petty cash purchase') {
+            if (_validInventoryPurchaseNames.isNotEmpty && !_validInventoryPurchaseNames.contains(name)) {
+              return false;
+            }
+          }
+          return true;
+        }).toList();
+
+        // Deduplicate only by exact database row ID (avoid removing legitimate separate purchases)
+        final seenIds = <String>{};
+        final allTransactions = <Map<String, dynamic>>[];
+        for (final t in rawFiltered) {
+          final id = (t['id'] ?? '').toString();
+          if (!seenIds.contains(id)) {
+            seenIds.add(id);
+            allTransactions.add(t);
+          }
+        }
+
+        // Apply Time Range Filter
+        final now = DateTime.now();
+        DateTime? filterStart;
+        if (_txDateFilter == 0) {
+          // Today (from 00:00:00 today)
+          filterStart = DateTime(now.year, now.month, now.day);
+        } else if (_txDateFilter == 1) {
+          // This Week (from Monday 00:00:00)
+          filterStart = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+        } else if (_txDateFilter == 2) {
+          // This Month (from 1st of month)
+          filterStart = DateTime(now.year, now.month, 1);
+        }
+
+        final dateFilteredTransactions = allTransactions.where((t) {
+          if (filterStart == null) return true;
+          final createdStr = t['created_at']?.toString();
+          if (createdStr == null) return true;
+          final dt = DateTime.tryParse(createdStr)?.toLocal();
+          if (dt == null) return true;
+          return dt.isAfter(filterStart) || dt.isAtSameMomentAs(filterStart);
+        }).toList();
+
+        final allCount = dateFilteredTransactions.length;
+        final incomingCount = dateFilteredTransactions.where((t) {
+          final type = (t['transaction_type'] ?? '').toString().toLowerCase();
+          final purpose = (t['purpose'] ?? '').toString().toLowerCase();
+          // Exclude ALL petty cash variants from incoming count
+          return type == 'incoming' && !purpose.startsWith('petty cash');
+        }).length;
+        final outgoingCount = dateFilteredTransactions.where((t) {
+          return (t['transaction_type'] ?? '').toString().toLowerCase() == 'outgoing';
+        }).length;
+        final pettyCashCount = dateFilteredTransactions.where((t) {
+          // Count ALL petty cash variants (purchased + transferred)
+          return (t['purpose'] ?? '').toString().toLowerCase().startsWith('petty cash purchase');
+        }).length;
+
+        // Base filter by tab type
+        final baseFiltered = dateFilteredTransactions.where((t) {
+          final type = (t['transaction_type'] ?? '').toString().toLowerCase();
+          final purpose = (t['purpose'] ?? '').toString();
+          final purposeLower = purpose.toLowerCase();
+
+          // Incoming tab: exclude all petty cash variants
+          if (_txFilterType == 1 && (type != 'incoming' || purposeLower.startsWith('petty cash'))) return false;
+          if (_txFilterType == 2 && type != 'outgoing') return false;
+          // Petty Cash tab: include all petty cash purchase variants
+          if (_txFilterType == 3 && !purposeLower.startsWith('petty cash purchase')) return false;
+
+          if (_txSearchQuery.trim().isNotEmpty) {
+            final q = _txSearchQuery.toLowerCase().trim();
+            final itemName = (t['item_name'] ?? '').toString().toLowerCase();
+            final purp = purpose.toLowerCase();
+            final supplier = (t['supplier'] ?? '').toString().toLowerCase();
+            final procBy = (t['processed_by'] ?? '').toString().toLowerCase();
+            final reqBy = (t['requested_by'] ?? '').toString().toLowerCase();
+            final qty = (t['quantity'] ?? '').toString();
+            final id = (t['id'] ?? '').toString().toLowerCase();
+
+            return itemName.contains(q) ||
+                purp.contains(q) ||
+                supplier.contains(q) ||
+                procBy.contains(q) ||
+                reqBy.contains(q) ||
+                qty.contains(q) ||
+                id.contains(q);
+          }
+          return true;
+        }).toList();
+
+        // Per-tab deduplication
+        final List<Map<String, dynamic>> filteredTransactions;
+        if (_txFilterType == 3) {
+          // Petty Cash: one per item_name (most recent first — stream already sorted desc)
+          final seen = <String>{};
+          filteredTransactions = [];
+          for (final t in baseFiltered) {
+            final name = (t['item_name'] ?? '').toString().toLowerCase().trim();
+            if (seen.add(name)) filteredTransactions.add(t);
+          }
+        } else if (_txFilterType == 1) {
+          // Incoming: one per item_name per day
+          final seen = <String>{};
+          filteredTransactions = [];
+          for (final t in baseFiltered) {
+            final name = (t['item_name'] ?? '').toString().toLowerCase().trim();
+            final day = (t['created_at'] ?? '').toString();
+            final dayKey = day.length >= 10 ? day.substring(0, 10) : day;
+            if (seen.add('$name-$dayKey')) filteredTransactions.add(t);
+          }
+        } else {
+          filteredTransactions = baseFiltered;
+        }
+
+        int totalUnitsInView = 0;
+        for (final t in filteredTransactions) {
+          totalUnitsInView += (t['quantity'] as num?)?.toInt() ?? 0;
+        }
+
+        final totalItems = filteredTransactions.length;
+        final totalPages = totalItems == 0 ? 1 : (totalItems / _txPageSize).ceil();
+        if (_txCurrentPage > totalPages) {
+          _txCurrentPage = 1;
+        }
+        if (_txCurrentPage < 1) {
+          _txCurrentPage = 1;
+        }
+
+        final startIndex = (_txCurrentPage - 1) * _txPageSize;
+        final endIndex = (startIndex + _txPageSize < totalItems) ? startIndex + _txPageSize : totalItems;
+        final paginatedTransactions = totalItems == 0 ? <Map<String, dynamic>>[] : filteredTransactions.sublist(startIndex, endIndex);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            // ── Section Header ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.history_rounded, color: Color(0xFF14332E), size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Recent Stock Transactions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.3,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF14332E), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Recent Stock Transactions',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Complete live log of kitchen dispatches, arrivals, and storage adjustments',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'LIVE STREAM • $allCount LOGS',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF059669),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            if (_recentActivity.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF14332E).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_recentActivity.length} records',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF14332E),
+            const SizedBox(height: 14),
+
+            // ── Main Container ──
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
                   ),
-                ),
+                ],
               ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: _recentActivity.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-                  child: Center(
+              child: Column(
+                children: [
+                  // ── Action & Filter Toolbar ──
+                  Padding(
+                    padding: const EdgeInsets.all(14),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.history_toggle_off_rounded, size: 36, color: Color(0xFF94A3B8)),
-                        SizedBox(height: 8),
-                        Text(
-                          'No recent activity recorded',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF64748B)),
+                        // Row 1: Filter Tabs (Left) & Date Range (Right)
+                        Row(
+                          children: [
+                            // Movement Type Filter Pills
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                physics: const BouncingScrollPhysics(),
+                                child: Row(
+                                  children: [
+                                    _buildTxFilterTab(
+                                      index: 1,
+                                      label: 'Incoming',
+                                      count: incomingCount,
+                                      icon: Icons.south_west_rounded,
+                                      activeColor: const Color(0xFF059669),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    _buildTxFilterTab(
+                                      index: 2,
+                                      label: 'Outgoing (Kitchen)',
+                                      count: outgoingCount,
+                                      icon: Icons.north_east_rounded,
+                                      activeColor: const Color(0xFFDC2626),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    _buildTxFilterTab(
+                                      index: 3,
+                                      label: 'Petty Cash',
+                                      count: pettyCashCount,
+                                      icon: Icons.account_balance_wallet_rounded,
+                                      activeColor: const Color(0xFF0284C7),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // Date Range Dropdown / Pill
+                            Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  value: _txDateFilter,
+                                  icon: const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF475569)),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                  items: const [
+                                    DropdownMenuItem(value: 0, child: Text('Today')),
+                                    DropdownMenuItem(value: 1, child: Text('This Week')),
+                                    DropdownMenuItem(value: 2, child: Text('This Month')),
+                                    DropdownMenuItem(value: 3, child: Text('All Time')),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _txDateFilter = val;
+                                        _txCurrentPage = 1;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Row 2: Search Box & View Mode + Page Size
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: TextField(
+                                  controller: _txSearchCtrl,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _txSearchQuery = val;
+                                      _txCurrentPage = 1;
+                                    });
+                                  },
+                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search items, request IDs, supplier, purpose, or receiver...',
+                                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                                    suffixIcon: _txSearchQuery.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                                            onPressed: () {
+                                              _txSearchCtrl.clear();
+                                              setState(() {
+                                                _txSearchQuery = '';
+                                                _txCurrentPage = 1;
+                                              });
+                                            },
+                                          )
+                                        : null,
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // View Switcher (Table / Card)
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              padding: const EdgeInsets.all(2.5),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildTxViewButton(
+                                    icon: Icons.table_rows_rounded,
+                                    tooltip: 'Table View',
+                                    isActive: _isTxTableView,
+                                    onTap: () => setState(() => _isTxTableView = true),
+                                  ),
+                                  _buildTxViewButton(
+                                    icon: Icons.view_agenda_rounded,
+                                    tooltip: 'Feed / Cards View',
+                                    isActive: !_isTxTableView,
+                                    onTap: () => setState(() => _isTxTableView = false),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Page size selector
+                            Container(
+                              height: 40,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  value: _txPageSize,
+                                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                  items: const [
+                                    DropdownMenuItem(value: 10, child: Text('10 / page')),
+                                    DropdownMenuItem(value: 25, child: Text('25 / page')),
+                                    DropdownMenuItem(value: 50, child: Text('50 / page')),
+                                    DropdownMenuItem(value: 100, child: Text('100 / page')),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _txPageSize = val;
+                                        _txCurrentPage = 1;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                )
-              : ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _recentActivity.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                  itemBuilder: (context, index) {
-                    final act = _recentActivity[index];
-                    final type = act['transaction_type']?.toString() ?? 'unknown';
-                    final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String()).toLocal();
-                    final isIncoming = type == 'incoming';
-                    final accentColor = isIncoming ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
-                    return Padding(
+                  // ── Content Area: Loading / Empty / Table / Cards ──
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 48),
+                      child: Center(child: CircularProgressIndicator(color: Color(0xFF14332E))),
+                    )
+                  else if (paginatedTransactions.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 20),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.inventory_rounded, size: 36, color: Color(0xFF94A3B8)),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _txSearchQuery.isNotEmpty
+                                  ? 'No transactions match "$_txSearchQuery"'
+                                  : (_txFilterType != 0 && allCount > 0)
+                                      ? 'No ${_txFilterLabels[_txFilterType]} transactions found'
+                                      : 'No stock transactions recorded yet',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF334155)),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _txSearchQuery.isNotEmpty
+                                  ? 'Try clearing your search keyword or changing filter tabs.'
+                                  : (_txFilterType != 0 && allCount > 0)
+                                      ? 'There are $allCount transaction(s) available in "All Movements".'
+                                      : 'Incoming deliveries and kitchen dispatches will automatically populate here in real-time.',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 14),
+                            if (_txFilterType != 0 && allCount > 0) ...[
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  _txSearchCtrl.clear();
+                                  setState(() {
+                                    _txSearchQuery = '';
+                                    _txFilterType = 0;
+                                    _txCurrentPage = 1;
+                                  });
+                                },
+                                icon: const Icon(Icons.all_inclusive_rounded, size: 16),
+                                label: Text('Switch to All Movements ($allCount)'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF14332E),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            if (_txSearchQuery.isNotEmpty || _txDateFilter != 3) ...[
+                              TextButton.icon(
+                                onPressed: () {
+                                  _txSearchCtrl.clear();
+                                  setState(() {
+                                    _txSearchQuery = '';
+                                    _txFilterType = 0;
+                                    _txDateFilter = 3;
+                                    _txCurrentPage = 1;
+                                  });
+                                },
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
+                                label: const Text('Reset All Filters (Show All Time)'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFF14332E),
+                                  textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (_isTxTableView && !isMobile)
+                    _buildTxDataTable(paginatedTransactions)
+                  else
+                    _buildTxCardsFeed(paginatedTransactions),
+
+                  // ── Pagination Footer ──
+                  if (totalItems > 0) ...[
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              isIncoming ? Icons.south_west_rounded : Icons.north_east_rounded,
-                              color: accentColor,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  act['item_name'] ?? 'Unknown Item',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: Color(0xFF0F172A),
-                                  ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Showing ${startIndex + 1}–$endIndex of $totalItems transactions',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  act['purpose'] ?? 'Stock update',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF64748B),
+                              ),
+                              if (totalUnitsInView > 0) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Text(
+                                    '$totalUnitsInView units in view',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF334155),
+                                    ),
                                   ),
                                 ),
                               ],
-                            ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left_rounded),
+                                iconSize: 20,
+                                splashRadius: 18,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: _txCurrentPage > 1
+                                    ? () => setState(() => _txCurrentPage--)
+                                    : null,
+                              ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: accentColor.withValues(alpha: 0.12),
+                                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  '${isIncoming ? '+' : '-'}${act['quantity']}',
-                                  style: TextStyle(
+                                  'Page $_txCurrentPage of $totalPages',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 12,
-                                    color: accentColor,
+                                    color: Color(0xFF14332E),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                DateFormat('h:mm a').format(date),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Color(0xFF94A3B8),
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right_rounded),
+                                iconSize: 20,
+                                splashRadius: 18,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: _txCurrentPage < totalPages
+                                    ? () => setState(() => _txCurrentPage++)
+                                    : null,
                               ),
                             ],
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTxFilterTab({
+    required int index,
+    required String label,
+    required int count,
+    required IconData icon,
+    Color activeColor = const Color(0xFF14332E),
+  }) {
+    final isSelected = _txFilterType == index;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _txFilterType = index;
+          _txCurrentPage = 1;
+        });
+      },
+      borderRadius: BorderRadius.circular(9),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6.5),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+          ),
         ),
-      ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isSelected ? Colors.white : const Color(0xFF64748B)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF334155),
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                fontSize: 11.5,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.22) : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTxViewButton({
+    required IconData icon,
+    required String tooltip,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: isActive ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTxDataTable(List<Map<String, dynamic>> items) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 64),
+        child: DataTable(
+          headingRowHeight: 44,
+          dataRowMinHeight: 52,
+          dataRowMaxHeight: 58,
+          horizontalMargin: 16,
+          columnSpacing: 20,
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+          columns: const [
+            DataColumn(
+              label: Text(
+                'DATE & TIME',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'ITEM NAME & UNIT',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'TYPE',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'QTY MOVED',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'PURPOSE / REFERENCE',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'HANDLED BY',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+              ),
+            ),
+          ],
+          rows: items.map((act) {
+            final type = (act['transaction_type'] ?? 'unknown').toString().toLowerCase();
+            final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String()).toLocal();
+            final isIncoming = type == 'incoming';
+            final isPetty = (act['purpose'] ?? '').toString().toLowerCase().startsWith('petty cash purchase');
+            final accentColor = isPetty
+                ? const Color(0xFF0284C7)
+                : isIncoming
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444);
+
+            final now = DateTime.now();
+            final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+            final isYesterday = date.year == now.year && date.month == now.month && date.day == now.day - 1;
+
+            String dateStr;
+            if (isToday) {
+              dateStr = 'Today';
+            } else if (isYesterday) {
+              dateStr = 'Yesterday';
+            } else {
+              dateStr = DateFormat('MMM d, yyyy').format(date);
+            }
+            final timeStr = DateFormat('h:mm a').format(date);
+
+            final rawPurpose = act['purpose']?.toString() ?? 'Stock movement';
+            final unit = act['unit']?.toString().trim() ?? 'pcs';
+            final processedBy = act['processed_by']?.toString() ?? 'Admin';
+            final requestedBy = act['requested_by']?.toString();
+            final supplier = act['supplier']?.toString();
+
+            return DataRow(
+              cells: [
+                // Date & Time
+                DataCell(
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        timeStr,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Color(0xFF0F172A)),
+                      ),
+                      Text(
+                        dateStr,
+                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+                // Item Name & Unit Badge
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        act['item_name'] ?? 'Unknown Item',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          unit,
+                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Type Pill Badge
+                DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPetty
+                              ? Icons.account_balance_wallet_rounded
+                              : isIncoming
+                                  ? Icons.south_west_rounded
+                                  : Icons.north_east_rounded,
+                          size: 12,
+                          color: accentColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isPetty
+                              ? 'PETTY CASH'
+                              : isIncoming
+                                  ? 'INCOMING'
+                                  : 'OUTGOING',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                            color: accentColor,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Quantity Moved Badge
+                DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text(
+                      '${isIncoming ? '+' : '-'}${act['quantity']}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        color: accentColor,
+                      ),
+                    ),
+                  ),
+                ),
+                // Purpose / Reference
+                DataCell(
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: Text(
+                      _formatPurposeDisplay(rawPurpose),
+                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                // Handled By
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.person_outline_rounded, size: 13, color: Color(0xFF94A3B8)),
+                      const SizedBox(width: 4),
+                      Text(
+                        (isPetty || rawPurpose == 'Transferred to Storage' || rawPurpose.toLowerCase().contains('petty cash') || processedBy.toLowerCase() == 'unknown' || processedBy.trim().isEmpty || processedBy.toLowerCase() == 'null')
+                            ? 'pagsanjaninv@gmail.com'
+                            : (supplier != null && supplier.isNotEmpty && supplier.toLowerCase() != 'unknown')
+                                ? supplier
+                                : (requestedBy != null && requestedBy.isNotEmpty)
+                                    ? '$processedBy → $requestedBy'
+                                    : processedBy,
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTxCardsFeed(List<Map<String, dynamic>> items) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+      itemBuilder: (context, index) {
+        final act = items[index];
+        final type = (act['transaction_type'] ?? 'unknown').toString().toLowerCase();
+        final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String()).toLocal();
+        final isIncoming = type == 'incoming';
+        final isPetty = (act['purpose'] ?? '').toString().toLowerCase().startsWith('petty cash purchase');
+        final accentColor = isPetty
+            ? const Color(0xFF0284C7)
+            : isIncoming
+                ? const Color(0xFF10B981)
+                : const Color(0xFFEF4444);
+
+        final now = DateTime.now();
+        final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+        final timeStr = isToday ? 'Today • ${DateFormat('h:mm a').format(date)}' : DateFormat('MMM d • h:mm a').format(date);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isPetty
+                      ? Icons.account_balance_wallet_rounded
+                      : isIncoming
+                          ? Icons.south_west_rounded
+                          : Icons.north_east_rounded,
+                  color: accentColor,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            act['item_name'] ?? 'Unknown Item',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${isIncoming ? '+' : '-'}${act['quantity']} ${act['unit'] ?? 'pcs'}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12.5,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _formatPurposeDisplay(act['purpose']?.toString()),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          timeStr,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: Color(0xFF94A3B8),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (isPetty ||
+                            (act['purpose']?.toString() == 'Transferred to Storage') ||
+                            (act['purpose']?.toString().toLowerCase().contains('petty cash') ?? false) ||
+                            (act['processed_by']?.toString().toLowerCase() == 'unknown') ||
+                            (act['processed_by']?.toString().trim().isEmpty ?? true)) ...[
+                          const SizedBox(width: 8),
+                          Text('•', style: TextStyle(color: Colors.grey[400], fontSize: 10)),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'pagsanjaninv@gmail.com',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ] else if (act['processed_by'] != null) ...[
+                          const SizedBox(width: 8),
+                          Text('•', style: TextStyle(color: Colors.grey[400], fontSize: 10)),
+                          const SizedBox(width: 8),
+                          Text(
+                            act['processed_by'].toString(),
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -2725,241 +3785,112 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   // -------------------------------------------------------------
   // KITCHEN REQUESTS PAGE
   // -------------------------------------------------------------
+  // -------------------------------------------------------------
+  // KITCHEN REQUESTS PAGE (MODERN HYBRID & COMPACT LAYOUT)
+  // -------------------------------------------------------------
   Widget _buildKitchenRequestsPage() {
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
       color: const Color(0xFF14332E),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with Bulk Actions
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F2C27), Color(0xFF14332E), Color(0xFF1D4A41)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF28564D), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0F2C27).withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: ResponsiveUtils.isMobile(context)
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE6C374).withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(Icons.soup_kitchen_rounded, color: Color(0xFFE6C374), size: 20),
-                            ),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Kitchen Stock Requests',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    'Authorize requisitions from kitchen team',
-                                    style: TextStyle(fontSize: 11, color: Color(0xFFB0C8C3)),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _isLoading ? null : _approveAllRequests,
-                                icon: const Icon(Icons.done_all_rounded, size: 15),
-                                label: const Text('Approve All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 9),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  elevation: 2,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _isLoading ? null : _rejectAllRequests,
-                                icon: const Icon(Icons.cancel_outlined, size: 15),
-                                label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5)),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFF87171),
-                                  side: const BorderSide(color: Color(0xFFEF4444)),
-                                  padding: const EdgeInsets.symmetric(vertical: 9),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE6C374).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.soup_kitchen_rounded, color: Color(0xFFE6C374), size: 24),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Kitchen Stock Requests',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Review and authorize item requisitions dispatched by the kitchen team',
-                                style: TextStyle(fontSize: 12, color: Color(0xFFB0C8C3)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _isLoading ? null : _approveAllRequests,
-                              icon: const Icon(Icons.done_all_rounded, size: 16),
-                              label: const Text('Approve All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF10B981),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                elevation: 2,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: _isLoading ? null : _rejectAllRequests,
-                              icon: const Icon(Icons.cancel_outlined, size: 16),
-                              label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFF87171),
-                                side: const BorderSide(color: Color(0xFFEF4444)),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-            ),
-            const SizedBox(height: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _allRequestsStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(60),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF14332E))),
+              );
+            }
 
-            // Requests List with Stream
-            StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _allRequestsStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(child: CircularProgressIndicator(color: Color(0xFF14332E))),
-                  );
-                }
+            final requests = snapshot.data ?? [];
 
-                final requests = snapshot.data ?? [];
+            // Filter by Status Tab
+            List<Map<String, dynamic>> filteredRequests;
+            switch (_requestFilter) {
+              case 1:
+                filteredRequests = requests.where((r) => r['status'] == 'Pending').toList();
+                break;
+              case 2:
+                filteredRequests = requests.where((r) => r['status'] == 'Approved').toList();
+                break;
+              case 3:
+                filteredRequests = requests.where((r) => r['status'] == 'Rejected').toList();
+                break;
+              default:
+                filteredRequests = List.from(requests);
+            }
 
-                List<Map<String, dynamic>> filteredRequests;
-                switch (_requestFilter) {
-                  case 1:
-                    filteredRequests = requests.where((r) => r['status'] == 'Pending').toList();
-                    break;
-                  case 2:
-                    filteredRequests = requests.where((r) => r['status'] == 'Approved').toList();
-                    break;
-                  case 3:
-                    filteredRequests = requests.where((r) => r['status'] == 'Rejected').toList();
-                    break;
-                  default:
-                    filteredRequests = requests;
-                }
+            // Search filter by Item Name, Requester, or Unit
+            final searchQuery = _kitchenSearchQuery.trim().toLowerCase();
+            if (searchQuery.isNotEmpty) {
+              filteredRequests = filteredRequests.where((r) {
+                final name = (r['item_name']?.toString() ?? '').toLowerCase();
+                final by = (r['requested_by']?.toString() ?? '').toLowerCase();
+                final unit = (r['unit']?.toString() ?? '').toLowerCase();
+                return name.contains(searchQuery) || by.contains(searchQuery) || unit.contains(searchQuery);
+              }).toList();
+            }
 
-                filteredRequests.sort((a, b) {
-                  final statusA = a['status']?.toString() ?? 'Pending';
-                  final statusB = b['status']?.toString() ?? 'Pending';
-                  final priorityA = statusA == 'Pending' ? 1 : statusA == 'Approved' ? 2 : 3;
-                  final priorityB = statusB == 'Pending' ? 1 : statusB == 'Approved' ? 2 : 3;
-                  if (priorityA != priorityB) return priorityA.compareTo(priorityB);
+            // Priority & Date Sorting
+            filteredRequests.sort((a, b) {
+              final statusA = a['status']?.toString() ?? 'Pending';
+              final statusB = b['status']?.toString() ?? 'Pending';
+              final priorityA = statusA == 'Pending' ? 1 : statusA == 'Approved' ? 2 : 3;
+              final priorityB = statusB == 'Pending' ? 1 : statusB == 'Approved' ? 2 : 3;
+              if (priorityA != priorityB) return priorityA.compareTo(priorityB);
 
-                  final createdAtA = DateTime.parse(a['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String());
-                  final createdAtB = DateTime.parse(b['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String());
-                  return createdAtB.compareTo(createdAtA);
-                });
+              final createdAtA = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime.now();
+              final createdAtB = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime.now();
+              return createdAtB.compareTo(createdAtA);
+            });
 
-                final pendingCount = requests.where((r) => r['status'] == 'Pending').length;
-                final approvedCount = requests.where((r) => r['status'] == 'Approved').length;
-                final rejectedCount = requests.where((r) => r['status'] == 'Rejected').length;
+            final pendingCount = requests.where((r) => r['status'] == 'Pending').length;
+            final approvedCount = requests.where((r) => r['status'] == 'Approved').length;
+            final rejectedCount = requests.where((r) => r['status'] == 'Rejected').length;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Segment Filter Tabs
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+            final totalPages = (filteredRequests.isEmpty ? 1 : (filteredRequests.length / _itemsPerPage).ceil());
+            if (_currentPage > totalPages) {
+              _currentPage = 1;
+            }
+            final startIndex = (_currentPage - 1) * _itemsPerPage;
+            final endIndex = startIndex + _itemsPerPage > filteredRequests.length
+                ? filteredRequests.length
+                : startIndex + _itemsPerPage;
+            final paginatedRequests = filteredRequests.isEmpty
+                ? <Map<String, dynamic>>[]
+                : filteredRequests.sublist(startIndex, endIndex);
+
+            final isTableView = _isKitchenTableView;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── COMPACT UNIFIED ACTION & FILTER TOOLBAR ──
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
-                      child: ResponsiveUtils.isMobile(context)
-                          ? SingleChildScrollView(
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Row 1: Filters (Left) + View Switcher & Bulk Actions (Right)
+                      Row(
+                        children: [
+                          // Status Filter Tabs
+                          Expanded(
+                            child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               physics: const BouncingScrollPhysics(),
                               child: Row(
@@ -2984,7 +3915,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   }
 
                                   return Padding(
-                                    padding: EdgeInsets.only(right: index == _requestFilterLabels.length - 1 ? 0 : 6),
+                                    padding: const EdgeInsets.only(right: 6),
                                     child: InkWell(
                                       onTap: () {
                                         setState(() {
@@ -2992,22 +3923,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           _currentPage = 1;
                                         });
                                       },
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(9),
                                       child: AnimatedContainer(
                                         duration: const Duration(milliseconds: 180),
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? const Color(0xFF14332E) : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(10),
-                                          boxShadow: isSelected
-                                              ? [
-                                                  BoxShadow(
-                                                    color: const Color(0xFF14332E).withValues(alpha: 0.25),
-                                                    blurRadius: 6,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ]
-                                              : null,
+                                          color: isSelected ? const Color(0xFF14332E) : const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(9),
+                                          border: Border.all(
+                                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -3015,24 +3940,24 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             Text(
                                               _requestFilterLabels[index],
                                               style: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                                color: isSelected ? Colors.white : const Color(0xFF475569),
                                                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                                 fontSize: 12,
                                               ),
                                             ),
                                             const SizedBox(width: 6),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                               decoration: BoxDecoration(
                                                 color: isSelected
                                                     ? const Color(0xFFE6C374)
-                                                    : const Color(0xFFF1F5F9),
-                                                borderRadius: BorderRadius.circular(10),
+                                                    : const Color(0xFFE2E8F0),
+                                                borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 '$count',
                                                 style: TextStyle(
-                                                  color: isSelected ? const Color(0xFF14332E) : const Color(0xFF475569),
+                                                  color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 11,
                                                 ),
@@ -3045,200 +3970,723 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   );
                                 }),
                               ),
-                            )
-                          : Row(
-                              children: List.generate(_requestFilterLabels.length, (index) {
-                                final isSelected = _requestFilter == index;
-                                int count;
-                                switch (index) {
-                                  case 0:
-                                    count = requests.length;
-                                    break;
-                                  case 1:
-                                    count = pendingCount;
-                                    break;
-                                  case 2:
-                                    count = approvedCount;
-                                    break;
-                                  case 3:
-                                    count = rejectedCount;
-                                    break;
-                                  default:
-                                    count = 0;
-                                }
+                            ),
+                          ),
 
-                                return Expanded(
+                          const SizedBox(width: 10),
+
+                          // View Switcher (Table vs Grid)
+                          Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Tooltip(
+                                  message: 'Table View',
                                   child: InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _requestFilter = index;
-                                        _currentPage = 1;
-                                      });
-                                    },
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    onTap: () => setState(() => _isKitchenTableView = true),
+                                    borderRadius: BorderRadius.circular(7),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: isSelected ? const Color(0xFF14332E) : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: isSelected
+                                        color: isTableView ? Colors.white : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(7),
+                                        boxShadow: isTableView
                                             ? [
                                                 BoxShadow(
-                                                  color: const Color(0xFF14332E).withValues(alpha: 0.25),
-                                                  blurRadius: 6,
-                                                  offset: const Offset(0, 2),
+                                                  color: Colors.black.withValues(alpha: 0.06),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 1),
                                                 ),
                                               ]
                                             : null,
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                      child: Icon(
+                                        Icons.table_rows_rounded,
+                                        size: 16,
+                                        color: isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Tooltip(
+                                  message: 'Card Grid View',
+                                  child: InkWell(
+                                    onTap: () => setState(() => _isKitchenTableView = false),
+                                    borderRadius: BorderRadius.circular(7),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: !isTableView ? Colors.white : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(7),
+                                        boxShadow: !isTableView
+                                            ? [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(alpha: 0.06),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Icon(
+                                        Icons.grid_view_rounded,
+                                        size: 16,
+                                        color: !isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 10),
+
+                          // Bulk Actions (Approve All & Reject All)
+                          ElevatedButton.icon(
+                            onPressed: (_isLoading || pendingCount == 0) ? null : _approveAllRequests,
+                            icon: const Icon(Icons.done_all_rounded, size: 14),
+                            label: Text(
+                              pendingCount > 0 ? 'Approve All ($pendingCount)' : 'Approve All',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: const Color(0xFFE2E8F0),
+                              disabledForegroundColor: const Color(0xFF94A3B8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                              elevation: 0,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: (_isLoading || pendingCount == 0) ? null : _rejectAllRequests,
+                            icon: const Icon(Icons.cancel_outlined, size: 14),
+                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF4444),
+                              side: BorderSide(
+                                color: pendingCount > 0 ? const Color(0xFFEF4444) : const Color(0xFFE2E8F0),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Row 2: Search Bar + Filter Status Summary
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 38,
+                              child: TextField(
+                                controller: _kitchenSearchCtrl,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _kitchenSearchQuery = value;
+                                    _currentPage = 1;
+                                  });
+                                },
+                                style: const TextStyle(fontSize: 12.5, color: Color(0xFF0F172A)),
+                                decoration: InputDecoration(
+                                  hintText: 'Search stock requests by item name, requester, or unit...',
+                                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                                  suffixIcon: _kitchenSearchQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFF64748B)),
+                                          onPressed: () {
+                                            _kitchenSearchCtrl.clear();
+                                            setState(() {
+                                              _kitchenSearchQuery = '';
+                                              _currentPage = 1;
+                                            });
+                                          },
+                                        )
+                                      : null,
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            filteredRequests.isEmpty
+                                ? '0 items'
+                                : 'Showing ${startIndex + 1}–$endIndex of ${filteredRequests.length}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // ── DATA CONTENT: TABLE VIEW OR COMPACT GRID ──
+                if (filteredRequests.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 48),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.inbox_rounded, size: 40, color: Color(0xFF94A3B8)),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _kitchenSearchQuery.isNotEmpty
+                              ? 'No results for "$_kitchenSearchQuery"'
+                              : 'No ${_requestFilterLabels[_requestFilter]} stock requests',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _kitchenSearchQuery.isNotEmpty
+                              ? 'Try searching with different keywords'
+                              : 'Requests from the kitchen and staff will appear here',
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                        ),
+                        if (_kitchenSearchQuery.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          TextButton.icon(
+                            onPressed: () {
+                              _kitchenSearchCtrl.clear();
+                              setState(() {
+                                _kitchenSearchQuery = '';
+                                _currentPage = 1;
+                              });
+                            },
+                            icon: const Icon(Icons.clear_all_rounded, size: 16),
+                            label: const Text('Clear Search Filter', style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF14332E)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                else ...[
+                  // Render Table or Compact Grid based on _isKitchenTableView
+                  if (isTableView)
+                    _buildKitchenRequestsTable(paginatedRequests)
+                  else
+                    _buildKitchenRequestsGrid(paginatedRequests),
+
+                  // Pagination Footer
+                  if (totalPages > 1) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Showing ${startIndex + 1} to $endIndex of ${filteredRequests.length} requests',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+                                icon: const Icon(Icons.chevron_left_rounded),
+                                color: const Color(0xFF14332E),
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Page $_currentPage of $totalPages',
+                                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 12),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
+                                icon: const Icon(Icons.chevron_right_rounded),
+                                color: const Color(0xFF14332E),
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------
+  // DATA TABLE VIEW (CLEAN, DENSE & PROFESSIONAL)
+  // -------------------------------------------------------------
+  Widget _buildKitchenRequestsTable(List<Map<String, dynamic>> requests) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = constraints.maxWidth < 950 ? 950.0 : constraints.maxWidth;
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: SizedBox(
+                width: tableWidth,
+                child: Column(
+                  children: [
+                    // Table Header Row (100% Proportional Width Distribution)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8FAFC),
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Expanded(
+                            flex: 28,
+                            child: Text(
+                              'ITEM SPECIFICATION',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 12,
+                            child: Text(
+                              'QUANTITY',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 11,
+                            child: Text(
+                              'PRIORITY',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 21,
+                            child: Text(
+                              'REQUESTED BY',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 14,
+                            child: Text(
+                              'REQUEST DATE',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 12,
+                            child: Text(
+                              'STATUS',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 16,
+                            child: Text(
+                              'ACTIONS & AUDIT',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Table Data Rows
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: requests.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9), thickness: 1),
+                      itemBuilder: (context, index) {
+                        final request = requests[index];
+                        final status = request['status']?.toString() ?? 'Pending';
+                        final priority = request['priority']?.toString() ?? 'Normal';
+                        final itemName = request['item_name']?.toString() ?? 'Unknown';
+                        final quantity = request['quantity_needed']?.toString() ?? '0';
+                        final unit = (request['unit']?.toString() ?? 'pcs').toUpperCase();
+                        final requestedBy = request['requested_by']?.toString() ?? 'Staff';
+                        final createdAt = request['created_at']?.toString();
+                        final updatedAt = request['updated_at']?.toString();
+
+                        Color statusColor;
+                        IconData statusIcon;
+                        switch (status) {
+                          case 'Approved':
+                            statusColor = const Color(0xFF10B981);
+                            statusIcon = Icons.check_circle_rounded;
+                            break;
+                          case 'Rejected':
+                            statusColor = const Color(0xFFEF4444);
+                            statusIcon = Icons.cancel_rounded;
+                            break;
+                          default:
+                            statusColor = const Color(0xFFF59E0B);
+                            statusIcon = Icons.hourglass_top_rounded;
+                        }
+
+                        Color priorityColor;
+                        switch (priority) {
+                          case 'Urgent':
+                            priorityColor = const Color(0xFFEF4444);
+                            break;
+                          case 'High':
+                            priorityColor = const Color(0xFFF59E0B);
+                            break;
+                          case 'Low':
+                            priorityColor = const Color(0xFF0284C7);
+                            break;
+                          default:
+                            priorityColor = const Color(0xFF64748B);
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          color: index.isEven ? Colors.white : const Color(0xFFFCFDFE),
+                          child: Row(
+                            children: [
+                              // Item Spec
+                              Expanded(
+                                flex: 28,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.restaurant_rounded, size: 14, color: Color(0xFF14332E)),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        itemName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Quantity & Unit
+                              Expanded(
+                                flex: 12,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF14332E).withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(7),
+                                      border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.12)),
+                                    ),
+                                    child: RichText(
+                                      text: TextSpan(
                                         children: [
-                                          Text(
-                                            _requestFilterLabels[index],
-                                            style: TextStyle(
-                                              color: isSelected ? Colors.white : const Color(0xFF64748B),
-                                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                              fontSize: 12,
+                                          TextSpan(
+                                            text: '$quantity ',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF0F172A),
                                             ),
                                           ),
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? const Color(0xFFE6C374)
-                                                  : const Color(0xFFF1F5F9),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              '$count',
-                                              style: TextStyle(
-                                                color: isSelected ? const Color(0xFF14332E) : const Color(0xFF475569),
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 11,
-                                              ),
+                                          TextSpan(
+                                            text: unit,
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF14332E),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                   ),
-                                );
-                              }),
-                            ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Cards Grid / List
-                    if (filteredRequests.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 60),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF8FAFC),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.inbox_rounded, size: 48, color: Color(0xFF94A3B8)),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              'No ${_requestFilterLabels[_requestFilter]} requests found',
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Requests from staff and chef will appear here',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                            ),
-                          ],
-                        ),
-                      )
-                    else ...[
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final totalPages = (filteredRequests.length / _itemsPerPage).ceil();
-                          final startIndex = (_currentPage - 1) * _itemsPerPage;
-                          final endIndex = startIndex + _itemsPerPage;
-                          final paginatedRequests = filteredRequests.sublist(
-                            startIndex,
-                            endIndex > filteredRequests.length ? filteredRequests.length : endIndex,
-                          );
-
-                          int crossAxisCount = constraints.maxWidth < 700 ? 1 : (constraints.maxWidth < 1200 ? 2 : 3);
-
-                          return Column(
-                            children: [
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  childAspectRatio: crossAxisCount == 1 ? 2.4 : 1.7,
                                 ),
-                                itemCount: paginatedRequests.length,
-                                itemBuilder: (context, index) {
-                                  return _buildRequestCard(paginatedRequests[index]);
-                                },
                               ),
-                              if (totalPages > 1) ...[
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
-                                        icon: const Icon(Icons.chevron_left_rounded),
-                                        color: const Color(0xFF14332E),
+
+                              // Priority
+                              Expanded(
+                                flex: 11,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: priorityColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Text(
+                                      priority.toUpperCase(),
+                                      style: TextStyle(
+                                        color: priorityColor,
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Page $_currentPage of $totalPages',
-                                        style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A), fontSize: 13),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
-                                        icon: const Icon(Icons.chevron_right_rounded),
-                                        color: const Color(0xFF14332E),
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ],
+                              ),
+
+                              // Requested By
+                              Expanded(
+                                flex: 21,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.person_outline_rounded, size: 13, color: Color(0xFF64748B)),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        requestedBy,
+                                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Request Date
+                              Expanded(
+                                flex: 14,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF94A3B8)),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        _formatDateTime(createdAt),
+                                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Status
+                              Expanded(
+                                flex: 12,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(statusIcon, size: 11, color: statusColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          status,
+                                          style: TextStyle(
+                                            color: statusColor,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Actions / Audit
+                              Expanded(
+                                flex: 16,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: status == 'Pending'
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ElevatedButton.icon(
+                                              onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
+                                              icon: const Icon(Icons.check_rounded, size: 13),
+                                              label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFF10B981),
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            OutlinedButton.icon(
+                                              onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
+                                              icon: const Icon(Icons.close_rounded, size: 13),
+                                              label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: const Color(0xFFEF4444),
+                                                side: const BorderSide(color: Color(0xFFEF4444)),
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          ),
+                                          child: Text(
+                                            'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: statusColor,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                ),
+                              ),
                             ],
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        );
+                      },
+                    ),
                   ],
-                );
-              },
+                ),
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  // -------------------------------------------------------------
+  // COMPACT CARD GRID VIEW (ZERO DEAD SPACE)
+  // -------------------------------------------------------------
+  Widget _buildKitchenRequestsGrid(List<Map<String, dynamic>> requests) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = constraints.maxWidth >= 1350
+            ? 4
+            : (constraints.maxWidth >= 950
+                ? 3
+                : (constraints.maxWidth >= 600 ? 2 : 1));
+
+        double childAspectRatio = crossAxisCount == 1
+            ? 2.6
+            : (crossAxisCount == 4
+                ? 1.95
+                : (crossAxisCount == 3 ? 2.1 : 2.25));
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemCount: requests.length,
+          itemBuilder: (context, index) {
+            return _buildRequestCard(requests[index]);
+          },
+        );
+      },
     );
   }
 
@@ -3250,6 +4698,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     final unit = (request['unit']?.toString() ?? 'pcs').toUpperCase();
     final requestedBy = request['requested_by']?.toString() ?? 'Staff';
     final createdAt = request['created_at']?.toString();
+    final updatedAt = request['updated_at']?.toString();
 
     Color statusColor;
     IconData statusIcon;
@@ -3285,21 +4734,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withValues(alpha: 0.25), width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withValues(alpha: 0.22), width: 1.1),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Top: Item Name + Status Pill + Priority
             Row(
@@ -3309,7 +4758,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     itemName,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 14,
+                      fontSize: 13.5,
                       color: Color(0xFF0F172A),
                       letterSpacing: -0.2,
                     ),
@@ -3317,41 +4766,41 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: priorityColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: priorityColor.withValues(alpha: 0.25)),
                   ),
                   child: Text(
                     priority.toUpperCase(),
                     style: TextStyle(
                       color: priorityColor,
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.25)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(statusIcon, size: 10, color: statusColor),
-                      const SizedBox(width: 4),
+                      Icon(statusIcon, size: 9.5, color: statusColor),
+                      const SizedBox(width: 3),
                       Text(
                         status,
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -3367,11 +4816,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF14332E).withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.15)),
+                    color: const Color(0xFF14332E).withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.12)),
                   ),
                   child: RichText(
                     text: TextSpan(
@@ -3379,16 +4828,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         TextSpan(
                           text: '$quantity ',
                           style: const TextStyle(
-                            fontSize: 15,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF0F172A),
-                            letterSpacing: -0.3,
+                            letterSpacing: -0.2,
                           ),
                         ),
                         TextSpan(
                           text: unit,
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 9.5,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF14332E),
                           ),
@@ -3397,19 +4846,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.person_outline_rounded, size: 12, color: Color(0xFF64748B)),
-                          const SizedBox(width: 4),
+                          const Icon(Icons.person_outline_rounded, size: 11.5, color: Color(0xFF64748B)),
+                          const SizedBox(width: 3),
                           Flexible(
                             child: Text(
                               requestedBy,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                              style: const TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -3419,11 +4869,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 4),
+                          const Icon(Icons.schedule_rounded, size: 10.5, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 3),
                           Text(
                             _formatDateTime(createdAt),
-                            style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                            style: const TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8)),
                           ),
                         ],
                       ),
@@ -3432,7 +4882,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // Bottom: Action Buttons or Audit Badge
             if (status == 'Pending')
@@ -3441,28 +4891,32 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                      icon: const Icon(Icons.check_rounded, size: 14),
-                      label: const Text('Approve', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                      icon: const Icon(Icons.check_rounded, size: 13),
+                      label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
-                        elevation: 1,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                      icon: const Icon(Icons.close_rounded, size: 14),
-                      label: const Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                      icon: const Icon(Icons.close_rounded, size: 13),
+                      label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFEF4444),
                         side: const BorderSide(color: Color(0xFFEF4444)),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ),
@@ -3471,21 +4925,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             else
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(7),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   children: [
-                    Icon(statusIcon, size: 12, color: statusColor),
-                    const SizedBox(width: 6),
+                    Icon(statusIcon, size: 11, color: statusColor),
+                    const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        'Processed ${_formatDateTime(request['updated_at']?.toString() ?? createdAt)}',
+                        'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9.5,
                           color: statusColor,
                           fontWeight: FontWeight.w700,
                         ),

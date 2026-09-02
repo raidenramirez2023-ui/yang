@@ -112,6 +112,9 @@ class PettyCashService {
       await _supabase.from('petty_cash_expenses').insert(expense.toJson());
       debugPrint('Expense inserted successfully');
 
+      // Auto add to stock_transactions
+      await _addExpenseToStockTransactionsIfApplicable(expense.toJson(), expense.purchasedBy);
+
       return true;
     } catch (e) {
       debugPrint('Error creating expense: $e');
@@ -212,47 +215,8 @@ class PettyCashService {
       // Update category budget
       await updateCategorySpent(expense['category'], expense['amount']);
 
-      // If inventory purchase, add to stock_transactions
-      debugPrint('Checking if inventory purchase: category=${expense['category']}');
-
-      if (expense['category'] == 'inventory_purchase') {
-        // Handle new multi-item format
-        if (expense['inventory_items'] != null && expense['inventory_items'] is List) {
-          final inventoryItems = expense['inventory_items'] as List;
-          debugPrint('Processing ${inventoryItems.length} inventory items...');
-
-          for (var item in inventoryItems) {
-            final itemName = item['item_name'] as String?;
-            final quantity = item['quantity'] as int?;
-            if (itemName != null && quantity != null) {
-              debugPrint('Adding $itemName x$quantity to stock transactions...');
-              final success = await addInventoryToStockTransactions(
-                itemName,
-                quantity,
-                'pcs',
-                expense['supplier'] as String? ?? 'Unknown',
-                user.email ?? 'admin',
-              );
-              debugPrint('Stock transaction result for $itemName: $success');
-            }
-          }
-        }
-        // Handle legacy single item format
-        else if (expense['inventory_item_name'] != null &&
-            expense['quantity_purchased'] != null) {
-          debugPrint('Adding to stock transactions (legacy format)...');
-          final success = await addInventoryToStockTransactions(
-            expense['inventory_item_name'] as String,
-            expense['quantity_purchased'] as int,
-            expense['unit'] as String? ?? 'pcs',
-            expense['supplier'] as String? ?? 'Unknown',
-            user.email ?? 'admin',
-          );
-          debugPrint('Stock transaction result: $success');
-        } else {
-          debugPrint('Skipping stock transaction - missing required fields');
-        }
-      }
+      // Ensure item is in stock_transactions
+      await _addExpenseToStockTransactionsIfApplicable(expense, user.email ?? 'admin');
 
       return true;
     } catch (e) {
@@ -288,6 +252,13 @@ class PettyCashService {
   // Mark expense as reimbursed
   Future<bool> markAsReimbursed(String expenseId) async {
     try {
+      final user = _supabase.auth.currentUser;
+      final expenseRes = await _supabase
+          .from('petty_cash_expenses')
+          .select()
+          .eq('id', expenseId)
+          .maybeSingle();
+
       await _supabase
           .from('petty_cash_expenses')
           .update({
@@ -296,10 +267,266 @@ class PettyCashService {
           })
           .eq('id', expenseId);
 
+      if (expenseRes != null) {
+        await _addExpenseToStockTransactionsIfApplicable(expenseRes, user?.email ?? 'admin');
+      }
+
       return true;
     } catch (e) {
       debugPrint('Error marking expense as reimbursed: $e');
       return false;
+    }
+  }
+
+  Future<void> _addExpenseToStockTransactionsIfApplicable(Map<String, dynamic> expense, String userEmail) async {
+    try {
+      final category = (expense['category'] ?? '').toString().toLowerCase().trim();
+      // Only inventory_purchase expenses should create stock transactions / enter petty cash inventory tab
+      if (category != 'inventory_purchase') {
+        debugPrint('Skipping stock transaction: category is "$category", only "inventory_purchase" is allowed');
+        return;
+      }
+
+      final supplier = (expense['supplier'] as String?)?.trim().isNotEmpty == true
+          ? (expense['supplier'] as String).trim()
+          : 'Market';
+      const processedBy = 'pagsanjaninv@gmail.com';
+
+      // 1. Multi-items format
+      if (expense['inventory_items'] != null && expense['inventory_items'] is List) {
+        final items = expense['inventory_items'] as List;
+        for (var item in items) {
+          final name = (item['item_name'] ?? item['name'] ?? '').toString().trim();
+          final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+          final unit = (item['unit'] as String?) ?? 'pcs';
+          if (name.isNotEmpty) {
+            final exists = await _checkIfStockTransactionExists(name);
+            if (!exists) {
+              await addInventoryToStockTransactions(name, qty, unit, supplier, processedBy);
+            }
+          }
+        }
+      }
+      // 2. Single item field format
+      else if (expense['inventory_item_name'] != null && expense['inventory_item_name'].toString().trim().isNotEmpty) {
+        final name = expense['inventory_item_name'].toString().trim();
+        final qty = (expense['quantity_purchased'] as num?)?.toInt() ?? 1;
+        final unit = (expense['unit'] as String?) ?? 'pcs';
+        final exists = await _checkIfStockTransactionExists(name);
+        if (!exists) {
+          await addInventoryToStockTransactions(name, qty, unit, supplier, processedBy);
+        }
+      }
+      // 3. Item from description (e.g. COOK POT, YOUNG CORN, etc.)
+      else if (expense['description'] != null && expense['description'].toString().trim().isNotEmpty) {
+        final desc = expense['description'].toString().trim();
+        final exists = await _checkIfStockTransactionExists(desc);
+        if (!exists) {
+          await addInventoryToStockTransactions(desc, 1, 'pcs', supplier, processedBy);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in _addExpenseToStockTransactionsIfApplicable: $e');
+    }
+  }
+
+  Future<bool> _checkIfStockTransactionExists(String itemName) async {
+    try {
+      final res = await _supabase
+          .from('stock_transactions')
+          .select('id, purpose')
+          .eq('item_name', itemName)
+          .eq('transaction_type', 'incoming')
+          .limit(10);
+
+      if (res.isEmpty) return false;
+      return res.any((r) {
+        final p = (r['purpose'] ?? '').toString();
+        return p == 'Petty Cash Purchase' || p == 'Transferred to Storage';
+      });
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> syncMissingPettyCashToStockTransactions() async {
+    try {
+      // 1. Fetch valid inventory_purchase expenses
+      final inventoryExpenses = await _supabase
+          .from('petty_cash_expenses')
+          .select()
+          .eq('category', 'inventory_purchase');
+
+      // Also include all items from the main inventory table
+      final registeredInventory = await _supabase
+          .from('inventory')
+          .select('name');
+
+      final Set<String> validInventoryItemNames = {};
+      for (var inv in registeredInventory) {
+        final n = (inv['name'] ?? '').toString().toLowerCase().trim();
+        if (n.isNotEmpty) validInventoryItemNames.add(n);
+      }
+
+      for (var exp in inventoryExpenses) {
+        if (exp['inventory_items'] != null && exp['inventory_items'] is List) {
+          for (var item in (exp['inventory_items'] as List)) {
+            final n = (item['item_name'] ?? item['name'] ?? '').toString().toLowerCase().trim();
+            if (n.isNotEmpty) validInventoryItemNames.add(n);
+          }
+        }
+        final single = (exp['inventory_item_name'] ?? '').toString().toLowerCase().trim();
+        if (single.isNotEmpty) validInventoryItemNames.add(single);
+      }
+
+      // 2. Fetch all non-inventory expenses to remove any orphaned entries
+      final nonInventoryExpenses = await _supabase
+          .from('petty_cash_expenses')
+          .select()
+          .neq('category', 'inventory_purchase');
+
+      final Set<String> nonInventoryItemNames = {};
+      for (var exp in nonInventoryExpenses) {
+        final desc = (exp['description'] ?? '').toString().trim();
+        if (desc.isNotEmpty && !validInventoryItemNames.contains(desc.toLowerCase())) {
+          nonInventoryItemNames.add(desc);
+        }
+        final single = (exp['inventory_item_name'] ?? '').toString().trim();
+        if (single.isNotEmpty && !validInventoryItemNames.contains(single.toLowerCase())) {
+          nonInventoryItemNames.add(single);
+        }
+      }
+
+      // 3. Clean up non-inventory transactions from stock_transactions
+      if (nonInventoryItemNames.isNotEmpty) {
+        for (var invalidName in nonInventoryItemNames) {
+          try {
+            await _supabase
+                .from('stock_transactions')
+                .delete()
+                .eq('purpose', 'Petty Cash Purchase')
+                .eq('item_name', invalidName);
+          } catch (_) {}
+          try {
+            await _supabase
+                .from('stock_transactions')
+                .update({'purpose': 'Petty Cash Non-Inventory', 'transaction_type': 'archived'})
+                .eq('purpose', 'Petty Cash Purchase')
+                .eq('item_name', invalidName);
+          } catch (_) {}
+        }
+      }
+
+      // Also clean up any stock_transaction with purpose 'Petty Cash Purchase' that doesn't match any valid inventory purchase
+      final currentPettyCashStock = await _supabase
+          .from('stock_transactions')
+          .select('id, item_name, purpose, created_at')
+          .eq('transaction_type', 'incoming');
+
+      final Set<String> transferredItemNames = {};
+      final Map<String, List<Map<String, dynamic>>> pendingPettyByItem = {};
+
+      for (var tx in currentPettyCashStock) {
+        final name = (tx['item_name'] ?? '').toString().toLowerCase().trim();
+        final purpose = (tx['purpose'] ?? '').toString();
+
+        if (purpose == 'Transferred to Storage') {
+          transferredItemNames.add(name);
+        } else if (purpose == 'Petty Cash Purchase') {
+          if (!validInventoryItemNames.contains(name)) {
+            final id = tx['id'];
+            if (id != null) {
+              try {
+                await _supabase.from('stock_transactions').delete().eq('id', id);
+              } catch (_) {}
+              try {
+                await _supabase
+                    .from('stock_transactions')
+                    .update({'purpose': 'Petty Cash Non-Inventory', 'transaction_type': 'archived'})
+                    .eq('id', id);
+              } catch (_) {}
+            }
+          } else {
+            pendingPettyByItem.putIfAbsent(name, () => []).add(tx);
+          }
+        }
+      }
+
+      // If an item has already been Transferred to Storage, any pending 'Petty Cash Purchase' for it should be archived!
+      for (var transferredName in transferredItemNames) {
+        if (pendingPettyByItem.containsKey(transferredName)) {
+          final pendingList = pendingPettyByItem[transferredName]!;
+          for (var item in pendingList) {
+            final id = item['id'];
+            if (id != null) {
+              try {
+                await _supabase
+                    .from('stock_transactions')
+                    .update({'purpose': 'Transferred to Storage', 'processed_by': 'pagsanjaninv@gmail.com'})
+                    .eq('id', id);
+              } catch (_) {}
+            }
+          }
+          pendingPettyByItem.remove(transferredName);
+        }
+      }
+
+      // Clean up duplicate pending items: keep only 1 per item
+      for (var entry in pendingPettyByItem.entries) {
+        final list = entry.value;
+        if (list.length > 1) {
+          list.sort((a, b) => (b['created_at']?.toString() ?? '').compareTo(a['created_at']?.toString() ?? ''));
+          for (int i = 1; i < list.length; i++) {
+            final dupId = list[i]['id'];
+            if (dupId != null) {
+              try {
+                await _supabase.from('stock_transactions').delete().eq('id', dupId);
+              } catch (_) {}
+              try {
+                await _supabase
+                    .from('stock_transactions')
+                    .update({'purpose': 'Petty Cash Duplicate Archived', 'transaction_type': 'archived'})
+                    .eq('id', dupId);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+
+      // Clean up duplicate 'Transferred to Storage' transactions
+      final Map<String, List<Map<String, dynamic>>> transferredByItem = {};
+      for (var tx in currentPettyCashStock) {
+        final name = (tx['item_name'] ?? '').toString().toLowerCase().trim();
+        final purpose = (tx['purpose'] ?? '').toString();
+        if (purpose == 'Transferred to Storage') {
+          transferredByItem.putIfAbsent(name, () => []).add(tx);
+        }
+      }
+
+      for (var entry in transferredByItem.entries) {
+        final list = entry.value;
+        if (list.length > 1) {
+          list.sort((a, b) => (b['created_at']?.toString() ?? '').compareTo(a['created_at']?.toString() ?? ''));
+          for (int i = 1; i < list.length; i++) {
+            final dupId = list[i]['id'];
+            if (dupId != null) {
+              try {
+                await _supabase.from('stock_transactions').delete().eq('id', dupId);
+              } catch (_) {}
+              try {
+                await _supabase
+                    .from('stock_transactions')
+                    .update({'purpose': 'Petty Cash Duplicate Transferred', 'transaction_type': 'archived'})
+                    .eq('id', dupId);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+
+      // 4. Cleanup complete - do NOT re-insert old expenses automatically in background loops!
+    } catch (e) {
+      debugPrint('Error syncing/cleaning petty cash to stock transactions: $e');
     }
   }
 
@@ -608,7 +835,7 @@ class PettyCashService {
         'transaction_type': 'incoming',
         'quantity': quantity,
         'supplier': supplier,
-        'processed_by': processedBy,
+        'processed_by': 'pagsanjaninv@gmail.com',
         'purpose': 'Petty Cash Purchase',
         'created_at': DateTime.now().toUtc().toIso8601String(),
       };
