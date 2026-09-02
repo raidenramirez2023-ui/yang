@@ -10292,7 +10292,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                                ],
                                              ),
                                            ),
-                                           if (status == 'completed' || status == 'done')
+                                           if (true)
                                              PopupMenuItem<String>(
                                                value: 'review',
                                                child: Row(
