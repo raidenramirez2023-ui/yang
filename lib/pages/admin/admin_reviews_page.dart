@@ -26,7 +26,7 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
   bool _headerCollapsed = false;
 
   int _currentPage = 0;
-  static const int _rowsPerPage = 10;
+  static const int _rowsPerPage = 15;
 
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -1062,64 +1062,195 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
         : totalItems;
     final totalPages = (totalItems / _rowsPerPage).ceil();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: _slateLight))),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border(top: BorderSide(color: _slateLight)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Showing ${startIndex + 1}–$endIndex of $totalItems reviews',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              color: _slate,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _pageBtn(
-                icon: Icons.chevron_left_rounded,
-                enabled: _currentPage > 0,
-                onTap: () => setState(() => _currentPage--),
+              Text(
+                'Showing ${startIndex + 1}–$endIndex of $totalItems reviews',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: _slate,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _emerald.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Text(
                   'Page ${_currentPage + 1} of $totalPages',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _darkBg,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: _emerald,
                   ),
                 ),
               ),
-              _pageBtn(
-                icon: Icons.chevron_right_rounded,
-                enabled: endIndex < totalItems,
-                onTap: () => setState(() => _currentPage++),
-              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
+          if (totalPages > 1) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Prev Button
+                InkWell(
+                  onTap: _currentPage > 0
+                      ? () => setState(() => _currentPage--)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _currentPage > 0 ? _emerald : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _currentPage > 0 ? _emerald : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: _currentPage > 0 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: _currentPage > 0 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
 
-  Widget _pageBtn({required IconData icon, required bool enabled, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: enabled ? _emerald : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: enabled ? Colors.white : const Color(0xFFCBD5E1),
-        ),
+                // Page Number Buttons with smart ellipsis window
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  final currentPageNum = _currentPage + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPageNum - 1 || pageNum > currentPageNum + 1)) {
+                      if (pageNum == currentPageNum - 2 || pageNum == currentPageNum + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPageNum;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: InkWell(
+                      onTap: () {
+                        if (!isSelected) {
+                          setState(() => _currentPage = pageNum - 1);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? _gold : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? _gold : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: _gold.withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? _emerald : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                InkWell(
+                  onTap: _currentPage < totalPages - 1
+                      ? () => setState(() => _currentPage++)
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _currentPage < totalPages - 1 ? _emerald : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _currentPage < totalPages - 1 ? _emerald : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: _currentPage < totalPages - 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: _currentPage < totalPages - 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1129,11 +1260,28 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
     if (_isLoading) return _buildLoadingState();
     final filtered = _filtered;
     if (filtered.isEmpty) return _buildEmptyState();
-    return ListView.separated(
+
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage < filtered.length)
+        ? startIndex + _rowsPerPage
+        : filtered.length;
+    final paginated = filtered.sublist(startIndex, endIndex);
+
+    return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      itemCount: filtered.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _buildMobileCard(filtered[i], i),
+      itemCount: paginated.length + (filtered.length > _rowsPerPage ? 1 : 0),
+      itemBuilder: (ctx, i) {
+        if (i == paginated.length) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 24),
+            child: _buildPaginationControls(filtered.length),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildMobileCard(paginated[i], startIndex + i),
+        );
+      },
     );
   }
 

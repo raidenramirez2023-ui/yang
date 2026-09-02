@@ -18,6 +18,8 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
   bool isLoading = true;
   bool _isCreateExpanded = false;
   String _selectedFilter = 'All'; // All, Active, Expired, Inactive
+  int _currentPage = 1;
+  static const int _itemsPerPage = 15;
 
   final TextEditingController titleController = TextEditingController();
   final TextEditingController contentController = TextEditingController();
@@ -49,7 +51,10 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
 
   Future<void> _loadAnnouncements() async {
     try {
-      setState(() => isLoading = true);
+      setState(() {
+        isLoading = true;
+        _currentPage = 1;
+      });
 
       final response = await supabase
           .from('announcements')
@@ -237,6 +242,25 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
       return diff >= 0 && diff <= 3;
     }).length;
 
+    // Pagination calculations (15 items per page)
+    final totalItems = filtered.length;
+    final totalPages = totalItems > 0 ? (totalItems / _itemsPerPage).ceil() : 1;
+    if (_currentPage > totalPages) {
+      _currentPage = totalPages;
+    }
+    if (_currentPage < 1) {
+      _currentPage = 1;
+    }
+
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < totalItems)
+        ? startIndex + _itemsPerPage
+        : totalItems;
+
+    final paginatedAnnouncements = totalItems > 0
+        ? filtered.sublist(startIndex, endIndex)
+        : <Map<String, dynamic>>[];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: RefreshIndicator(
@@ -266,15 +290,22 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                 )
               else if (filtered.isEmpty)
                 _buildEmptyState()
-              else
+              else ...[
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: filtered.length,
+                  itemCount: paginatedAnnouncements.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => _buildAnnouncementCard(filtered[index], isMobile),
+                  itemBuilder: (context, index) => _buildAnnouncementCard(paginatedAnnouncements[index], isMobile),
                 ),
-              const SizedBox(height: 60),
+                _buildAnnouncementPagination(
+                  totalItems: totalItems,
+                  currentPage: _currentPage,
+                  totalPages: totalPages,
+                  onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+                ),
+              ],
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -730,7 +761,10 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: InkWell(
-              onTap: () => setState(() => _selectedFilter = f),
+              onTap: () => setState(() {
+                _selectedFilter = f;
+                _currentPage = 1;
+              }),
               borderRadius: BorderRadius.circular(10),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
@@ -763,6 +797,216 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildAnnouncementPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (currentPage * _itemsPerPage < totalItems)
+        ? currentPage * _itemsPerPage
+        : totalItems;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _slateLight),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBg.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem–$endItem of $totalItems notices',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _slate,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _emerald.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: _emerald,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Prev Button
+                InkWell(
+                  onTap: currentPage > 1
+                      ? () => onPageChanged(currentPage - 1)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? _emerald : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage > 1 ? _emerald : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons with smart ellipsis window
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: InkWell(
+                      onTap: () {
+                        if (!isSelected) {
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? _gold : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? _gold : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: _gold.withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? _emerald : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                InkWell(
+                  onTap: currentPage < totalPages
+                      ? () => onPageChanged(currentPage + 1)
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? _emerald : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage < totalPages ? _emerald : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

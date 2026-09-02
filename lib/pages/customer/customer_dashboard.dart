@@ -101,6 +101,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   List<Map<String, dynamic>> customerReservations = [];
   String _activityFilter = 'all'; // 'all', 'in_progress', 'confirmed'
+  String _activityTypeFilter = 'all'; // 'all', 'event', 'advance_order'
+  int _activityCurrentPage = 1;
+  static const int _activityItemsPerPage = 15;
+  int _transactionCurrentPage = 1;
+  static const int _transactionItemsPerPage = 15;
 
   bool _isEligibleForReview = false;
 
@@ -743,6 +748,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       }).toList();
 
       final combined = [...reservations, ...advanceOrders];
+      combined.sort((a, b) {
+        final aCreated = a['created_at']?.toString() ?? '';
+        final bCreated = b['created_at']?.toString() ?? '';
+        return bCreated.compareTo(aCreated);
+      });
 
       // Find the most recent Valid ID uploaded by this customer account
       String? savedIdUrl;
@@ -9380,12 +9390,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildActivitySection() {
-    final activeBookings = customerReservations.where((r) {
+    final totalEventCount = customerReservations.where((r) => r['_db_table'] == 'reservations').length;
+    final totalAdvanceOrderCount = customerReservations.where((r) => r['_db_table'] == 'advance_orders').length;
+
+    // Filter by type: 'event', 'advance_order', or 'all'
+    List<Map<String, dynamic>> filteredByType;
+    if (_activityTypeFilter == 'event') {
+      filteredByType = customerReservations.where((r) => r['_db_table'] == 'reservations').toList();
+    } else if (_activityTypeFilter == 'advance_order') {
+      filteredByType = customerReservations.where((r) => r['_db_table'] == 'advance_orders').toList();
+    } else {
+      filteredByType = customerReservations;
+    }
+
+    final activeBookings = filteredByType.where((r) {
       final status = r['status']?.toString().toLowerCase() ?? '';
       return status != 'cancelled' && status != 'done' && status != 'completed';
     }).toList();
 
-    final confirmedBookings = customerReservations.where((r) => r['status'] == 'confirmed').toList();
+    final confirmedBookings = filteredByType.where((r) => r['status'] == 'confirmed').toList();
 
     // Filter displayed list according to selected filter
     List<Map<String, dynamic>> displayedReservations;
@@ -9394,7 +9417,41 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     } else if (_activityFilter == 'confirmed') {
       displayedReservations = confirmedBookings;
     } else {
-      displayedReservations = customerReservations;
+      displayedReservations = filteredByType;
+    }
+
+    // Pagination calculations (15 items per page)
+    final totalItems = displayedReservations.length;
+    final totalPages = totalItems > 0 ? (totalItems / _activityItemsPerPage).ceil() : 1;
+    if (_activityCurrentPage > totalPages) {
+      _activityCurrentPage = totalPages;
+    }
+    if (_activityCurrentPage < 1) {
+      _activityCurrentPage = 1;
+    }
+
+    final startIndex = (_activityCurrentPage - 1) * _activityItemsPerPage;
+    final endIndex = (startIndex + _activityItemsPerPage < totalItems)
+        ? startIndex + _activityItemsPerPage
+        : totalItems;
+
+    final paginatedReservations = totalItems > 0
+        ? displayedReservations.sublist(startIndex, endIndex)
+        : <Map<String, dynamic>>[];
+
+    String sectionTitle;
+    if (_activityTypeFilter == 'event') {
+      sectionTitle = _activityFilter == 'in_progress'
+          ? 'In Progress Events'
+          : (_activityFilter == 'confirmed' ? 'Confirmed Events' : 'Event Reservations');
+    } else if (_activityTypeFilter == 'advance_order') {
+      sectionTitle = _activityFilter == 'in_progress'
+          ? 'In Progress Advance Orders'
+          : (_activityFilter == 'confirmed' ? 'Confirmed Advance Orders' : 'Advance Orders');
+    } else {
+      sectionTitle = _activityFilter == 'in_progress'
+          ? 'In Progress Orders'
+          : (_activityFilter == 'confirmed' ? 'Confirmed Bookings' : 'Active & Recent Bookings');
     }
 
     return SingleChildScrollView(
@@ -9498,6 +9555,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           HapticFeedback.selectionClick();
                           setState(() {
                             _activityFilter = 'all';
+                            _activityCurrentPage = 1;
                           });
                         },
                         child: Container(
@@ -9520,7 +9578,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               const LivePulseDot(color: Color(0xFF34C759), size: 6),
                               const SizedBox(width: 5),
                               Text(
-                                '${customerReservations.length} TOTAL',
+                                '${filteredByType.length} TOTAL',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF86EFAC),
                                   fontWeight: FontWeight.w800,
@@ -9553,6 +9611,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               HapticFeedback.selectionClick();
                               setState(() {
                                 _activityFilter = _activityFilter == 'in_progress' ? 'all' : 'in_progress';
+                                _activityCurrentPage = 1;
                               });
                             },
                             child: AnimatedContainer(
@@ -9621,6 +9680,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               HapticFeedback.selectionClick();
                               setState(() {
                                 _activityFilter = _activityFilter == 'confirmed' ? 'all' : 'confirmed';
+                                _activityCurrentPage = 1;
                               });
                             },
                             child: AnimatedContainer(
@@ -9682,7 +9742,176 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
+
+            // ── Category Filter Buttons (Event & Advance Ord) ────────────────
+            Row(
+              children: [
+                // ── Event Button ──
+                Expanded(
+                  child: AnimatedTapScale(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _activityTypeFilter = _activityTypeFilter == 'event' ? 'all' : 'event';
+                        _activityCurrentPage = 1;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _activityTypeFilter == 'event'
+                            ? const Color(0xFF14332E)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _activityTypeFilter == 'event'
+                              ? const Color(0xFFD9A441)
+                              : const Color(0xFFE2E8F0),
+                          width: _activityTypeFilter == 'event' ? 1.6 : 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _activityTypeFilter == 'event'
+                                ? const Color(0xFF14332E).withValues(alpha: 0.18)
+                                : const Color(0xFF0F172A).withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.deck_rounded,
+                            size: 16,
+                            color: _activityTypeFilter == 'event'
+                                ? const Color(0xFFD9A441)
+                                : const Color(0xFF14332E),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Event',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _activityTypeFilter == 'event'
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _activityTypeFilter == 'event'
+                                  ? const Color(0xFFD9A441)
+                                  : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$totalEventCount',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _activityTypeFilter == 'event'
+                                    ? const Color(0xFF14332E)
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // ── Advance Ord Button ──
+                Expanded(
+                  child: AnimatedTapScale(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _activityTypeFilter = _activityTypeFilter == 'advance_order' ? 'all' : 'advance_order';
+                        _activityCurrentPage = 1;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _activityTypeFilter == 'advance_order'
+                            ? const Color(0xFF14332E)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _activityTypeFilter == 'advance_order'
+                              ? const Color(0xFFD9A441)
+                              : const Color(0xFFE2E8F0),
+                          width: _activityTypeFilter == 'advance_order' ? 1.6 : 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _activityTypeFilter == 'advance_order'
+                                ? const Color(0xFF14332E).withValues(alpha: 0.18)
+                                : const Color(0xFF0F172A).withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.takeout_dining_rounded,
+                            size: 16,
+                            color: _activityTypeFilter == 'advance_order'
+                                ? const Color(0xFFD9A441)
+                                : const Color(0xFF14332E),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Advance Ord',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _activityTypeFilter == 'advance_order'
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _activityTypeFilter == 'advance_order'
+                                  ? const Color(0xFFD9A441)
+                                  : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$totalAdvanceOrderCount',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _activityTypeFilter == 'advance_order'
+                                    ? const Color(0xFF14332E)
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
 
             // ── Section Title Row & Active Filter Tag ─────────────────────────
             Column(
@@ -9702,9 +9931,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        _activityFilter == 'in_progress'
-                            ? 'In Progress Orders'
-                            : (_activityFilter == 'confirmed' ? 'Confirmed Bookings' : 'Active & Recent Bookings'),
+                        sectionTitle,
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -9777,11 +10004,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         );
                       },
                     ),
-                    if (_activityFilter != 'all')
+                    if (_activityFilter != 'all' || _activityTypeFilter != 'all')
                       AnimatedTapScale(
                         onTap: () {
                           HapticFeedback.selectionClick();
-                          setState(() => _activityFilter = 'all');
+                          setState(() {
+                            _activityFilter = 'all';
+                            _activityTypeFilter = 'all';
+                            _activityCurrentPage = 1;
+                          });
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -9859,11 +10090,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      _activityFilter == 'all'
+                      _activityFilter == 'all' && _activityTypeFilter == 'all'
                           ? 'No Reservation Activity'
                           : (_activityFilter == 'in_progress'
                               ? 'No In-Progress Bookings'
-                              : 'No Confirmed Bookings'),
+                              : (_activityFilter == 'confirmed'
+                                  ? 'No Confirmed Bookings'
+                                  : (_activityTypeFilter == 'event'
+                                      ? 'No Event Reservations'
+                                      : 'No Advance Orders'))),
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -9872,7 +10107,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _activityFilter == 'all'
+                      _activityFilter == 'all' && _activityTypeFilter == 'all'
                           ? 'Your active orders and reservation history will appear here once booked.'
                           : 'No records match this filter. Tap "Show All" to view everything.',
                       textAlign: TextAlign.center,
@@ -9882,12 +10117,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         height: 1.4,
                       ),
                     ),
-                    if (_activityFilter != 'all') ...[
+                    if (_activityFilter != 'all' || _activityTypeFilter != 'all') ...[
                       const SizedBox(height: 14),
                       TextButton.icon(
                         onPressed: () {
                           HapticFeedback.selectionClick();
-                          setState(() => _activityFilter = 'all');
+                          setState(() {
+                            _activityFilter = 'all';
+                            _activityTypeFilter = 'all';
+                            _activityCurrentPage = 1;
+                          });
                         },
                         icon: const Icon(Icons.refresh_rounded, size: 16),
                         label: const Text('Show All Records'),
@@ -9904,9 +10143,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: displayedReservations.length,
+                itemCount: paginatedReservations.length,
                 itemBuilder: (context, index) {
-                  final reservation = displayedReservations[index];
+                  final reservation = paginatedReservations[index];
                   final isAdvanceOrder = reservation['_db_table'] == 'advance_orders';
                   // Show timeline once customer has submitted payment (not just when fully confirmed)
                   final isPaid = reservation['payment_status'] == 'paid' ||
@@ -10424,8 +10663,235 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   );
                 },
               ),
+            if (displayedReservations.isNotEmpty)
+              _buildActivityPagination(
+                totalItems: totalItems,
+                currentPage: _activityCurrentPage,
+                totalPages: totalPages,
+                onPageChanged: (newPage) {
+                  setState(() {
+                    _activityCurrentPage = newPage;
+                  });
+                },
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildActivityPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _activityItemsPerPage) + 1;
+    final endItem = (currentPage * _activityItemsPerPage < totalItems)
+        ? currentPage * _activityItemsPerPage
+        : totalItems;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 4, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem–$endItem of $totalItems entries',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF14332E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Previous Button
+                AnimatedTapScale(
+                  onTap: currentPage > 1
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          onPageChanged(currentPage - 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons (smart ellipsis window)
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: AnimatedTapScale(
+                      onTap: () {
+                        if (!isSelected) {
+                          HapticFeedback.selectionClick();
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                AnimatedTapScale(
+                  onTap: currentPage < totalPages
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          onPageChanged(currentPage + 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -13670,6 +14136,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     final int pendingActionCount = quotations.where((q) => _reservationService.needsDepositPayment(q)).length;
 
+    // Pagination calculations (15 items per page)
+    final totalItems = quotations.length;
+    final totalPages = totalItems > 0 ? (totalItems / _transactionItemsPerPage).ceil() : 1;
+    if (_transactionCurrentPage > totalPages) {
+      _transactionCurrentPage = totalPages;
+    }
+    if (_transactionCurrentPage < 1) {
+      _transactionCurrentPage = 1;
+    }
+
+    final startIndex = (_transactionCurrentPage - 1) * _transactionItemsPerPage;
+    final endIndex = (startIndex + _transactionItemsPerPage < totalItems)
+        ? startIndex + _transactionItemsPerPage
+        : totalItems;
+
+    final paginatedQuotations = totalItems > 0
+        ? quotations.sublist(startIndex, endIndex)
+        : <Map<String, dynamic>>[];
+
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Padding(
@@ -13963,9 +14448,237 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             ),
             const SizedBox(height: 14),
 
-            ...quotations.map((reservation) => _buildQuotationCard(reservation)),
+            ...paginatedQuotations.map((reservation) => _buildQuotationCard(reservation)),
+
+            if (quotations.isNotEmpty)
+              _buildTransactionPagination(
+                totalItems: totalItems,
+                currentPage: _transactionCurrentPage,
+                totalPages: totalPages,
+                onPageChanged: (newPage) {
+                  setState(() {
+                    _transactionCurrentPage = newPage;
+                  });
+                },
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _transactionItemsPerPage) + 1;
+    final endItem = (currentPage * _transactionItemsPerPage < totalItems)
+        ? currentPage * _transactionItemsPerPage
+        : totalItems;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 4, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem–$endItem of $totalItems entries',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF14332E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Previous Button
+                AnimatedTapScale(
+                  onTap: currentPage > 1
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          onPageChanged(currentPage - 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons (smart ellipsis window)
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: AnimatedTapScale(
+                      onTap: () {
+                        if (!isSelected) {
+                          HapticFeedback.selectionClick();
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                AnimatedTapScale(
+                  onTap: currentPage < totalPages
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          onPageChanged(currentPage + 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

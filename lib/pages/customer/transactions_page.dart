@@ -31,6 +31,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Timer? _pollingTimer;
   final _fmt = NumberFormat('#,##0.00', 'en_PH');
   String _selectedFilter = 'all'; // 'all', 'paid', 'unpaid', 'cancelled'
+  int _currentPage = 1;
+  static const int _itemsPerPage = 15;
 
   @override
   void initState() {
@@ -92,6 +94,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         setState(() {
           _transactions = combined;
           _isLoading = false;
+          _currentPage = 1;
         });
       }
     } catch (e) {
@@ -133,6 +136,25 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
     final displayedList = _filteredTransactions;
+
+    // Pagination calculations (15 items per page)
+    final totalItems = displayedList.length;
+    final totalPages = totalItems > 0 ? (totalItems / _itemsPerPage).ceil() : 1;
+    if (_currentPage > totalPages) {
+      _currentPage = totalPages;
+    }
+    if (_currentPage < 1) {
+      _currentPage = 1;
+    }
+
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < totalItems)
+        ? startIndex + _itemsPerPage
+        : totalItems;
+
+    final paginatedList = totalItems > 0
+        ? displayedList.sublist(startIndex, endIndex)
+        : <dynamic>[];
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -243,11 +265,25 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       ? 'Your reservation orders and payment invoices will appear here.'
                       : 'No transactions matching "$_selectedFilter" filter.',
                 )
-              else
+              else ...[
                 // ── Table View on Desktop/Tablet vs Card View on Mobile ──
                 isMobile
-                    ? _buildMobileTransactionsList(displayedList)
-                    : _buildDesktopTransactionsTable(displayedList),
+                    ? _buildMobileTransactionsList(paginatedList)
+                    : _buildDesktopTransactionsTable(paginatedList),
+
+                const SizedBox(height: 16),
+
+                _buildPagination(
+                  totalItems: totalItems,
+                  currentPage: _currentPage,
+                  totalPages: totalPages,
+                  onPageChanged: (newPage) {
+                    setState(() {
+                      _currentPage = newPage;
+                    });
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -258,7 +294,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget _buildFilterChip(String label, String key) {
     final isSelected = _selectedFilter == key;
     return InkWell(
-      onTap: () => setState(() => _selectedFilter = key),
+      onTap: () => setState(() {
+        _selectedFilter = key;
+        _currentPage = 1;
+      }),
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
@@ -288,6 +327,218 @@ class _TransactionsPageState extends State<TransactionsPage> {
             color: isSelected ? Colors.white : const Color(0xFF64748B),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (currentPage * _itemsPerPage < totalItems)
+        ? currentPage * _itemsPerPage
+        : totalItems;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem–$endItem of $totalItems entries',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF14332E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Previous Button
+                AnimatedTapScale(
+                  onTap: currentPage > 1
+                      ? () {
+                          onPageChanged(currentPage - 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons (smart windowing)
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: AnimatedTapScale(
+                      onTap: () {
+                        if (!isSelected) {
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                AnimatedTapScale(
+                  onTap: currentPage < totalPages
+                      ? () {
+                          onPageChanged(currentPage + 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

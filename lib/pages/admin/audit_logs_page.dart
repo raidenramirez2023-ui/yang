@@ -35,7 +35,9 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   DateTime? _customEndDate;
 
   // Pagination / Limit
-  final int _limit = 200;
+  final int _limit = 500;
+  int _currentPage = 1;
+  static const int _itemsPerPage = 20;
 
   final List<String> _moduleOptions = [
     'All Modules',
@@ -111,6 +113,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
         setState(() {
           _logs = results;
           _isLoading = false;
+          _currentPage = 1;
         });
       }
     } catch (e) {
@@ -1562,140 +1565,169 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
 
   // ── Main Table Card ──────────────────────────────────────────────────────────
   Widget _buildTableCard(bool isDesktop) {
-    if (!isDesktop) {
-      return ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _logs.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final log = _logs[index];
-          final formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(log.createdAt);
-          final moduleColor = _getModuleColor(log.module);
-          final actionColor = _getActionColor(log.action);
-          final roleColor = _getRoleColor(log.userRole);
+    final totalItems = _logs.length;
+    final totalPages = totalItems > 0 ? (totalItems / _itemsPerPage).ceil() : 1;
+    if (_currentPage > totalPages) {
+      _currentPage = totalPages;
+    }
+    if (_currentPage < 1) {
+      _currentPage = 1;
+    }
 
-          return InkWell(
-            onTap: () => _showLogDetailsDialog(log),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < totalItems)
+        ? startIndex + _itemsPerPage
+        : totalItems;
+
+    final paginatedLogs = totalItems > 0
+        ? _logs.sublist(startIndex, endIndex)
+        : <AuditLog>[];
+
+    if (!isDesktop) {
+      return Column(
+        children: [
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: paginatedLogs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final log = paginatedLogs[index];
+              final formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(log.createdAt);
+              final moduleColor = _getModuleColor(log.module);
+              final actionColor = _getActionColor(log.action);
+              final roleColor = _getRoleColor(log.userRole);
+
+              return InkWell(
+                onTap: () => _showLogDetailsDialog(log),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                              decoration: BoxDecoration(
-                                color: moduleColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(color: moduleColor.withValues(alpha: 0.25)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(_getModuleIcon(log.module), size: 11, color: moduleColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    log.module,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: moduleColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                              decoration: BoxDecoration(
-                                color: actionColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(color: actionColor.withValues(alpha: 0.2)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(_getActionIcon(log.action), size: 11, color: actionColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    log.action,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: actionColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        formattedDate,
-                        style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  _buildFormattedDescription(log.description, log),
-                  const SizedBox(height: 10),
-                  Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 11,
-                        backgroundColor: roleColor.withValues(alpha: 0.15),
-                        child: Text(
-                          log.userName.isNotEmpty ? log.userName[0].toUpperCase() : 'U',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: roleColor),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '${log.userName} (${log.userEmail})',
-                          style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF475569),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: moduleColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(color: moduleColor.withValues(alpha: 0.25)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(_getModuleIcon(log.module), size: 11, color: moduleColor),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        log.module,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: moduleColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: actionColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(color: actionColor.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(_getActionIcon(log.action), size: 11, color: actionColor),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        log.action,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: actionColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(width: 6),
+                          Text(
+                            formattedDate,
+                            style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      _buildRolePill(log.userRole),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF94A3B8)),
+                      const SizedBox(height: 8),
+                      _buildFormattedDescription(log.description, log),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 11,
+                            backgroundColor: roleColor.withValues(alpha: 0.15),
+                            child: Text(
+                              log.userName.isNotEmpty ? log.userName[0].toUpperCase() : 'U',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: roleColor),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${log.userName} (${log.userEmail})',
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF475569),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildRolePill(log.userRole),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF94A3B8)),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          );
-        },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          _buildAuditLogPagination(
+            totalItems: totalItems,
+            currentPage: _currentPage,
+            totalPages: totalPages,
+            onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+          ),
+        ],
       );
     }
 
@@ -1737,10 +1769,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _logs.length,
+              itemCount: paginatedLogs.length,
               separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
-                final log = _logs[index];
+                final log = paginatedLogs[index];
                 final formattedDate = DateFormat('MMM dd, yyyy').format(log.createdAt);
                 final formattedTime = DateFormat('hh:mm:ss a').format(log.createdAt);
                 final moduleColor = _getModuleColor(log.module);
@@ -1921,6 +1953,12 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 );
               },
             ),
+            _buildAuditLogPagination(
+              totalItems: totalItems,
+              currentPage: _currentPage,
+              totalPages: totalPages,
+              onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+            ),
           ],
         ),
       ),
@@ -1929,129 +1967,365 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
 
   // ── Timeline Stream View Mode ────────────────────────────────────────────────
   Widget _buildTimelineView(bool isDesktop) {
+    final totalItems = _logs.length;
+    final totalPages = totalItems > 0 ? (totalItems / _itemsPerPage).ceil() : 1;
+    if (_currentPage > totalPages) {
+      _currentPage = totalPages;
+    }
+    if (_currentPage < 1) {
+      _currentPage = 1;
+    }
+
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < totalItems)
+        ? startIndex + _itemsPerPage
+        : totalItems;
+
+    final paginatedLogs = totalItems > 0
+        ? _logs.sublist(startIndex, endIndex)
+        : <AuditLog>[];
+
     return Container(
-      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _logs.length,
-        itemBuilder: (context, index) {
-          final log = _logs[index];
-          final formattedDate = DateFormat('MMMM dd, yyyy • hh:mm:ss a').format(log.createdAt);
-          final actionColor = _getActionColor(log.action);
-          final moduleColor = _getModuleColor(log.module);
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: paginatedLogs.length,
+              itemBuilder: (context, index) {
+                final log = paginatedLogs[index];
+                final formattedDate = DateFormat('MMMM dd, yyyy • hh:mm:ss a').format(log.createdAt);
+                final actionColor = _getActionColor(log.action);
+                final moduleColor = _getModuleColor(log.module);
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Timeline Node Line & Dot
+                    Column(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: actionColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: actionColor, width: 2),
+                          ),
+                          child: Icon(_getActionIcon(log.action), size: 16, color: actionColor),
+                        ),
+                        if (index < paginatedLogs.length - 1)
+                          Container(
+                            width: 2,
+                            height: 80,
+                            color: const Color(0xFFE2E8F0),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Timeline Content Card
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: InkWell(
+                          onTap: () => _showLogDetailsDialog(log),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: moduleColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        log.module.toUpperCase(),
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: moduleColor),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: actionColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        log.action,
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: actionColor),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      formattedDate,
+                                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                _buildFormattedDescription(log.description, log),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 10,
+                                      backgroundColor: _getRoleColor(log.userRole).withValues(alpha: 0.2),
+                                      child: Text(
+                                        log.userName.isNotEmpty ? log.userName[0].toUpperCase() : 'U',
+                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _getRoleColor(log.userRole)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${log.userName} (${log.userEmail})',
+                                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    _buildRolePill(log.userRole),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          _buildAuditLogPagination(
+            totalItems: totalItems,
+            currentPage: _currentPage,
+            totalPages: totalPages,
+            onPageChanged: (newPage) => setState(() => _currentPage = newPage),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuditLogPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (currentPage * _itemsPerPage < totalItems)
+        ? currentPage * _itemsPerPage
+        : totalItems;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Timeline Node Line & Dot
-              Column(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: actionColor.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: actionColor, width: 2),
-                    ),
-                    child: Icon(_getActionIcon(log.action), size: 16, color: actionColor),
-                  ),
-                  if (index < _logs.length - 1)
-                    Container(
-                      width: 2,
-                      height: 80,
-                      color: const Color(0xFFE2E8F0),
-                    ),
-                ],
+              Text(
+                'Showing $startItem–$endItem of $totalItems security logs',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
               ),
-              const SizedBox(width: 16),
-
-              // Timeline Content Card
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: InkWell(
-                    onTap: () => _showLogDetailsDialog(log),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: moduleColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  log.module.toUpperCase(),
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: moduleColor),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: actionColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  log.action,
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: actionColor),
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                formattedDate,
-                                style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          _buildFormattedDescription(log.description, log),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 10,
-                                backgroundColor: _getRoleColor(log.userRole).withValues(alpha: 0.2),
-                                child: Text(
-                                  log.userName.isNotEmpty ? log.userName[0].toUpperCase() : 'U',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _getRoleColor(log.userRole)),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${log.userName} (${log.userEmail})',
-                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
-                              ),
-                              const SizedBox(width: 6),
-                              _buildRolePill(log.userRole),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF14332E),
                   ),
                 ),
               ),
             ],
-          );
-        },
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Prev Button
+                InkWell(
+                  onTap: currentPage > 1
+                      ? () => onPageChanged(currentPage - 1)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons with smart ellipsis window
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: InkWell(
+                      onTap: () {
+                        if (!isSelected) {
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.warmGold : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? AppTheme.warmGold : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: AppTheme.warmGold.withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                InkWell(
+                  onTap: currentPage < totalPages
+                      ? () => onPageChanged(currentPage + 1)
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
