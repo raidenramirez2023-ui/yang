@@ -26,6 +26,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
   int _foodQuality = 0;
   int _serviceQuality = 0;
   int _ambiance = 0;
+  int _turnaroundTime = 0;
+  int _responsivenessRate = 0;
   final TextEditingController _reviewTextController = TextEditingController();
 
   bool _isLoading = true;
@@ -60,15 +62,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
         currentUser.email!,
       );
 
-      // Filter to completed/done reservations (or the requested reservationId)
-      final pastReservations = reservations.where((r) {
-        final st = (r['status']?.toString() ?? '').toLowerCase().trim();
-        final isCompleted = st == 'completed' || st == 'done';
-        if (widget.reservationId != null && r['id']?.toString() == widget.reservationId) {
-          return true;
-        }
-        return isCompleted;
-      }).toList();
+      // Allow all reservations (pending, confirmed, ready, completed, cancelled, etc.) to be rated and reviewed
+      final pastReservations = reservations;
 
       if (mounted) {
         setState(() {
@@ -116,6 +111,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
             _foodQuality = review['food_quality'] ?? 0;
             _serviceQuality = review['service_quality'] ?? 0;
             _ambiance = review['ambiance'] ?? 0;
+            _turnaroundTime = review['turnaround_time'] ?? review['tat_rating'] ?? 0;
+            _responsivenessRate = review['responsiveness_rate'] ?? review['responsiveness'] ?? 0;
             _reviewTextController.text = review['review_text'] ?? '';
           } else {
             _resetForm();
@@ -136,6 +133,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     _foodQuality = 0;
     _serviceQuality = 0;
     _ambiance = 0;
+    _turnaroundTime = 0;
+    _responsivenessRate = 0;
     _reviewTextController.clear();
     _existingReview = null;
   }
@@ -291,6 +290,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
         foodQuality: _foodQuality,
         serviceQuality: _serviceQuality,
         ambiance: _ambiance,
+        turnaroundTime: _turnaroundTime,
+        responsivenessRate: _responsivenessRate,
         reviewText: _reviewTextController.text.trim(),
       );
 
@@ -629,6 +630,10 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
           const SizedBox(height: 12),
           _buildPerkItem(Icons.room_service_rounded, 'Attentive Table & Staff Service', 'Warm hospitality, speed, and order accuracy.'),
           const SizedBox(height: 12),
+          _buildPerkItem(Icons.timer_rounded, 'Turnaround Time (TAT)', 'Prompt preparation, serving speed, and minimal waiting time.'),
+          const SizedBox(height: 12),
+          _buildPerkItem(Icons.support_agent_rounded, 'Responsiveness Rate', 'Helpful communication, quick assistance, and guest attentiveness.'),
+          const SizedBox(height: 12),
           _buildPerkItem(Icons.deck_rounded, 'Atmosphere & Cleanliness', 'Cozy oriental interior, lighting, and comfortable seating.'),
         ],
       ),
@@ -746,6 +751,26 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                     icon: Icons.room_service_rounded,
                     rating: _serviceQuality,
                     onRatingChanged: (val) => setState(() => _serviceQuality = val),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Turnaround Time (TAT)
+                  _buildInteractiveRatingCard(
+                    title: 'TURNAROUND TIME (TAT)',
+                    subtitle: 'Order preparation speed & waiting time',
+                    icon: Icons.timer_rounded,
+                    rating: _turnaroundTime,
+                    onRatingChanged: (val) => setState(() => _turnaroundTime = val),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Responsiveness Rate
+                  _buildInteractiveRatingCard(
+                    title: 'RESPONSIVENESS RATE',
+                    subtitle: 'Staff attentiveness & prompt communication',
+                    icon: Icons.support_agent_rounded,
+                    rating: _responsivenessRate,
+                    onRatingChanged: (val) => setState(() => _responsivenessRate = val),
                   ),
                   const SizedBox(height: 12),
 

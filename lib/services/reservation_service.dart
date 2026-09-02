@@ -597,7 +597,6 @@ class ReservationService {
 
 
   /// Add a review for a reservation
-
   /// Upsert a review (Create or Update based on customer email)
   Future<bool> upsertReview({
     required String reservationId,
@@ -606,22 +605,50 @@ class ReservationService {
     required int foodQuality,
     required int serviceQuality,
     required int ambiance,
+    int? turnaroundTime,
+    int? responsivenessRate,
     required String? reviewText,
   }) async {
     try {
       final now = DateTime.now().toUtc().toIso8601String();
-      await _supabase.from('reviews').upsert({
+      final fullData = <String, dynamic>{
         'reservation_id': reservationId,
         'customer_email': customerEmail,
         'rating': overallRating,
         'food_quality': foodQuality,
         'service_quality': serviceQuality,
         'ambiance': ambiance,
+        if (turnaroundTime != null && turnaroundTime > 0) 'turnaround_time': turnaroundTime,
+        if (responsivenessRate != null && responsivenessRate > 0) 'responsiveness_rate': responsivenessRate,
         'review_text': reviewText,
         'updated_at': now,
-      }, onConflict: 'customer_email');
+      };
 
-      return true;
+      try {
+        await _supabase.from('reviews').upsert(fullData, onConflict: 'customer_email');
+        return true;
+      } catch (upsertErr) {
+        final errStr = upsertErr.toString().toLowerCase();
+        // If columns don't exist yet in Supabase schema, fallback to standard columns
+        if (errStr.contains('column') ||
+            errStr.contains('schema') ||
+            errStr.contains('turnaround') ||
+            errStr.contains('responsiveness')) {
+          final fallbackData = <String, dynamic>{
+            'reservation_id': reservationId,
+            'customer_email': customerEmail,
+            'rating': overallRating,
+            'food_quality': foodQuality,
+            'service_quality': serviceQuality,
+            'ambiance': ambiance,
+            'review_text': reviewText,
+            'updated_at': now,
+          };
+          await _supabase.from('reviews').upsert(fallbackData, onConflict: 'customer_email');
+          return true;
+        }
+        rethrow;
+      }
     } catch (e) {
       debugPrint('Error upserting review: $e');
       throw Exception('Failed to submit review: $e');
@@ -644,16 +671,13 @@ class ReservationService {
     }
   }
 
-  /// Check if a customer is eligible to leave a review (has at least one completed reservation)
+  /// Check if a customer is eligible to leave a review (has any reservation or advance order)
   Future<bool> isEligibleForReview(String customerEmail) async {
     try {
       final reservations = await getCustomerReservations(customerEmail);
       final advanceOrders = await getCustomerAdvanceOrders(customerEmail);
-      
-      final hasCompletedRes = reservations.any((r) => r['status'] == 'completed');
-      final hasCompletedAdv = advanceOrders.any((o) => o['status'] == 'done' || o['status'] == 'completed');
-      
-      return hasCompletedRes || hasCompletedAdv;
+
+      return reservations.isNotEmpty || advanceOrders.isNotEmpty;
     } catch (e) {
       debugPrint('Error checking review eligibility: $e');
       return false;
