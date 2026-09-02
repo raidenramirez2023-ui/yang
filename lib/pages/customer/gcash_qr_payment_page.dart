@@ -318,10 +318,10 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
     });
 
     try {
-      // Update payment status with receipt URL
+      // Update payment status with receipt URL — always await admin verification
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
-        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'paid',
+        paymentStatus: 'pending_verification',
         table: widget.table,
         paymentAmount: widget.depositAmount,
         paymentReference: 'TEST_PAYMENT_${DateTime.now().millisecondsSinceEpoch}',

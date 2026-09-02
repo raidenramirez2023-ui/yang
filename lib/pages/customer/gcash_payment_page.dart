@@ -113,15 +113,8 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     try {
       final depositAmount = widget.depositAmount;
 
-      // Determine correct payment status (full vs deposit)
-      String paymentStatus;
-      if (widget.table == 'advance_orders') {
-        paymentStatus = 'pending_verification';
-      } else if (widget.totalPrice != null && depositAmount >= widget.totalPrice!) {
-        paymentStatus = 'fully_paid';
-      } else {
-        paymentStatus = 'deposit_paid';
-      }
+      // Always send pending_verification — admin must verify receipt before confirming
+      final String paymentStatus = 'pending_verification';
 
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,

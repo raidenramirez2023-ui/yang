@@ -118,17 +118,8 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Determine payment status based on amount and table type
-      String paymentStatus;
-      if (widget.table == 'advance_orders') {
-        paymentStatus = 'pending_verification';
-      } else if (widget.totalPrice != null && widget.paymentAmount >= widget.totalPrice!) {
-        // Full payment for event place reservation
-        paymentStatus = 'fully_paid';
-      } else {
-        // Deposit payment for event place reservation
-        paymentStatus = 'deposit_paid';
-      }
+      // Always send pending_verification — admin must verify receipt before confirming
+      final String paymentStatus = 'pending_verification';
 
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,

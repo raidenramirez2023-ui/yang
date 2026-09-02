@@ -7932,27 +7932,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     try {
 
-      // Determine payment status based on amount and table type
+      // Always send pending_verification — admin must verify receipt before confirming
 
-      String paymentStatus;
-
-      if (table == 'advance_orders') {
-
-        paymentStatus = 'paid';
-
-      } else if (totalPrice != null && paymentAmount >= totalPrice) {
-
-        // Full payment for event place reservation
-
-        paymentStatus = 'fully_paid';
-
-      } else {
-
-        // Deposit payment for event place reservation
-
-        paymentStatus = 'deposit_paid';
-
-      }
+      final String paymentStatus = 'pending_verification';
 
 
 
@@ -8355,6 +8337,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final isConfirmed = bookingStatus == 'confirmed' || bookingStatus == 'completed';
 
     switch (status) {
+      case 'pending_verification':
+        return 'VERIFYING';
+
       case 'deposit_paid':
         if (!isConfirmed) {
           return (isAdvanceOrder || isPayInFull) ? 'FULLY SETTLED' : 'DEPOSIT (WAITING APPROVAL)';
@@ -8824,22 +8809,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 await _reservationService.updatePaymentStatus(
                   id: reservationId,
-                  paymentStatus: 'fully_paid',
+                  paymentStatus: 'pending_verification',
                   table: 'reservations',
                   paymentReference: 'PayMongo-Balance',
                 );
 
-                try {
-                  await Supabase.instance.client.from('reservations').update({
-                    'payment_status': 'fully_paid',
-                    'payment_option': 'full',
-                    'remaining_balance': 0,
-                    'status': 'confirmed',
-                    'updated_at': DateTime.now().toUtc().toIso8601String(),
-                  }).eq('id', reservationId);
-                } catch (e) {
-                  debugPrint('Error updating remaining balance settlement: $e');
-                }
+                // Note: Admin must verify and approve this payment
+                // Status will be updated to confirmed after admin approval
 
                 if (mounted) {
                   _loadCustomerReservations();
@@ -10316,7 +10292,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                                ],
                                              ),
                                            ),
-                                           if (status != 'cancelled' && status != 'rejected' && status != 'declined')
+                                           if (status == 'completed' || status == 'done')
                                              PopupMenuItem<String>(
                                                value: 'review',
                                                child: Row(
@@ -10710,8 +10686,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               Text(
                 'Showing $startItem–$endItem of $totalItems entries',
@@ -10740,155 +10719,160 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           ),
           if (totalPages > 1) ...[
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Previous Button
-                AnimatedTapScale(
-                  onTap: currentPage > 1
-                      ? () {
-                          HapticFeedback.selectionClick();
-                          onPageChanged(currentPage - 1);
-                        }
-                      : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chevron_left_rounded,
-                          size: 16,
-                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Prev',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Page Number Buttons (smart ellipsis window)
-                ...List.generate(totalPages, (index) {
-                  final pageNum = index + 1;
-                  if (totalPages > 5) {
-                    if (pageNum != 1 &&
-                        pageNum != totalPages &&
-                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
-                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            '…',
-                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }
-                  }
-
-                  final isSelected = pageNum == currentPage;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: AnimatedTapScale(
-                      onTap: () {
-                        if (!isSelected) {
-                          HapticFeedback.selectionClick();
-                          onPageChanged(pageNum);
-                        }
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
+            Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Previous Button
+                    AnimatedTapScale(
+                      onTap: currentPage > 1
+                          ? () {
+                              HapticFeedback.selectionClick();
+                              onPageChanged(currentPage - 1);
+                            }
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(9),
+                          color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
-                            width: isSelected ? 1.5 : 1.0,
+                            color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
                           ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(0xFFD9A441).withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
                         ),
-                        child: Text(
-                          '$pageNum',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chevron_left_rounded,
+                              size: 16,
+                              color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              'Prev',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  );
-                }),
+                    const SizedBox(width: 6),
 
-                const SizedBox(width: 8),
-
-                // Next Button
-                AnimatedTapScale(
-                  onTap: currentPage < totalPages
-                      ? () {
-                          HapticFeedback.selectionClick();
-                          onPageChanged(currentPage + 1);
+                    // Page Number Buttons (smart ellipsis window)
+                    ...List.generate(totalPages, (index) {
+                      final pageNum = index + 1;
+                      if (totalPages > 5) {
+                        if (pageNum != 1 &&
+                            pageNum != totalPages &&
+                            (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                          if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 2),
+                              child: Text(
+                                '…',
+                                style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
                         }
-                      : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Next',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                      }
+
+                      final isSelected = pageNum == currentPage;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: AnimatedTapScale(
+                          onTap: () {
+                            if (!isSelected) {
+                              HapticFeedback.selectionClick();
+                              onPageChanged(pageNum);
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 30,
+                            height: 30,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+                                width: isSelected ? 1.5 : 1.0,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Text(
+                              '$pageNum',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                      );
+                    }),
+
+                    const SizedBox(width: 6),
+
+                    // Next Button
+                    AnimatedTapScale(
+                      onTap: currentPage < totalPages
+                          ? () {
+                              HapticFeedback.selectionClick();
+                              onPageChanged(currentPage + 1);
+                            }
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                          ),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Next',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ],
         ],
@@ -11254,11 +11238,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       case 'pending':
         color = const Color(0xFFFF9500);
         icon = Icons.pending_rounded;
+        label = 'PENDING';
         showPulse = true;
         break;
       case 'confirmed':
         color = const Color(0xFF34C759);
         icon = Icons.check_circle_rounded;
+        label = 'CONFIRMED';
+        break;
+      case 'awaiting_verification':
+      case 'pending_verification':
+        color = const Color(0xFFFF9500);
+        icon = Icons.hourglass_top_rounded;
+        label = 'VERIFYING';
+        showPulse = true;
+        break;
+      case 'pending_admin_approval':
+        color = const Color(0xFFD97706);
+        icon = Icons.admin_panel_settings_rounded;
+        label = 'PENDING APPROVAL';
+        showPulse = true;
         break;
       case 'preparing':
       case 'cooking':
@@ -11282,6 +11281,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       case 'cancelled':
         color = const Color(0xFFDC2626);
         icon = Icons.cancel_rounded;
+        label = 'CANCELLED';
         break;
       default:
         color = const Color(0xFF64748B);
@@ -14837,77 +14837,83 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ),
                   ),
                   // Status Badge Pill (Petty Cash Style)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isAutoCancelledDueToGrace
-                          ? const Color(0xFFDC2626).withValues(alpha: 0.25)
-                          : isAwaitingAdminApproval
-                              ? const Color(0xFFD97706).withValues(alpha: 0.25)
-                              : isFullyPaid
-                                  ? const Color(0xFF34C759).withValues(alpha: 0.2)
-                                  : isDepositPaid
-                                      ? const Color(0xFF007AFF).withValues(alpha: 0.2)
-                                      : const Color(0xFFD9A441).withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
                         color: isAutoCancelledDueToGrace
-                            ? const Color(0xFFDC2626).withValues(alpha: 0.6)
+                            ? const Color(0xFFDC2626).withValues(alpha: 0.25)
                             : isAwaitingAdminApproval
-                                ? const Color(0xFFD97706).withValues(alpha: 0.6)
+                                ? const Color(0xFFD97706).withValues(alpha: 0.25)
                                 : isFullyPaid
-                                    ? const Color(0xFF34C759).withValues(alpha: 0.45)
+                                    ? const Color(0xFF34C759).withValues(alpha: 0.2)
                                     : isDepositPaid
-                                        ? const Color(0xFF007AFF).withValues(alpha: 0.45)
-                                        : const Color(0xFFD9A441).withValues(alpha: 0.6),
+                                        ? const Color(0xFF007AFF).withValues(alpha: 0.2)
+                                        : const Color(0xFFD9A441).withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isAutoCancelledDueToGrace
+                              ? const Color(0xFFDC2626).withValues(alpha: 0.6)
+                              : isAwaitingAdminApproval
+                                  ? const Color(0xFFD97706).withValues(alpha: 0.6)
+                                  : isFullyPaid
+                                      ? const Color(0xFF34C759).withValues(alpha: 0.45)
+                                      : isDepositPaid
+                                          ? const Color(0xFF007AFF).withValues(alpha: 0.45)
+                                          : const Color(0xFFD9A441).withValues(alpha: 0.6),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isAutoCancelledDueToGrace
-                                ? const Color(0xFFEF4444)
-                                : isAwaitingAdminApproval
-                                    ? const Color(0xFFF59E0B)
-                                    : isFullyPaid
-                                        ? const Color(0xFF34C759)
-                                        : isDepositPaid
-                                            ? const Color(0xFF38BDF8)
-                                            : const Color(0xFFD9A441),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isAutoCancelledDueToGrace
+                                  ? const Color(0xFFEF4444)
+                                  : isAwaitingAdminApproval
+                                      ? const Color(0xFFF59E0B)
+                                      : isFullyPaid
+                                          ? const Color(0xFF34C759)
+                                          : isDepositPaid
+                                              ? const Color(0xFF38BDF8)
+                                              : const Color(0xFFD9A441),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          isAutoCancelledDueToGrace
-                              ? 'CANCELLED (EXPIRED)'
-                              : _getPaymentStatusText(
-                                  paymentStatus,
-                                  true,
-                                  isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
-                                  isPayInFull: isPayInFull,
-                                  bookingStatus: resStatus,
-                                ),
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: isAutoCancelledDueToGrace
-                                ? const Color(0xFFFCA5A5)
-                                : isAwaitingAdminApproval
-                                    ? const Color(0xFFFDE68A)
-                                    : isFullyPaid
-                                        ? const Color(0xFF86EFAC)
-                                        : isDepositPaid
-                                            ? const Color(0xFFBAE6FD)
-                                            : const Color(0xFFFDE68A),
-                            letterSpacing: 0.4,
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              isAutoCancelledDueToGrace
+                                  ? 'CANCELLED (EXPIRED)'
+                                  : _getPaymentStatusText(
+                                      paymentStatus,
+                                      true,
+                                      isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
+                                      isPayInFull: isPayInFull,
+                                      bookingStatus: resStatus,
+                                    ),
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: isAutoCancelledDueToGrace
+                                    ? const Color(0xFFFCA5A5)
+                                    : isAwaitingAdminApproval
+                                        ? const Color(0xFFFDE68A)
+                                        : isFullyPaid
+                                            ? const Color(0xFF86EFAC)
+                                            : isDepositPaid
+                                                ? const Color(0xFFBAE6FD)
+                                                : const Color(0xFFFDE68A),
+                                letterSpacing: 0.4,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],

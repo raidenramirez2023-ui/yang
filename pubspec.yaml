@@ -2,7 +2,7 @@ name: yang_chow
 description: "A new Flutter project."
 publish_to: "none" # Prevent publishing to pub.dev
 
-version: 1.0.0+8
+version: 1.0.0+10
 
 environment:
   sdk: ^3.10.8

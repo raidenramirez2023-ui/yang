@@ -1264,14 +1264,24 @@ class ReservationService {
             (totalPrice > 0 && deposit >= totalPrice) || 
             reservation?['payment_option'] == 'full';
 
-        if (isFull) {
+        if (paymentStatus == 'pending_verification') {
+          updates['payment_status'] = 'pending_verification';
+          updates['status'] = 'pending_admin_approval';
+          if (isFull) {
+            updates['payment_option'] = 'full';
+            updates['remaining_balance'] = 0;
+            updates['deposit_amount'] = totalPrice > 0 ? totalPrice : deposit;
+            updates['payment_amount'] = totalPrice > 0 ? totalPrice : deposit;
+          } else {
+            updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
+          }
+        } else if (isFull) {
           updates['payment_status'] = 'fully_paid';
           updates['payment_option'] = 'full';
           updates['remaining_balance'] = 0;
           updates['deposit_amount'] = totalPrice > 0 ? totalPrice : deposit;
           updates['payment_amount'] = totalPrice > 0 ? totalPrice : deposit;
-          // Fully settled bookings are directly confirmed
-          updates['status'] = 'confirmed';
+          updates['status'] = 'pending_admin_approval';
         } else {
           updates['payment_status'] = 'deposit_paid';
           updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
@@ -1899,8 +1909,8 @@ class ReservationService {
       final response = await _supabase
           .from('reservations')
           .select('*')
-          .eq('status', 'pending_admin_approval')
-          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
+          .inFilter('status', ['pending_admin_approval', 'awaiting_verification'])
+          .inFilter('payment_status', ['deposit_paid', 'fully_paid', 'pending_verification'])
           .eq('is_archived', false)
           .order('created_at', ascending: false);
 
@@ -1952,6 +1962,9 @@ class ReservationService {
             updates['payment_status'] = 'fully_paid';
             updates['payment_option'] = 'full';
             updates['remaining_balance'] = 0;
+          } else {
+            updates['payment_status'] = 'deposit_paid';
+            updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
           }
         }
         updates['status'] = 'confirmed';
