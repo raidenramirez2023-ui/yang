@@ -1555,9 +1555,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
           final svc = ReservationService();
           await svc.updatePaymentStatus(
             id: reservationId,
-            paymentStatus: 'fully_paid',
+            paymentStatus: 'pending_verification',
             table: 'reservations',
-            paymentAmount: null,
+            paymentAmount: remaining,
             paymentReference: 'PayMongo-Balance',
           );
 

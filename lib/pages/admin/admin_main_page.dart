@@ -329,8 +329,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
       final countResponse = await supabase
           .from('reservations')
           .select('id')
-          .eq('status', 'pending_admin_approval')
-          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
+          .inFilter('status', ['pending_admin_approval', 'awaiting_verification'])
+          .inFilter('payment_status', ['deposit_paid', 'fully_paid', 'pending_verification'])
           .eq('is_archived', false);
 
       // 2. Count pending approval advance orders
