@@ -31,6 +31,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   final ReservationService _reservationService = ReservationService();
   late int _selectedModuleTab;
   int _remainingBalanceCount = 0;
+  int _currentPage = 1;
+  static const int _itemsPerPage = 10;
   
   // OCR State
   final Map<String, Map<String, dynamic>> _ocrResults = {};
@@ -646,6 +648,25 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     required int advanceCount,
     required int reservationCount,
   }) {
+    // Pagination calculations (10 items per page)
+    final totalItems = _pendingPayments.length;
+    final totalPages = totalItems > 0 ? (totalItems / _itemsPerPage).ceil() : 1;
+    if (_currentPage > totalPages) {
+      _currentPage = totalPages;
+    }
+    if (_currentPage < 1) {
+      _currentPage = 1;
+    }
+
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < totalItems)
+        ? startIndex + _itemsPerPage
+        : totalItems;
+
+    final paginatedPayments = totalItems > 0
+        ? _pendingPayments.sublist(startIndex, endIndex)
+        : <Map<String, dynamic>>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -802,9 +823,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       color: const Color(0xFF14332E),
                       child: ListView.builder(
                         padding: const EdgeInsets.only(bottom: 16),
-                        itemCount: _pendingPayments.length,
+                        itemCount: paginatedPayments.length + (totalItems > 0 ? 1 : 0),
                         itemBuilder: (context, index) {
-                          final payment = _pendingPayments[index];
+                          if (index == paginatedPayments.length) {
+                            return _buildApprovalPagination(
+                              totalItems: totalItems,
+                              currentPage: _currentPage,
+                              totalPages: totalPages,
+                              onPageChanged: (newPage) {
+                                setState(() {
+                                  _currentPage = newPage;
+                                });
+                              },
+                            );
+                          }
+                          final payment = paginatedPayments[index];
                           return TweenAnimationBuilder<double>(
                             key: ValueKey(payment['id']),
                             tween: Tween(begin: 0.0, end: 1.0),
@@ -826,6 +859,220 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
         ),
       ],
+    );
+  }
+
+  Widget _buildApprovalPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (currentPage * _itemsPerPage < totalItems)
+        ? currentPage * _itemsPerPage
+        : totalItems;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem–$endItem of $totalItems pending payments',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF14332E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Prev Button
+                InkWell(
+                  onTap: currentPage > 1
+                      ? () {
+                          onPageChanged(currentPage - 1);
+                        }
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons with smart ellipsis window
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: InkWell(
+                      onTap: () {
+                        if (!isSelected) {
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                InkWell(
+                  onTap: currentPage < totalPages
+                      ? () {
+                          onPageChanged(currentPage + 1);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 

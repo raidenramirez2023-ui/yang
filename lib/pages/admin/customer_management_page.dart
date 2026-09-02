@@ -22,6 +22,8 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   bool _isLoading = true;
   String _searchQuery = '';
   String _sortBy = 'newest'; // newest, oldest, name_asc, name_desc
+  int _customerCurrentPage = 1;
+  static const int _customersPerPage = 15;
 
   // Color palette
   static const _darkBg = Color(0xFF0F172A);
@@ -355,8 +357,30 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   Widget _buildCustomerRegistryView(bool isMobile) {
     final filtered = _filtered;
 
+    // Pagination calculations (15 items per page)
+    final totalItems = filtered.length;
+    final totalPages = totalItems > 0 ? (totalItems / _customersPerPage).ceil() : 1;
+    if (_customerCurrentPage > totalPages) {
+      _customerCurrentPage = totalPages;
+    }
+    if (_customerCurrentPage < 1) {
+      _customerCurrentPage = 1;
+    }
+
+    final startIndex = (_customerCurrentPage - 1) * _customersPerPage;
+    final endIndex = (startIndex + _customersPerPage < totalItems)
+        ? startIndex + _customersPerPage
+        : totalItems;
+
+    final paginatedCustomers = totalItems > 0
+        ? filtered.sublist(startIndex, endIndex)
+        : <Map<String, dynamic>>[];
+
     return RefreshIndicator(
-      onRefresh: _loadCustomers,
+      onRefresh: () async {
+        setState(() => _customerCurrentPage = 1);
+        await _loadCustomers();
+      },
       color: _gold,
       child: CustomScrollView(
         slivers: [
@@ -381,12 +405,23 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             SliverFillRemaining(child: _buildEmptyState())
           else
             SliverPadding(
-              padding: const EdgeInsets.only(bottom: 60),
+              padding: const EdgeInsets.only(bottom: 40),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) =>
-                      _buildCustomerCard(filtered[index], isMobile),
-                  childCount: filtered.length,
+                  (context, index) {
+                    if (index == paginatedCustomers.length) {
+                      return _buildCustomerPagination(
+                        totalItems: totalItems,
+                        currentPage: _customerCurrentPage,
+                        totalPages: totalPages,
+                        onPageChanged: (newPage) {
+                          setState(() => _customerCurrentPage = newPage);
+                        },
+                      );
+                    }
+                    return _buildCustomerCard(paginatedCustomers[index], isMobile);
+                  },
+                  childCount: paginatedCustomers.length + (totalItems > 0 ? 1 : 0),
                 ),
               ),
             ),
@@ -395,7 +430,215 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     );
   }
 
+  Widget _buildCustomerPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
 
+    final startItem = ((currentPage - 1) * _customersPerPage) + 1;
+    final endItem = (currentPage * _customersPerPage < totalItems)
+        ? currentPage * _customersPerPage
+        : totalItems;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _slateLight),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBg.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem–$endItem of $totalItems registered customers',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _slate,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _emerald.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: _emerald,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Prev Button
+                InkWell(
+                  onTap: currentPage > 1
+                      ? () => onPageChanged(currentPage - 1)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage > 1 ? _emerald : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage > 1 ? _emerald : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Prev',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Page Number Buttons with smart ellipsis window
+                ...List.generate(totalPages, (index) {
+                  final pageNum = index + 1;
+                  if (totalPages > 5) {
+                    if (pageNum != 1 &&
+                        pageNum != totalPages &&
+                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '…',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }
+                  }
+
+                  final isSelected = pageNum == currentPage;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: InkWell(
+                      onTap: () {
+                        if (!isSelected) {
+                          onPageChanged(pageNum);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? _gold : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? _gold : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: _gold.withValues(alpha: 0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          '$pageNum',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                            color: isSelected ? _emerald : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(width: 8),
+
+                // Next Button
+                InkWell(
+                  onTap: currentPage < totalPages
+                      ? () => onPageChanged(currentPage + 1)
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: currentPage < totalPages ? _emerald : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: currentPage < totalPages ? _emerald : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Next',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   // -------------------------------------------------------------------------
   // SEARCH & FILTER
@@ -419,7 +662,10 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             ),
             child: TextField(
               controller: _searchController,
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              onChanged: (v) => setState(() {
+                _searchQuery = v.trim();
+                _customerCurrentPage = 1;
+              }),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 color: _darkBg,
@@ -438,7 +684,10 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                             size: 18, color: Color(0xFF94A3B8)),
                         onPressed: () {
                           _searchController.clear();
-                          setState(() => _searchQuery = '');
+                          setState(() {
+                            _searchQuery = '';
+                            _customerCurrentPage = 1;
+                          });
                         },
                       )
                     : null,
@@ -457,7 +706,10 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             border: Border.all(color: _slateLight),
           ),
           child: PopupMenuButton<String>(
-            onSelected: (v) => setState(() => _sortBy = v),
+            onSelected: (v) => setState(() {
+              _sortBy = v;
+              _customerCurrentPage = 1;
+            }),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
             tooltip: 'Sort',

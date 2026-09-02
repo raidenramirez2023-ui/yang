@@ -112,6 +112,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // Recent activity (now derived from streams)
 
   List<_ActivityItem> _recentActivity = [];
+  int _activityCurrentPage = 1;
+  static const int _activityItemsPerPage = 10;
 
   // ignore: unused_field
   DateTime? _lastUpdated;
@@ -4149,6 +4151,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ── Recent Activity ───────────────────────────────────────────────────────
 
   Widget _buildRecentActivity(BuildContext context) {
+    final totalItems = _recentActivity.length;
+    final totalPages = totalItems > 0 ? (totalItems / _activityItemsPerPage).ceil() : 1;
+    if (_activityCurrentPage > totalPages) {
+      _activityCurrentPage = totalPages;
+    }
+    if (_activityCurrentPage < 1) {
+      _activityCurrentPage = 1;
+    }
+
+    final startIndex = (_activityCurrentPage - 1) * _activityItemsPerPage;
+    final endIndex = (startIndex + _activityItemsPerPage < totalItems)
+        ? startIndex + _activityItemsPerPage
+        : totalItems;
+
+    final paginatedActivity = totalItems > 0
+        ? _recentActivity.sublist(startIndex, endIndex)
+        : <_ActivityItem>[];
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.lg),
@@ -4240,17 +4259,201 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
               ),
             )
-          else
+          else ...[
             Column(
               children: List.generate(
-                min(_recentActivity.length, 8),
+                paginatedActivity.length,
                 (index) {
-                  final item = _recentActivity[index];
-                  final isLast = index == min(_recentActivity.length, 8) - 1;
+                  final item = paginatedActivity[index];
+                  final isLast = index == paginatedActivity.length - 1;
                   return _buildActivityTimelineItem(item, isLast);
                 },
               ),
             ),
+            const SizedBox(height: 12),
+            _buildRecentActivityPagination(
+              totalItems: totalItems,
+              currentPage: _activityCurrentPage,
+              totalPages: totalPages,
+              onPageChanged: (newPage) {
+                setState(() {
+                  _activityCurrentPage = newPage;
+                });
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityPagination({
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    if (totalItems == 0) return const SizedBox.shrink();
+
+    final startItem = ((currentPage - 1) * _activityItemsPerPage) + 1;
+    final endItem = (currentPage * _activityItemsPerPage < totalItems)
+        ? currentPage * _activityItemsPerPage
+        : totalItems;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Showing $startItem–$endItem of $totalItems',
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.mediumGrey,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Prev Button
+              InkWell(
+                onTap: currentPage > 1
+                    ? () {
+                        onPageChanged(currentPage - 1);
+                      }
+                    : null,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: currentPage > 1 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: currentPage > 1 ? AppTheme.cardBorder : Colors.transparent,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.chevron_left_rounded,
+                        size: 15,
+                        color: currentPage > 1 ? AppTheme.darkGrey : AppTheme.mediumGrey.withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        'Prev',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: currentPage > 1 ? AppTheme.darkGrey : AppTheme.mediumGrey.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Page indicators (1, 2, 3...)
+              ...List.generate(totalPages, (index) {
+                final pageNum = index + 1;
+                if (totalPages > 5) {
+                  if (pageNum != 1 &&
+                      pageNum != totalPages &&
+                      (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                    if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2),
+                        child: Text('…', style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey)),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }
+                }
+
+                final isSelected = pageNum == currentPage;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: InkWell(
+                    onTap: () {
+                      if (!isSelected) {
+                        onPageChanged(pageNum);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.adminPrimaryAccent : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isSelected ? AppTheme.adminPrimaryAccent : AppTheme.cardBorder,
+                        ),
+                      ),
+                      child: Text(
+                        '$pageNum',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? Colors.white : AppTheme.darkGrey,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+
+              const SizedBox(width: 6),
+
+              // Next Button
+              InkWell(
+                onTap: currentPage < totalPages
+                    ? () {
+                        onPageChanged(currentPage + 1);
+                      }
+                    : null,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: currentPage < totalPages ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: currentPage < totalPages ? AppTheme.cardBorder : Colors.transparent,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Next',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: currentPage < totalPages ? AppTheme.darkGrey : AppTheme.mediumGrey.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 15,
+                        color: currentPage < totalPages ? AppTheme.darkGrey : AppTheme.mediumGrey.withValues(alpha: 0.4),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

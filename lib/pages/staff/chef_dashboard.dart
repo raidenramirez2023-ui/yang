@@ -1922,18 +1922,16 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     _posSubscription = Supabase.instance.client
         .from('orders')
         .stream(primaryKey: ['id'])
-        .order('created_at', ascending: true)
+        .order('created_at', ascending: false)
         .listen((rows) {
           if (!mounted) return;
           setState(() {
             _posRaw = rows;
             _initialLoading = false;
-            // Sync local cache for NEW orders only
+            // Sync local cache
             for (final o in rows) {
               final key = 'pos_${o['id']}';
-              if (!_kitchenStatus.containsKey(key)) {
-                _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
-              }
+              _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
             }
           });
         });
@@ -1941,21 +1939,19 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     _advSubscription = Supabase.instance.client
         .from('advance_orders')
         .stream(primaryKey: ['id'])
-        .order('order_date', ascending: true)
+        .order('created_at', ascending: false)
         .listen((rows) {
           if (!mounted) return;
           setState(() {
             _advRaw = rows;
             _initialLoading = false;
-            // Sync local cache for NEW orders only
+            // Sync local cache
             for (final o in rows) {
               final key = 'adv_${o['id']}';
-              if (!_kitchenStatus.containsKey(key)) {
-                final status = o['status']?.toString().toLowerCase();
-                _kitchenStatus[key] = status == 'preparing' ? 'Preparing' :
-                                      status == 'ready' ? 'Ready' :
-                                      status == 'done' ? 'Done' : 'Pending';
-              }
+              final status = o['status']?.toString().toLowerCase();
+              _kitchenStatus[key] = status == 'preparing' ? 'Preparing' :
+                                    status == 'ready' ? 'Ready' :
+                                    status == 'done' ? 'Done' : 'Pending';
             }
           });
         });
@@ -1968,12 +1964,10 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
           setState(() {
             _resRaw = rows;
             _initialLoading = false;
-            // Sync local cache for NEW reservations only
+            // Sync local cache
             for (final o in rows) {
               final key = 'res_${o['id']}';
-              if (!_kitchenStatus.containsKey(key)) {
-                _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
-              }
+              _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
             }
           });
         });
@@ -2073,9 +2067,9 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
   List<Map<String, dynamic>> _buildOrdersList() {
     // ── Process POS orders ──
     final posOrders = _posRaw.where((o) {
-      final ks = _kitchenStatus['pos_${o['id']}'] ?? 'Pending';
-      final ps = o['payment_status']?.toString() ?? 'unpaid';
-      final rs = o['refund_status']?.toString() ?? 'none';
+      final ks = _kitchenStatus['pos_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending';
+      final ps = o['payment_status']?.toString().toLowerCase() ?? 'unpaid';
+      final rs = o['refund_status']?.toString().toLowerCase() ?? 'none';
       final status = o['status']?.toString().toLowerCase() ?? '';
 
       final isRefunded = rs == 'full_refund' || status == 'refunded' || status == 'cancelled';
