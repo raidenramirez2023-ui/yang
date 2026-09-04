@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:yang_chow/utils/qr_ph_helper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:io';
 
 class GCashQRPaymentPage extends StatefulWidget {
@@ -27,6 +30,7 @@ class GCashQRPaymentPage extends StatefulWidget {
 class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
   bool _paymentConfirmed = false;
   bool _isLoading = false;
+  bool _useDynamicQr = true;
   // ignore: unused_field
   File? _receiptImage;
   String? _receiptImageUrl;
@@ -36,11 +40,13 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final amountFormatted = '₱${widget.depositAmount.toStringAsFixed(2)}';
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Scan QR Code'),
-        backgroundColor: Colors.blue.shade700,
+        title: const Text('Pay via GCash / QR Ph', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        backgroundColor: const Color(0xFF005CEE),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -51,33 +57,224 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
       body: SingleChildScrollView(
         child: Container(
           width: double.infinity,
-          color: Colors.white,
+          color: const Color(0xFFF8FAFC),
           child: Column(
             children: [
-              // QR Code Section
+              // ── Header Summary Banner ──
               Container(
                 width: double.infinity,
-                height: MediaQuery.of(context).size.height * 0.65,
-                color: Colors.white,
-                child: Center(
-                  child: Image.asset(
-                    'assets/images/newgcash.png',
-                    width: MediaQuery.of(context).size.width * 0.95,
-                    height: MediaQuery.of(context).size.height * 0.60,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error, color: Colors.red, size: 64),
-                          SizedBox(height: 16),
-                          Text('QR Code not found'),
-                          Text('Please add newgcash.jpg to assets/images/'),
-                        ],
-                      );
-                    },
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF005CEE), Color(0xFF007DFE)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'BSP QR Ph / GCash Standard',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'TOTAL AMOUNT TO PAY',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11.5,
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      amountFormatted,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Toggle Chip: Dynamic QR vs Static Standee
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ChoiceChip(
+                          label: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF005CEE)),
+                              SizedBox(width: 4),
+                              Text('Auto-Amount QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                            ],
+                          ),
+                          selected: _useDynamicQr,
+                          selectedColor: Colors.white,
+                          backgroundColor: Colors.white.withValues(alpha: 0.25),
+                          labelStyle: TextStyle(
+                            color: _useDynamicQr ? const Color(0xFF005CEE) : Colors.white,
+                          ),
+                          onSelected: (val) {
+                            if (val) setState(() => _useDynamicQr = true);
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.image_outlined, size: 14),
+                              SizedBox(width: 4),
+                              Text('Original Standee', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                            ],
+                          ),
+                          selected: !_useDynamicQr,
+                          selectedColor: Colors.white,
+                          backgroundColor: Colors.white.withValues(alpha: 0.25),
+                          labelStyle: TextStyle(
+                            color: !_useDynamicQr ? const Color(0xFF005CEE) : Colors.white,
+                          ),
+                          onSelected: (val) {
+                            if (val) setState(() => _useDynamicQr = false);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── QR Display Area ──
+              Container(
+                margin: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: _useDynamicQr
+                    ? Column(
+                        children: [
+                          // Merchant Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF005CEE).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Merchant: YangChow',
+                                  style: TextStyle(
+                                    color: Color(0xFF005CEE),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          // Generated Dynamic QR Code via qr_flutter
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+                              ),
+                              child: QrImageView(
+                                data: QrPhHelper.generateDynamicQrPh(amount: widget.depositAmount),
+                                version: QrVersions.auto,
+                                size: 230.0,
+                                errorCorrectionLevel: QrErrorCorrectLevel.M,
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          // Notification callout
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.bolt_rounded, color: Color(0xFF005CEE), size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Dynamic QR Active: Pagka-scan sa GCash, lalabas agad ang eksaktong $amountFormatted.',
+                                    style: const TextStyle(
+                                      color: Color(0xFF1E40AF),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/images/newgcash.png',
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(20),
+                                    child: Text('Standee image not found'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Manual QR: I-enter ang tamang halaga sa iyong GCash app pagka-scan.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                          ),
+                        ],
+                      ),
               ),
 
               // Upload Receipt Section
@@ -187,7 +384,7 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                 ),
               ),
 
-              // Test Payment Section
+              // GCash Payment Submission Section
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -201,36 +398,37 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'Test Payment Method',
+                      'GCash Payment Verification',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey,
+                        color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Scan the QR code above, send the exact amount, and attach your screenshot receipt before submitting.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => _handleTestPayment(),
-                        icon: const Icon(Icons.payment),
-                        label: Text('Test Pay (PHP ${widget.depositAmount.toStringAsFixed(2)})'),
+                        onPressed: _isLoading ? null : () => _handleTestPayment(),
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        label: Text(
+                          'Submit Payment (₱${widget.depositAmount.toStringAsFixed(2)})',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.blue.shade700,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'For testing purposes only',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -262,7 +460,9 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
         }
 
         setState(() {
-          _receiptImage = File(image.path);
+          if (!kIsWeb) {
+            _receiptImage = File(image.path);
+          }
         });
 
         // Upload to Supabase storage

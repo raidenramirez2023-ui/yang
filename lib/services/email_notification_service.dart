@@ -595,8 +595,8 @@ $body
 - Remaining Balance: PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}''';
 
     final nextStepsText = isPayInFull
-        ? 'To confirm and secure your reservation, please settle the full amount of PHP ${totalPrice.toStringAsFixed(2)} within the 3-Minute Grace Period.'
-        : 'To confirm and secure your reservation, please settle the required 50% deposit of PHP ${depositAmount.toStringAsFixed(2)} within the 3-Minute Grace Period.';
+        ? 'To confirm and secure your reservation, please settle the full amount of PHP ${totalPrice.toStringAsFixed(2)} within the 24-Hour Grace Period.'
+        : 'To confirm and secure your reservation, please settle the required 50% deposit of PHP ${depositAmount.toStringAsFixed(2)} within the 24-Hour Grace Period.';
 
     final balancePolicyText = !isPayInFull
         ? '''\nREMAINING BALANCE POLICY:
@@ -622,9 +622,9 @@ EVENT DETAILS:
 $pricingBreakdownText
 $balancePolicyText
 
-IMPORTANT PAYMENT POLICY & 3-MINUTE GRACE PERIOD:
+IMPORTANT PAYMENT POLICY & 24-HOUR GRACE PERIOD:
 $nextStepsText
-- Please note: Your selected date & slot is reserved for exactly 3 Minutes upon receiving this quotation. Unsettled reservations after the 3-minute grace period may be released to other customers.
+- Please note: Your selected date & slot is reserved for exactly 24 Hours upon receiving this quotation. Unsettled reservations after the 24-hour grace period may be released to other customers.
 - The initial deposit is non-refundable upon reservation confirmation.
 
 Payment can be made easily through our app via GCash, Maya, or Bank Transfer.

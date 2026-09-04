@@ -1083,7 +1083,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Sending this quotation starts a 3-Minute Grace Period for the customer to settle downpayment.',
+                  'Sending this quotation starts a 24-Hour Grace Period for the customer to settle downpayment.',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
