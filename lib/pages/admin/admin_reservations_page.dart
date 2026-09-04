@@ -316,17 +316,25 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Future<void> _updateReservationStatus(String reservationId, String newStatus, [Map<String, dynamic>? reservation]) async {
-    // Optimistic local update — instant visual feedback
     setState(() {
       final idx = reservations.indexWhere((r) => r['id'] == reservationId);
       if (idx != -1) {
         final currentUser = Supabase.instance.client.auth.currentUser;
         final adminIdentifier = currentUser?.email ?? 'admn.pagsanjan@gmail.com';
-        reservations[idx] = {
+        final updatedItem = {
           ...reservations[idx],
           'status': newStatus,
           'transacted_by': adminIdentifier,
         };
+        if (newStatus == 'confirmed') {
+          final paymentOption = (reservations[idx]['payment_option'] ?? 'deposit').toString().toLowerCase();
+          final totalPrice = (reservations[idx]['total_price'] as num?)?.toDouble() ?? 0.0;
+          final depositAmount = (reservations[idx]['deposit_amount'] as num?)?.toDouble() ?? (totalPrice * 0.5);
+          final isFull = paymentOption == 'full' || paymentOption == '100';
+          updatedItem['payment_status'] = isFull ? 'fully_paid' : 'deposit_paid';
+          updatedItem['remaining_balance'] = isFull ? 0.0 : ((totalPrice > depositAmount) ? (totalPrice - depositAmount) : 0.0);
+        }
+        reservations[idx] = updatedItem;
       }
     });
 
@@ -339,6 +347,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         'transacted_by': adminIdentifier,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
+
+      if (newStatus == 'confirmed') {
+        final currentPaymentStatus = (reservation?['payment_status'] ?? '').toString().toLowerCase();
+        final paymentMethod = (reservation?['payment_method'] ?? 'paymongo').toString().toLowerCase();
+        final paymentOption = (reservation?['payment_option'] ?? 'deposit').toString().toLowerCase();
+        final totalPrice = (reservation?['total_price'] as num?)?.toDouble() ?? 0.0;
+        final depositAmount = (reservation?['deposit_amount'] as num?)?.toDouble() ?? (totalPrice * 0.5);
+
+        if (paymentMethod == 'cash' || currentPaymentStatus == 'unpaid' || currentPaymentStatus == 'pending' || currentPaymentStatus.isEmpty) {
+          final isFull = paymentOption == 'full' || paymentOption == '100';
+          if (isFull) {
+            updateData['payment_status'] = 'fully_paid';
+            updateData['remaining_balance'] = 0.0;
+            updateData['payment_amount'] = totalPrice;
+          } else {
+            updateData['payment_status'] = 'deposit_paid';
+            updateData['remaining_balance'] = (totalPrice > depositAmount) ? (totalPrice - depositAmount) : 0.0;
+            updateData['payment_amount'] = depositAmount;
+          }
+        }
+      }
 
       await Supabase.instance.client
           .from('reservations')
@@ -2755,6 +2784,18 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                               buildDetailRow('Total Price',    '₱${(reservation['total_price'] as num).toStringAsFixed(2)}', icon: Icons.monetization_on_rounded),
                               buildDetailRow('Deposit (50%)',  '₱${(reservation['deposit_amount'] as num? ?? 0).toStringAsFixed(2)}', icon: Icons.account_balance_wallet_rounded),
                               buildDetailRow('Payment Status', _getPaymentStatusText(reservation['payment_status'] as String? ?? 'unpaid'), icon: Icons.payment_rounded),
+                              if (reservation['payment_option'] != null)
+                                buildDetailRow('Payment Option', reservation['payment_option'] == 'full' ? 'Pay in Full (100%)' : '50% Deposit', icon: Icons.pie_chart_outline_rounded),
+                              if (reservation['payment_method'] != null)
+                                buildDetailRow(
+                                  'Payment Method',
+                                  reservation['payment_method'] == 'cash'
+                                      ? 'Cash on site'
+                                      : (reservation['payment_method'] == 'gcash' ? 'Via GCash QR code' : 'Via PayMongo'),
+                                  icon: reservation['payment_method'] == 'cash'
+                                      ? Icons.payments_rounded
+                                      : (reservation['payment_method'] == 'gcash' ? Icons.qr_code_scanner_rounded : Icons.credit_card_rounded),
+                                ),
                               buildDetailRow('Quote Sent',     reservation['price_quotation_sent'] == true ? 'Yes' : 'No', icon: Icons.send_rounded),
                               if (reservation['price_quotation_sent'] == true &&
                                   (reservation['payment_status'] == null ||
@@ -2762,24 +2803,33 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                                       reservation['payment_status'] == 'pending')) ...[
                                 Builder(
                                   builder: (context) {
-                                    final sentAtRaw = reservation['price_quotation_sent_at'] ?? reservation['created_at'];
+                                    final isCash = reservation['payment_method'] == 'cash';
+                                    final isAdvanceOrder = reservation['_db_table'] == 'advance_orders' || reservation['reservation_type'] == 'advance_order';
+                                    final sentAtRaw = isCash
+                                        ? (reservation['created_at'] ?? reservation['price_quotation_sent_at'])
+                                        : (reservation['price_quotation_sent_at'] ?? reservation['created_at']);
                                     DateTime? sentAt;
                                     if (sentAtRaw != null) {
                                       sentAt = DateTime.tryParse(sentAtRaw.toString());
                                     }
                                     String graceText = 'Pending';
                                     if (sentAt != null) {
-                                      // NOTE: Temporarily set to 3 minutes for testing
-                                      final expiry = sentAt.add(const Duration(minutes: 3));
+                                      final Duration graceDuration = isCash
+                                          ? (isAdvanceOrder ? const Duration(hours: 24) : const Duration(days: 3))
+                                          : const Duration(hours: 24);
+                                      final expiry = sentAt.add(graceDuration);
                                       final now = DateTime.now();
                                       if (now.isAfter(expiry)) {
-                                        graceText = 'Expired (> 3 mins)';
+                                        graceText = isCash ? 'Expired (> 3 days)' : 'Expired (> 3 mins)';
                                       } else {
                                         final rem = expiry.difference(now);
-                                        final hours = rem.inHours;
+                                        final days = rem.inDays;
+                                        final hours = rem.inHours % 24;
                                         final mins = rem.inMinutes % 60;
                                         final secs = rem.inSeconds % 60;
-                                        final timeStr = hours > 0 ? '${hours}h ${mins}m' : mins > 0 ? '${mins}m ${secs}s' : '${secs}s';
+                                        final timeStr = days > 0
+                                            ? '${days}d ${hours}h'
+                                            : (hours > 0 ? '${hours}h ${mins}m' : (mins > 0 ? '${mins}m ${secs}s' : '${secs}s'));
                                         graceText = 'Active ($timeStr left)';
                                       }
                                     }
