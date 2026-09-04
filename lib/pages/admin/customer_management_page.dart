@@ -220,17 +220,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {
-              if (_selectedTab == 0) {
-                _loadCustomers();
-              } else {
-                setState(() {});
-              }
-            },
-            icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
-            tooltip: 'Refresh',
-          ),
+
         ],
       ),
     );

@@ -489,14 +489,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                         '${filteredItems.length} items',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _loadMenuData,
-                        icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
-                        tooltip: 'Reload Catalog',
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      ),
+
                     ],
                   ),
                 ),

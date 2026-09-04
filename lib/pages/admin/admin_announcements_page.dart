@@ -401,11 +401,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: _loadAnnouncements,
-            icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
-            tooltip: 'Refresh',
-          ),
+
         ],
       ),
     );

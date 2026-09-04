@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +26,8 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _rescheduleSearchController = TextEditingController();
+  final ScrollController _refundsTableScrollController = ScrollController();
+  final ScrollController _reschedulesTableScrollController = ScrollController();
 
   int _selectedMainTab = 0; // 0: Refunds, 1: Reschedule Requests
   String _selectedFilter = 'all';
@@ -92,6 +95,8 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   void dispose() {
     _searchController.dispose();
     _rescheduleSearchController.dispose();
+    _refundsTableScrollController.dispose();
+    _reschedulesTableScrollController.dispose();
     _dismissRefundTopToast();
     super.dispose();
   }
@@ -1005,14 +1010,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               children: [
                 Row(
                   children: [
-                    if (widget.isFullscreen || Navigator.canPop(context)) ...[
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded, color: _darkBg),
-                        tooltip: 'Back',
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
                     Container(
                       padding: const EdgeInsets.all(11),
                       decoration: BoxDecoration(
@@ -1093,7 +1090,9 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     fontSize: 12,
                     color: _slate,
                     fontWeight: FontWeight.w500,
+                    height: 1.15,
                   ),
+                  maxLines: 2,
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -1123,14 +1122,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             )
           : Row(
               children: [
-                if (widget.isFullscreen || Navigator.canPop(context)) ...[
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, color: _darkBg),
-                    tooltip: 'Back',
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 Container(
                   padding: const EdgeInsets.all(11),
                   decoration: BoxDecoration(
@@ -1198,7 +1189,9 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           fontSize: 12,
                           color: _slate,
                           fontWeight: FontWeight.w500,
+                          height: 1.15,
                         ),
+                        maxLines: 2,
                       ),
                     ],
                   ),
@@ -1264,7 +1257,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         children: [
           Expanded(
             child: _tabButton(
-              title: 'Refund Requests',
+              title: ResponsiveUtils.isMobile(context) ? 'Refunds' : 'Refund Requests',
               index: 0,
               icon: Icons.receipt_long_rounded,
               badgeCount: pendingRefunds,
@@ -1273,7 +1266,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           const SizedBox(width: 6),
           Expanded(
             child: _tabButton(
-              title: 'Reschedule Requests',
+              title: ResponsiveUtils.isMobile(context) ? 'Reschedules' : 'Reschedule Requests',
               index: 1,
               icon: Icons.edit_calendar_rounded,
               badgeCount: pendingReschedules,
@@ -1344,132 +1337,55 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
 
   // ── Stats Bar (Matching Reservations Page _statTile) ────────
   Widget _buildStatsBar(List<Map<String, dynamic>> allRefunds, List<Map<String, dynamic>> rawReschedules) {
-    if (_selectedMainTab == 0) {
-      final pending   = allRefunds.where((r) => r['status'] == 'pending').length;
-      final approved  = allRefunds.where((r) => r['status'] == 'approved').length;
-      final completed = allRefunds.where((r) => r['status'] == 'completed').length;
-      final rejected  = allRefunds.where((r) => r['status'] == 'rejected').length;
+    return Builder(
+      builder: (context) {
+        final isMobile = ResponsiveUtils.isMobile(context);
 
-      return Row(
-        children: [
-          Expanded(
-            child: _statTile(
-              'Total Refunds',
-              allRefunds.length,
-              Icons.apps_rounded,
-              const Color(0xFFF1F5F9),
-              const Color(0xFF475569),
-              'all',
-              isReschedule: false,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Pending',
-              pending,
-              Icons.hourglass_top_rounded,
-              const Color(0xFFFEF3C7),
-              const Color(0xFFD97706),
-              'pending',
-              isReschedule: false,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Approved',
-              approved,
-              Icons.gpp_good_rounded,
-              const Color(0xFFDCFCE7),
-              const Color(0xFF15803D),
-              'approved',
-              isReschedule: false,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Completed',
-              completed,
-              Icons.verified_rounded,
-              const Color(0xFFE0F2FE),
-              const Color(0xFF0284C7),
-              'completed',
-              isReschedule: false,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Rejected',
-              rejected,
-              Icons.cancel_rounded,
-              const Color(0xFFFEE2E2),
-              const Color(0xFFDC2626),
-              'rejected',
-              isReschedule: false,
-            ),
-          ),
-        ],
-      );
-    } else {
-      final pending   = rawReschedules.where((r) => r['status'] == 'pending').length;
-      final approved  = rawReschedules.where((r) => r['status'] == 'approved').length;
-      final rejected  = rawReschedules.where((r) => r['status'] == 'rejected').length;
+        Widget wrapStatTile(Widget tile) {
+          return isMobile 
+              ? Container(width: 140, margin: const EdgeInsets.only(right: 8), child: tile)
+              : Expanded(child: Padding(padding: const EdgeInsets.only(right: 8), child: tile));
+        }
 
-      return Row(
-        children: [
-          Expanded(
-            child: _statTile(
-              'Total Requests',
-              rawReschedules.length,
-              Icons.apps_rounded,
-              const Color(0xFFF1F5F9),
-              const Color(0xFF475569),
-              'all',
-              isReschedule: true,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Pending Approval',
-              pending,
-              Icons.hourglass_top_rounded,
-              const Color(0xFFFEF3C7),
-              const Color(0xFFD97706),
-              'pending',
-              isReschedule: true,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Approved',
-              approved,
-              Icons.check_circle_rounded,
-              const Color(0xFFDCFCE7),
-              const Color(0xFF15803D),
-              'approved',
-              isReschedule: true,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _statTile(
-              'Rejected',
-              rejected,
-              Icons.cancel_rounded,
-              const Color(0xFFFEE2E2),
-              const Color(0xFFDC2626),
-              'rejected',
-              isReschedule: true,
-            ),
-          ),
-        ],
-      );
-    }
+        if (_selectedMainTab == 0) {
+          final pending   = allRefunds.where((r) => r['status'] == 'pending').length;
+          final approved  = allRefunds.where((r) => r['status'] == 'approved').length;
+          final completed = allRefunds.where((r) => r['status'] == 'completed').length;
+          final rejected  = allRefunds.where((r) => r['status'] == 'rejected').length;
+
+          final row = Row(
+            children: [
+              wrapStatTile(_statTile('Total Refunds', allRefunds.length, Icons.apps_rounded, const Color(0xFFF1F5F9), const Color(0xFF475569), 'all', isReschedule: false)),
+              wrapStatTile(_statTile('Pending', pending, Icons.hourglass_top_rounded, const Color(0xFFFEF3C7), const Color(0xFFD97706), 'pending', isReschedule: false)),
+              wrapStatTile(_statTile('Approved', approved, Icons.gpp_good_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'approved', isReschedule: false)),
+              wrapStatTile(_statTile('Completed', completed, Icons.verified_rounded, const Color(0xFFE0F2FE), const Color(0xFF0284C7), 'completed', isReschedule: false)),
+              wrapStatTile(_statTile('Rejected', rejected, Icons.cancel_rounded, const Color(0xFFFEE2E2), const Color(0xFFDC2626), 'rejected', isReschedule: false)),
+            ],
+          );
+
+          return isMobile 
+              ? SingleChildScrollView(scrollDirection: Axis.horizontal, child: row)
+              : row;
+        } else {
+          final pending   = rawReschedules.where((r) => r['status'] == 'pending').length;
+          final approved  = rawReschedules.where((r) => r['status'] == 'approved').length;
+          final rejected  = rawReschedules.where((r) => r['status'] == 'rejected').length;
+
+          final row = Row(
+            children: [
+              wrapStatTile(_statTile('Total Requests', rawReschedules.length, Icons.apps_rounded, const Color(0xFFF1F5F9), const Color(0xFF475569), 'all', isReschedule: true)),
+              wrapStatTile(_statTile('Pending Approval', pending, Icons.hourglass_top_rounded, const Color(0xFFFEF3C7), const Color(0xFFD97706), 'pending', isReschedule: true)),
+              wrapStatTile(_statTile('Approved', approved, Icons.check_circle_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'approved', isReschedule: true)),
+              wrapStatTile(_statTile('Rejected', rejected, Icons.cancel_rounded, const Color(0xFFFEE2E2), const Color(0xFFDC2626), 'rejected', isReschedule: true)),
+            ],
+          );
+
+          return isMobile 
+              ? SingleChildScrollView(scrollDirection: Axis.horizontal, child: row)
+              : row;
+        }
+      }
+    );
   }
 
   Widget _statTile(
@@ -2663,41 +2579,74 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              border: Border(bottom: BorderSide(color: _slateLight, width: 1.5)),
-            ),
-            child: Row(
-              children: [
-                Expanded(flex: 3, child: _tableHeader('TRANSACTION / SOURCE')),
-                Expanded(flex: 3, child: _tableHeader('CUSTOMER')),
-                Expanded(flex: 2, child: _tableHeader('AMOUNT & METHOD')),
-                Expanded(flex: 3, child: _tableHeader('REASON & DATE')),
-                SizedBox(width: 110, child: _tableHeader('STATUS')),
-                SizedBox(width: 170, child: _tableHeader('ACTIONS')),
-              ],
-            ),
-          ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: paginatedRefunds.length,
-            separatorBuilder: (_, __) => Divider(
-              height: 1,
-              thickness: 1,
-              color: _slateLight.withValues(alpha: 0.8),
-            ),
-            itemBuilder: (context, index) {
-              final r = paginatedRefunds[index];
-              return _buildRefundTableRow(r);
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final minWidth = constraints.maxWidth < 1100 ? 1100.0 : constraints.maxWidth;
+              return ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                    PointerDeviceKind.stylus,
+                  },
+                ),
+                child: Scrollbar(
+                  controller: _refundsTableScrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _refundsTableScrollController,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                    child: SizedBox(
+                      width: minWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Table header
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                              border: Border(bottom: BorderSide(color: _slateLight, width: 1.5)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(flex: 3, child: _tableHeader('TRANSACTION / SOURCE')),
+                                Expanded(flex: 3, child: _tableHeader('CUSTOMER')),
+                                Expanded(flex: 2, child: _tableHeader('AMOUNT & METHOD')),
+                                Expanded(flex: 3, child: _tableHeader('REASON & DATE')),
+                                SizedBox(width: 110, child: _tableHeader('STATUS')),
+                                SizedBox(width: 170, child: _tableHeader('ACTIONS')),
+                              ],
+                            ),
+                          ),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            itemCount: paginatedRefunds.length,
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: _slateLight.withValues(alpha: 0.8),
+                            ),
+                            itemBuilder: (context, index) {
+                              final r = paginatedRefunds[index];
+                              return _buildRefundTableRow(r);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
             },
           ),
           if (filtered.length > _rowsPerPage)
@@ -3308,41 +3257,74 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              border: Border(bottom: BorderSide(color: _slateLight, width: 1.5)),
-            ),
-            child: Row(
-              children: [
-                Expanded(flex: 3, child: _tableHeader('CUSTOMER & REF')),
-                Expanded(flex: 3, child: _tableHeader('ORIGINAL SCHEDULE')),
-                Expanded(flex: 3, child: _tableHeader('REQUESTED SCHEDULE')),
-                Expanded(flex: 2, child: _tableHeader('REASON & FILED')),
-                SizedBox(width: 110, child: _tableHeader('STATUS')),
-                SizedBox(width: 170, child: _tableHeader('ACTIONS')),
-              ],
-            ),
-          ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: paginatedReschedules.length,
-            separatorBuilder: (_, __) => Divider(
-              height: 1,
-              thickness: 1,
-              color: _slateLight.withValues(alpha: 0.8),
-            ),
-            itemBuilder: (context, index) {
-              final req = paginatedReschedules[index];
-              return _buildRescheduleTableRow(req);
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final minWidth = constraints.maxWidth < 1100 ? 1100.0 : constraints.maxWidth;
+              return ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                    PointerDeviceKind.stylus,
+                  },
+                ),
+                child: Scrollbar(
+                  controller: _reschedulesTableScrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _reschedulesTableScrollController,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                    child: SizedBox(
+                      width: minWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Table header
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                              border: Border(bottom: BorderSide(color: _slateLight, width: 1.5)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(flex: 3, child: _tableHeader('CUSTOMER & REF')),
+                                Expanded(flex: 3, child: _tableHeader('ORIGINAL SCHEDULE')),
+                                Expanded(flex: 3, child: _tableHeader('REQUESTED SCHEDULE')),
+                                Expanded(flex: 2, child: _tableHeader('REASON & FILED')),
+                                SizedBox(width: 110, child: _tableHeader('STATUS')),
+                                SizedBox(width: 170, child: _tableHeader('ACTIONS')),
+                              ],
+                            ),
+                          ),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            itemCount: paginatedReschedules.length,
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              thickness: 1,
+                              color: _slateLight.withValues(alpha: 0.8),
+                            ),
+                            itemBuilder: (context, index) {
+                              final req = paginatedReschedules[index];
+                              return _buildRescheduleTableRow(req);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
             },
           ),
           if (filtered.length > _rowsPerPage)

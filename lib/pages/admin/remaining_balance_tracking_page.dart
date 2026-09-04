@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -768,20 +769,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
               ],
             ),
           ),
-          Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: IconButton(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh_rounded, size: 18, color: AppTheme.mediumGrey),
-              tooltip: 'Refresh',
-            ),
-          ),
+
         ],
       ),
     );
@@ -1148,7 +1136,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final double tableWidth = constraints.maxWidth;
+                final double tableWidth = constraints.maxWidth < 1100 ? 1100.0 : constraints.maxWidth;
                 final double availableWidth = (tableWidth - 32 - 84).clamp(0.0, double.infinity);
                 
                 final double customerWidth = availableWidth * 0.20;
@@ -1159,17 +1147,29 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                 final double remainingWidth = availableWidth * 0.14;
                 final double actionsWidth = availableWidth * 0.18;
 
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: SizedBox(
-                    width: tableWidth,
-                    child: DataTable(
-                      columnSpacing: 12,
-                      horizontalMargin: 16,
-                      headingRowHeight: 46,
-                      dataRowMinHeight: 68,
-                      dataRowMaxHeight: 78,
-                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                return ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                      PointerDeviceKind.stylus,
+                    },
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: DataTable(
+                          columnSpacing: 12,
+                          horizontalMargin: 16,
+                          headingRowHeight: 46,
+                          dataRowMinHeight: 68,
+                          dataRowMaxHeight: 78,
+                          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                       headingTextStyle: const TextStyle(
                         color: Color(0xFF475569),
                         fontWeight: FontWeight.w800,
@@ -1611,8 +1611,10 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                       }).toList(),
                     ),
                   ),
-                );
-              },
+                ),
+              ),
+            );
+          },
             ),
           ),
           if (filtered.length > _rowsPerPage)

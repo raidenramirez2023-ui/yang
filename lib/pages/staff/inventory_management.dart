@@ -2917,7 +2917,10 @@ class _InventoryPageState extends State<InventoryPage> {
           borderRadius: BorderRadius.circular(12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, 
+              vertical: ResponsiveUtils.isMobile(context) ? 6 : 10,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -2952,7 +2955,7 @@ class _InventoryPageState extends State<InventoryPage> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 6 : 8),
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: isSelected ? 0.25 : 0.15),
                     borderRadius: BorderRadius.circular(10),
@@ -2961,9 +2964,9 @@ class _InventoryPageState extends State<InventoryPage> {
                       width: 1,
                     ),
                   ),
-                  child: Icon(icon, color: accentColor, size: 18),
+                  child: Icon(icon, color: accentColor, size: ResponsiveUtils.isMobile(context) ? 14 : 18),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: ResponsiveUtils.isMobile(context) ? 8 : 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2973,8 +2976,8 @@ class _InventoryPageState extends State<InventoryPage> {
                         children: [
                           Text(
                             count,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: TextStyle(
+                              fontSize: ResponsiveUtils.isMobile(context) ? 15 : 18,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                               letterSpacing: -0.5,
@@ -2988,10 +2991,10 @@ class _InventoryPageState extends State<InventoryPage> {
                                 color: accentColor,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'ACTIVE',
                                 style: TextStyle(
-                                  fontSize: 8,
+                                  fontSize: ResponsiveUtils.isMobile(context) ? 7 : 8,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                 ),
@@ -3004,10 +3007,10 @@ class _InventoryPageState extends State<InventoryPage> {
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: ResponsiveUtils.isMobile(context) ? 9.5 : 10,
                           fontWeight: FontWeight.w700,
                           color: isSelected ? Colors.white : const Color(0xFFC7D6D3),
-                          letterSpacing: 0.4,
+                          letterSpacing: 0.2, // reduced letter spacing slightly
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -3503,9 +3506,9 @@ class _InventoryPageState extends State<InventoryPage> {
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFFB0C8C3),
+                                height: 1.15,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
                             ),
                           ],
                         ),

@@ -331,11 +331,7 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: _loadReviews,
-            icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
-            tooltip: 'Refresh',
-          ),
+
           AnimatedRotation(
             turns: _headerCollapsed ? 0.5 : 0.0,
             duration: const Duration(milliseconds: 280),

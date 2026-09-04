@@ -542,8 +542,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 fontWeight: FontWeight.w900,
                                 color: Colors.white,
                                 letterSpacing: -0.3,
+                                height: 1.1,
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
                             ),
                           ),
                         ],
@@ -551,8 +552,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       SizedBox(height: 3),
                       Text(
                         'Historical consumption trends, ingredient burn rates, and procurement forecasting',
-                        style: TextStyle(fontSize: 11, color: Colors.white70),
-                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.white70, height: 1.15),
+                        maxLines: 2,
                       ),
                     ],
                   ),
@@ -560,16 +561,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            onPressed: () => _fetchForecastData(),
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            tooltip: 'Refresh Demand Forecast',
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: 0.1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
+
         ],
       ),
     );
@@ -618,7 +610,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     if (isMobile) {
       return SizedBox(
-        height: 122,
+        height: 98,
         child: ListView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -647,8 +639,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     required Color color,
     bool isAlert = false,
   }) {
+    final isMobile = ResponsiveUtils.isMobile(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 14,
+        vertical: isMobile ? 10 : 12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -675,7 +671,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: isMobile ? 9 : 9.5,
                     fontWeight: FontWeight.w800,
                     color: color.withValues(alpha: 0.8),
                     letterSpacing: 0.5,
@@ -685,12 +681,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(5),
+                padding: EdgeInsets.all(isMobile ? 4 : 5),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(7),
+                  borderRadius: BorderRadius.circular(isMobile ? 6 : 7),
                 ),
-                child: Icon(icon, color: color, size: 15),
+                child: Icon(icon, color: color, size: isMobile ? 14 : 15),
               ),
             ],
           ),
@@ -698,7 +694,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           Text(
             value,
             style: TextStyle(
-              fontSize: 17,
+              fontSize: isMobile ? 15 : 17,
               fontWeight: FontWeight.w900,
               color: color,
               letterSpacing: -0.3,
@@ -709,9 +705,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: isMobile ? 9 : 10,
+              color: AppTheme.mediumGrey,
+              fontWeight: FontWeight.w600,
+              height: 1.1,
+            ),
+            maxLines: 2,
           ),
         ],
       ),
@@ -779,7 +779,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             const SizedBox(height: 10),
             _buildSecondaryTimeDropdown(),
           ] else ...[
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
               children: [
                 // Period Toggle
                 Container(
@@ -815,11 +818,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     }).toList(),
                   ),
                 ),
-
-                const SizedBox(width: 10),
-
                 // Secondary Sub-Period Selector
-                Expanded(child: _buildSecondaryTimeDropdown()),
+                _buildSecondaryTimeDropdown(),
               ],
             ),
           ],

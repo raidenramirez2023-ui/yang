@@ -193,28 +193,35 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Staff Directory',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: isMobile ? 18 : 20,
-                              fontWeight: FontWeight.w800,
-                              color: _darkBg,
-                              letterSpacing: -0.4,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Staff Directory',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: isMobile ? 18 : 20,
+                                fontWeight: FontWeight.w800,
+                                color: _darkBg,
+                                letterSpacing: -0.4,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          Text(
-                            '${filtered.length} member${filtered.length == 1 ? '' : 's'} found',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              color: _slate,
-                              fontWeight: FontWeight.w500,
+                            Text(
+                              '${filtered.length} member${filtered.length == 1 ? '' : 's'} found',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                color: _slate,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       // Action Buttons
                       Row(
                         children: [

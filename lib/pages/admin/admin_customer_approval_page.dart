@@ -228,10 +228,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
         foregroundColor: Colors.white,
         title: Text('Customer Approvals'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadCustomers,
-          ),
+
         ],
       ),
       body: _isLoading
