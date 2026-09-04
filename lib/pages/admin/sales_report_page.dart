@@ -1322,9 +1322,8 @@ class _SalesReportPageState extends State<SalesReportPage>
               const SizedBox(height: 2),
               const Text(
                 'Real-time multi-channel sales analytics and financial velocity',
-                style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText, height: 1.2),
+                maxLines: 2,
               ),
             ],
           ),
@@ -2629,6 +2628,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             ),
           ] else
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Expanded(
                   flex: 3,
@@ -2644,13 +2644,20 @@ class _SalesReportPageState extends State<SalesReportPage>
                     ],
                   ),
                 ),
-                Expanded(flex: 3, child: _buildSearchInput()),
-                const SizedBox(width: 8),
-                _buildChannelFilterDropdown(),
-                const SizedBox(width: 8),
-                _buildStatusFilterDropdown(),
-                const SizedBox(width: 8),
-                _buildTransactionPeriodDropdown(),
+                Expanded(
+                  flex: 7,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      SizedBox(width: 180, child: _buildSearchInput()),
+                      _buildChannelFilterDropdown(),
+                      _buildStatusFilterDropdown(),
+                      _buildTransactionPeriodDropdown(),
+                    ],
+                  ),
+                ),
               ],
             ),
           const SizedBox(height: 20),

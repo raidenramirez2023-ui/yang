@@ -415,14 +415,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               ),
               child: Row(
                 children: [
-                  if (widget.isFullscreen || Navigator.canPop(context)) ...[
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-                      tooltip: 'Back to POS',
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
                   Container(
                     padding: const EdgeInsets.all(11),
                     decoration: BoxDecoration(
@@ -444,6 +436,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                             color: Color(0xFF0F172A),
                             letterSpacing: -0.4,
                           ),
+                          maxLines: 2,
                         ),
                         Text(
                           _selectedModuleTab == 0
@@ -453,7 +446,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                             fontSize: 12,
                             color: Color(0xFF64748B),
                             fontWeight: FontWeight.w500,
+                            height: 1.15,
                           ),
+                          maxLines: 2,
                         ),
                       ],
                     ),
@@ -482,24 +477,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                         ],
                       ),
                     ),
-                  const SizedBox(width: 10),
-                  Container(
-                    height: 38,
-                    width: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        _loadPendingPayments();
-                      },
-                      icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF475569)),
-                      tooltip: 'Refresh',
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
+
                 ],
               ),
             ),

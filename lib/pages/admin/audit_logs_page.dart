@@ -1046,24 +1046,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 ),
                 const SizedBox(width: 10),
 
-                // Refresh Button
-                Tooltip(
-                  message: 'Refresh Logs',
-                  child: InkWell(
-                    onTap: _loadLogs,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                      ),
-                      child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
+
 
                 // Export CSV Button
                 ElevatedButton.icon(
@@ -1105,12 +1088,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                         constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         padding: EdgeInsets.zero,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
-                        onPressed: _loadLogs,
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        padding: EdgeInsets.zero,
-                      ),
+
                     ],
                   ),
                 ),

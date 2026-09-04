@@ -793,14 +793,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       ),
       child: Row(
         children: [
-          if (widget.isFullscreen || Navigator.canPop(context)) ...[
-            IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: _darkBg),
-              tooltip: 'Back to POS',
-              onPressed: () => Navigator.pop(context),
-            ),
-            const SizedBox(width: 6),
-          ],
           Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
@@ -833,6 +825,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     color: _darkBg,
                     letterSpacing: -0.4,
                   ),
+                  maxLines: 2,
                 ),
                 Text(
                   'Manage, approve and track all reservation bookings',
@@ -840,18 +833,22 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     fontSize: 12,
                     color: _slate,
                     fontWeight: FontWeight.w500,
+                    height: 1.15,
                   ),
+                  maxLines: 2,
                 ),
               ],
             ),
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
-            label: Text('Scan Pass', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
+            label: ResponsiveUtils.isMobile(context) 
+                ? const SizedBox.shrink() 
+                : Text('Scan Pass', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF14332E),
               foregroundColor: AppTheme.warmGold,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => QrScannerDialog.show(
@@ -870,12 +867,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               },
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _loadReservations,
-            icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
-            tooltip: 'Refresh',
-          ),
+
           AnimatedRotation(
             turns: _headerCollapsed ? 0.5 : 0.0,
             duration: const Duration(milliseconds: 280),

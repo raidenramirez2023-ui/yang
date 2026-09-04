@@ -1611,13 +1611,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   children: [
                     Text(greetingIcon, style: const TextStyle(fontSize: 16)),
                     const SizedBox(width: 8),
-                    Text(
-                      '$greeting, Administrator',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        letterSpacing: -0.5,
+                    Expanded(
+                      child: Text(
+                        '$greeting, Administrator',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          letterSpacing: -0.5,
+                        ),
+                        maxLines: 2,
                       ),
                     ),
                   ],
@@ -3184,9 +3187,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         children: [
           // ── Header ────────────────────────────────────────────────────
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -3198,21 +3202,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         color: AppTheme.adminPrimaryAccent, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Monthly Event Schedule',
-                          style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800,
-                            color: AppTheme.darkGrey, letterSpacing: -0.3,
-                          )),
-                      Text(DateFormat('MMMM yyyy').format(focusedMonth),
-                          style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Monthly Event Schedule',
+                            style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800,
+                              color: AppTheme.darkGrey, letterSpacing: -0.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(DateFormat('MMMM yyyy').format(focusedMonth),
+                            style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              _buildMonthDropdown(focusedMonth),
+            ),
+            const SizedBox(width: 8),
+            _buildMonthDropdown(focusedMonth),
             ],
           ),
 
@@ -3758,9 +3772,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         children: [
           // ── Header ─────────────────────────────────────────────────────
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -3772,21 +3787,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         color: Color(0xFFEF4444), size: 20),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Operations Monitor',
-                          style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800,
-                            color: AppTheme.darkGrey, letterSpacing: -0.3,
-                          )),
-                      Text('Kitchen & inventory status • $timeLabel',
-                          style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Operations Monitor',
+                            style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800,
+                              color: AppTheme.darkGrey, letterSpacing: -0.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                        ),
+                        Text('Kitchen & inventory status • $timeLabel',
+                            style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              Container(
+            ),
+            const SizedBox(width: 8),
+            Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEF4444).withValues(alpha: 0.08),
@@ -5292,14 +5317,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                'Live Event Status',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGrey,
+              Expanded(
+                child: Text(
+                  'Live Event Status',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               if (hasEvents)
                 Container(
                   padding: const EdgeInsets.symmetric(
