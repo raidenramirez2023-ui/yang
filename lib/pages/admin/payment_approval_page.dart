@@ -1182,6 +1182,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   Widget _buildPaymentCard(Map<String, dynamic> payment, BuildContext context) {
     final String table = payment['_table'] ?? 'reservations';
     final bool isAdvanceOrder = table == 'advance_orders';
+    final String paymentMethod = (payment['payment_method'] ?? '').toString().toLowerCase();
+    final bool isCash = paymentMethod == 'cash';
     final double totalAmount = (payment['total_price'] as num?)?.toDouble() ?? 0.0;
     final double rawDeposit = (payment['deposit_amount'] as num?)?.toDouble() ?? (payment['downpayment_amount'] as num?)?.toDouble() ?? 0.0;
     final bool isFullPayment = isAdvanceOrder ||
@@ -1192,7 +1194,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final double amountToVerify = isFullPayment
         ? (totalAmount > 0 ? totalAmount : (rawDeposit > 0 ? rawDeposit : 0.0))
         : (rawDeposit > 0 ? rawDeposit : totalAmount);
-    final String paymentRef = payment['payment_reference'] ?? 'REF-NOT-SET';
+    final String paymentRef = payment['payment_reference'] ?? (isCash ? 'CASH-ON-SITE' : 'REF-NOT-SET');
     final isMobile = ResponsiveUtils.isMobile(context);
 
     return Padding(
@@ -1226,28 +1228,28 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Authentic GCash Brand Tag
+                        // Authentic Brand Tag
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF007DFE), // Official GCash Blue
+                            color: isCash ? const Color(0xFF15803D) : const Color(0xFF007DFE),
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF007DFE).withValues(alpha: 0.25),
+                                color: (isCash ? const Color(0xFF15803D) : const Color(0xFF007DFE)).withValues(alpha: 0.25),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 13),
-                              SizedBox(width: 5),
+                              Icon(isCash ? Icons.payments_rounded : Icons.account_balance_wallet_rounded, color: Colors.white, size: 13),
+                              const SizedBox(width: 5),
                               Text(
-                                'GCash / PayMongo',
-                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                                isCash ? 'Cash on Site' : 'GCash / PayMongo',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
                               ),
                             ],
                           ),
@@ -1272,18 +1274,18 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
+                        color: isCash ? const Color(0xFFFEF3C7) : const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
+                        border: Border.all(color: isCash ? const Color(0xFFFDE68A) : const Color(0xFFFDE68A)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.hourglass_bottom_rounded, size: 12, color: Color(0xFFB45309)),
-                          SizedBox(width: 4),
+                          Icon(isCash ? Icons.storefront_rounded : Icons.hourglass_bottom_rounded, size: 12, color: const Color(0xFFB45309)),
+                          const SizedBox(width: 4),
                           Text(
-                            'Awaiting Verification',
-                            style: TextStyle(
+                            isCash ? 'Pending Cash Settlement' : 'Awaiting Verification',
+                            style: const TextStyle(
                               color: Color(0xFFB45309),
                               fontWeight: FontWeight.w800,
                               fontSize: 11,
@@ -1464,7 +1466,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 ),
 
                 // Guidance note
-                if (!_canApprovePayment(payment))
+                if (!_canApprovePayment(payment) && !isCash)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
@@ -2157,11 +2159,36 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   Widget _buildReceiptActions(Map<String, dynamic> payment) {
+    final bool isCash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'cash';
+    if (isCash) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.storefront_rounded, size: 18, color: Color(0xFF15803D)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Cash on Site: Customer will pay at store counter. Collect payment then click "Confirm Cash Received" below to dispatch order to kitchen.',
+                style: TextStyle(fontSize: 11.5, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final bool isAnalyzing = _analyzingState[payment['id']] == true;
 
     return Row(
       children: [
-        // View Receipt Button (Warm Gold Accent)
+        // View Payment Receipt Button (Warm Gold Accent)
         Expanded(
           child: SizedBox(
             height: 40,
@@ -2169,7 +2196,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
               icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFFB45309)),
               label: const Text(
-                'View Receipt',
+                'View Payment Receipt',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
               ),
               style: OutlinedButton.styleFrom(
@@ -2211,6 +2238,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   bool _canApprovePayment(Map<String, dynamic> payment) {
+    final bool isCash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'cash';
+    if (isCash) return true;
+
     final paymentId = payment['id'].toString();
     if (!_ocrResults.containsKey(paymentId)) return false;
     
@@ -2220,27 +2250,45 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final double expectedAmount = (payment['deposit_amount'] as num?)?.toDouble() ?? 0.0;
     final double? detectedAmount = ocr['detectedAmount'];
     final bool amountMatches = detectedAmount != null && (detectedAmount - expectedAmount).abs() < 1.0;
-    
-    final String expectedRef = payment['payment_reference'] ?? '';
-    final List<dynamic> detectedRefs = ocr['detectedRefs'] ?? [];
-    
-    final bool refMatches = detectedRefs.isNotEmpty && (
-      detectedRefs.any((r) => expectedRef.toLowerCase().contains(r.toString().toLowerCase())) ||
-      detectedRefs.any((r) => r.toString().length >= 6)
-    );
 
-    // Check Payment ID (pay_xxx format)
-    final String? detectedPaymentId = ocr['detectedPaymentId'];
-    final bool paymentIdFound = detectedPaymentId != null && detectedPaymentId.isNotEmpty;
+    final bool isGcash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'gcash';
 
-    // Check QRPh Payment Received! confirmation text
-    final bool hasQrphReceived = ocr['hasQrphReceived'] == true;
+    if (isGcash) {
+      // ── GCash QR Verification (4 Checks) ────────────────────────────────
+      // 1. Amount matches
+      // 2. GCash Ref No. detected
+      final String? gcashRef = ocr['detectedGcashRef'];
+      final bool gcashRefFound = gcashRef != null && gcashRef.trim().isNotEmpty;
+      // 3. "Sent via GCash" confirmation text
+      final bool hasSentViaGcash = ocr['hasSentViaGcash'] == true;
+      // 4. Transaction date is within ±7 days
+      final bool dateIsValid = ocr['dateIsValid'] == true;
 
-    // Must have verified ALL FOUR: amount, reference, payment ID, and QRPh received
-    return amountMatches && refMatches && paymentIdFound && hasQrphReceived;
+      return amountMatches && gcashRefFound && hasSentViaGcash && dateIsValid;
+    } else {
+      // ── PayMongo Verification (4 Checks) ────────────────────────────────
+      final String expectedRef = payment['payment_reference'] ?? '';
+      final List<dynamic> detectedRefs = ocr['detectedRefs'] ?? [];
+      
+      final bool refMatches = detectedRefs.isNotEmpty && (
+        detectedRefs.any((r) => expectedRef.toLowerCase().contains(r.toString().toLowerCase())) ||
+        detectedRefs.any((r) => r.toString().length >= 6)
+      );
+
+      // Check Payment ID (pay_xxx format)
+      final String? detectedPaymentId = ocr['detectedPaymentId'];
+      final bool paymentIdFound = detectedPaymentId != null && detectedPaymentId.isNotEmpty;
+
+      // Check QRPh Payment Received! confirmation text
+      final bool hasQrphReceived = ocr['hasQrphReceived'] == true;
+
+      // Must have verified ALL FOUR: amount, reference, payment ID, and QRPh received
+      return amountMatches && refMatches && paymentIdFound && hasQrphReceived;
+    }
   }
 
   Widget _buildApproveButton(Map<String, dynamic> payment, String table) {
+    final bool isCash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'cash';
     final bool enabled = _canApprovePayment(payment);
     
     return SizedBox(
@@ -2253,7 +2301,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           color: enabled ? Colors.white : const Color(0xFF94A3B8),
         ),
         label: Text(
-          'Approve Payment',
+          isCash ? 'Confirm Cash Received' : 'Approve Payment',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 12.5,
@@ -2261,9 +2309,13 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: enabled ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+          backgroundColor: enabled
+              ? (isCash ? const Color(0xFF15803D) : const Color(0xFF14332E))
+              : const Color(0xFFF1F5F9),
           elevation: enabled ? 2 : 0,
-          shadowColor: enabled ? const Color(0xFF14332E).withValues(alpha: 0.3) : Colors.transparent,
+          shadowColor: enabled
+              ? (isCash ? const Color(0xFF15803D).withValues(alpha: 0.3) : const Color(0xFF14332E).withValues(alpha: 0.3))
+              : Colors.transparent,
           side: BorderSide(
             color: enabled ? Colors.transparent : const Color(0xFFCBD5E1),
             width: 1.2,
@@ -2302,7 +2354,166 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final double expectedAmount = (payment['deposit_amount'] as num?)?.toDouble() ?? 0.0;
     final double? detectedAmount = ocr['detectedAmount'];
     final bool amountMatches = detectedAmount != null && (detectedAmount - expectedAmount).abs() < 1.0;
-    
+
+    final bool isGcash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'gcash';
+
+    if (isGcash) {
+      return _buildGcashOCRPanel(ocr, expectedAmount, detectedAmount, amountMatches);
+    } else {
+      return _buildPayMongoOCRPanel(payment, ocr, expectedAmount, detectedAmount, amountMatches);
+    }
+  }
+
+  /// OCR Verification panel for GCash QR receipts
+  Widget _buildGcashOCRPanel(
+    Map<String, dynamic> ocr,
+    double expectedAmount,
+    double? detectedAmount,
+    bool amountMatches,
+  ) {
+    // GCash Ref No.
+    final String? gcashRef = ocr['detectedGcashRef'];
+    final bool gcashRefFound = gcashRef != null && gcashRef.trim().isNotEmpty;
+
+    // "Sent via GCash" confirmation
+    final bool hasSentViaGcash = ocr['hasSentViaGcash'] == true;
+
+    // Transaction date
+    final String? detectedDate = ocr['detectedDate'];
+    final bool dateIsValid = ocr['dateIsValid'] == true;
+
+    // Count how many checks passed
+    final int passedChecks = [
+      amountMatches,
+      gcashRefFound,
+      hasSentViaGcash,
+      dateIsValid,
+    ].where((v) => v).length;
+    final bool allVerified = passedChecks == 4;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: allVerified ? const Color(0xFF86EFAC) : const Color(0xFFFDE68A),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.document_scanner_rounded,
+                color: allVerified ? const Color(0xFF059669) : const Color(0xFFD97706),
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'GCash QR — OCR Verification',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: allVerified ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: allVerified ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
+                  ),
+                ),
+                child: Text(
+                  '$passedChecks/4 Verified',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: allVerified ? const Color(0xFF059669) : const Color(0xFFB45309),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildOCRRow(
+            'Amount Detected',
+            detectedAmount != null ? '₱${_moneyFmt.format(detectedAmount)}' : 'Not Found',
+            amountMatches ? Icons.check_circle_rounded : (detectedAmount == null ? Icons.help_outline_rounded : Icons.warning_amber_rounded),
+            amountMatches ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
+          _buildOCRRow(
+            'GCash Ref No.',
+            gcashRef ?? 'Not Found',
+            gcashRefFound ? Icons.check_circle_rounded : Icons.help_outline_rounded,
+            gcashRefFound ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
+          _buildOCRRow(
+            'Sent via GCash',
+            hasSentViaGcash ? 'Confirmed' : 'Not Found',
+            hasSentViaGcash ? Icons.check_circle_rounded : Icons.help_outline_rounded,
+            hasSentViaGcash ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
+          _buildOCRRow(
+            'Transaction Date',
+            detectedDate ?? 'Not Found',
+            dateIsValid ? Icons.check_circle_rounded : (detectedDate != null ? Icons.warning_amber_rounded : Icons.help_outline_rounded),
+            dateIsValid ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
+          if (!amountMatches && detectedAmount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '⚠️ Amount mismatch (Expected: ₱${_moneyFmt.format(expectedAmount)})',
+                style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626), fontWeight: FontWeight.w700),
+              ),
+            ),
+          if (detectedDate != null && !dateIsValid)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '⚠️ Transaction date "$detectedDate" is outside the ±7 day window',
+                style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626), fontWeight: FontWeight.w700),
+              ),
+            ),
+          if (!allVerified)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.shield_outlined, size: 14, color: Color(0xFFDC2626)),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'All 4 checks must be verified before approving. Ensure the receipt is a genuine GCash transfer confirmation.',
+                        style: TextStyle(fontSize: 10, color: Color(0xFFDC2626), fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// OCR Verification panel for PayMongo receipts (existing logic)
+  Widget _buildPayMongoOCRPanel(
+    Map<String, dynamic> payment,
+    Map<String, dynamic> ocr,
+    double expectedAmount,
+    double? detectedAmount,
+    bool amountMatches,
+  ) {
     final String expectedRef = payment['payment_reference'] ?? '';
     final List<dynamic> detectedRefs = ocr['detectedRefs'] ?? [];
     
@@ -2348,7 +2559,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               ),
               const SizedBox(width: 8),
               const Text(
-                'OCR Verification Summary',
+                'PayMongo — OCR Verification',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
               ),
               const Spacer(),

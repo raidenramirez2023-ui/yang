@@ -66,6 +66,7 @@ class ReservationService {
 
     String? uploadedIdUrl,
     String? paymentOption = 'half',
+    String? paymentMethod = 'paymongo',
     String? transactedBy,
   }) async {
     try {
@@ -87,6 +88,8 @@ class ReservationService {
             'customer_phone': customerPhone,
             'customer_address': customerAddress,
             'uploaded_id_url': uploadedIdUrl,
+            'payment_option': paymentOption,
+            'payment_method': paymentMethod,
             'transacted_by': transactedBy,
             'created_at': now.toUtc().toIso8601String(),
             'updated_at': now.toUtc().toIso8601String(),
@@ -172,6 +175,7 @@ class ReservationService {
 
     String? uploadedIdUrl,
     String? paymentOption = 'half',
+    String? paymentMethod = 'paymongo',
     String? transactedBy,
   }) async {
     try {
@@ -197,6 +201,8 @@ class ReservationService {
             'customer_address': customerAddress,
 
             'uploaded_id_url': uploadedIdUrl,
+            'payment_option': paymentOption,
+            'payment_method': paymentMethod,
             'transacted_by': transactedBy,
 
             'created_at': now.toUtc().toIso8601String(),
@@ -809,6 +815,7 @@ class ReservationService {
     required Map<String, int> selectedMenuItems,
     required double totalPrice,
     required String? preparationNotes,
+    String? paymentMethod = 'paymongo',
   }) async {
     try {
       final now = DateTime.now();
@@ -826,6 +833,7 @@ class ReservationService {
             'total_price': totalPrice,
             'status': 'unpaid',
             'payment_status': 'unpaid',
+            'payment_method': paymentMethod,
             'preparation_notes': preparationNotes,
             'created_at': now.toUtc().toIso8601String(),
             'updated_at': now.toUtc().toIso8601String(),
@@ -1625,21 +1633,18 @@ class ReservationService {
   /// Check if reservation needs deposit payment
 
   bool needsDepositPayment(Map<String, dynamic> reservation) {
+    final status = (reservation['status'] as String? ?? 'pending').toLowerCase();
+    if (status == 'confirmed' || status == 'completed' || status == 'cancelled') {
+      return false;
+    }
 
     final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
-
     final priceQuotationSent = reservation['price_quotation_sent'] as bool? ?? false;
-
     final totalPrice = reservation['total_price'] as double? ?? 0.0;
 
-    
-
     return priceQuotationSent && 
-
            totalPrice > 0.0 && 
-
            paymentStatus == 'unpaid';
-
   }
 
 
@@ -1945,14 +1950,13 @@ class ReservationService {
     }
   }
 
-  /// Get advance orders pending admin approval
+  /// Get advance orders pending admin approval (both online verifying receipts and cash on site)
   Future<List<Map<String, dynamic>>> getAdvanceOrdersPendingApproval() async {
     try {
       final response = await _supabase
           .from('advance_orders')
           .select('*')
-          .eq('status', 'awaiting_verification')
-          .eq('payment_status', 'pending_verification')
+          .or('and(status.eq.awaiting_verification,payment_status.eq.pending_verification),and(payment_method.eq.cash,status.eq.unpaid,payment_status.eq.unpaid)')
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response);

@@ -22,6 +22,7 @@ import 'package:yang_chow/pages/customer/menu_selection_page.dart';
 import 'package:yang_chow/pages/customer/customer_order_list.dart';
 import 'package:yang_chow/pages/customer/transactions_page.dart';
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
+import 'package:yang_chow/pages/customer/gcash_qr_payment_page.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
@@ -395,6 +396,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   // Payment option: 'half' for deposit, 'full' for full payment
 
   String _paymentOption = 'half';
+
+  // Payment method: 'paymongo', 'gcash', 'cash'
+  String _selectedPaymentMethod = 'paymongo';
 
 
 
@@ -5241,6 +5245,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           const SizedBox(height: 18),
                         ],
 
+                        // Payment Method Selection (Advance Order: Dine In & Pick Up)
+                        if (_reservationType == 'Advance Order') ...[
+                          _buildFormLabel('PAYMENT METHOD'),
+                          const SizedBox(height: 8),
+                          _buildPaymentMethodSelector(
+                            isEventPlace: false,
+                            isSmallScreen: isSmallScreen,
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
                         // Menu Selection Box
                         _buildFormLabel('MENU SELECTION'),
                         const SizedBox(height: 8),
@@ -5527,6 +5542,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 ],
                               );
                             },
+                          ),
+                          const SizedBox(height: 18),
+
+                          // Payment Method Selection (Event Place)
+                          _buildFormLabel('PAYMENT METHOD'),
+                          const SizedBox(height: 8),
+                          _buildPaymentMethodSelector(
+                            isEventPlace: true,
+                            isSmallScreen: isSmallScreen,
                           ),
                           const SizedBox(height: 18),
                         ],
@@ -6063,7 +6087,128 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  Widget _buildPaymentMethodSelector({required bool isEventPlace, required bool isSmallScreen}) {
+    final List<Map<String, dynamic>> methods = [
+      {
+        'id': 'paymongo',
+        'title': isEventPlace ? 'Via PayMongo' : 'Pay with PayMongo',
+        'subtitle': 'Card / Online Checkout',
+        'icon': Icons.credit_card_rounded,
+        'badge': 'Online',
+        'badgeColor': const Color(0xFF0284C7),
+      },
+      {
+        'id': 'gcash',
+        'title': isEventPlace ? 'Via Gcash QR code' : 'Pay with Gcash QR',
+        'subtitle': 'Scan QR & Upload Receipt',
+        'icon': Icons.qr_code_scanner_rounded,
+        'badge': 'GCash QR',
+        'badgeColor': const Color(0xFF2563EB),
+      },
+      {
+        'id': 'cash',
+        'title': 'Cash on site',
+        'subtitle': isEventPlace ? 'Pay on site within 3 days' : 'Pay on site within 24 hours',
+        'icon': Icons.payments_rounded,
+        'badge': isEventPlace ? '3-Day Grace' : '24-Hour Grace',
+        'badgeColor': const Color(0xFF16A34A),
+      },
+    ];
 
+    return Column(
+      children: methods.map((m) {
+        final isSelected = _selectedPaymentMethod == m['id'];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: AnimatedTapScale(
+            onTap: () => setState(() => _selectedPaymentMethod = m['id'] as String),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppTheme.warmGold.withValues(alpha: 0.12)
+                    : const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected ? AppTheme.warmGold : AppTheme.cardBorder,
+                  width: isSelected ? 1.6 : 1.0,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isSelected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    size: 18,
+                    color: isSelected ? AppTheme.primaryColor : AppTheme.mediumGrey,
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: (m['badgeColor'] as Color).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      m['icon'] as IconData,
+                      size: 17,
+                      color: m['badgeColor'] as Color,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          m['title'] as String,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700,
+                            fontSize: isSmallScreen ? 12.5 : 13.5,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          m['subtitle'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: isSmallScreen ? 10.5 : 11.5,
+                            color: AppTheme.mediumGrey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (m['badgeColor'] as Color).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: (m['badgeColor'] as Color).withValues(alpha: 0.25),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      m['badge'] as String,
+                      style: GoogleFonts.inter(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: m['badgeColor'] as Color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   // ── Profile Section (Clean Centered Card Layout) ──
   Widget _buildProfileSection() {
@@ -7820,7 +7965,31 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   }
 
-
+  void _proceedToGCashPayment(
+    Map<String, dynamic> reservation,
+    double paymentAmount, {
+    double? totalPrice,
+  }) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (context) => GCashQRPaymentPage(
+          reservationId: reservation['id'].toString(),
+          depositAmount: paymentAmount,
+          table: reservation['_db_table'] ?? 'reservations',
+          onPaymentSuccess: () {
+            if (mounted) {
+              setState(() {
+                _selectedMenuItems.clear();
+                _preOrderCart.clear();
+              });
+              _saveCartToPrefs();
+              _loadCustomerReservations();
+            }
+          },
+        ),
+      ),
+    );
+  }
 
   void _showErrorDialog(String message) {
 
@@ -8157,63 +8326,39 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
           paymentOption: _paymentOption,
-
+          paymentMethod: _selectedPaymentMethod,
         );
 
       } else {
 
         // Use traditional reservation without menu-based pricing
 
-
-
         await _reservationService.createReservation(
 
           customerEmail: currentUser.email ?? '',
 
-
-
           customerName: currentUser.userMetadata?['full_name'] ?? 'Customer',
-
-
 
           eventType: eventType,
 
-
-
           eventDate: eventDate,
-
-
 
           startTime: startTime,
 
-
-
           durationHours: durationHours,
-
-
 
           numberOfGuests: numberOfGuests,
 
-
-
           specialRequests: specialRequests,
-
-
 
           customerPhone: null,
 
-
-
           customerAddress: null,
-
-
 
           uploadedIdUrl: _uploadedIdUrl,
 
-
-
           paymentOption: _paymentOption,
-
+          paymentMethod: _selectedPaymentMethod,
         );
 
       }
@@ -8335,6 +8480,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     if (!isQuoted) return 'AWAITING TRANSACTION';
 
     final isConfirmed = bookingStatus == 'confirmed' || bookingStatus == 'completed';
+
+    if (isConfirmed && (status == 'unpaid' || status == 'pending' || status == 'deposit_paid' || status == 'paid' || status == 'fully_paid')) {
+      if (status == 'deposit_paid' && !isPayInFull && !isAdvanceOrder) {
+        return 'DEPOSIT SETTLED';
+      }
+      return (isAdvanceOrder || isPayInFull) ? 'FULLY SETTLED' : 'DEPOSIT SETTLED';
+    }
 
     switch (status) {
       case 'pending_verification':
@@ -8924,381 +9076,244 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   void _showPaymentDialog(Map<String, dynamic> reservation) {
-
     final pricingInfo = _reservationService.getReservationPricing(reservation);
-
-
-
     final depositAmount = pricingInfo['depositAmount'] as double;
-
     final totalPrice = pricingInfo['totalPrice'] as double;
-
-
-
     final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
-
         reservation['payment_option'] == 'full' ||
-
         (totalPrice > 0 && depositAmount >= totalPrice);
 
-
-
     // Only show payment option selection if not forced Pay in Full
-
     final isEventPlace = reservation['_db_table'] != 'advance_orders' && !isPayInFull;
 
-
-
     // Declare payment option outside builder to maintain state
-
     String paymentOption = isPayInFull ? 'full' : 'half';
-
-
+    final rawMethod = (reservation['payment_method'] ?? 'paymongo').toString().toLowerCase();
+    final bool isGcash = rawMethod == 'gcash';
+    final bool isCashOnSite = rawMethod == 'cash';
 
     showDialog(
-
       context: context,
-
-
-
       builder: (context) => StatefulBuilder(
-
         builder: (context, setDialogState) {
-
           return AlertDialog(
-
             title: Row(
-
               children: [
-
-                const Icon(Icons.payment, color: Colors.green),
-
-                const SizedBox(width: 8),
-
-                Text(isEventPlace ? 'Make Payment' : (isPayInFull ? 'Pay Full Amount' : 'Pay Deposit')),
-
-              ],
-
-            ),
-
-
-
-            content: Column(
-
-              mainAxisSize: MainAxisSize.min,
-
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
-              children: [
-
-                Text(
-
-                  isEventPlace
-
-                      ? 'Choose your payment option below.'
-
-                      : 'Complete your payment by paying the full amount.',
-
-                  style: TextStyle(color: Colors.grey.shade600),
-
+                Icon(
+                  isCashOnSite
+                      ? Icons.payments_rounded
+                      : (isGcash ? Icons.qr_code_scanner_rounded : Icons.payment),
+                  color: isCashOnSite ? Colors.green : (isGcash ? Colors.blue.shade700 : Colors.green),
                 ),
-
-
-
+                const SizedBox(width: 8),
+                Text(
+                  isCashOnSite
+                      ? 'Cash on Site Booking'
+                      : (isEventPlace ? 'Make Payment' : (isPayInFull ? 'Pay Full Amount' : 'Pay Deposit')),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isCashOnSite
+                      ? 'Review your cash on site details below.'
+                      : (isEventPlace
+                          ? 'Choose your payment option below.'
+                          : 'Complete your payment by paying the full amount.'),
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
                 const SizedBox(height: 16),
 
-
-
-                // Payment option selection (only for event place)
-
-                if (isEventPlace) ...[
-
+                if (isCashOnSite) ...[
                   Container(
-
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-
-                      color: Colors.grey.shade50,
-
-                      borderRadius: BorderRadius.circular(8),
-
-                      border: Border.all(color: Colors.grey.shade200),
-
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF86EFAC)),
                     ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: Color(0xFF15803D), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Payment Method: Cash on Site\nYour booking is held for up to ${reservation['_db_table'] == 'advance_orders' ? "24 hours" : "3 days"} from the date of booking. Please settle this amount on site to confirm your reservation. Failure to pay within ${reservation['_db_table'] == 'advance_orders' ? "24 hours" : "3 days"} will automatically cancel your booking.',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF166534),
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
-                    child: ClipRRect(
-
+                // Payment option selection (only for event place and if not forced full)
+                if (isEventPlace) ...[
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(8),
-
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
                       child: Material(
-
                         color: Colors.grey.shade50,
-
                         child: Column(
-
                           children: [
-
                             RadioListTile<String>(
-
                               title: const Text(
-
                                 'Pay Half (Deposit)',
-
                                 style: TextStyle(
-
                                   fontSize: 14,
-
                                   fontWeight: FontWeight.w600,
-
                                 ),
-
                               ),
-
                               subtitle: Text(
-
                                 'PHP ${depositAmount.toStringAsFixed(2)} - 50% deposit',
-
                                 style: const TextStyle(fontSize: 12),
-
                               ),
-
                               // ignore: deprecated_member_use
                               value: 'half',
                               // ignore: deprecated_member_use
                               groupValue: paymentOption,
                               // ignore: deprecated_member_use
                               onChanged: (value) {
-
                                 setDialogState(() {
-
                                   paymentOption = value!;
-
                                 });
-
                               },
-
                               activeColor: AppTheme.primaryColor,
-
                               contentPadding: EdgeInsets.zero,
-
                               visualDensity: VisualDensity.compact,
-
                             ),
-
                             RadioListTile<String>(
-
                               title: const Text(
-
                                 'Pay in Full',
-
                                 style: TextStyle(
-
                                   fontSize: 14,
-
                                   fontWeight: FontWeight.w600,
-
                                 ),
-
                               ),
-
                               subtitle: Text(
-
                                 'PHP ${totalPrice.toStringAsFixed(2)} - Full amount',
-
                                 style: const TextStyle(fontSize: 12),
-
                               ),
-
                               // ignore: deprecated_member_use
                               value: 'full',
                               // ignore: deprecated_member_use
                               groupValue: paymentOption,
                               // ignore: deprecated_member_use
                               onChanged: (value) {
-
                                 setDialogState(() {
-
                                   paymentOption = value!;
-
                                 });
-
                               },
-
                               activeColor: AppTheme.primaryColor,
-
                               contentPadding: EdgeInsets.zero,
-
                               visualDensity: VisualDensity.compact,
-
                             ),
-
                           ],
-
                         ),
-
                       ),
-
                     ),
-
                   ),
-
                   const SizedBox(height: 16),
-
                 ],
 
-
-
                 // Amount display
-
                 Container(
-
                   padding: const EdgeInsets.all(16),
-
-
-
                   decoration: BoxDecoration(
-
                     color: Colors.green.withValues(alpha: 0.05),
-
-
-
                     borderRadius: BorderRadius.circular(8),
-
-
-
                     border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
-
                   ),
-
-
-
                   child: Row(
-
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-
-
                     children: [
-
                       Text(
-
                         isEventPlace
-
                             ? (paymentOption == 'full' ? 'Full Amount:' : 'Deposit Amount:')
-
                             : 'Total Amount:',
-
-
-
                         style: const TextStyle(fontWeight: FontWeight.bold),
-
                       ),
-
-
-
                       Text(
-
                         'PHP ${(paymentOption == 'full' && isEventPlace ? totalPrice : depositAmount).toStringAsFixed(2)}',
-
-
-
                         style: const TextStyle(
-
                           fontWeight: FontWeight.bold,
-
-
-
                           color: Colors.green,
-
-
-
                           fontSize: 18,
-
                         ),
-
                       ),
-
                     ],
-
                   ),
-
                 ),
-
-
-
                 const SizedBox(height: 16),
 
-
-
-                const SizedBox(height: 12),
-
-
-
                 SizedBox(
-
                   width: double.infinity,
-
-
-
                   child: ElevatedButton.icon(
-
                     onPressed: () {
-
                       Navigator.pop(context);
-
-
-
                       final paymentAmount = paymentOption == 'full' && isEventPlace
-
                           ? totalPrice
-
                           : depositAmount;
 
-
-
-                      _proceedToPayment(
-
-                        reservation,
-
-                        paymentAmount,
-
-                        totalPrice: isEventPlace ? totalPrice : null,
-
-                      );
-
+                      if (isCashOnSite) {
+                        final isAdvance = reservation['_db_table'] == 'advance_orders';
+                        _showSnackBar('Please settle your cash payment on site within ${isAdvance ? "24 hours" : "3 days"} of booking.', Colors.green);
+                      } else if (isGcash) {
+                        _proceedToGCashPayment(
+                          reservation,
+                          paymentAmount,
+                          totalPrice: isEventPlace ? totalPrice : null,
+                        );
+                      } else {
+                        _proceedToPayment(
+                          reservation,
+                          paymentAmount,
+                          totalPrice: isEventPlace ? totalPrice : null,
+                        );
+                      }
                     },
 
 
-
-                    icon: const Icon(Icons.payment_rounded),
-
-
-
-                    label: Text(
-
-                      isEventPlace
-
-                          ? (paymentOption == 'full' ? 'Pay Full Amount' : 'Pay Deposit')
-
-                          : 'Pay with PayMongo',
-
+                    icon: Icon(
+                      isCashOnSite
+                          ? Icons.check_circle_outline_rounded
+                          : (isGcash ? Icons.qr_code_scanner_rounded : Icons.credit_card_rounded),
                     ),
-
-
-
+                    label: Text(
+                      isCashOnSite
+                          ? 'Acknowledge Cash on Site'
+                          : (isGcash
+                              ? (isEventPlace
+                                  ? (paymentOption == 'full' ? 'Pay Full via GCash QR' : 'Pay Deposit via GCash QR')
+                                  : 'Pay with GCash QR')
+                              : (isEventPlace
+                                  ? (paymentOption == 'full' ? 'Pay Full via PayMongo' : 'Pay Deposit via PayMongo')
+                                  : 'Pay with PayMongo')),
+                    ),
                     style: ElevatedButton.styleFrom(
-
-                      backgroundColor: AppTheme.primaryColor,
-
-
-
+                      backgroundColor: isCashOnSite
+                          ? const Color(0xFF16A34A)
+                          : (isGcash ? Colors.blue.shade700 : AppTheme.primaryColor),
                       foregroundColor: Colors.white,
-
-
-
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
 
                   ),
@@ -13200,9 +13215,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         _buildTermsSection(
                           icon: Icons.timer_outlined,
                           iconColor: const Color(0xFFD9A441),
-                          title: '1. Quotation & 3-Minute Grace Period',
+                          title: '1. Quotation Grace Period (Online & Cash on Site)',
                           description:
-                              'After submission, our Admin will evaluate your request and send an Official Quotation. You will have exactly 3 Minutes from receiving the quotation to settle the required initial downpayment (50%) to lock and guarantee your reserved date. Failure to pay within 3 minutes will automatically release the slot.',
+                              '• Online Payments (PayMongo & GCash QR): After Admin issues the Official Quotation, you have exactly 24 Hours to settle the downpayment to lock and guarantee your reserved date. Failure to pay within 24 hours will automatically cancel the quotation and release the slot.\n'
+                              '• Cash on Site: If you select Cash on site for Event Reservations, your booking is held for up to 3 Days (24 Hours for Advance Orders) from the date of booking to settle your reservation on site. Reservations unsettled after the grace period will be automatically cancelled.',
                         ),
                         const SizedBox(height: 14),
 
@@ -13270,7 +13286,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                   child: Padding(
                                     padding: const EdgeInsets.only(top: 10),
                                     child: Text(
-                                      'I have read, understood, and agree to the Terms and Conditions (including the 3-Minute Quotation Grace Period and Remaining Balance settlement policy).',
+                                      'I have read, understood, and agree to the Terms and Conditions (including the 24-Hour Online / 3-Day Event Cash on Site / 24-Hour Advance Order Grace Period and Remaining Balance policy).',
                                       style: GoogleFonts.inter(
                                         fontSize: 12.5,
                                         fontWeight: isAgreed ? FontWeight.w700 : FontWeight.w500,
@@ -13826,168 +13842,138 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
         // Create the advance order
-
         final response = await _reservationService.createAdvanceOrder(
-
           customerEmail: currentUser.email ?? '',
-
           customerName: currentUser.userMetadata?['name'] ?? 
-
                         currentUser.userMetadata?['full_name'] ?? 
-
                         'Customer',
-
           orderType: _advanceOrderType,
-
           orderDate: formattedDate,
-
           orderTime: startTime,
-
           numberOfGuests: _advanceOrderType == 'Dine In' ? guestCount : null,
-
           selectedMenuItems: _selectedMenuItems,
-
           totalPrice: totalMenuPrice,
-
           preparationNotes: _specialRequestsController.text.trim(),
-
+          paymentMethod: _selectedPaymentMethod,
         );
-
-
 
         final String orderId = response['id'].toString();
 
-
-
         if (!mounted) return;
 
-
-
         setState(() {
-
           _isLoading = false;
-
         });
 
-
-
-        // Show loading indicator
-
-        showDialog(
-
-          context: context,
-
-          barrierDismissible: false,
-
-          builder: (context) => const Center(child: CircularProgressIndicator()),
-
-        );
-
-
-
-        try {
-
-          // Create automated PayMongo payment link
-
-          final response = await PayMongoService.createPaymentLink(
-
-            amount: totalMenuPrice,
-
-            description: 'Advance Order Payment',
-
-            metadata: {
-
-              'reservationId': orderId,
-
-              'table': 'advance_orders',
-
-            },
-
+        if (_selectedPaymentMethod == 'gcash') {
+          // GCash QR payment flow
+          if (!mounted) return;
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute(
+              builder: (context) => GCashQRPaymentPage(
+                reservationId: orderId,
+                depositAmount: totalMenuPrice,
+                table: 'advance_orders',
+                onPaymentSuccess: () {
+                  if (mounted) {
+                    setState(() {
+                      for (final key in _selectedMenuItems.keys) {
+                        _preOrderCart.remove(key);
+                      }
+                      _selectedMenuItems.clear();
+                      _selectedIndex = 0;
+                    });
+                    _saveCartToPrefs();
+                    _loadCustomerReservations();
+                    _showSuccessDialog(
+                      'Advance Order Submitted via GCash QR!\n\n'
+                      'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
+                      'Your payment receipt is being reviewed by Admin.',
+                    );
+                  }
+                },
+              ),
+            ),
+          );
+        } else if (_selectedPaymentMethod == 'cash') {
+          // Cash on site flow - direct booking!
+          if (mounted) {
+            setState(() {
+              for (final key in _selectedMenuItems.keys) {
+                _preOrderCart.remove(key);
+              }
+              _selectedMenuItems.clear();
+              _selectedIndex = 0;
+            });
+            _saveCartToPrefs();
+            _loadCustomerReservations();
+            _showSuccessDialog(
+              'Advance Order Successfully Placed!\n\n'
+              'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
+              'Payment Method: Cash on Site\n\n'
+              'Please settle your cash payment on site within 24 hours of booking. Unsettled orders after 24 hours will be automatically cancelled.',
+            );
+          }
+        } else {
+          // PayMongo payment flow (default)
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(child: CircularProgressIndicator()),
           );
 
-
-
-          // Close loading indicator
-
-          if (mounted) Navigator.of(context).pop();
-
-
-
-          if (response['success'] == true && response['checkoutUrl'] != null) {
-
-            if (!mounted) return;
-
-
-
-            // Navigate immediately to payment confirmation page
-
-            Navigator.of(context, rootNavigator: true).push(
-
-              MaterialPageRoute(
-
-                builder: (context) => PayMongoPaymentPage(
-
-                  paymentUrl: response['checkoutUrl'],
-
-                  paymentLinkId: response['data']?['data']?['id'],
-
-                  reservationId: orderId,
-
-                  paymentAmount: totalMenuPrice,
-
-                  table: 'advance_orders',
-
-                  onPaymentSuccess: () {
-
-                    if (mounted) {
-
-                      setState(() {
-                        for (final key in _selectedMenuItems.keys) {
-                          _preOrderCart.remove(key);
-                        }
-                        _selectedMenuItems.clear();
-
-                        _selectedIndex = 0; // Go to home/activity
-
-                      });
-                      _saveCartToPrefs();
-
-                      _loadCustomerReservations();
-
-                      _showSuccessDialog(
-
-                        'Advance Order Successfully Paid!\n\n'
-
-                        'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
-
-                        'Your payment is being reviewed by Admin.',
-
-                      );
-
-                    }
-
-                  },
-
-                ),
-
-              ),
-
+          try {
+            final paymongoRes = await PayMongoService.createPaymentLink(
+              amount: totalMenuPrice,
+              description: 'Advance Order Payment',
+              metadata: {
+                'reservationId': orderId,
+                'table': 'advance_orders',
+              },
             );
 
-          } else {
+            if (mounted) Navigator.of(context).pop();
 
-            throw response['error'] ?? 'Failed to generate payment link';
+            if (paymongoRes['success'] == true && paymongoRes['checkoutUrl'] != null) {
+              if (!mounted) return;
 
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (context) => PayMongoPaymentPage(
+                    paymentUrl: paymongoRes['checkoutUrl'],
+                    paymentLinkId: paymongoRes['data']?['data']?['id'],
+                    reservationId: orderId,
+                    paymentAmount: totalMenuPrice,
+                    table: 'advance_orders',
+                    onPaymentSuccess: () {
+                      if (mounted) {
+                        setState(() {
+                          for (final key in _selectedMenuItems.keys) {
+                            _preOrderCart.remove(key);
+                          }
+                          _selectedMenuItems.clear();
+                          _selectedIndex = 0;
+                        });
+                        _saveCartToPrefs();
+                        _loadCustomerReservations();
+                        _showSuccessDialog(
+                          'Advance Order Successfully Paid!\n\n'
+                          'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
+                          'Your payment is being reviewed by Admin.',
+                        );
+                      }
+                    },
+                  ),
+                ),
+              );
+            } else {
+              throw paymongoRes['error'] ?? 'Failed to generate payment link';
+            }
+          } catch (e) {
+            if (mounted) Navigator.of(context).pop();
+            _showErrorDialog('Could not start payment: $e');
           }
-
-        } catch (e) {
-
-          if (mounted) Navigator.of(context).pop();
-
-          _showErrorDialog('Could not start payment: $e');
-
         }
-
       } else {
 
         String finalEventType = _selectedEventType!;
@@ -14691,7 +14677,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           .from(tableName)
           .update({
             'status': 'cancelled',
-            'special_requests': 'Auto-cancelled: 3-minute quotation payment grace period expired as per Terms & Conditions.',
+            'special_requests': 'Auto-cancelled: quotation payment grace period expired as per Terms & Conditions.',
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', id);
@@ -14709,31 +14695,51 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         reservation['payment_option'] == 'full' ||
         (totalPrice > 0 && depositAmount >= totalPrice);
 
-    final needsDepositPayment = _reservationService.needsDepositPayment(
-      reservation,
-    );
-
-    final isUnpaidOrDue = paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment;
-    final isDepositPaid = paymentStatus == 'deposit_paid';
-    final isFullyPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid' || (reservation['remaining_balance'] != null && (reservation['remaining_balance'] as num) <= 0 && paymentStatus != 'unpaid');
-
     final String resStatus = (reservation['status'] ?? 'pending').toString().toLowerCase();
     final bool isCancelled = resStatus == 'cancelled';
     final bool isConfirmed = resStatus == 'confirmed' || resStatus == 'completed';
+
+    final String paymentMethod = (reservation['payment_method'] ?? 'paymongo').toString().toLowerCase();
+    final bool isCashPayment = paymentMethod == 'cash';
+
+    final bool isConfirmedCash = isConfirmed && isCashPayment;
+    final isDepositPaid = paymentStatus == 'deposit_paid' || (isConfirmedCash && !isPayInFull);
+    final isFullyPaid = paymentStatus == 'paid' ||
+        paymentStatus == 'fully_paid' ||
+        (isConfirmedCash && isPayInFull) ||
+        (isConfirmed && (paymentStatus == 'deposit_paid' || paymentStatus == 'paid' || paymentStatus == 'fully_paid')) ||
+        (reservation['remaining_balance'] != null && (reservation['remaining_balance'] as num) <= 0 && paymentStatus != 'unpaid');
+
+    final bool isSettledOrConfirmed = isConfirmed || isFullyPaid || (isDepositPaid && !isPayInFull);
+
+    final needsDepositPayment = !isSettledOrConfirmed && _reservationService.needsDepositPayment(
+      reservation,
+    );
+
+    final isUnpaidOrDue = !isSettledOrConfirmed && (paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment);
+
     // Only deposit payments need admin approval notice; fully paid is automatically settled!
     final bool isAwaitingAdminApproval = isDepositPaid && !isConfirmed && !isFullyPaid;
 
     // Compute grace period
-    final sentAtRaw = reservation['price_quotation_sent_at'] ?? reservation['created_at'];
+    // Cash on site: 3 Days (Event) / 24 Hours (Advance Order) from created_at
+    // Online (PayMongo & GCash QR): 24 Hours from quotation sent (or created_at)
+    final sentAtRaw = isCashPayment
+        ? reservation['created_at']
+        : (reservation['price_quotation_sent_at'] ?? reservation['created_at']);
     DateTime? sentAt;
     if (sentAtRaw != null) {
       sentAt = DateTime.tryParse(sentAtRaw.toString());
     }
 
+    final isAdvanceOrder = reservation['_db_table'] == 'advance_orders';
     Duration? remainingGrace;
     bool isGraceExpired = false;
-    if (sentAt != null) {
-      final expiry = sentAt.add(const Duration(minutes: 3));
+    if (sentAt != null && !isSettledOrConfirmed) {
+      final Duration graceDuration = isCashPayment
+          ? (isAdvanceOrder ? const Duration(hours: 24) : const Duration(days: 3))
+          : const Duration(hours: 24);
+      final expiry = sentAt.add(graceDuration);
       final now = DateTime.now();
       if (now.isAfter(expiry)) {
         isGraceExpired = true;
@@ -14745,7 +14751,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     // Strict Auto-cancel: if grace period expired and reservation was still unpaid
     final bool isAutoCancelledDueToGrace = isCancelled || (isGraceExpired && isUnpaidOrDue);
 
-    if (isGraceExpired && isUnpaidOrDue && !isCancelled) {
+    if (isGraceExpired && isUnpaidOrDue && !isCancelled && !isConfirmed) {
       _autoCancelExpiredQuotation(
         reservation['id']?.toString() ?? '',
         reservation['_db_table']?.toString() ?? 'reservations',
@@ -15051,40 +15057,61 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   const SizedBox(height: 16),
 
-                  // ── 24-Hour Grace Period Alert Banner (For Unpaid Quotations within Grace) ─────
-                  if (needsDepositPayment && !isAutoCancelledDueToGrace && remainingGrace != null) ...[
+                  // ── Grace Period Alert Banner (24-Hour for Online / 3-Day Event or 24-Hour Advance for Cash on Site) ─────
+                  if (needsDepositPayment && !isAutoCancelledDueToGrace && !isConfirmed && remainingGrace != null) ...[
                     Builder(
                       builder: (context) {
                         final grace = remainingGrace;
                         if (grace == null) return const SizedBox.shrink();
-                        final hours = grace.inHours;
+                        final days = grace.inDays;
+                        final hours = grace.inHours % 24;
                         final mins = grace.inMinutes % 60;
                         final secs = grace.inSeconds % 60;
-                        final timeStr = hours > 0
-                            ? '${hours}h ${mins}m'
-                            : mins > 0
-                                ? '${mins}m ${secs}s'
-                                : '${secs}s';
+                        final timeStr = isCashPayment
+                            ? (days > 0
+                                ? '${days}d ${hours}h ${mins}m'
+                                : hours > 0
+                                    ? '${hours}h ${mins}m'
+                                    : '${mins}m ${secs}s')
+                            : (hours > 0
+                                ? '${hours}h ${mins}m'
+                                : mins > 0
+                                    ? '${mins}m ${secs}s'
+                                    : '${secs}s');
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBEB),
+                            color: isCashPayment ? const Color(0xFFF0FDF4) : const Color(0xFFFFFBEB),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFFDE68A)),
+                            border: Border.all(color: isCashPayment ? const Color(0xFF86EFAC) : const Color(0xFFFDE68A)),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.timer_outlined, color: Color(0xFFD97706), size: 18),
+                              Icon(
+                                isCashPayment ? Icons.event_available_rounded : Icons.timer_outlined,
+                                color: isCashPayment ? const Color(0xFF15803D) : const Color(0xFFD97706),
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: RichText(
                                   text: TextSpan(
-                                    style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF92400E)),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      color: isCashPayment ? const Color(0xFF166534) : const Color(0xFF92400E),
+                                    ),
                                     children: [
-                                      const TextSpan(text: '3-Minute Grace Period: ', style: TextStyle(fontWeight: FontWeight.w800)),
                                       TextSpan(
-                                        text: '$timeStr left to pay downpayment and secure your date.',
+                                        text: isCashPayment
+                                            ? (reservation['_db_table'] == 'advance_orders' ? '24-Hour Payment Window: ' : '3-Day Payment Window: ')
+                                            : '24-Hour Grace Period: ',
+                                        style: const TextStyle(fontWeight: FontWeight.w800),
+                                      ),
+                                      TextSpan(
+                                        text: isCashPayment
+                                            ? '$timeStr left to pay cash on site and guarantee your booking.'
+                                            : '$timeStr left to pay downpayment and secure your date.',
                                         style: const TextStyle(fontWeight: FontWeight.w600),
                                       ),
                                     ],
@@ -15158,7 +15185,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'As agreed in the Terms and Conditions upon booking, this quotation was not settled within the 3-minute grace period and has been automatically cancelled. The date slot has been released.',
+                            isCashPayment
+                                ? (reservation['_db_table'] == 'advance_orders'
+                                    ? 'As agreed in the Terms and Conditions upon booking, this Cash on Site advance order was not settled within the 24-hour grace period and has been automatically cancelled. The date slot has been released.'
+                                    : 'As agreed in the Terms and Conditions upon booking, this Cash on Site reservation was not settled within the 3-day grace period and has been automatically cancelled. The date slot has been released.')
+                                : 'As agreed in the Terms and Conditions upon booking, this quotation was not settled within the 24-hour grace period and has been automatically cancelled. The date slot has been released.',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -15216,12 +15247,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 17),
+                            Icon(
+                              isCashPayment
+                                  ? Icons.payments_rounded
+                                  : (paymentMethod == 'gcash' ? Icons.qr_code_scanner_rounded : Icons.payment_rounded),
+                              color: AppTheme.darkBrownText,
+                              size: 17,
+                            ),
                             const SizedBox(width: 8),
                             Text(
-                              isPayInFull
-                                  ? 'Pay Full Amount (₱${_fmt.format(depositAmount)})'
-                                  : 'Pay Deposit (₱${_fmt.format(depositAmount)})',
+                              isCashPayment
+                                  ? (isPayInFull
+                                      ? 'Cash on Site: Full Amount (₱${_fmt.format(depositAmount)})'
+                                      : 'Cash on Site: 50% Deposit (₱${_fmt.format(depositAmount)})')
+                                  : (paymentMethod == 'gcash'
+                                      ? (isPayInFull
+                                          ? 'Pay Full via GCash (₱${_fmt.format(depositAmount)})'
+                                          : 'Pay Deposit via GCash (₱${_fmt.format(depositAmount)})')
+                                      : (isPayInFull
+                                          ? 'Pay Full Amount (₱${_fmt.format(depositAmount)})'
+                                          : 'Pay Deposit (₱${_fmt.format(depositAmount)})')),
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w900,
@@ -15231,6 +15276,35 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                             ),
                           ],
                         ),
+                      ),
+                    )
+                  else if (isConfirmed)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified_rounded, size: 20, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              isCashPayment
+                                  ? 'Cash Payment Settled On Site — Your booking is confirmed and guaranteed!'
+                                  : 'Payment Verified & Approved — Your booking is confirmed!',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF166534),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   else if (paymentStatus == 'deposit_paid' && reservation['_db_table'] != 'advance_orders' && (totalPrice - depositAmount) > 0)
@@ -15273,6 +15347,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       ),
                     ),
                   if (isFullyPaid && reservation['_db_table'] != 'advance_orders') ...[
+                    const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
