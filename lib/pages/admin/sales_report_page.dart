@@ -291,6 +291,13 @@ class _SalesReportPageState extends State<SalesReportPage>
     for (var order in allOrders) {
       final rawDate = DateTime.tryParse(order['created_at'] ?? '');
       if (isDateInSelectedPeriod(rawDate)) {
+        final status = (order['status']?.toString() ?? order['kitchen_status']?.toString() ?? '').toLowerCase();
+        final paymentStatus = (order['payment_status']?.toString() ?? '').toLowerCase();
+        // Skip cancelled or refunded walk-in orders
+        if (status == 'cancelled' || status == 'voided' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+          continue;
+        }
+
         final amount = (order['total_amount'] as num?)?.toDouble() ?? 
                        (order['total_price'] as num?)?.toDouble() ?? 0.0;
         regularRevenue += amount;
@@ -307,6 +314,11 @@ class _SalesReportPageState extends State<SalesReportPage>
       if (isDateInSelectedPeriod(rawDate)) {
         final status = (adv['status']?.toString() ?? '').toLowerCase();
         final paymentStatus = (adv['payment_status']?.toString() ?? '').toLowerCase();
+        // Skip cancelled advance orders
+        if (status == 'cancelled' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+          continue;
+        }
+
         final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
         if (isPaid || status == 'completed' || status == 'done' || status == 'ready') {
           advanceRevenue += (adv['total_price'] as num?)?.toDouble() ?? 0.0;
@@ -324,6 +336,11 @@ class _SalesReportPageState extends State<SalesReportPage>
       if (isDateInSelectedPeriod(rawDate)) {
         final status = (res['status']?.toString() ?? '').toLowerCase();
         final paymentStatus = (res['payment_status']?.toString() ?? '').toLowerCase();
+        // Skip cancelled event reservations
+        if (status == 'cancelled' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+          continue;
+        }
+
         if (paymentStatus == 'deposit_paid') {
           final amt = (res['deposit_amount'] as num?)?.toDouble() ?? 
                      ((res['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
@@ -451,6 +468,11 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     // 1. Regular Walk-in Orders
     for (var o in orders) {
+      final status = (o['status']?.toString() ?? o['kitchen_status']?.toString() ?? '').toLowerCase();
+      final paymentStatus = (o['payment_status']?.toString() ?? '').toLowerCase();
+      if (status == 'cancelled' || status == 'voided' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+        continue;
+      }
       final date = DateTime.tryParse(o['created_at'] ?? '')?.toLocal();
       final amt = (o['total_amount'] as num?)?.toDouble() ?? 
                   (o['total_price'] as num?)?.toDouble() ?? 0.0;
@@ -461,6 +483,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     for (var adv in advanceOrders) {
       final status = (adv['status']?.toString() ?? '').toLowerCase();
       final paymentStatus = (adv['payment_status']?.toString() ?? '').toLowerCase();
+      if (status == 'cancelled' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+        continue;
+      }
       final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
       if (isPaid || status == 'completed' || status == 'done' || status == 'ready') {
         final date = _parseDateWithTime(adv['order_date'], adv['order_time'], adv['created_at']);
@@ -473,6 +498,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     for (var res in reservations) {
       final status = (res['status']?.toString() ?? '').toLowerCase();
       final pStatus = (res['payment_status']?.toString() ?? '').toLowerCase();
+      if (status == 'cancelled' || pStatus == 'refunded' || pStatus == 'cancelled') {
+        continue;
+      }
       if (pStatus == 'deposit_paid' || pStatus == 'paid' || pStatus == 'fully_paid' || status == 'confirmed' || status == 'completed') {
         final date = _parseDateWithTime(res['event_date'], res['start_time'], res['created_at']);
         double amt = 0.0;
@@ -969,7 +997,12 @@ class _SalesReportPageState extends State<SalesReportPage>
 
                         // Calculate Advance Order Performance Metrics
                         final double advanceOrderRevenueTotal = allAdvanceOrders
-                            .where((o) => o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid')
+                            .where((o) {
+                              final status = (o['status'] ?? '').toString().toLowerCase();
+                              final pStatus = (o['payment_status'] ?? '').toString().toLowerCase();
+                              if (status == 'cancelled' || pStatus == 'refunded' || pStatus == 'cancelled') return false;
+                              return pStatus == 'paid' || pStatus == 'fully_paid';
+                            })
                             .fold(0.0, (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0));
 
                         final int completedAdvanceOrdersCount = allAdvanceOrders
@@ -996,7 +1029,9 @@ class _SalesReportPageState extends State<SalesReportPage>
 
                         // Calculate Event Reservation Performance Metrics
                         final paidEventReservations = allReservations.where((r) {
-                          final pStatus = r['payment_status']?.toString() ?? '';
+                          final status = (r['status'] ?? '').toString().toLowerCase();
+                          final pStatus = (r['payment_status'] ?? '').toString().toLowerCase();
+                          if (status == 'cancelled' || pStatus == 'refunded' || pStatus == 'cancelled') return false;
                           return pStatus == 'paid' || pStatus == 'fully_paid' || pStatus == 'deposit_paid';
                         }).toList();
 
