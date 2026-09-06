@@ -4785,51 +4785,122 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         ? menuSubtotal
         : _menuReservationService.calculateMenuDepositAmount(menuSubtotal, reservationType: _reservationType);
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16),
+    return Container(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage(
+            _reservationType == 'Event Place'
+                ? 'assets/images/new_event.jpg'
+                : 'assets/images/advance_order_bg.jpg',
+          ),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey('reservation_form_anim_$_reservationType'),
+        tween: Tween<double>(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 2500), // Adjusted to 2.5s based on user request
+        curve: Curves.easeOutCubic, // Smooth, elegant deceleration without bouncy overshoot
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(0, 150 * (1 - value)), // Slides up from further down (150px)
+              child: child,
+            ),
+          );
+        },
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.3), // Darker translucent overlay makes white cards pop and background visible
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Clean Header ───────────────────────────────────────────
-            Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.goldGradient,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // ── Floating Lettering Header ───────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
                     children: [
+                      // Bottom layer: Shadows
                       Text(
                         _reservationType == 'Event Place' ? 'Event Hall Reservation' : 'Advance Food Order',
-                        style: GoogleFonts.lora(
-                          fontSize: isSmallScreen ? 19 : 22,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.darkGrey,
+                        style: GoogleFonts.dancingScript(
+                          fontSize: screenWidth < 400 ? 32 : (isSmallScreen ? 42 : 50),
+                          fontWeight: FontWeight.w700,
+                          color: Colors.transparent, // transparent text to only show shadows
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              blurRadius: 10,
+                              offset: const Offset(2, 2),
+                            ),
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        _reservationType == 'Event Place'
-                            ? 'Book private halls for gatherings and banquets'
-                            : 'Order in advance for zero wait time',
-                        style: GoogleFonts.inter(
-                          fontSize: isSmallScreen ? 12 : 13,
-                          color: AppTheme.mediumGrey,
-                          fontWeight: FontWeight.w500,
+                      // Top layer: Gold Gradient Text
+                      ShaderMask(
+                        blendMode: BlendMode.srcIn,
+                        shaderCallback: (bounds) => AppTheme.goldGradient.createShader(
+                          Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                        ),
+                        child: Text(
+                          _reservationType == 'Event Place' ? 'Event Hall Reservation' : 'Advance Food Order',
+                          style: GoogleFonts.dancingScript(
+                            fontSize: screenWidth < 400 ? 32 : (isSmallScreen ? 42 : 50),
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white, // required for ShaderMask srcIn
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.goldGradient,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _reservationType == 'Event Place'
+                              ? 'Book private halls for gatherings and banquets'
+                              : 'Order in advance for zero wait time',
+                          style: GoogleFonts.inter(
+                            fontSize: isSmallScreen ? 13 : 15,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                blurRadius: 6,
+                                offset: const Offset(1, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -5833,6 +5904,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           ],
         ),
       ),
+    ),
+      ),
+    ),
     );
   }
 
