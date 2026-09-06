@@ -2259,9 +2259,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
     final title = _getAdminNotificationTitle(n);
     final subtitle = _getAdminNotificationSubtitle(n);
 
-    // FIXED at top: will NEVER disappear until Admin clicks 'VIEW'
+    // Auto-dismiss after 5 seconds if VIEW is not clicked
     _showAdminTopToast(
-      duration: null,
+      duration: const Duration(seconds: 5),
       content: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(

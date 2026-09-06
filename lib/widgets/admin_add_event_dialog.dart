@@ -9,6 +9,7 @@ import 'package:yang_chow/services/menu_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 
 class AdminAddEventDialog extends StatefulWidget {
   final VoidCallback onEventCreated;
@@ -18,12 +19,51 @@ class AdminAddEventDialog extends StatefulWidget {
     required this.onEventCreated,
   });
 
-  static Future<void> show(BuildContext context, {required VoidCallback onEventCreated}) {
-    return showDialog(
+  static Future<void> show(BuildContext context, {required VoidCallback onEventCreated}) async {
+    final createdRes = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AdminAddEventDialog(onEventCreated: onEventCreated),
     );
+
+    if (createdRes != null) {
+      onEventCreated();
+      final status = (createdRes['status'] ?? '').toString().toLowerCase();
+      final customerName = createdRes['customer_name'] ?? 'Guest';
+
+      if (status == 'pending') {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => PriceQuotationDialog(reservation: createdRes),
+          ).then((quotationSent) {
+            if (quotationSent == true) {
+              onEventCreated();
+            }
+          });
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text('Event reservation created successfully for $customerName!'),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF15803D),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -558,8 +598,9 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
           ? menuSubtotal
           : _menuReservationService.calculateMenuDepositAmount(menuSubtotal, reservationType: 'Event Place');
 
+      final Map<String, dynamic> createdReservation;
       if (_selectedMenuItems.isNotEmpty) {
-        await _reservationService.createMenuBasedReservation(
+        createdReservation = await _reservationService.createMenuBasedReservation(
           customerEmail: customerEmail,
           customerName: customerName,
           eventType: _selectedEventType!,
@@ -580,7 +621,7 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
           paymentStatus: _paymentOption == 'full' ? 'paid' : 'deposit_paid',
         );
       } else {
-        await _reservationService.createReservation(
+        createdReservation = await _reservationService.createReservation(
           customerEmail: customerEmail,
           customerName: customerName,
           eventType: _selectedEventType!,
@@ -601,10 +642,7 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      Navigator.of(context).pop();
-
-      _showToast('Event reservation created successfully for $customerName!');
-      widget.onEventCreated();
+      Navigator.of(context).pop(createdReservation);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
