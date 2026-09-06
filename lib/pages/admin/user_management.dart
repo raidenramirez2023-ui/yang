@@ -2421,45 +2421,39 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Modal Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD97706).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.archive_rounded, color: Color(0xFFD97706), size: 22),
                         ),
-                        child: const Icon(Icons.inventory_2_rounded, color: Color(0xFFD97706), size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Archived Staff Records',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: _darkBg,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Archived Staff Records',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: _darkBg,
+                                ),
                               ),
-                            ),
-                            Text(
-                              '${archivedList.length} archived member${archivedList.length == 1 ? '' : 's'}',
-                              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
-                            ),
-                          ],
+                              Text(
+                                '${archivedList.length} archived member${archivedList.length == 1 ? '' : 's'}',
+                                style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
+                      ],
+                    ),
+                    const Divider(height: 24),
 
                   if (archivedList.isEmpty)
                     Padding(
@@ -2499,105 +2493,116 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: _slateLight),
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Avatar
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: const Color(0xFFD97706).withValues(alpha: 0.15),
-                                  child: Text(
-                                    (s['name'] ?? 'S')[0].toUpperCase(),
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFFD97706),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        s['name'] ?? '',
+                                Row(
+                                  children: [
+                                    // Avatar
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: const Color(0xFFD97706).withValues(alpha: 0.15),
+                                      child: Text(
+                                        (s['name'] ?? 'S')[0].toUpperCase(),
                                         style: GoogleFonts.plusJakartaSans(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: _darkBg,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFFD97706),
+                                          fontSize: 14,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '$empId · ${s['title'] ?? s['role'] ?? ''}',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          color: _slate,
-                                          fontWeight: FontWeight.w500,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            s['name'] ?? '',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: _darkBg,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '$empId · ${s['title'] ?? s['role'] ?? ''}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 11,
+                                              color: _slate,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    // View Info Button
+                                    TextButton.icon(
+                                      onPressed: () => _showStaffDetailsDialog(s),
+                                      icon: const Icon(Icons.info_outline_rounded, size: 14, color: _slate),
+                                      label: Text(
+                                        'Details',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: _slate),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        backgroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          side: const BorderSide(color: Color(0xFFE2E8F0)),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                // View Info Button
-                                TextButton.icon(
-                                  onPressed: () => _showStaffDetailsDialog(s),
-                                  icon: const Icon(Icons.info_outline_rounded, size: 14, color: _slate),
-                                  label: Text(
-                                    'Details',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: _slate),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    backgroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: const BorderSide(color: Color(0xFFE2E8F0)),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                // Restore Button
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    setState(() {
-                                      s['status'] = 'active';
-                                    });
-                                    _saveStaffData();
-                                    if (empId.isNotEmpty) {
-                                      StaffService.restoreStaffMember(empId);
-                                    }
-                                    setModalState(() {});
+                                    const SizedBox(width: 8),
+                                    // Restore Button
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        setState(() {
+                                          s['status'] = 'active';
+                                        });
+                                        _saveStaffData();
+                                        if (empId.isNotEmpty) {
+                                          StaffService.restoreStaffMember(empId);
+                                        }
+                                        setModalState(() {});
 
-                                    AuditLogService.logActivity(
-                                      action: 'RESTORE',
-                                      module: 'Users',
-                                      description: 'Restored archived staff member "${s['name']}" ($empId) back to active',
-                                      entityId: empId,
-                                      metadata: s,
-                                    );
+                                        AuditLogService.logActivity(
+                                          action: 'RESTORE',
+                                          module: 'Users',
+                                          description: 'Restored archived staff member "${s['name']}" ($empId) back to active',
+                                          entityId: empId,
+                                          metadata: s,
+                                        );
 
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Restored ${s['name']} back to active staff directory!'),
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Restored ${s['name']} back to active staff directory!'),
+                                            backgroundColor: _emerald,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.unarchive_rounded, size: 14, color: Colors.white),
+                                      label: Text(
+                                        'Restore',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor: _emerald,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        elevation: 0,
                                       ),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.unarchive_rounded, size: 14, color: Colors.white),
-                                  label: Text(
-                                    'Restore',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _emerald,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    elevation: 0,
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -2696,22 +2701,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         Text(
                           name,
                           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15, color: _darkBg),
-                        ),
-                        Text(
-                          title.isNotEmpty ? title : role,
-                          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate, fontWeight: FontWeight.w500),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _emerald.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            empId,
-                            style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w700, color: _emerald),
-                          ),
                         ),
                       ],
                     ),
