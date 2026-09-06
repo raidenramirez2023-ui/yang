@@ -1419,27 +1419,33 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
                 // ── Action Buttons (Vibrant, Clear, and Balanced) ─────────────
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    SizedBox(
-                      height: 42,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showRejectDialog(payment),
-                        icon: const Icon(Icons.close_rounded, size: 17, color: Color(0xFFDC2626)),
-                        label: const Text(
-                          'Reject Payment',
-                          style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w800, fontSize: 12.5),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFEF2F2),
-                          side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showRejectDialog(payment),
+                          icon: const Icon(Icons.close_rounded, size: 17, color: Color(0xFFDC2626)),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Reject Payment',
+                              style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w800, fontSize: 12.5),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    _buildApproveButton(payment, table),
+                    Expanded(
+                      child: _buildApproveButton(payment, table),
+                    ),
                   ],
                 ),
 
@@ -2169,18 +2175,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         // View Payment Receipt Button (Warm Gold Accent)
         Expanded(
           child: SizedBox(
-            height: 40,
+            height: 42,
             child: OutlinedButton.icon(
               onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
               icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFFB45309)),
-              label: const Text(
-                'View Payment Receipt',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'View Payment Receipt',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFFBEB),
                 side: const BorderSide(color: Color(0xFFFDE68A), width: 1.2),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
               ),
             ),
@@ -2190,7 +2199,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         // Auto-Verify Button (Smart Emerald Accent)
         Expanded(
           child: SizedBox(
-            height: 40,
+            height: 42,
             child: OutlinedButton.icon(
               onPressed: isAnalyzing 
                   ? null 
@@ -2198,14 +2207,17 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               icon: isAnalyzing 
                   ? const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF047857)))
                   : const Icon(Icons.document_scanner_rounded, size: 16, color: Color(0xFF047857)),
-              label: Text(
-                isAnalyzing ? 'Analyzing...' : 'Auto-Verify',
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  isAnalyzing ? 'Analyzing...' : 'Auto-Verify',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 backgroundColor: const Color(0xFFECFDF5),
                 side: const BorderSide(color: Color(0xFFA7F3D0), width: 1.2),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
               ),
             ),
@@ -2278,12 +2290,15 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           size: 17,
           color: enabled ? Colors.white : const Color(0xFF94A3B8),
         ),
-        label: Text(
-          isCash ? 'Confirm Cash Received' : 'Approve Payment',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 12.5,
-            color: enabled ? Colors.white : const Color(0xFF94A3B8),
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            isCash ? 'Confirm Cash Received' : 'Approve Payment',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
+              color: enabled ? Colors.white : const Color(0xFF94A3B8),
+            ),
           ),
         ),
         style: ElevatedButton.styleFrom(
@@ -2298,7 +2313,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             color: enabled ? Colors.transparent : const Color(0xFFCBD5E1),
             width: 1.2,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),

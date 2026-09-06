@@ -2163,36 +2163,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           const SizedBox(height: 12),
 
           // ── Legend ────────────────────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              Container(
-                width: 20,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF14332E),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 20,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14332E),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Total Revenue',
+                    style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-              const SizedBox(width: 6),
-              const Text(
-                'Total Revenue',
-                style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 9, height: 9,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD9A441),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  const Text(
+                    'Peak Point',
+                    style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Container(
-                width: 9, height: 9,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD9A441),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-              const Text(
-                'Peak Point',
-                style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 16),
               const Text(
                 '• Regular Walk-in / POS Orders',
                 style: TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey),
@@ -2282,7 +2293,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     color: AppTheme.darkGrey,
                     fontWeight: FontWeight.w800,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -2546,15 +2556,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               color: AppTheme.darkGrey,
                               letterSpacing: -0.3,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Real-time dining hall & private reservation monitor',
                             style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -2632,7 +2638,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
                             const Text(
                               'NEXT SCHEDULED EVENT',
@@ -2643,7 +2652,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                 letterSpacing: 0.8,
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
@@ -2665,7 +2673,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -2993,8 +3000,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     fontSize: 10.5,
                     color: AppTheme.mediumGrey,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -3498,43 +3503,64 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               ),
                               const SizedBox(height: 3),
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.person_outline_rounded,
-                                      size: 11, color: AppTheme.mediumGrey),
-                                  const SizedBox(width: 3),
-                                  Text(customerName,
-                                      style: const TextStyle(
-                                          fontSize: 11, color: AppTheme.mediumGrey)),
-                                  if (guestCount != null) ...[
-                                    const SizedBox(width: 8),
-                                    const Icon(Icons.people_outline_rounded,
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 2),
+                                    child: Icon(Icons.person_outline_rounded,
                                         size: 11, color: AppTheme.mediumGrey),
-                                    const SizedBox(width: 3),
-                                    Text('$guestCount pax',
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Expanded(
+                                    child: Text(customerName,
                                         style: const TextStyle(
                                             fontSize: 11, color: AppTheme.mediumGrey)),
+                                  ),
+                                  if (guestCount != null) ...[
+                                    const SizedBox(width: 8),
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 2),
+                                      child: Icon(Icons.people_outline_rounded,
+                                          size: 11, color: AppTheme.mediumGrey),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 1),
+                                      child: Text('$guestCount pax',
+                                          style: const TextStyle(
+                                              fontSize: 11, color: AppTheme.mediumGrey)),
+                                    ),
                                   ],
                                 ],
                               ),
                               if (timeStr.isNotEmpty || packageName != null) ...[
                                 const SizedBox(height: 4),
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (timeStr.isNotEmpty) ...[
-                                      const Icon(Icons.schedule_rounded,
-                                          size: 10, color: AppTheme.mediumGrey),
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 2),
+                                        child: Icon(Icons.schedule_rounded,
+                                            size: 10, color: AppTheme.mediumGrey),
+                                      ),
                                       const SizedBox(width: 3),
-                                      Text(timeStr,
-                                          style: const TextStyle(
-                                              fontSize: 10.5, color: AppTheme.mediumGrey)),
+                                      Expanded(
+                                        flex: packageName != null ? 0 : 1,
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(top: 1),
+                                          child: Text(timeStr,
+                                              style: const TextStyle(
+                                                  fontSize: 10.5, color: AppTheme.mediumGrey)),
+                                        ),
+                                      ),
                                     ],
                                     if (packageName != null) ...[
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text('· $packageName',
                                             style: const TextStyle(
-                                                fontSize: 10.5, color: AppTheme.mediumGrey),
-                                            overflow: TextOverflow.ellipsis),
+                                                fontSize: 10.5, color: AppTheme.mediumGrey)),
                                       ),
                                     ],
                                   ],

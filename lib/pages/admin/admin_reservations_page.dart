@@ -3107,21 +3107,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: const BorderSide(color: _slateLight),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: _slate)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                        label: Text('Print Pass', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('Print Pass', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF16302A),
                           foregroundColor: Colors.white,
@@ -3137,7 +3125,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.person_off_rounded, size: 16),
-                          label: Text('Mark No-Show', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Mark No-Show', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFEA580C),
                             foregroundColor: Colors.white,
@@ -3157,7 +3145,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.restore_page_rounded, size: 16),
-                          label: Text('Mark Arrived', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Mark Arrived', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF15803D),
                             foregroundColor: Colors.white,
@@ -3177,7 +3165,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.monetization_on_rounded, size: 16),
-                          label: Text('Set Price', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Set Price', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF7C3AED),
                             foregroundColor: Colors.white,
@@ -3197,7 +3185,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.check_rounded, size: 16),
-                          label: Text('Accept', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Accept', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF15803D),
                             foregroundColor: Colors.white,

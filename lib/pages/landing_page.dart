@@ -1197,11 +1197,11 @@ class _LandingPageState extends State<LandingPage>
             right: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: _lastScrollOffset > 50
+                color: _lastScrollOffset > 15
                     ? forestGreen.withValues(alpha: 0.96)
                     : Colors.transparent,
                 boxShadow: [
-                  if (_lastScrollOffset > 50)
+                  if (_lastScrollOffset > 15)
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.25),
                       blurRadius: 20,
@@ -1210,7 +1210,7 @@ class _LandingPageState extends State<LandingPage>
                 ],
                 border: Border(
                   bottom: BorderSide(
-                    color: _lastScrollOffset > 50
+                    color: _lastScrollOffset > 15
                         ? warmGold.withValues(alpha: 0.3)
                         : Colors.transparent,
                     width: 1,
@@ -1232,10 +1232,14 @@ class _LandingPageState extends State<LandingPage>
   Widget _buildTopNavigationBar(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
+    final topPadding = MediaQuery.of(context).padding.top;
+    
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 48 : 16,
-        vertical: isDesktop ? 14 : 10,
+      padding: EdgeInsets.only(
+        left: isDesktop ? 48 : 16,
+        right: isDesktop ? 48 : 16,
+        bottom: isDesktop ? 14 : 8,
+        top: isDesktop ? 14 : (topPadding > 0 ? topPadding + 8 : 34),
       ),
       child: Center(
         child: ConstrainedBox(
@@ -1251,8 +1255,8 @@ class _LandingPageState extends State<LandingPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: isDesktop ? 56 : 46,
-                      height: isDesktop ? 56 : 46,
+                      width: isDesktop ? 56 : 38,
+                      height: isDesktop ? 56 : 38,
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
@@ -1273,7 +1277,7 @@ class _LandingPageState extends State<LandingPage>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -1285,7 +1289,7 @@ class _LandingPageState extends State<LandingPage>
                               style: GoogleFonts.playfairDisplay(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
-                                fontSize: isDesktop ? 20 : 17,
+                                fontSize: isDesktop ? 20 : 15,
                                 letterSpacing: 1.1,
                               ),
                             ),
@@ -1294,7 +1298,7 @@ class _LandingPageState extends State<LandingPage>
                               style: GoogleFonts.playfairDisplay(
                                 color: warmGold,
                                 fontWeight: FontWeight.w900,
-                                fontSize: isDesktop ? 20 : 17,
+                                fontSize: isDesktop ? 20 : 15,
                                 letterSpacing: 1.1,
                               ),
                             ),
@@ -1304,7 +1308,7 @@ class _LandingPageState extends State<LandingPage>
                           'PAGSANJAN • YCPRMS',
                           style: GoogleFonts.plusJakartaSans(
                             color: AppTheme.sidebarSubtitle,
-                            fontSize: isDesktop ? 10 : 8.5,
+                            fontSize: isDesktop ? 10 : 7.2,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 1.2,
                           ),
@@ -1333,7 +1337,7 @@ class _LandingPageState extends State<LandingPage>
               // Mobile Dual-Action Pill Capsule (Distinct Sign In Button + Menu Badge)
               if (!isDesktop)
                 Container(
-                  padding: const EdgeInsets.all(3.5),
+                  padding: const EdgeInsets.all(2.5),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.32),
                     borderRadius: BorderRadius.circular(24),
@@ -1360,8 +1364,8 @@ class _LandingPageState extends State<LandingPage>
                           borderRadius: BorderRadius.circular(20),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 11,
-                              vertical: 6,
+                              horizontal: 10,
+                              vertical: 5,
                             ),
                             decoration: BoxDecoration(
                               gradient: AppTheme.goldGradient,
@@ -1386,7 +1390,7 @@ class _LandingPageState extends State<LandingPage>
                                 Text(
                                   'Sign In',
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11.5,
+                                    fontSize: 11.0,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.darkBrownText,
                                   ),
@@ -1406,8 +1410,8 @@ class _LandingPageState extends State<LandingPage>
                           onTap: () => _showMobileNavigationSideDrawer(context),
                           borderRadius: BorderRadius.circular(20),
                           child: Container(
-                            width: 29,
-                            height: 29,
+                            width: 26,
+                            height: 26,
                             decoration: BoxDecoration(
                               color: warmGold.withValues(alpha: 0.16),
                               shape: BoxShape.circle,
@@ -1419,7 +1423,7 @@ class _LandingPageState extends State<LandingPage>
                             child: const Center(
                               child: Icon(
                                 Icons.menu_rounded,
-                                size: 16,
+                                size: 14,
                                 color: warmGold,
                               ),
                             ),

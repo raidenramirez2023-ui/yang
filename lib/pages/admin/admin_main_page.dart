@@ -1315,45 +1315,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
         children: [
-
-
-
-          Container(
-
-
-
-            padding: const EdgeInsets.all(6),
-
-
-
-            decoration: BoxDecoration(
-
-
-
-              color: AppTheme.adminChatButton,
-
-
-
-              borderRadius: BorderRadius.circular(8),
-
-
-
-            ),
-
-
-
-            child: const Icon(Icons.restaurant, size: 16, color: Colors.white),
-
-
-
-          ),
-
-
-
-          const SizedBox(width: 8),
-
-
-
           const Text(
 
 
@@ -1424,27 +1385,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
       actions: [
 
+        Padding(
 
+          padding: const EdgeInsets.only(right: 8.0),
 
-        IconButton(
-
-
-
-          icon: const Icon(Icons.logout, color: AppTheme.adminSecondaryText),
-
-
-
-          tooltip: 'Logout',
-
-
-
-          onPressed: () => _showLogoutDialog(context),
-
-
+          child: _buildAdminNotificationIcon(),
 
         ),
-
-
 
       ],
 
@@ -1498,114 +1445,25 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-          DrawerHeader(
-
-
-
+          Container(
+            height: 56,
+            alignment: Alignment.center,
             margin: EdgeInsets.zero,
-
-
-
-            padding: const EdgeInsets.all(24),
-
-
-
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             decoration: const BoxDecoration(
-
-
-
               color: Colors.white,
-
-
-
               border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
-
-
-
             ),
-
-
-
             child: Row(
-
-
-
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-
-
-
-                Container(
-
-
-
-                  padding: const EdgeInsets.all(8),
-
-
-
-                  decoration: BoxDecoration(
-
-
-
-                    color: AppTheme.adminChatButton,
-
-
-
-                    borderRadius: BorderRadius.circular(12),
-
-
-
-                  ),
-
-
-
-                  child: const Icon(
-
-
-
-                    Icons.restaurant,
-
-
-
-                    color: Colors.white,
-
-
-
-                    size: 24,
-
-
-
-                  ),
-
-
-
-                ),
-
-
-
+                Image.asset('assets/images/mobile-logo.png', height: 36),
                 const SizedBox(width: 12),
-
-
-
                 const Column(
-
-
-
                   mainAxisAlignment: MainAxisAlignment.center,
-
-
-
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-
-
-
                     Text(
-
-
-
                       'AdminPanel',
 
 
@@ -1635,13 +1493,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
                   ],
-
-
-
                 ),
-
-
-
               ],
 
 
