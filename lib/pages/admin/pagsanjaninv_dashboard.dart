@@ -5919,9 +5919,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       });
     }
 
-    // FIXED at top: stays until Inventory Admin clicks 'VIEW'
+    // Auto-dismiss after 5 seconds if VIEW is not clicked
     _showInvTopToast(
-      duration: null,
+      duration: const Duration(seconds: 5),
       content: Material(
         color: Colors.transparent,
         child: InkWell(
