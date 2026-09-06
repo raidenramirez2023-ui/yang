@@ -86,11 +86,16 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
         final total = (res['total_price'] as num?)?.toDouble() ?? 0.0;
         final deposit = (res['deposit_amount'] as num?)?.toDouble() ?? (res['payment_amount'] as num?)?.toDouble() ?? 0.0;
         final paymentOption = res['payment_option']?.toString();
-        final rawRem = (res['remaining_balance'] as num?)?.toDouble() ?? (total - deposit);
+        final rawRem = (res['remaining_balance'] as num?)?.toDouble();
+        final calculatedRem = rawRem ?? ((total > 0 && deposit > 0) ? (total - deposit) : null);
 
-        // If it was a full payment or has zero remaining balance, it should NOT be in outstanding balances
-        if (paymentOption == 'full' || (total > 0 && deposit >= total) || rawRem <= 0) {
-          // Self-heal DB: update row in Supabase to fully_paid
+        // If it was explicitly a full payment OR deposit covers the whole total price (> 0)
+        final isFullySettled = paymentOption == 'full' || 
+                              (total > 0 && deposit >= total) || 
+                              (calculatedRem != null && calculatedRem <= 0 && total > 0);
+
+        if (isFullySettled) {
+          // Update row in Supabase to fully_paid
           try {
             await Supabase.instance.client.from('reservations').update({
               'payment_status': 'fully_paid',

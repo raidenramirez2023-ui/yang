@@ -68,6 +68,8 @@ class ReservationService {
     String? paymentOption = 'half',
     String? paymentMethod = 'paymongo',
     String? transactedBy,
+    String status = 'pending',
+    String paymentStatus = 'unpaid',
   }) async {
     try {
       final now = DateTime.now();
@@ -82,8 +84,8 @@ class ReservationService {
             'start_time': startTime,
             'duration_hours': durationHours.toInt(),
             'number_of_guests': numberOfGuests,
-            'status': 'pending',
-            'payment_status': 'unpaid',
+            'status': status,
+            'payment_status': paymentStatus,
             'special_requests': specialRequests,
             'customer_phone': customerPhone,
             'customer_address': customerAddress,
@@ -93,7 +95,6 @@ class ReservationService {
             'transacted_by': transactedBy,
             'created_at': now.toUtc().toIso8601String(),
             'updated_at': now.toUtc().toIso8601String(),
-
           })
 
           .select()
@@ -177,6 +178,8 @@ class ReservationService {
     String? paymentOption = 'half',
     String? paymentMethod = 'paymongo',
     String? transactedBy,
+    String status = 'pending',
+    String paymentStatus = 'unpaid',
   }) async {
     try {
       final now = DateTime.now();
@@ -191,36 +194,27 @@ class ReservationService {
             'start_time': startTime,
             'duration_hours': durationHours.toInt(),
             'number_of_guests': numberOfGuests,
-            'status': 'pending',
-            'payment_status': 'unpaid',
-
+            'status': status,
+            'payment_status': paymentStatus,
             'special_requests': specialRequests,
-
             'customer_phone': customerPhone,
-
             'customer_address': customerAddress,
-
             'uploaded_id_url': uploadedIdUrl,
             'payment_option': paymentOption,
             'payment_method': paymentMethod,
             'transacted_by': transactedBy,
-
             'created_at': now.toUtc().toIso8601String(),
-
             'updated_at': now.toUtc().toIso8601String(),
 
             // Menu-based pricing fields
-
             'total_price': totalMenuPrice,
-
             'deposit_amount': depositAmount,
-
+            'remaining_balance': (paymentOption == 'full' || paymentStatus == 'paid' || paymentStatus == 'fully_paid')
+                ? 0.0
+                : (totalMenuPrice - depositAmount).clamp(0.0, double.infinity),
             'is_menu_based': true,
-
             'selected_menu_items': selectedMenuItems,
-
             'pricing_type': 'menu_based',
-
           })
 
           .select()

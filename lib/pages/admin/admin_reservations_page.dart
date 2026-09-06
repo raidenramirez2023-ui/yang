@@ -10,6 +10,7 @@ import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
+import 'package:yang_chow/widgets/admin_add_event_dialog.dart';
 
 class AdminReservationsPage extends StatefulWidget {
   final bool isFullscreen;
@@ -870,6 +871,25 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
           ),
           ElevatedButton.icon(
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: ResponsiveUtils.isMobile(context) 
+                ? const SizedBox.shrink() 
+                : Text('Add Event', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF14332E),
+              foregroundColor: AppTheme.warmGold,
+              padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => AdminAddEventDialog.show(
+              context,
+              onEventCreated: () {
+                _loadReservations();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
             icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
             label: ResponsiveUtils.isMobile(context) 
                 ? const SizedBox.shrink() 
@@ -1200,7 +1220,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final status = (r['status'] ?? 'pending').toString().toLowerCase();
     final totalPrice = (r['total_price'] as num?)?.toDouble() ?? 0.0;
     final depositAmount = (r['deposit_amount'] as num?)?.toDouble() ?? 0.0;
-    final remaining = (totalPrice - depositAmount).clamp(0.0, double.infinity);
     final eventType = (r['event_type'] ?? 'Banquet Event').toString();
     final guestCount = r['number_of_guests'] ?? 0;
 
@@ -1244,15 +1263,23 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        r['customer_email'] ?? r['customer_phone'] ?? 'No contact info',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          color: _slate,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Builder(
+                        builder: (context) {
+                          final email = (r['customer_email'] ?? '').toString().trim();
+                          final displayEmail = (email.isEmpty || email.toLowerCase() == 'n/a' || email.startsWith('walkin_'))
+                              ? 'N/A'
+                              : email;
+                          return Text(
+                            displayEmail,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: _slate,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
                       ),
                       const SizedBox(height: 3),
                       Row(
@@ -1378,17 +1405,44 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    depositAmount > 0
-                        ? 'Paid: ₱${depositAmount.toStringAsFixed(0)} (Rem: ₱${remaining.toStringAsFixed(0)})'
-                        : 'No Deposit Paid Yet',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      color: depositAmount > 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Builder(
+                    builder: (context) {
+                      final paymentStatus = (r['payment_status'] ?? 'unpaid').toString().toLowerCase();
+                      final isFullyPaid = paymentStatus == 'fully_paid' || paymentStatus == 'paid';
+                      final num? dbRemNum = r['remaining_balance'] as num?;
+                      final double effectiveRem = isFullyPaid
+                          ? 0.0
+                          : (dbRemNum != null ? dbRemNum.toDouble() : (totalPrice - depositAmount).clamp(0.0, double.infinity));
+                      final double effectivePaid = isFullyPaid
+                          ? totalPrice
+                          : (depositAmount > 0 ? depositAmount : 0.0);
+
+                      if (isFullyPaid || effectiveRem <= 0) {
+                        return Text(
+                          'Paid: ₱${effectivePaid.toStringAsFixed(0)} (Rem: ₱0)',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: const Color(0xFF15803D),
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      }
+
+                      return Text(
+                        depositAmount > 0
+                            ? 'Paid: ₱${depositAmount.toStringAsFixed(0)} (Rem: ₱${effectiveRem.toStringAsFixed(0)})'
+                            : 'No Deposit Paid Yet',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          color: depositAmount > 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    },
                   ),
                 ] else
                   Text(
@@ -1712,14 +1766,22 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    Text(
-                                      reservation['customer_email'] ?? '',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        color: _slate,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    Builder(
+                                      builder: (context) {
+                                        final email = (reservation['customer_email'] ?? '').toString().trim();
+                                        final displayEmail = (email.isEmpty || email.toLowerCase() == 'n/a' || email.startsWith('walkin_'))
+                                            ? 'N/A'
+                                            : email;
+                                        return Text(
+                                          displayEmail,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 11,
+                                            color: _slate,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -2662,7 +2724,16 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         child: Column(
                           children: [
                             buildDetailRow('Name',  reservation['customer_name']  ?? 'N/A', icon: Icons.person_rounded),
-                            buildDetailRow('Email', reservation['customer_email'] ?? 'N/A', icon: Icons.email_rounded),
+                            buildDetailRow(
+                              'Email',
+                              (reservation['customer_email'] == null ||
+                                      reservation['customer_email'].toString().trim().isEmpty ||
+                                      reservation['customer_email'].toString().trim().toLowerCase() == 'n/a' ||
+                                      reservation['customer_email'].toString().startsWith('walkin_'))
+                                  ? 'N/A'
+                                  : reservation['customer_email'].toString(),
+                              icon: Icons.email_rounded,
+                            ),
                             buildDetailRow('Phone', reservation['customer_phone'] ?? 'N/A', icon: Icons.phone_rounded),
                           ],
                         ),
@@ -2775,9 +2846,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                             children: [
                               buildDetailRow('Total Price',    '₱${(reservation['total_price'] as num).toStringAsFixed(2)}', icon: Icons.monetization_on_rounded),
                               buildDetailRow('Deposit (50%)',  '₱${(reservation['deposit_amount'] as num? ?? 0).toStringAsFixed(2)}', icon: Icons.account_balance_wallet_rounded),
+                              Builder(
+                                builder: (context) {
+                                  final num totalPriceNum = (reservation['total_price'] as num?) ?? 0;
+                                  final num depositNum = (reservation['deposit_amount'] as num?) ?? 0;
+                                  final paymentStatus = (reservation['payment_status'] ?? 'unpaid').toString().toLowerCase();
+                                  final isFullyPaid = paymentStatus == 'fully_paid' || paymentStatus == 'paid';
+                                  final num? rawDbRem = reservation['remaining_balance'] as num?;
+                                  final double remaining = isFullyPaid
+                                      ? 0.0
+                                      : (rawDbRem != null ? rawDbRem.toDouble() : (totalPriceNum - depositNum).clamp(0.0, double.infinity).toDouble());
+
+                                  return buildDetailRow(
+                                    'Remaining Balance',
+                                    '₱${remaining.toStringAsFixed(2)}',
+                                    icon: Icons.account_balance_wallet_outlined,
+                                  );
+                                },
+                              ),
                               buildDetailRow('Payment Status', _getPaymentStatusText(reservation['payment_status'] as String? ?? 'unpaid'), icon: Icons.payment_rounded),
                               if (reservation['payment_option'] != null)
-                                buildDetailRow('Payment Option', reservation['payment_option'] == 'full' ? 'Pay in Full (100%)' : '50% Deposit', icon: Icons.pie_chart_outline_rounded),
+                                buildDetailRow('Payment Option', reservation['payment_option'] == 'full' ? 'Pay in Full (100%)' : '50% Downpayment', icon: Icons.pie_chart_outline_rounded),
                               if (reservation['payment_method'] != null)
                                 buildDetailRow(
                                   'Payment Method',
