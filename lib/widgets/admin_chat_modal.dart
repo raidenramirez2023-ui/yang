@@ -67,13 +67,13 @@ class _AdminChatModalState extends State<AdminChatModal> {
     if (!_buttonPositionInitialized) {
       _buttonPosition = Offset(
         (screenSize.width - 80).clamp(10.0, double.infinity),
-        (screenSize.height - (isMobile ? 130 : 86)).clamp(50.0, double.infinity),
+        (screenSize.height - (isMobile ? 160 : 86)).clamp(50.0, double.infinity),
       );
       _buttonPositionInitialized = true;
     }
 
     final btnMaxX = (screenSize.width - 68).clamp(0.0, double.infinity);
-    final btnMaxY = (screenSize.height - 68).clamp(0.0, double.infinity);
+    final btnMaxY = (screenSize.height - (isMobile ? 140 : 68)).clamp(0.0, double.infinity);
     const btnMinY = 50.0;
     const btnMinX = 10.0;
     final btnSafeMaxY = btnMaxY > btnMinY ? btnMaxY : btnMinY;

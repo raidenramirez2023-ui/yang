@@ -3363,10 +3363,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
-                      onPressed: isSaving ? null : () => Navigator.pop(context),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -3384,14 +3380,17 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Expected System Balance:',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF475569),
+                      Expanded(
+                        child: Text(
+                          'Expected System Balance:',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF475569),
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '₱${NumberFormat('#,##0.00').format(systemBalance)}',
                         style: GoogleFonts.plusJakartaSans(
@@ -3557,81 +3556,88 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 const SizedBox(height: 16),
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    OutlinedButton(
-                      onPressed: isSaving ? null : () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: const Color(0xFF475569),
-                          fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: isSaving ? null : () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFF475569),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: isSaving
-                          ? null
-                          : () async {
-                              final enteredCash = double.tryParse(actualCashCtrl.text.trim());
-                              if (enteredCash == null || enteredCash < 0) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Please enter a valid cash count', style: GoogleFonts.plusJakartaSans()),
-                                    backgroundColor: const Color(0xFFDC2626),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              setDialogState(() => isSaving = true);
-                              final success = await _pettyCashService.createReconciliation(
-                                systemBalance: systemBalance,
-                                actualCashCount: enteredCash,
-                                notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
-                              );
-
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      success
-                                          ? 'Cash reconciliation record saved successfully'
-                                          : 'Failed to record reconciliation',
-                                      style: GoogleFonts.plusJakartaSans(),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final enteredCash = double.tryParse(actualCashCtrl.text.trim());
+                                if (enteredCash == null || enteredCash < 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Please enter a valid cash count', style: GoogleFonts.plusJakartaSans()),
+                                      backgroundColor: const Color(0xFFDC2626),
                                     ),
-                                    backgroundColor: success ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                                  ),
+                                  );
+                                  return;
+                                }
+                                setDialogState(() => isSaving = true);
+                                final success = await _pettyCashService.createReconciliation(
+                                  systemBalance: systemBalance,
+                                  actualCashCount: enteredCash,
+                                  notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
                                 );
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF14332E),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
-                      ),
-                      child: isSaving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : Text(
-                              'Save Audit Record',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        success
+                                            ? 'Cash reconciliation record saved successfully'
+                                            : 'Failed to record reconciliation',
+                                        style: GoogleFonts.plusJakartaSans(),
+                                      ),
+                                      backgroundColor: success ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                                    ),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF14332E),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'Save Audit Record',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                            ),
+                      ),
                     ),
                   ],
                 ),

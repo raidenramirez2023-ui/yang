@@ -453,14 +453,17 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Showing $startItem–$endItem of $totalItems registered customers',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _slate,
+              Expanded(
+                child: Text(
+                  'Showing $startItem–$endItem of $totalItems registered customers',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _slate,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -480,149 +483,153 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
           ),
           if (totalPages > 1) ...[
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Prev Button
-                InkWell(
-                  onTap: currentPage > 1
-                      ? () => onPageChanged(currentPage - 1)
-                      : null,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: currentPage > 1 ? _emerald : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: currentPage > 1 ? _emerald : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chevron_left_rounded,
-                          size: 16,
-                          color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Prev Button
+                  InkWell(
+                    onTap: currentPage > 1
+                        ? () => onPageChanged(currentPage - 1)
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: currentPage > 1 ? _emerald : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: currentPage > 1 ? _emerald : const Color(0xFFE2E8F0),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Prev',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.chevron_left_rounded,
+                            size: 16,
                             color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            'Prev',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
 
-                // Page Number Buttons with smart ellipsis window
-                ...List.generate(totalPages, (index) {
-                  final pageNum = index + 1;
-                  if (totalPages > 5) {
-                    if (pageNum != 1 &&
-                        pageNum != totalPages &&
-                        (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
-                      if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            '…',
-                            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }
-                  }
-
-                  final isSelected = pageNum == currentPage;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: InkWell(
-                      onTap: () {
-                        if (!isSelected) {
-                          onPageChanged(pageNum);
+                  // Page Number Buttons with smart ellipsis window
+                  ...List.generate(totalPages, (index) {
+                    final pageNum = index + 1;
+                    if (totalPages > 5) {
+                      if (pageNum != 1 &&
+                          pageNum != totalPages &&
+                          (pageNum < currentPage - 1 || pageNum > currentPage + 1)) {
+                        if (pageNum == currentPage - 2 || pageNum == currentPage + 2) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              '…',
+                              style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                            ),
+                          );
                         }
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isSelected ? _gold : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected ? _gold : const Color(0xFFE2E8F0),
-                            width: isSelected ? 1.5 : 1.0,
+                        return const SizedBox.shrink();
+                      }
+                    }
+
+                    final isSelected = pageNum == currentPage;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: InkWell(
+                        onTap: () {
+                          if (!isSelected) {
+                            onPageChanged(pageNum);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isSelected ? _gold : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected ? _gold : const Color(0xFFE2E8F0),
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: _gold.withValues(alpha: 0.3),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
                           ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: _gold.withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Text(
-                          '$pageNum',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                            color: isSelected ? _emerald : const Color(0xFF334155),
+                          child: Text(
+                            '$pageNum',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                              color: isSelected ? _emerald : const Color(0xFF334155),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
 
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
 
-                // Next Button
-                InkWell(
-                  onTap: currentPage < totalPages
-                      ? () => onPageChanged(currentPage + 1)
-                      : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: currentPage < totalPages ? _emerald : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: currentPage < totalPages ? _emerald : const Color(0xFFE2E8F0),
+                  // Next Button
+                  InkWell(
+                    onTap: currentPage < totalPages
+                        ? () => onPageChanged(currentPage + 1)
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: currentPage < totalPages ? _emerald : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: currentPage < totalPages ? _emerald : const Color(0xFFE2E8F0),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Next',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Next',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
                             color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ],

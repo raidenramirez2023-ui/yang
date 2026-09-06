@@ -746,10 +746,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded, size: 20, color: AppTheme.mediumGrey),
-                      ),
+                      // Excluded icon as requested
                     ],
                   ),
               const SizedBox(height: 16),
@@ -866,10 +863,9 @@ class _SalesReportPageState extends State<SalesReportPage>
               // Action button
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: ElevatedButton(
                   onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-                  label: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.adminSidebarBackground,
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -915,23 +911,28 @@ class _SalesReportPageState extends State<SalesReportPage>
         if (isStatus)
           _statusBadge(value)
         else if (isProcessedBy)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppTheme.adminSidebarBackground.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.adminSidebarBackground.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.person_pin_rounded, size: 13, color: AppTheme.adminSidebarBackground),
-                const SizedBox(width: 4),
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground),
-                ),
-              ],
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.adminSidebarBackground.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppTheme.adminSidebarBackground.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.person_pin_rounded, size: 13, color: AppTheme.adminSidebarBackground),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      value,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           )
         else
@@ -947,6 +948,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                     color: AppTheme.adminPrimaryText,
                   ),
                   textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (subValue != null)
                   Text(
@@ -1271,14 +1273,18 @@ class _SalesReportPageState extends State<SalesReportPage>
               children: [
                 _buildHeaderTitleBlock(),
                 const SizedBox(height: 16),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _periodDropdownWidget(),
-                    _yearDropdownWidget(),
-                    _exportButtonWidget(transactions, metrics),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _periodDropdownWidget(),
+                      const SizedBox(width: 8),
+                      _yearDropdownWidget(),
+                      const SizedBox(width: 8),
+                      _exportButtonWidget(transactions, metrics),
+                    ],
+                  ),
                 ),
               ],
             )
@@ -3138,28 +3144,38 @@ class _SalesReportPageState extends State<SalesReportPage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Showing $start-$end of $totalItems entries', style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text('Showing $start-$end of $totalItems entries', style: const TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText)),
+          ),
+        ),
+        const SizedBox(width: 8),
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.chevron_left_rounded, size: 18),
+              icon: const Icon(Icons.chevron_left_rounded, size: 16),
               onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
               style: IconButton.styleFrom(
                 backgroundColor: _currentPage > 1 ? AppTheme.adminSidebarBackground : AppTheme.adminMainBackground,
                 foregroundColor: _currentPage > 1 ? Colors.white : AppTheme.mediumGrey,
-                minimumSize: const Size(32, 32),
+                minimumSize: const Size(28, 28),
+                padding: EdgeInsets.zero,
               ),
             ),
-            const SizedBox(width: 8),
-            Text('Page $_currentPage of $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+            Text('Page $_currentPage of $totalPages', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.chevron_right_rounded, size: 18),
+              icon: const Icon(Icons.chevron_right_rounded, size: 16),
               onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
               style: IconButton.styleFrom(
                 backgroundColor: _currentPage < totalPages ? AppTheme.adminSidebarBackground : AppTheme.adminMainBackground,
                 foregroundColor: _currentPage < totalPages ? Colors.white : AppTheme.mediumGrey,
-                minimumSize: const Size(32, 32),
+                minimumSize: const Size(28, 28),
+                padding: EdgeInsets.zero,
               ),
             ),
           ],

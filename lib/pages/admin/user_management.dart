@@ -1723,12 +1723,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                 children: [
                                                   const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
                                                   const SizedBox(width: 6),
-                                                  Text(
-                                                    'Add Another Department',
-                                                    style: GoogleFonts.plusJakartaSans(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w700,
-                                                      color: _emerald,
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Add Another Department',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: _emerald,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],
@@ -1811,12 +1815,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                 children: [
                                                   const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
                                                   const SizedBox(width: 6),
-                                                  Text(
-                                                    'Add Another Role',
-                                                    style: GoogleFonts.plusJakartaSans(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w700,
-                                                      color: _emerald,
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Add Another Role',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: _emerald,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],

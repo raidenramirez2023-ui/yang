@@ -281,12 +281,16 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      'Activity Details',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF0F172A),
+                                    Flexible(
+                                      child: Text(
+                                        'Activity Details',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -318,11 +322,6 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 ),
                               ],
                             ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
-                            tooltip: 'Close',
                           ),
                         ],
                       ),
@@ -2026,7 +2025,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -2039,7 +2041,6 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: moduleColor),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                       decoration: BoxDecoration(
@@ -2051,7 +2052,6 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: actionColor),
                                       ),
                                     ),
-                                    const Spacer(),
                                     Text(
                                       formattedDate,
                                       style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
@@ -2072,9 +2072,13 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Text(
-                                      '${log.userName} (${log.userEmail})',
-                                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                                    Expanded(
+                                      child: Text(
+                                        '${log.userName} (${log.userEmail})',
+                                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                     const SizedBox(width: 6),
                                     _buildRolePill(log.userRole),
