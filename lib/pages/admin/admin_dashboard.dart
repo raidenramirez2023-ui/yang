@@ -2157,7 +2157,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             height: 270,
             child: chartData.every((d) => d.value == 0)
                 ? _buildChartEmptyState()
-                : _buildSfChart(chartData, maxY, tooltipLabel),
+                : MediaQuery.of(context).size.width < 1150
+                    ? SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Container(
+                          padding: const EdgeInsets.only(right: 16),
+                          width: 650,
+                          child: _buildSfChart(chartData, maxY, tooltipLabel),
+                        ),
+                      )
+                    : _buildSfChart(chartData, maxY, tooltipLabel),
           ),
 
           const SizedBox(height: 12),
@@ -5087,8 +5097,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     const SizedBox(height: AppTheme.lg),
                     SizedBox(
                       height: 180,
-                      child: SfCartesianChart(
-                        plotAreaBorderWidth: 0,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final chart = SfCartesianChart(
+                            plotAreaBorderWidth: 0,
                         margin: EdgeInsets.zero,
                         tooltipBehavior: TooltipBehavior(
                           enable: true,
@@ -5196,8 +5208,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             ),
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                      
+                      return MediaQuery.of(context).size.width < 1150
+                          ? SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Container(
+                                padding: const EdgeInsets.only(right: 16),
+                                width: 650,
+                                child: chart,
+                              ),
+                            )
+                          : chart;
+                    },
+                  ),
+                ),
                   ],
                 ),
               ),

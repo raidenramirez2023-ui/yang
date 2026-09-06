@@ -1858,10 +1858,10 @@ class _SalesReportPageState extends State<SalesReportPage>
           const SizedBox(height: 20),
 
           // Chart Canvas
-          SizedBox(
-            height: isDesktop ? 320 : 250,
-            child: SfCartesianChart(
-              plotAreaBorderWidth: 0,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final chartWidget = SfCartesianChart(
+                plotAreaBorderWidth: 0,
               margin: EdgeInsets.zero,
               tooltipBehavior: TooltipBehavior(
                 enable: true,
@@ -2014,7 +2014,23 @@ class _SalesReportPageState extends State<SalesReportPage>
                           animationDuration: 800,
                         ),
                     ],
-            ),
+              );
+              
+              return SizedBox(
+                height: isDesktop ? 320 : 250,
+                child: isDesktop
+                    ? chartWidget
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Container(
+                          padding: const EdgeInsets.only(right: 16),
+                          width: 650,
+                          child: chartWidget,
+                        ),
+                      ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           const Divider(height: 1, color: AppTheme.cardBorder),
