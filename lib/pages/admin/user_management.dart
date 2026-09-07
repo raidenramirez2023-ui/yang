@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yang_chow/services/staff_service.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -1350,6 +1351,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
     if (isEditing && !roleOptions.contains(selectedRole)) roleOptions.add(selectedRole);
     if (isEditing && !deptOptions.contains(selectedDept)) deptOptions.add(selectedDept);
 
+    bool isUploadingPhoto = false;
+    bool isSavingStaff = false;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1359,19 +1363,40 @@ class _UserManagementPageState extends State<UserManagementPage> {
               final picker = ImagePicker();
               final XFile? file = await picker.pickImage(
                 source: source,
-                maxWidth: 320,
-                maxHeight: 320,
-                imageQuality: 70,
+                maxWidth: 400,
+                maxHeight: 400,
+                imageQuality: 75,
               );
               if (file != null) {
-                final bytes = await file.readAsBytes();
-                final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
                 setDialogState(() {
-                  currentPhoto = base64String;
+                  isUploadingPhoto = true;
+                });
+                final bytes = await file.readAsBytes();
+                final ext = file.name.contains('.') ? file.name.split('.').last : 'jpg';
+                final empId = idController.text.trim().isNotEmpty ? idController.text.trim() : 'temp_${DateTime.now().millisecondsSinceEpoch}';
+                
+                // Upload avatar to Firebase Cloud Storage
+                final downloadUrl = await ImageStorageService.uploadAvatar(
+                  bytes: bytes,
+                  userId: empId,
+                  extension: ext,
+                );
+
+                setDialogState(() {
+                  isUploadingPhoto = false;
+                  if (downloadUrl != null && downloadUrl.isNotEmpty) {
+                    currentPhoto = downloadUrl;
+                  } else {
+                    // Fallback to base64 if Firebase upload encounters an issue
+                    currentPhoto = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+                  }
                 });
               }
             } catch (e) {
               debugPrint('Error picking staff image: $e');
+              setDialogState(() {
+                isUploadingPhoto = false;
+              });
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -1561,7 +1586,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 Stack(
                                   children: [
                                     GestureDetector(
-                                      onTap: showImageSourceSelector,
+                                      onTap: isUploadingPhoto ? null : showImageSourceSelector,
                                       child: Container(
                                         width: 84,
                                         height: 84,
@@ -1570,11 +1595,35 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           borderRadius: BorderRadius.circular(22),
                                           border: Border.all(color: _emerald.withValues(alpha: 0.3), width: 2),
                                         ),
-                                        child: _buildStaffAvatar(
-                                          currentPhoto,
-                                          nameController.text.isEmpty ? 'New Staff' : nameController.text,
-                                          _emerald,
-                                          size: 84,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            _buildStaffAvatar(
+                                              currentPhoto,
+                                              nameController.text.isEmpty ? 'New Staff' : nameController.text,
+                                              _emerald,
+                                              size: 84,
+                                            ),
+                                            if (isUploadingPhoto)
+                                              Container(
+                                                width: 84,
+                                                height: 84,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black45,
+                                                  borderRadius: BorderRadius.circular(22),
+                                                ),
+                                                child: const Center(
+                                                  child: SizedBox(
+                                                    width: 28,
+                                                    height: 28,
+                                                    child: CircularProgressIndicator(
+                                                      color: Colors.white,
+                                                      strokeWidth: 3,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -1582,7 +1631,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                       right: -2,
                                       bottom: -2,
                                       child: GestureDetector(
-                                        onTap: showImageSourceSelector,
+                                        onTap: isUploadingPhoto ? null : showImageSourceSelector,
                                         child: Container(
                                           padding: const EdgeInsets.all(7),
                                           decoration: BoxDecoration(
@@ -1590,7 +1639,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                             shape: BoxShape.circle,
                                             border: Border.all(color: Colors.white, width: 2),
                                           ),
-                                          child: const Icon(Icons.camera_alt_rounded, size: 15, color: _emerald),
+                                          child: isUploadingPhoto
+                                              ? const SizedBox(
+                                                  width: 15,
+                                                  height: 15,
+                                                  child: CircularProgressIndicator(color: _emerald, strokeWidth: 2),
+                                                )
+                                              : const Icon(Icons.camera_alt_rounded, size: 15, color: _emerald),
                                         ),
                                       ),
                                     ),
@@ -2245,62 +2300,84 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   _staff.insert(0, updatedData);
                                 }
                               });
+                              setDialogState(() {
+                                 isSavingStaff = true;
+                               });
 
-                              // Save to database & local storage
-                              final bool dbSaved = await StaffService.saveStaffList(_staff);
+                               final messenger = ScaffoldMessenger.of(context);
 
-                              AuditLogService.logActivity(
-                                action: isEditing ? 'UPDATE' : 'CREATE',
-                                module: 'Users',
-                                description: isEditing
-                                    ? 'Updated staff profile for "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}'
-                                    : 'Added new staff member "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}',
-                                entityId: updatedData['id']?.toString(),
-                                metadata: updatedData,
-                              );
+                               try {
+                                 // Save to database & local storage
+                                 final bool dbSaved = await StaffService.saveStaffList(_staff);
 
-                              if (mounted) {
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Row(
-                                      children: [
-                                        Icon(
-                                          dbSaved ? Icons.cloud_done_rounded : Icons.check_circle_rounded,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            isEditing
-                                                ? 'Staff "$name" updated & synced to database!'
-                                                : 'New staff "$name" ($empId) saved to database!',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: _emerald,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    duration: const Duration(seconds: 3),
-                                  ),
-                                );
-                              }
+                                 AuditLogService.logActivity(
+                                   action: isEditing ? 'UPDATE' : 'CREATE',
+                                   module: 'Users',
+                                   description: isEditing
+                                       ? 'Updated staff profile for "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}'
+                                       : 'Added new staff member "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}',
+                                   entityId: updatedData['id']?.toString(),
+                                   metadata: updatedData,
+                                 );
+
+                                 if (mounted) {
+                                   Navigator.pop(ctx);
+                                   messenger.showSnackBar(
+                                     SnackBar(
+                                       content: Row(
+                                         children: [
+                                           Icon(
+                                             dbSaved ? Icons.cloud_done_rounded : Icons.check_circle_rounded,
+                                             color: Colors.white,
+                                             size: 20,
+                                           ),
+                                           const SizedBox(width: 10),
+                                           Expanded(
+                                             child: Text(
+                                               isEditing
+                                                   ? 'Staff "$name" updated & saved successfully!'
+                                                   : 'New staff "$name" ($empId) saved successfully!',
+                                               style: GoogleFonts.plusJakartaSans(
+                                                 fontWeight: FontWeight.w700,
+                                                 fontSize: 12,
+                                               ),
+                                             ),
+                                           ),
+                                         ],
+                                       ),
+                                       backgroundColor: _emerald,
+                                       behavior: SnackBarBehavior.floating,
+                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                       duration: const Duration(seconds: 4),
+                                     ),
+                                   );
+                                 }
+                               } catch (saveErr) {
+                                 debugPrint('Error saving staff: $saveErr');
+                                 setDialogState(() {
+                                   isSavingStaff = false;
+                                 });
+                                 showValidationError('Failed to save staff: $saveErr');
+                               }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _emerald,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: Text(
-                              isEditing ? 'Save Changes' : 'Add Member',
-                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white),
-                            ),
+                            child: isSavingStaff
+                                 ? const SizedBox(
+                                     width: 20,
+                                     height: 20,
+                                     child: CircularProgressIndicator(
+                                       color: Colors.white,
+                                       strokeWidth: 2,
+                                     ),
+                                   )
+                                 : Text(
+                                     isEditing ? 'Save Changes' : 'Add Member',
+                                     style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white),
+                                   ),
                           ),
                         ),
                       ],
@@ -2695,15 +2772,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15, color: _darkBg),
-                        ),
-                      ],
-                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15, color: _darkBg),
+                          ),
+                          if (title.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              title,
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w500, color: _slate),
+                            ),
+                          ],
+                        ],
+                      ),
                   ),
                 ],
               ),

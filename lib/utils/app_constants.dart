@@ -31,13 +31,20 @@ class AppConstants {
   static const String logoPath = 'assets/images/ycplogo.png';
   static const String logoJpgPath = 'assets/images/logo.jpg';
 
-  // Supabase Storage
+  // Supabase Storage (Fallback / Legacy)
   static const String supabaseStorageBaseUrl =
       'https://tvzbsvqaikjkxrqykrhw.supabase.co/storage/v1/object/public/restaurant-assets';
 
-  /// Builds a full Supabase Storage public URL from just a filename.
-  /// e.g. imageUrl('YCFriedRice.jpg') => 'https://...restaurant-assets/YCFriedRice.jpg'
-  static String imageUrl(String filename) => '$supabaseStorageBaseUrl/$filename';
+  /// Builds or resolves an image URL.
+  /// If [filenameOrUrl] is already a full URL (such as Firebase Storage URL), it returns it directly.
+  /// Otherwise, it prepends the default storage base URL.
+  static String imageUrl(String filenameOrUrl) {
+    if (filenameOrUrl.isEmpty) return '';
+    if (filenameOrUrl.startsWith('http://') || filenameOrUrl.startsWith('https://')) {
+      return filenameOrUrl;
+    }
+    return '$supabaseStorageBaseUrl/$filenameOrUrl';
+  }
 
   // Error Messages
   static const String emptyFieldsError = 'Please enter email and password';

@@ -125,6 +125,23 @@ class StaffService {
 
   /// Load all staff from Supabase DB or persistent storage fallback
   static Future<List<Map<String, dynamic>>> loadStaffList() async {
+    // 0. Pre-load local cached staff to preserve images if DB table lacks the image column
+    final Map<String, String> cachedImages = {};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? raw = prefs.getString(storageKey);
+      if (raw != null && raw.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(raw);
+        for (final item in decoded) {
+          final id = (item['id'] ?? item['employee_id'] ?? '').toString().trim().toUpperCase();
+          final img = (item['image'] ?? '').toString().trim();
+          if (id.isNotEmpty && img.isNotEmpty) {
+            cachedImages[id] = img;
+          }
+        }
+      }
+    } catch (_) {}
+
     // 1. Try loading from Supabase DB `staff` table first
     try {
       final supabase = Supabase.instance.client;
@@ -135,6 +152,7 @@ class StaffService {
 
       if (dbRows.isNotEmpty) {
         final list = dbRows.map((row) {
+          final empId = (row['employee_id'] ?? row['id'] ?? '').toString().trim();
           final role = (row['role'] ?? '').toString();
           final title = (row['title'] ?? '').toString();
           final dept = _inferDepartment(role, title);
@@ -142,10 +160,16 @@ class StaffService {
           final int level = levelRaw is int ? levelRaw : int.tryParse(levelRaw?.toString() ?? '2') ?? 2;
           final status = (row['status'] ?? 'Active').toString().toLowerCase();
 
+          // If db table row has an image, use it; otherwise preserve image from local cache
+          String staffImage = (row['image'] ?? '').toString().trim();
+          if (staffImage.isEmpty && cachedImages.containsKey(empId.toUpperCase())) {
+            staffImage = cachedImages[empId.toUpperCase()]!;
+          }
+
           return {
-            'id': (row['employee_id'] ?? row['id'] ?? '').toString(),
+            'id': empId,
             'db_uuid': row['id']?.toString(),
-            'employee_id': (row['employee_id'] ?? '').toString(),
+            'employee_id': empId,
             'name': (row['name'] ?? '').toString(),
             'full_name': (row['name'] ?? '').toString(),
             'title': title,
@@ -158,7 +182,7 @@ class StaffService {
                     ? 'on-leave'
                     : (status.contains('archive') ? 'archived' : 'active')),
             'phone': (row['phone'] ?? '').toString().isNotEmpty ? row['phone'].toString() : '+63 900 000 0000',
-            'image': (row['image'] ?? '').toString(),
+            'image': staffImage,
             'colorHex': _getDeptColorHex(dept),
             'date_hired': (row['created_at'] ?? '').toString().isNotEmpty 
                 ? row['created_at'].toString() 
@@ -286,6 +310,9 @@ class StaffService {
           'role': (s['role'] ?? '').toString().trim(),
           'level': s['level'] is int ? s['level'] : int.tryParse(s['level']?.toString() ?? '2') ?? 2,
           'status': statusStr,
+          'image': (s['image'] ?? '').toString().trim(),
+          'phone': (s['phone'] ?? '').toString().trim(),
+          'dept': (s['dept'] ?? '').toString().trim(),
         };
 
         // Try insert/update into `staff` table
@@ -297,19 +324,26 @@ class StaffService {
               .maybeSingle();
 
           if (existing != null && existing['id'] != null) {
-            await supabase.from('staff').update(row).eq('id', existing['id']);
+            try {
+              await supabase.from('staff').update(row).eq('id', existing['id']);
+            } catch (colErr) {
+              // In case the DB table does not have 'image', update without it
+              final fallbackRow = Map<String, dynamic>.from(row)..remove('image');
+              await supabase.from('staff').update(fallbackRow).eq('id', existing['id']);
+            }
             debugPrint('[StaffService] Updated staff "$staffName" ($empId) in Supabase `staff` table');
           } else {
-            await supabase.from('staff').insert(row);
+            try {
+              await supabase.from('staff').insert(row);
+            } catch (colErr) {
+              final fallbackRow = Map<String, dynamic>.from(row)..remove('image');
+              await supabase.from('staff').insert(fallbackRow);
+            }
             debugPrint('[StaffService] Inserted new staff "$staffName" ($empId) in Supabase `staff` table');
           }
           dbSuccess = true;
         } catch (tableErr) {
           debugPrint('[StaffService] Single row sync note: $tableErr');
-          try {
-            await supabase.from('staff').upsert(row);
-            dbSuccess = true;
-          } catch (_) {}
         }
       }
       debugPrint('[StaffService] Synced staff records to Supabase `staff` table (success: $dbSuccess)');

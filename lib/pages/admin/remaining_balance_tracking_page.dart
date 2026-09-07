@@ -12,6 +12,7 @@ import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:yang_chow/services/receipt_pdf_service.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 final _moneyFmt = NumberFormat('#,##0.00', 'en_PH');
@@ -2446,15 +2447,14 @@ class _PaymentReceiptModalState extends State<_PaymentReceiptModal> {
           isPaymentReceipt: true,
         );
 
-        // 2. Try upload to Supabase Storage
+        // 2. Try upload to Firebase Storage
         try {
-          await Supabase.instance.client.storage.from('avatars').uploadBinary(
-            filePath,
-            pdfBytes,
-            fileOptions: const FileOptions(upsert: true, contentType: 'application/pdf'),
+          final publicUrl = await ImageStorageService.uploadReceipt(
+            bytes: pdfBytes,
+            fileName: 'Receipt_${shortId}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+            contentType: 'application/pdf',
           );
-          final publicUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(filePath);
-          if (mounted) {
+          if (mounted && publicUrl != null) {
             setState(() {
               _receiptPublicUrl = publicUrl;
             });

@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'supabase_options.dart'; // Supabase configuration
 
@@ -62,16 +64,25 @@ Future<void> main() async {
     debugPrint('⚠️ Error loading .env file: $e');
   }
 
-  // Don't block app initialization on Supabase/Settings loading
-  // Initialize these in the background instead
-  _initializeServices();
+  // Initialize Firebase and Supabase before launching UI
+  await _initializeServices();
 
   runApp(const YangChowApp());
 }
 
-/// Initialize Supabase and app settings in the background
+/// Initialize Firebase, Supabase and app settings in the background
 Future<void> _initializeServices() async {
   try {
+    // Initialize Firebase (for Polyglot Image & File Storage)
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint('✅ Firebase initialized successfully');
+    } catch (e) {
+      debugPrint('⚠️ Firebase initialization error: $e');
+    }
+
     // Add a timeout to Supabase initialization to prevent hanging
     await Supabase.initialize(
       url: SupabaseOptions.supabaseUrl,

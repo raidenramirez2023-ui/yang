@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/backup_restore_service.dart';
+import '../../services/image_storage_service.dart';
 import '../../models/audit_log_model.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
@@ -238,6 +239,81 @@ class _BackupRestorePageState extends State<BackupRestorePage> with SingleTicker
       _showSnackBar('Backup failed: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isBackingUp = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // POLYGLOT: FIREBASE IMAGE MIGRATION
+  // ─────────────────────────────────────────────────────────────
+
+  Future<void> _migrateImagesToFirebase() async {
+    String progressMessage = 'Checking images in Supabase database...';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: AppTheme.white,
+            title: Row(
+              children: [
+                const Icon(Icons.cloud_sync_rounded, color: AppTheme.forestGreen, size: 24),
+                const SizedBox(width: 10),
+                Text(
+                  'Migrating Images to Firebase...',
+                  style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  progressMessage,
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: AppTheme.mediumGrey),
+                ),
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(
+                  backgroundColor: AppTheme.lightGrey,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.forestGreen),
+                  minHeight: 6,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    try {
+      final result = await ImageStorageService.syncAndMigrateMenuImages(
+        onProgress: (msg) {
+          if (mounted) {
+            progressMessage = msg;
+          }
+        },
+      );
+
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      final migrated = result['migrated'] ?? 0;
+      final skipped = result['skipped'] ?? 0;
+      final failed = result['failed'] ?? 0;
+
+      _showSnackBar(
+        'Migration complete! $migrated images uploaded to Firebase ($skipped already synced, $failed errors).',
+        isSuccess: true,
+      );
+    } catch (e) {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      _showSnackBar('Image migration error: $e', isError: true);
     }
   }
 
@@ -1135,6 +1211,17 @@ class _BackupRestorePageState extends State<BackupRestorePage> with SingleTicker
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: _migrateImagesToFirebase,
+                      icon: const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 18),
+                      label: Text('Migrate Images to Firebase', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.warmGold),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
                   ],
                 )
               : Column(
@@ -1181,19 +1268,35 @@ class _BackupRestorePageState extends State<BackupRestorePage> with SingleTicker
                       style: GoogleFonts.outfit(fontSize: 12, color: Colors.white.withValues(alpha: 0.85)),
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isBackingUp ? null : () => _performBackup(full: true),
-                        icon: const Icon(Icons.download_rounded, size: 16),
-                        label: Text('Full Backup (.JSON)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.warmGold,
-                          foregroundColor: AppTheme.darkBrownText,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isBackingUp ? null : () => _performBackup(full: true),
+                            icon: const Icon(Icons.download_rounded, size: 16),
+                            label: Text('Full Backup', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.warmGold,
+                              foregroundColor: AppTheme.darkBrownText,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _migrateImagesToFirebase,
+                            icon: const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 16),
+                            label: Text('Migrate Images', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppTheme.warmGold),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

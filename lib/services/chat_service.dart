@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'image_storage_service.dart';
 
 class ChatService {
   static final ChatService _instance = ChatService._internal();
@@ -405,24 +406,21 @@ class ChatService {
     }
   }
 
-  // Upload chat image to Supabase storage (using 'avatars' bucket - same as GCash receipts)
+  // Upload chat image to Firebase Cloud Storage
   Future<String?> uploadChatImage(XFile imageFile, String customerEmail) async {
     try {
       final fileExtension = imageFile.path.split('.').last.toLowerCase();
       final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-      final filePath = 'chat_images/$customerEmail/$fileName';
 
-      debugPrint('Uploading chat image: $filePath');
-      
+      debugPrint('Uploading chat image to Firebase: $fileName');
       final fileBytes = await imageFile.readAsBytes();
 
-      await _supabase.storage.from('avatars').uploadBinary(
-        filePath,
-        fileBytes,
-        fileOptions: const FileOptions(upsert: true),
+      final publicUrl = await ImageStorageService.uploadChatImage(
+        bytes: fileBytes,
+        customerEmail: customerEmail,
+        fileName: fileName,
       );
 
-      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(filePath);
       debugPrint('Chat image uploaded successfully: $publicUrl');
       return publicUrl;
     } catch (e) {
