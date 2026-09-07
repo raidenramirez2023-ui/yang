@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -361,25 +362,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String? avatarUrl = currentAvatarUrl;
 
       // ── 1. Upload new image if picked ──────────────────────────────────
-      if (_pickedFile != null) {
+      if (_pickedFile != null && _pickedFileBytes != null) {
         final userId = user.id;
         final fileExt = _pickedFile!.path.split('.').last;
-        final fileName = 'avatar_$userId.$fileExt';
-        final filePath = fileName;
 
-        // Upload to 'avatars' bucket
-        await Supabase.instance.client.storage
-            .from('avatars')
-            .uploadBinary(
-              filePath,
-              _pickedFileBytes!,
-              fileOptions: const FileOptions(upsert: true),
-            );
+        // Upload to Firebase Cloud Storage 'avatars/' folder
+        final uploadedFirebaseUrl = await ImageStorageService.uploadAvatar(
+          bytes: _pickedFileBytes!,
+          userId: userId,
+          extension: fileExt,
+        );
 
-        // Get public URL
-        avatarUrl = Supabase.instance.client.storage
-            .from('avatars')
-            .getPublicUrl(filePath);
+        if (uploadedFirebaseUrl != null) {
+          avatarUrl = uploadedFirebaseUrl;
+        }
       }
 
       final firstName = _firstNameController.text.trim();

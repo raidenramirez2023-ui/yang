@@ -8,6 +8,7 @@ import '../../models/menu_item.dart';
 import '../../services/menu_service.dart';
 import '../../services/recipe_seeder.dart';
 import '../../services/audit_log_service.dart';
+import '../../services/image_storage_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 import '../../utils/app_constants.dart';
@@ -1259,32 +1260,34 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                   final filename = result.files.single.name;
                   final mimeType = _getMimeType(filename);
                   
+                  Uint8List? uploadBytes;
                   if (kIsWeb) {
-                    if (fileBytes != null) {
-                      await Supabase.instance.client.storage
-                          .from('restaurant-assets')
-                          .uploadBinary(filename, fileBytes,
-                              fileOptions: FileOptions(contentType: mimeType));
-                      setDialogState(() {
-                        selectedImagePath = filename;
-                      });
-                    }
+                    uploadBytes = fileBytes;
                   } else {
                     final path = result.files.single.path;
                     if (path != null) {
-                      final bytes = await File(path).readAsBytes();
-                      await Supabase.instance.client.storage
-                          .from('restaurant-assets')
-                          .uploadBinary(filename, bytes,
-                              fileOptions: FileOptions(contentType: mimeType));
-                      setDialogState(() {
-                        selectedImagePath = filename;
-                      });
+                      uploadBytes = await File(path).readAsBytes();
                     }
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Image uploaded successfully!'), backgroundColor: AppTheme.successGreen),
-                  );
+
+                  if (uploadBytes != null) {
+                    final downloadUrl = await ImageStorageService.uploadMenuImage(
+                      bytes: uploadBytes,
+                      fileName: filename,
+                      contentType: mimeType,
+                    );
+
+                    if (downloadUrl != null) {
+                      setDialogState(() {
+                        selectedImagePath = downloadUrl;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Image uploaded to Firebase successfully!'), backgroundColor: AppTheme.successGreen),
+                      );
+                    } else {
+                      throw Exception('Firebase upload returned null');
+                    }
+                  }
                 }
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
