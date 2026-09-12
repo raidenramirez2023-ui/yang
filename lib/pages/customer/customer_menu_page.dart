@@ -112,9 +112,9 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
       padding: const EdgeInsets.all(20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.80 : 0.76,
-        crossAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 16,
-        mainAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 16,
+        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.78 : (ResponsiveUtils.isTablet(context) ? 0.72 : 0.68),
+        crossAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 14,
+        mainAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 14,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -130,13 +130,18 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.cardBorder, width: 1), // Light warm gray border #E5E0D2
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEDE8DE), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
             offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: const Color(0xFF16302A).withValues(alpha: 0.02),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -147,22 +152,46 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
           Expanded(
             flex: 3,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
               child: Stack(
+                fit: StackFit.expand,
                 children: [
                   _buildImageWidget(item),
-                  // Price Badge: #16302A Deep forest green bg with #F5F1E6 text
+                  // Bottom gradient scrim
                   Positioned(
-                    top: 10,
-                    right: 10,
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 36,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AppTheme.priceBadgeBg, // #16302A Deep forest green
-                        borderRadius: BorderRadius.circular(12),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.38),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Price Badge: Frosted dark forest green with gold border & gold text
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0C241F).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppTheme.warmGold.withValues(alpha: 0.4),
+                          width: 0.8,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -171,8 +200,8 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                       child: Text(
                         '₱${_fmt.format(item.price)}',
                         style: GoogleFonts.inter(
-                          color: AppTheme.priceBadgeText, // #F5F1E6 Off-white
-                          fontSize: 12,
+                          color: const Color(0xFFFFD56B),
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,
                         ),
@@ -188,7 +217,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(10.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -198,9 +227,9 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      color: AppTheme.darkGrey, // #2C2C2A Near-black warm gray
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                      color: const Color(0xFF1E293B),
                       letterSpacing: -0.2,
                       height: 1.25,
                     ),
@@ -208,33 +237,64 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Category Tag: Rust/coral #993C1D
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.categoryTagText.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          item.category,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: AppTheme.categoryTagText, // #993C1D Rust/coral
-                            fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16302A).withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.restaurant_menu_rounded,
+                                size: 10,
+                                color: AppTheme.forestGreen.withValues(alpha: 0.8),
+                              ),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  item.category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
+                                    color: const Color(0xFF16302A),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                      const SizedBox(width: 6),
                       Container(
-                        width: 28,
-                        height: 28,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.warmGold,
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppTheme.forestGreen,
+                              Color(0xFF0F2B23),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.forestGreen.withValues(alpha: 0.28),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 11,
-                          color: AppTheme.darkBrownText,
+                          Icons.add_rounded,
+                          size: 16,
+                          color: Colors.white,
                         ),
                       ),
                     ],

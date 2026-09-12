@@ -525,7 +525,8 @@ class ReceiptPdfService {
     );
     final resId = (reservation['id'] ?? 'booking').toString();
     final shortId = resId.length > 8 ? resId.substring(0, 8).toUpperCase() : resId.toUpperCase();
-    final label = isPaymentReceipt ? 'Receipt' : 'Voucher';
+    final isAdvanceOrder = reservation['_db_table'] == 'advance_orders' || reservation['_is_advance_order'] == true;
+    final label = isPaymentReceipt ? 'Receipt' : (isAdvanceOrder ? 'ClaimSlip' : 'BookingSlip');
 
     await Printing.sharePdf(
       bytes: pdfBytes,
@@ -544,7 +545,8 @@ class ReceiptPdfService {
     );
     final resId = (reservation['id'] ?? 'booking').toString();
     final shortId = resId.length > 8 ? resId.substring(0, 8) : resId;
-    final label = isPaymentReceipt ? 'Receipt' : 'Voucher';
+    final isAdvanceOrder = reservation['_db_table'] == 'advance_orders' || reservation['_is_advance_order'] == true;
+    final label = isPaymentReceipt ? 'Receipt' : (isAdvanceOrder ? 'ClaimSlip' : 'BookingSlip');
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdfBytes,
