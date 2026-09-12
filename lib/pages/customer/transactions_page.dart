@@ -30,6 +30,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
   bool _isLoading = false;
   Timer? _pollingTimer;
   final _fmt = NumberFormat('#,##0.00', 'en_PH');
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   String _selectedFilter = 'all'; // 'all', 'paid', 'unpaid', 'cancelled'
   int _currentPage = 1;
   static const int _itemsPerPage = 15;
@@ -43,8 +45,25 @@ class _TransactionsPageState extends State<TransactionsPage> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
+
+  int get _paidCount => _transactions.where((t) {
+        final ps = t['payment_status']?.toString().toLowerCase() ?? '';
+        return ps == 'paid' || ps == 'fully_paid';
+      }).length;
+
+  int get _unpaidCount => _transactions.where((t) {
+        final ps = t['payment_status']?.toString().toLowerCase() ?? '';
+        final status = t['status']?.toString().toLowerCase() ?? '';
+        return (ps == 'unpaid' || ps == 'deposit_paid' || ps == 'pending') && status != 'cancelled';
+      }).length;
+
+  int get _cancelledCount => _transactions.where((t) {
+        final status = t['status']?.toString().toLowerCase() ?? '';
+        return status == 'cancelled';
+      }).length;
 
   Future<void> _refreshTransactions() async {
     setState(() => _isLoading = true);
@@ -112,24 +131,44 @@ class _TransactionsPageState extends State<TransactionsPage> {
   }
 
   List<dynamic> get _filteredTransactions {
+    List<dynamic> list;
     if (_selectedFilter == 'paid') {
-      return _transactions.where((t) {
+      list = _transactions.where((t) {
         final ps = t['payment_status']?.toString().toLowerCase() ?? '';
         return ps == 'paid' || ps == 'fully_paid';
       }).toList();
     } else if (_selectedFilter == 'unpaid') {
-      return _transactions.where((t) {
+      list = _transactions.where((t) {
         final ps = t['payment_status']?.toString().toLowerCase() ?? '';
         final status = t['status']?.toString().toLowerCase() ?? '';
         return (ps == 'unpaid' || ps == 'deposit_paid' || ps == 'pending') && status != 'cancelled';
       }).toList();
     } else if (_selectedFilter == 'cancelled') {
-      return _transactions.where((t) {
+      list = _transactions.where((t) {
         final status = t['status']?.toString().toLowerCase() ?? '';
         return status == 'cancelled';
       }).toList();
+    } else {
+      list = _transactions;
     }
-    return _transactions;
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((t) {
+        final id = (t['id']?.toString() ?? '').toLowerCase();
+        final eventType = (t['event_type']?.toString() ?? '').toLowerCase();
+        final eventDate = (t['event_date']?.toString() ?? '').toLowerCase();
+        final status = (t['status']?.toString() ?? '').toLowerCase();
+        final paymentStatus = (t['payment_status']?.toString() ?? '').toLowerCase();
+        return id.contains(q) ||
+            eventType.contains(q) ||
+            eventDate.contains(q) ||
+            status.contains(q) ||
+            paymentStatus.contains(q);
+      }).toList();
+    }
+
+    return list;
   }
 
   @override
@@ -229,20 +268,31 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 ],
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
+
+              // ── Quick Summary Metrics Strip ──
+              _buildSummaryMetrics(isMobile),
+
+              const SizedBox(height: 16),
+
+              // ── Search Bar ──
+              _buildSearchBar(),
+
+              const SizedBox(height: 14),
 
               // ── Filter Chips ──
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
-                    _buildFilterChip('All (${_transactions.length})', 'all'),
+                    _buildFilterChip('All', 'all', count: _transactions.length, icon: Icons.grid_view_rounded),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Paid / Settled', 'paid'),
+                    _buildFilterChip('Paid / Settled', 'paid', count: _paidCount, icon: Icons.check_circle_rounded),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Pending / Due', 'unpaid'),
+                    _buildFilterChip('Pending / Due', 'unpaid', count: _unpaidCount, icon: Icons.pending_actions_rounded),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Cancelled', 'cancelled'),
+                    _buildFilterChip('Cancelled', 'cancelled', count: _cancelledCount, icon: Icons.cancel_outlined),
                   ],
                 ),
               ),
@@ -260,10 +310,12 @@ class _TransactionsPageState extends State<TransactionsPage> {
               else if (displayedList.isEmpty)
                 EmptyStateCard(
                   icon: Icons.receipt_long_rounded,
-                  title: 'No transactions found',
-                  description: _selectedFilter == 'all'
-                      ? 'Your reservation orders and payment invoices will appear here.'
-                      : 'No transactions matching "$_selectedFilter" filter.',
+                  title: _searchQuery.isNotEmpty ? 'No matching records' : 'No transactions found',
+                  description: _searchQuery.isNotEmpty
+                      ? 'No transactions matching "$_searchQuery". Try clearing your search.'
+                      : (_selectedFilter == 'all'
+                          ? 'Your reservation orders and payment invoices will appear here.'
+                          : 'No transactions matching "$_selectedFilter" filter.'),
                 )
               else ...[
                 // ── Table View on Desktop/Tablet vs Card View on Mobile ──
@@ -291,7 +343,157 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _buildFilterChip(String label, String key) {
+  Widget _buildSummaryMetrics(bool isMobile) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetricCard(
+            title: 'Total Records',
+            value: '${_transactions.length}',
+            icon: Icons.receipt_long_rounded,
+            color: const Color(0xFF14332E),
+            bgTint: const Color(0xFF14332E).withValues(alpha: 0.08),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMetricCard(
+            title: 'Paid / Settled',
+            value: '$_paidCount',
+            icon: Icons.check_circle_rounded,
+            color: const Color(0xFF16A34A),
+            bgTint: const Color(0xFF16A34A).withValues(alpha: 0.09),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMetricCard(
+            title: 'Pending / Due',
+            value: '$_unpaidCount',
+            icon: Icons.pending_actions_rounded,
+            color: const Color(0xFFD97706),
+            bgTint: const Color(0xFFD97706).withValues(alpha: 0.09),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required Color bgTint,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: bgTint,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(icon, size: 15, color: color),
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    value,
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF64748B),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+            _currentPage = 1;
+          });
+        },
+        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.darkGrey),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Search by reference #, event, date, or status...',
+          hintStyle: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF94A3B8)),
+          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF64748B)),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                      _currentPage = 1;
+                    });
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String key, {int? count, IconData? icon}) {
     final isSelected = _selectedFilter == key;
     return InkWell(
       onTap: () => setState(() {
@@ -301,7 +503,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF14332E) : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -319,13 +521,44 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 ]
               : null,
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF64748B),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 13,
+                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFF64748B),
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? Colors.white : const Color(0xFF64748B),
+              ),
+            ),
+            if (count != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -582,11 +815,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
                     child: Row(
                       children: [
                         _buildTableHeaderCell('REF #', flex: 2),
-                        _buildTableHeaderCell('EVENT / ORDER', flex: 5),
-                        _buildTableHeaderCell('DATE & TIME', flex: 4),
-                        _buildTableHeaderCell('GUESTS', flex: 2),
+                        _buildTableHeaderCell('EVENT / ORDER', flex: 4),
+                        _buildTableHeaderCell('DATE & TIME', flex: 3),
+                        _buildTableHeaderCell('AMOUNT', flex: 3),
                         _buildTableHeaderCell('PAYMENT', flex: 3),
-                        _buildTableHeaderCell('STATUS', flex: 3),
+                        _buildTableHeaderCell('STATUS', flex: 2),
                         _buildTableHeaderCell('ACTION', flex: 2, alignment: Alignment.centerRight),
                       ],
                     ),
@@ -636,10 +869,12 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final eventType = tx['event_type']?.toString() ?? 'Dining Reservation';
     final eventDate = tx['event_date']?.toString() ?? 'N/A';
     final startTime = tx['start_time']?.toString() ?? '';
-    final guests = tx['number_of_guests'] != null ? '${tx['number_of_guests']} guests' : '—';
     final status = tx['status']?.toString() ?? 'pending';
     final paymentStatus = tx['payment_status']?.toString() ?? 'unpaid';
     final isAdvanceOrder = tx['_db_table'] == 'advance_orders';
+    final totalPrice = (tx['total_price'] as num?)?.toDouble() ?? 0.0;
+    final depositAmount = (tx['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final remaining = (tx['remaining_balance'] as num?)?.toDouble() ?? (totalPrice - depositAmount);
 
     return Material(
       color: index % 2 == 0 ? Colors.white : const Color(0xFFFAFAFA),
@@ -652,19 +887,26 @@ class _TransactionsPageState extends State<TransactionsPage> {
               // Ref #
               Expanded(
                 flex: 2,
-                child: Text(
-                  '#$ref',
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    '#$ref',
+                    style: GoogleFonts.robotoMono(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF334155),
+                    ),
                   ),
                 ),
               ),
 
               // Event / Order
               Expanded(
-                flex: 5,
+                flex: 4,
                 child: Row(
                   children: [
                     Container(
@@ -700,7 +942,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
               // Date & Time
               Expanded(
-                flex: 4,
+                flex: 3,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -730,18 +972,31 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 ),
               ),
 
-              // Guests
+              // Amount
               Expanded(
-                flex: 2,
-                child: Text(
-                  guests,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF475569),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      totalPrice > 0 ? '₱${_fmt.format(totalPrice)}' : '—',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.darkGrey,
+                      ),
+                    ),
+                    if (paymentStatus == 'deposit_paid' && remaining > 0)
+                      Text(
+                        '₱${_fmt.format(remaining)} due',
+                        style: GoogleFonts.inter(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFDC2626),
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
@@ -756,7 +1011,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
               // Status
               Expanded(
-                flex: 3,
+                flex: 2,
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: _buildStatusChip(status),
@@ -817,6 +1072,43 @@ class _TransactionsPageState extends State<TransactionsPage> {
         final status = tx['status']?.toString() ?? 'pending';
         final paymentStatus = tx['payment_status']?.toString() ?? 'unpaid';
         final isAdvanceOrder = tx['_db_table'] == 'advance_orders';
+        final totalPrice = (tx['total_price'] as num?)?.toDouble() ?? 0.0;
+        final depositAmount = (tx['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+        final remaining = (tx['remaining_balance'] as num?)?.toDouble() ?? (totalPrice - depositAmount);
+
+        IconData itemIcon = Icons.event_seat_rounded;
+        Color iconColor = AppTheme.forestGreen;
+        Color iconBg = const Color(0xFF14332E).withValues(alpha: 0.08);
+
+        final lowerType = eventType.toLowerCase();
+        if (isAdvanceOrder) {
+          itemIcon = Icons.restaurant_rounded;
+          iconColor = const Color(0xFF0284C7);
+          iconBg = const Color(0xFF0EA5E9).withValues(alpha: 0.12);
+        } else if (lowerType.contains('wedding')) {
+          itemIcon = Icons.favorite_rounded;
+          iconColor = const Color(0xFFBE185D);
+          iconBg = const Color(0xFFFCE7F3);
+        } else if (lowerType.contains('birthday')) {
+          itemIcon = Icons.cake_rounded;
+          iconColor = const Color(0xFFD97706);
+          iconBg = const Color(0xFFFEF3C7);
+        } else if (lowerType.contains('party') || lowerType.contains('celebration')) {
+          itemIcon = Icons.celebration_rounded;
+          iconColor = const Color(0xFF8B5CF6);
+          iconBg = const Color(0xFFEDE9FE);
+        }
+
+        Color accentColor;
+        if (status.toLowerCase() == 'cancelled') {
+          accentColor = const Color(0xFFEF4444);
+        } else if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
+          accentColor = const Color(0xFF10B981);
+        } else if (paymentStatus == 'deposit_paid') {
+          accentColor = const Color(0xFF0284C7);
+        } else {
+          accentColor = const Color(0xFFF59E0B);
+        }
 
         return Container(
           decoration: BoxDecoration(
@@ -825,109 +1117,192 @@ class _TransactionsPageState extends State<TransactionsPage> {
             border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _showTransactionDetailModal(context, tx),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Row: Icon + Title + Ref #
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isAdvanceOrder
-                                ? const Color(0xFF0EA5E9).withValues(alpha: 0.1)
-                                : AppTheme.forestGreen.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            isAdvanceOrder ? Icons.fastfood_rounded : Icons.event_seat_rounded,
-                            size: 16,
-                            color: isAdvanceOrder ? const Color(0xFF0284C7) : AppTheme.forestGreen,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                eventType,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.darkGrey,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                '#$ref • $eventDate${startTime.isNotEmpty ? " • $startTime" : ""}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: const Color(0xFF64748B),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+          child: Stack(
+            children: [
+              // Left status accent indicator strip
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 4.5,
+                child: Container(color: accentColor),
+              ),
 
-                    const SizedBox(height: 12),
-                    const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-                    const SizedBox(height: 10),
-
-                    // Bottom Row: Badges & View CTA with Wrap for zero overflow
-                    Row(
+              // Main card content
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showTransactionDetailModal(context, tx),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              _buildPaymentBadge(paymentStatus, isAdvanceOrder: isAdvanceOrder),
-                              _buildStatusChip(status),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                        // Top Row: Category Icon + Title/Ref + Total Price
                         Row(
-                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Details',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.forestGreen,
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: iconBg,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(itemIcon, size: 18, color: iconColor),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    eventType,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.darkGrey,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          '#$ref',
+                                          style: GoogleFonts.robotoMono(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          '$eventDate${startTime.isNotEmpty ? " • $startTime" : ""}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: const Color(0xFF64748B),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, size: 16, color: AppTheme.forestGreen),
+                            const SizedBox(width: 8),
+                            // Total Price Column
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                if (totalPrice > 0)
+                                  Text(
+                                    '₱${_fmt.format(totalPrice)}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.darkGrey,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    '—',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                if (paymentStatus == 'deposit_paid' && remaining > 0)
+                                  Text(
+                                    '₱${_fmt.format(remaining)} due',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFFDC2626),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                        const SizedBox(height: 10),
+
+                        // Bottom Row: Badges & Details CTA
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  _buildPaymentBadge(paymentStatus, isAdvanceOrder: isAdvanceOrder),
+                                  if (_shouldShowStatusChip(paymentStatus, status))
+                                    _buildStatusChip(status),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF14332E).withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Details',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF14332E),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 15,
+                                    color: Color(0xFF14332E),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -1090,18 +1465,32 @@ class _TransactionsPageState extends State<TransactionsPage> {
                         const SizedBox(height: 16),
 
                         // Pricing Breakdown
-                        Text('FINANCIAL BREAKDOWN', style: _modalLabelStyle),
-                        const SizedBox(height: 12),
-                        if (totalPrice > 0)
-                          _buildPriceLine('Total Amount', '₱${_fmt.format(totalPrice)}'),
-                        if (depositAmount > 0) ...[
-                          const SizedBox(height: 6),
-                          _buildPriceLine('Deposit Paid', '- ₱${_fmt.format(depositAmount)}', isGreen: true),
-                        ],
-                        if (remaining > 0 && paymentStatus == 'deposit_paid') ...[
-                          const SizedBox(height: 6),
-                          _buildPriceLine('Remaining Balance Due', '₱${_fmt.format(remaining)}', isBold: true, isRed: true),
-                        ],
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('FINANCIAL BREAKDOWN', style: _modalLabelStyle),
+                              const SizedBox(height: 10),
+                              if (totalPrice > 0)
+                                _buildPriceLine('Total Invoiced', '₱${_fmt.format(totalPrice)}', isBold: true),
+                              if (depositAmount > 0) ...[
+                                const SizedBox(height: 6),
+                                _buildPriceLine('Deposit Settled', '- ₱${_fmt.format(depositAmount)}', isGreen: true),
+                              ],
+                              if (remaining > 0 && paymentStatus == 'deposit_paid') ...[
+                                const SizedBox(height: 6),
+                                const Divider(height: 12, thickness: 1, color: Color(0xFFE2E8F0)),
+                                _buildPriceLine('Remaining Balance Due', '₱${_fmt.format(remaining)}', isBold: true, isRed: true),
+                              ],
+                            ],
+                          ),
+                        ),
 
                         // Actions: Pay Remaining Balance or Download PDF Receipt
                         if (tx['_db_table'] == 'reservations' && paymentStatus == 'deposit_paid' && remaining > 0) ...[
@@ -1257,41 +1646,64 @@ class _TransactionsPageState extends State<TransactionsPage> {
   // ══════════════════════════════════════════════════════════════════════════
   // 🏷️ BADGES & STATUS CHIPS (ZERO-OVERFLOW GUARANTEE)
   // ══════════════════════════════════════════════════════════════════════════
+  bool _shouldShowStatusChip(String paymentStatus, String status) {
+    final ps = paymentStatus.toLowerCase().trim();
+    final s = status.toLowerCase().trim();
+    // Prevent redundant badges (e.g. UNPAID and UNPAID, or PAID and PAID)
+    if (ps == s) return false;
+    if ((ps == 'unpaid' || ps == 'pending') && (s == 'unpaid' || s == 'pending')) return false;
+    if ((ps == 'paid' || ps == 'fully_paid') && (s == 'paid' || s == 'fully_paid')) return false;
+    return true;
+  }
+
   Widget _buildPaymentBadge(String paymentStatus, {bool isAdvanceOrder = false}) {
     final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
     final isDepositPaid = paymentStatus == 'deposit_paid';
+    final isPendingVerification = paymentStatus == 'pending_verification';
     final color = isPaid
         ? const Color(0xFF16A34A)
         : isDepositPaid
             ? const Color(0xFF0284C7)
-            : const Color(0xFFD97706);
+            : isPendingVerification
+                ? const Color(0xFF8B5CF6)
+                : const Color(0xFFD97706);
     final bgColor = isPaid
         ? const Color(0xFFF0FDF4)
         : isDepositPaid
             ? const Color(0xFFF0F9FF)
-            : const Color(0xFFFFFBEB);
+            : isPendingVerification
+                ? const Color(0xFFF5F3FF)
+                : const Color(0xFFFFFBEB);
     final label = isPaid
         ? 'PAID'
         : isDepositPaid
             ? (isAdvanceOrder ? 'FULL PAID' : 'DEPOSIT PAID')
-            : paymentStatus.toUpperCase();
+            : isPendingVerification
+                ? 'VERIFYING'
+                : paymentStatus.toUpperCase();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isPaid ? Icons.check_circle_rounded : Icons.pending_rounded,
-            size: 11,
+            isPaid
+                ? Icons.check_circle_rounded
+                : isDepositPaid
+                    ? Icons.savings_rounded
+                    : isPendingVerification
+                        ? Icons.sync_rounded
+                        : Icons.pending_rounded,
+            size: 11.5,
             color: color,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 4.5),
           Flexible(
             child: Text(
               label,
@@ -1299,7 +1711,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
                 color: color,
-                letterSpacing: 0.2,
+                letterSpacing: 0.3,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1314,60 +1726,73 @@ class _TransactionsPageState extends State<TransactionsPage> {
     Color color;
     Color bgColor;
     IconData icon;
+    String displayLabel = status.toUpperCase();
 
     switch (status.toLowerCase()) {
       case 'pending':
         color = const Color(0xFFD97706);
         bgColor = const Color(0xFFFFFBEB);
         icon = Icons.hourglass_top_rounded;
+        displayLabel = 'PENDING';
         break;
       case 'confirmed':
         color = const Color(0xFF16A34A);
         bgColor = const Color(0xFFF0FDF4);
         icon = Icons.check_circle_rounded;
+        displayLabel = 'CONFIRMED';
         break;
       case 'paid':
       case 'fully_paid':
         color = const Color(0xFF16A34A);
         bgColor = const Color(0xFFF0FDF4);
         icon = Icons.verified_rounded;
+        displayLabel = 'SETTLED';
         break;
       case 'cancelled':
         color = const Color(0xFFDC2626);
         bgColor = const Color(0xFFFEF2F2);
         icon = Icons.cancel_rounded;
+        displayLabel = 'CANCELLED';
         break;
       case 'no_show':
         color = const Color(0xFFEA580C);
         bgColor = const Color(0xFFFFF7ED);
         icon = Icons.person_off_rounded;
+        displayLabel = 'NO SHOW';
+        break;
+      case 'unpaid':
+        color = const Color(0xFFF59E0B);
+        bgColor = const Color(0xFFFFFBEB);
+        icon = Icons.schedule_rounded;
+        displayLabel = 'AWAITING PAYMENT';
         break;
       default:
         color = const Color(0xFF64748B);
         bgColor = const Color(0xFFF8FAFC);
-        icon = Icons.help_outline_rounded;
+        icon = Icons.info_outline_rounded;
+        displayLabel = status.toUpperCase();
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 11.5, color: color),
+          const SizedBox(width: 4.5),
           Flexible(
             child: Text(
-              status.toUpperCase(),
+              displayLabel,
               style: GoogleFonts.inter(
                 color: color,
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
+                letterSpacing: 0.3,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

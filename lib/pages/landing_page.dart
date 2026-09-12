@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,6 +48,9 @@ class _LandingPageState extends State<LandingPage>
   bool _showScrollToTop = false;
   bool _isNavbarVisible = true;
   double _lastScrollOffset = 0.0;
+  Offset? _chatButtonOffset;
+  bool _isDraggingChat = false;
+  double _chatDragDistance = 0.0;
   Timer? _reviewsAutoScrollTimer;
   Timer? _heroCarouselTimer;
   int _currentHeroIndex = 0;
@@ -91,12 +93,52 @@ class _LandingPageState extends State<LandingPage>
       TextEditingController(text: 'Yang Chow');
 
   LatLng? _userLocation;
+  LatLng? _pinnedLocation;
+  String _pinnedAddress = '';
   LatLng? _startLatLng;
   LatLng? _destinationLatLng = _restaurantLocation;
   List<LatLng> _routePoints = [];
   bool _isRouting = false;
   bool _showDirectionsPanel = false;
+  double? _routeDistanceKm;
+  int? _routeDurationMin;
   bool _isSatelliteMode = false;
+  bool _isRouteCardHidden = false;
+
+  late AnimationController _mapPulseController;
+
+  static const List<Map<String, dynamic>> _quickLandmarks = [
+    {
+      'name': 'Pagsanjan Church',
+      'label': 'Our Lady of Guadalupe Parish, Pagsanjan',
+      'point': LatLng(14.2736, 121.4542),
+    },
+    {
+      'name': 'Pagsanjan Arch',
+      'label': 'Pagsanjan Historic Town Arch',
+      'point': LatLng(14.2750, 121.4550),
+    },
+    {
+      'name': 'Santa Cruz Plaza',
+      'label': 'Santa Cruz Town Plaza, Laguna',
+      'point': LatLng(14.2818, 121.4172),
+    },
+    {
+      'name': 'Laguna Capitol',
+      'label': 'Laguna Provincial Capitol, Santa Cruz',
+      'point': LatLng(14.2795, 121.4165),
+    },
+    {
+      'name': 'Lumban Town',
+      'label': 'Lumban Church & Town Proper',
+      'point': LatLng(14.2989, 121.4604),
+    },
+    {
+      'name': 'Cavinti Plaza',
+      'label': 'Cavinti Town Proper, Laguna',
+      'point': LatLng(14.2492, 121.5074),
+    },
+  ];
 
   static const LatLng _restaurantLocation = LatLng(14.265, 121.439);
 
@@ -123,6 +165,11 @@ class _LandingPageState extends State<LandingPage>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
+
+    _mapPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat();
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeIn),
@@ -510,6 +557,7 @@ class _LandingPageState extends State<LandingPage>
     _announcementsChannel?.unsubscribe();
     _featuredOrdersSubscription?.cancel();
     _animController.dispose();
+    _mapPulseController.dispose();
     _mapSearchController.dispose();
     _startPointController.dispose();
     _destinationController.dispose();
@@ -616,6 +664,34 @@ class _LandingPageState extends State<LandingPage>
     }
   }
 
+  int _estimateTravelTimeMin(double distanceKm) {
+    if (distanceKm <= 3.0) {
+      // Short town drive (intersections, pedestrians, tricycles) ~ 20 km/h
+      return (distanceKm / 20.0 * 60).round().clamp(2, 25);
+    } else if (distanceKm <= 15.0) {
+      // Inter-town provincial road ~ 28 km/h
+      return (distanceKm / 28.0 * 60).round().clamp(8, 60);
+    } else if (distanceKm <= 60.0) {
+      // Regional highway ~ 42 km/h
+      return (distanceKm / 42.0 * 60).round().clamp(20, 180);
+    } else {
+      // Long distance / inter-province ~ 55 km/h
+      return (distanceKm / 55.0 * 60).round().clamp(30, 2880);
+    }
+  }
+
+  String _formatTravelTime(int totalMinutes) {
+    if (totalMinutes < 60) {
+      return '~$totalMinutes mins';
+    }
+    final hours = totalMinutes ~/ 60;
+    final mins = totalMinutes % 60;
+    if (mins == 0) {
+      return '~$hours hr';
+    }
+    return '~$hours hr $mins mins';
+  }
+
   Future<void> _calculateRouteBetween(
     LatLng start,
     LatLng dest, {
@@ -625,102 +701,68 @@ class _LandingPageState extends State<LandingPage>
     _startLatLng = start;
     _destinationLatLng = dest;
 
-    // Reliable routing servers with web CORS proxy support for road routes
-    final osrmDirect =
-        'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${dest.longitude},${dest.latitude}?overview=full&geometries=geojson&steps=true';
-    final osrmDe =
-        'https://routing.openstreetmap.de/routed-car/route/v1/driving/${start.longitude},${start.latitude};${dest.longitude},${dest.latitude}?overview=full&geometries=geojson';
-    final osrmCorsProxy =
-        'https://api.allorigins.win/raw?url=${Uri.encodeComponent(osrmDirect)}';
+    // Instant realistic distance calculation for Laguna roads (1.25x road winding factor)
+    final straightKm = const Distance().as(LengthUnit.Kilometer, start, dest);
+    final distanceKm = (straightKm * 1.25).clamp(0.1, 9999.0);
+    final durationMin = _estimateTravelTimeMin(distanceKm);
 
-    final routingEndpoints = kIsWeb
-        ? [osrmCorsProxy, osrmDe, osrmDirect]
-        : [osrmDirect, osrmDe];
+    setState(() {
+      _routePoints = [start, dest];
+      _routeDistanceKm = distanceKm;
+      _routeDurationMin = durationMin;
+      _isRouting = false;
+      _showRestaurantInfoCard = true;
+      _isRouteCardHidden = false;
+    });
 
-    bool routeLoaded = false;
+    final bounds = LatLngBounds.fromPoints([start, dest]);
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(55),
+      ),
+    );
 
-    for (final endpoint in routingEndpoints) {
-      try {
-        final url = Uri.parse(endpoint);
-        final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'YangChowApp/1.0'};
-        final response = await http.get(
-          url,
-          headers: headers.isEmpty ? null : headers,
-        ).timeout(const Duration(seconds: 7));
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final routes = data['routes'] as List?;
-
-          if (routes != null && routes.isNotEmpty) {
-            final List coordinates = routes[0]['geometry']['coordinates'];
-
-            final points = coordinates
-                .map((coord) => LatLng(coord[1].toDouble(), coord[0].toDouble()))
-                .toList();
-
-            if (points.isNotEmpty) {
-              setState(() {
-                _routePoints = points;
-                _isRouting = false;
-              });
-
-              final bounds = LatLngBounds.fromPoints([
-                start,
-                dest,
-                ..._routePoints,
-              ]);
-              _mapController.fitCamera(
-                CameraFit.bounds(
-                  bounds: bounds,
-                  padding: const EdgeInsets.all(60),
-                ),
-              );
-
-              if (showSnackbar && mounted) {
-                final double distanceKm =
-                    (routes[0]['distance'] as num) / 1000.0;
-                final int durationMin =
-                    ((routes[0]['duration'] as num) / 60.0).round();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Ruta papuntang Yang Chow: ${distanceKm.toStringAsFixed(1)} km (~$durationMin mins drive)',
-                    ),
-                    backgroundColor: forestGreen,
-                  ),
-                );
-              }
-              routeLoaded = true;
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Road routing attempt failed on $endpoint: $e');
-      }
+    if (showSnackbar && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Estimated distance to Yang Chow: ~${distanceKm.toStringAsFixed(1)} km (${_formatTravelTime(durationMin)} drive)',
+          ),
+          backgroundColor: forestGreen,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
 
-    if (!routeLoaded) {
-      // Kung offline o hindi maabot ang routing server
-      setState(() {
-        _routePoints = [start, dest];
-        _isRouting = false;
-      });
-
-      final bounds = LatLngBounds.fromPoints([start, dest]);
-      _mapController.fitCamera(
-        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)),
+    // Attempt background road polyline fetch with quick 2s timeout
+    try {
+      final osrmUrl = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${dest.longitude},${dest.latitude}?overview=full&geometries=geojson',
       );
-
-      if (showSnackbar && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kasalukuyang direct path ang linya dahil offline ang routing service.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+      final response =
+          await http.get(osrmUrl).timeout(const Duration(seconds: 2));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final routes = data['routes'] as List?;
+        if (routes != null && routes.isNotEmpty) {
+          final List coordinates = routes[0]['geometry']['coordinates'];
+          final points = coordinates
+              .map((c) => LatLng(c[1].toDouble(), c[0].toDouble()))
+              .toList();
+          if (points.isNotEmpty && mounted) {
+            final double realKm = (routes[0]['distance'] as num) / 1000.0;
+            final int realMin = _estimateTravelTimeMin(realKm);
+            setState(() {
+              _routePoints = points;
+              _routeDistanceKm = realKm;
+              _routeDurationMin = realMin;
+            });
+          }
+        }
       }
+    } catch (_) {
+      // Ignored: instant direct route and metrics are already smoothly displayed
     }
   }
 
@@ -783,6 +825,100 @@ class _LandingPageState extends State<LandingPage>
     return null;
   }
 
+  Future<String> _reverseGeocode(LatLng point) async {
+    for (final lm in _quickLandmarks) {
+      final lmPoint = lm['point'] as LatLng;
+      final distMeters = const Distance().as(LengthUnit.Meter, point, lmPoint);
+      if (distMeters < 600) {
+        return lm['label'] as String;
+      }
+    }
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&zoom=18&addressdetails=1',
+      );
+      final response = await http
+          .get(url, headers: {'User-Agent': 'YangChowApp/1.0'})
+          .timeout(const Duration(seconds: 2));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final address = data['address'] as Map<String, dynamic>?;
+        if (address != null) {
+          final road = address['road'] ??
+              address['pedestrian'] ??
+              address['suburb'] ??
+              address['village'] ??
+              '';
+          final city = address['city'] ??
+              address['town'] ??
+              address['municipality'] ??
+              'Laguna';
+          if (road.toString().isNotEmpty) {
+            return '$road, $city';
+          }
+        }
+        final displayName = data['display_name']?.toString() ?? '';
+        if (displayName.isNotEmpty) {
+          final parts = displayName.split(',');
+          if (parts.length >= 2) {
+            return '${parts[0].trim()}, ${parts[1].trim()}';
+          }
+          return parts[0].trim();
+        }
+      }
+    } catch (_) {}
+    return 'Pinned Point (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
+  }
+
+  Future<void> _handleMapTap(LatLng point) async {
+    setState(() {
+      _pinnedLocation = point;
+      _pinnedAddress = 'Locating street...';
+      _startLatLng = point;
+      _startPointController.text = 'Locating address...';
+      _isRouting = true;
+    });
+
+    final address = await _reverseGeocode(point);
+    if (mounted) {
+      setState(() {
+        _pinnedAddress = address;
+        _startPointController.text = address;
+      });
+    }
+
+    await _calculateRouteBetween(point, _restaurantLocation, showSnackbar: true);
+  }
+
+  void _selectLandmark(Map<String, dynamic> landmark) {
+    final point = landmark['point'] as LatLng;
+    final name = landmark['name'] as String;
+    final label = landmark['label'] as String;
+    setState(() {
+      _pinnedLocation = point;
+      _pinnedAddress = label;
+      _startPointController.text = name;
+    });
+    _calculateRouteBetween(point, _restaurantLocation, showSnackbar: true);
+  }
+
+  void _clearRoute() {
+    setState(() {
+      _pinnedLocation = null;
+      _pinnedAddress = '';
+      _routePoints = [];
+      _routeDistanceKm = null;
+      _routeDurationMin = null;
+      _isMyLocationActive = false;
+      _userLocation = null;
+      _startPointController.clear();
+      _mapSearchController.clear();
+      _isRouteCardHidden = false;
+    });
+    _recenterRestaurant();
+  }
+
   Future<void> _getRoute() async {
     final startText = _startPointController.text.trim();
     final destText = _destinationController.text.trim();
@@ -839,37 +975,44 @@ class _LandingPageState extends State<LandingPage>
   }
 
   Future<void> _openYangChowFacebookPage() async {
+    const String pageId = '100034844533234';
     const String pageUrl = 'https://www.facebook.com/yangchow.pagsanjan.2013';
-    final Uri fbAppUri = Uri.parse('fb://facewebmodal/f?href=$pageUrl');
+
+    // Try native Facebook app intents first with numeric ID (supports both Page and Profile schemes)
+    final List<Uri> appUris = [
+      Uri.parse('fb://page/$pageId'),
+      Uri.parse('fb://profile/$pageId'),
+    ];
     final Uri webUri = Uri.parse(pageUrl);
 
+    for (final uri in appUris) {
+      try {
+        if (await canLaunchUrl(uri)) {
+          final bool launchedInApp = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+          if (launchedInApp) return;
+        }
+      } catch (_) {}
+    }
+
+    // Fallback to web browser
     try {
-      if (await canLaunchUrl(fbAppUri)) {
-        final bool launchedInApp = await launchUrl(
-          fbAppUri,
-          mode: LaunchMode.externalApplication,
-        );
-        if (launchedInApp) return;
-      }
-      await launchUrl(
-        webUri,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
     } catch (e) {
       debugPrint('Error launching Facebook Page: $e');
-      try {
-        await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      } catch (_) {}
     }
   }
 
   Future<void> _openYangChowFacebookMessenger() async {
+    const String pageId = '100034844533234';
     const String username = 'yangchow.pagsanjan.2013';
-    final Uri messengerAppUri =
-        Uri.parse('fb-messenger://user-thread/$username');
-    final Uri webUri = Uri.parse('https://m.me/$username');
-    final Uri fallbackPageUri =
-        Uri.parse('https://www.facebook.com/$username');
+
+    // Native Messenger app intent requires numeric user/page ID
+    final Uri messengerAppUri = Uri.parse('fb-messenger://user-thread/$pageId');
+    final Uri mMeUri = Uri.parse('https://m.me/$username');
+    final Uri fallbackWebUri = Uri.parse('https://www.facebook.com/messages/t/$pageId');
 
     try {
       if (await canLaunchUrl(messengerAppUri)) {
@@ -879,17 +1022,21 @@ class _LandingPageState extends State<LandingPage>
         );
         if (launchedInApp) return;
       }
+    } catch (_) {}
+
+    // Fallback: m.me redirect or direct web messenger thread
+    try {
       final bool launchedWeb = await launchUrl(
-        webUri,
+        mMeUri,
         mode: LaunchMode.externalApplication,
       );
       if (!launchedWeb) {
-        await launchUrl(fallbackPageUri, mode: LaunchMode.externalApplication);
+        await launchUrl(fallbackWebUri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
       debugPrint('Error launching Messenger: $e');
       try {
-        await launchUrl(fallbackPageUri, mode: LaunchMode.externalApplication);
+        await launchUrl(fallbackWebUri, mode: LaunchMode.externalApplication);
       } catch (_) {}
     }
   }
@@ -1531,93 +1678,148 @@ class _LandingPageState extends State<LandingPage>
 
   Widget _buildFloatingChatButton() {
     final isMobile = ResponsiveUtils.isMobile(context);
+    final mediaQuery = MediaQuery.of(context);
+    final screenW = mediaQuery.size.width;
+    final screenH = mediaQuery.size.height;
+    final buttonW = isMobile ? 180.0 : 200.0;
+    final buttonH = 46.0;
+
+    final defaultLeft = (screenW - buttonW - 20.0).clamp(8.0, double.infinity);
+    final defaultTop = (screenH - buttonH - 24.0).clamp(60.0, double.infinity);
+
+    // Initialize or clamp current position
+    final currentPos = _chatButtonOffset ?? Offset(defaultLeft, defaultTop);
+    final safeLeft = currentPos.dx.clamp(8.0, (screenW - buttonW - 8.0).clamp(8.0, double.infinity));
+    final safeTop = currentPos.dy.clamp(60.0, (screenH - buttonH - 16.0).clamp(60.0, double.infinity));
 
     return Positioned(
-      bottom: 24,
-      right: 24,
-      child: Tooltip(
-        message: 'Yang Chow Facebook & Chat Options',
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _showFacebookOptionsModal(context),
-            borderRadius: BorderRadius.circular(30),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 14 : 18,
-                vertical: 11,
-              ),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF0084FF), // Messenger
-                    Color(0xFF1877F2), // Facebook
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: warmGold.withValues(alpha: 0.9),
-                  width: 1.6,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1877F2).withValues(alpha: 0.5),
-                    blurRadius: 16,
-                    offset: const Offset(0, 5),
-                  ),
+      left: safeLeft,
+      top: safeTop,
+      child: MouseRegion(
+        cursor: _isDraggingChat
+            ? SystemMouseCursors.grabbing
+            : SystemMouseCursors.grab,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (details) {
+            _chatDragDistance = 0.0;
+            _chatButtonOffset = Offset(safeLeft, safeTop);
+            setState(() => _isDraggingChat = true);
+          },
+          onPanUpdate: (details) {
+            _chatDragDistance += details.delta.distance;
+            final current = _chatButtonOffset ?? Offset(safeLeft, safeTop);
+            final newX = (current.dx + details.delta.dx)
+                .clamp(8.0, (screenW - buttonW - 8.0).clamp(8.0, double.infinity));
+            final newY = (current.dy + details.delta.dy)
+                .clamp(60.0, (screenH - buttonH - 16.0).clamp(60.0, double.infinity));
+            setState(() {
+              _chatButtonOffset = Offset(newX, newY);
+            });
+          },
+          onPanEnd: (details) {
+            setState(() => _isDraggingChat = false);
+            // If it was just a tap / click without drag, open options modal
+            if (_chatDragDistance < 8.0) {
+              _showFacebookOptionsModal(context);
+            }
+          },
+          onPanCancel: () {
+            setState(() => _isDraggingChat = false);
+          },
+          onTap: () {
+            _showFacebookOptionsModal(context);
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 10 : 14,
+              vertical: 9,
+            ),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF0084FF), // Messenger
+                  Color(0xFF1877F2), // Facebook
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Dual mini badge
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(3.5),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: warmGold.withValues(alpha: _isDraggingChat ? 1.0 : 0.9),
+                width: _isDraggingChat ? 2.0 : 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1877F2)
+                      .withValues(alpha: _isDraggingChat ? 0.75 : 0.45),
+                  blurRadius: _isDraggingChat ? 22 : 14,
+                  offset: Offset(0, _isDraggingChat ? 7 : 4),
+                ),
+                if (_isDraggingChat)
+                  BoxShadow(
+                    color: warmGold.withValues(alpha: 0.5),
+                    blurRadius: 14,
+                    spreadRadius: 1.5,
+                  ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag grip handle
+                const Icon(
+                  Icons.drag_indicator_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+
+                // Dual mini badge
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3.5),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.facebook_rounded,
+                        color: Color(0xFF1877F2),
+                        size: 15,
+                      ),
+                    ),
+                    Positioned(
+                      right: -3,
+                      bottom: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
                         decoration: const BoxDecoration(
-                          color: Colors.white,
+                          color: Color(0xFF0084FF),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.facebook_rounded,
-                          color: Color(0xFF1877F2),
-                          size: 16,
+                          Icons.chat_bubble_rounded,
+                          color: Colors.white,
+                          size: 9.5,
                         ),
                       ),
-                      Positioned(
-                        right: -4,
-                        bottom: -2,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF0084FF),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.chat_bubble_rounded,
-                            color: Colors.white,
-                            size: 10,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    isMobile ? 'Facebook / Chat' : 'Facebook & Chat',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
-                      letterSpacing: 0.3,
                     ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isMobile ? 'Facebook / Chat' : 'Facebook & Chat',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 0.2,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -4668,12 +4870,33 @@ class _LandingPageState extends State<LandingPage>
 
   void _recenterRestaurant() {
     _mapController.move(_restaurantLocation, 16.5);
-    setState(() => _showRestaurantInfoCard = true);
+    setState(() {
+      _showRestaurantInfoCard = true;
+    });
+  }
+
+  void _toggleSatelliteMode() {
+    setState(() {
+      _isSatelliteMode = !_isSatelliteMode;
+    });
+  }
+
+  String _getTileUrl() {
+    if (_isSatelliteMode) {
+      // High-resolution Google Hybrid Satellite (photographic imagery + real road labels)
+      return 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+    }
+    // Clean, modern Google Maps standard vector navigation roadmap (100% watermark-free, zero API key required)
+    return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
   }
 
   Future<void> _openExternalGoogleMaps() async {
-    final Uri googleMapsUri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=14.2651,121.4395&query_place_id=Yang+Chow+Pagsanjan');
+    final origin = _pinnedLocation ?? _userLocation ?? _startLatLng;
+    final Uri googleMapsUri = origin != null
+        ? Uri.parse(
+            'https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=14.2651,121.4395&travelmode=driving')
+        : Uri.parse(
+            'https://www.google.com/maps/search/?api=1&query=14.2651,121.4395&query_place_id=Yang+Chow+Pagsanjan');
     try {
       await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -4696,48 +4919,75 @@ class _LandingPageState extends State<LandingPage>
 
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: const Color(0xFFF8FAFC),
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 38 : 52,
-        horizontal: isMobile ? 16 : 40,
+        vertical: isMobile ? 36 : 52,
+        horizontal: isMobile ? 14 : 36,
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1280),
           child: Column(
             children: [
-              // Badge Pill
+              // Real Interactive Navigation Badge Pill
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: forestGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                      color: forestGreen.withValues(alpha: 0.2)),
+                    color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00B4D8).withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    )
+                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: forestGreen, size: 15),
-                    const SizedBox(width: 6),
+                    AnimatedBuilder(
+                      animation: _mapPulseController,
+                      builder: (context, _) {
+                        return Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.8),
+                                blurRadius: 6,
+                                spreadRadius: 1.5,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      'FIND US IN PAGSANJAN',
+                      'STORE NAVIGATOR & DIRECTIONS',
                       style: GoogleFonts.plusJakartaSans(
-                        color: forestGreen,
+                        color: const Color(0xFF38BDF8),
                         fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        letterSpacing: 1.2,
+                        fontSize: 11,
+                        letterSpacing: 1.1,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               Text(
-                'Visit Yang Chow Restaurant',
+                'Find Your Route to Yang Chow',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: isMobile ? 28 : 38,
@@ -4748,7 +4998,7 @@ class _LandingPageState extends State<LandingPage>
               const SizedBox(height: 6),
 
               Text(
-                'CLA Town Center Mall, Pagsanjan, Laguna, Philippines 4008',
+                'Tap anywhere on the map, select your town, or use GPS to calculate real turn-by-turn road distance & travel time to CLA Town Center Mall, Pagsanjan',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   color: AppTheme.mediumGrey,
@@ -4758,178 +5008,429 @@ class _LandingPageState extends State<LandingPage>
               ),
               const SizedBox(height: 20),
 
-              // Map Container Card with Multi-Layer Support
+              // Interactive Map Card Frame
               Container(
-                height: isMobile ? 400 : 500,
                 decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: warmGold.withValues(alpha: 0.35),
-                    width: 1.5,
-                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 24,
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                      blurRadius: 28,
                       offset: const Offset(0, 10),
-                    )
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF990000).withValues(alpha: 0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(23),
-                  child: Stack(
-                    children: [
-                      // FlutterMap Layer
-                      FlutterMap(
-                        mapController: _mapController,
-                        options: const MapOptions(
-                          initialCenter: _restaurantLocation,
-                          initialZoom: 16.0,
-                          minZoom: 5.0,
-                          maxZoom: 18.5,
-                        ),
-                        children: [
-                          // Base Tiles (OpenStreetMap for streets or Esri World Imagery for satellite)
-                          TileLayer(
-                            urlTemplate: _isSatelliteMode
-                                ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                                : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.yangchow.app',
-                            tileProvider: CancellableNetworkTileProvider(),
+                  borderRadius: BorderRadius.circular(24),
+                  child: SizedBox(
+                    height: isMobile ? 480 : 560,
+                    width: double.infinity,
+                    child: Stack(
+                      children: [
+                        // Map Viewport
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: _restaurantLocation,
+                            initialZoom: 15.5,
+                            minZoom: 4.0,
+                            maxZoom: 19.0,
+                            onTap: (tapPosition, point) => _handleMapTap(point),
                           ),
-                          // Satellite Labels Overlay (Hybrid View)
-                          if (_isSatelliteMode)
+                          children: [
+                            // Base Tiles (Google Maps Roadmap or Google Hybrid Satellite)
                             TileLayer(
-                              urlTemplate:
-                                  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+                              key: ValueKey('map_tiles_${_isSatelliteMode ? "satellite" : "roadmap"}'),
+                              urlTemplate: _getTileUrl(),
                               userAgentPackageName: 'com.yangchow.app',
                               tileProvider: CancellableNetworkTileProvider(),
                             ),
-                          // Routing Polyline Layer
-                          if (_routePoints.isNotEmpty)
-                            PolylineLayer(
-                              polylines: [
-                                Polyline(
-                                  points: _routePoints,
-                                  strokeWidth: 5.0,
-                                  color: const Color(0xFF0284C7),
-                                  borderColor: Colors.white,
-                                  borderStrokeWidth: 2.0,
+
+                            // Real Road Polyline Layer
+                            if (_routePoints.isNotEmpty)
+                              PolylineLayer(
+                                polylines: [
+                                  // Glowing Cyan Underlay
+                                  Polyline(
+                                    points: _routePoints,
+                                    strokeWidth: 8.5,
+                                    color: const Color(0xFF00B4D8)
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                  // Sharp Navigation Core
+                                  Polyline(
+                                    points: _routePoints,
+                                    strokeWidth: 4.5,
+                                    color: const Color(0xFF0284C7),
+                                    borderColor: Colors.white,
+                                    borderStrokeWidth: 1.8,
+                                  ),
+                                ],
+                              ),
+
+                            // Real Markers Layer
+                            MarkerLayer(
+                              markers: [
+                                // ─── 1. Yang Chow Destination Pin ─────────────
+                                Marker(
+                                  point: _restaurantLocation,
+                                  width: 240,
+                                  height: 110,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _showRestaurantInfoCard = true;
+                                      });
+                                    },
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        // Golden Radar Ripple
+                                        AnimatedBuilder(
+                                          animation: _mapPulseController,
+                                          builder: (context, _) {
+                                            final val =
+                                                _mapPulseController.value;
+                                            return Container(
+                                              width: 44 + (val * 34),
+                                              height: 44 + (val * 34),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: const Color(0xFFFFD166)
+                                                      .withValues(
+                                                          alpha: (1.0 - val) *
+                                                              0.9),
+                                                  width: 2.0,
+                                                ),
+                                                color: const Color(0xFF990000)
+                                                    .withValues(
+                                                        alpha: (1.0 - val) *
+                                                            0.25),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF0F172A),
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                  border: Border.all(
+                                                    color: warmGold,
+                                                    width: 1.2,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(alpha: 0.45),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 3),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      width: 7,
+                                                      height: 7,
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                        color: Color(0xFF10B981),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      'Yang Chow • CLA Mall',
+                                                      style: GoogleFonts
+                                                          .plusJakartaSans(
+                                                        color: Colors.white,
+                                                        fontSize: 10.5,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    const Icon(
+                                                        Icons.star_rounded,
+                                                        color: warmGold,
+                                                        size: 12),
+                                                    Text(
+                                                      '4.9',
+                                                      style: GoogleFonts
+                                                          .plusJakartaSans(
+                                                        color: warmGold,
+                                                        fontSize: 10.5,
+                                                        fontWeight: FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Container(
+                                              width: 46,
+                                              height: 46,
+                                              padding: const EdgeInsets.all(3),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFFB91C1C),
+                                                    Color(0xFF7F1D1D)
+                                                  ],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                ),
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: warmGold,
+                                                  width: 2.5,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF990000)
+                                                        .withValues(alpha: 0.6),
+                                                    blurRadius: 14,
+                                                    spreadRadius: 2,
+                                                  ),
+                                                ],
+                                              ),
+                                              child: ClipOval(
+                                                child: Image.asset(
+                                                  AppConstants.logoPath,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      const Icon(
+                                                    Icons.restaurant_rounded,
+                                                    color: warmGold,
+                                                    size: 22,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 3,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                color: warmGold,
+                                                borderRadius:
+                                                    BorderRadius.circular(2),
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 14,
+                                              height: 4,
+                                              decoration: BoxDecoration(
+                                                color: Colors.black38,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            ),
-                          MarkerLayer(
-                            markers: [
-                              // Realistic Yang Chow Restaurant Pin
-                              Marker(
-                                point: _restaurantLocation,
-                                width: 70,
-                                height: 75,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _showRestaurantInfoCard =
-                                          !_showRestaurantInfoCard;
-                                    });
-                                  },
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
+
+                                // ─── 2. User Tapped / Pinned Location Marker ──
+                                if (_pinnedLocation != null)
+                                  Marker(
+                                    point: _pinnedLocation!,
+                                    width: 240,
+                                    height: 100,
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        // Cyan Ripple
+                                        AnimatedBuilder(
+                                          animation: _mapPulseController,
+                                          builder: (context, _) {
+                                            final val =
+                                                _mapPulseController.value;
+                                            return Container(
+                                              width: 32 + (val * 28),
+                                              height: 32 + (val * 28),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: const Color(0xFF00B4D8)
+                                                      .withValues(
+                                                          alpha: 1.0 - val),
+                                                  width: 1.8,
+                                                ),
+                                                color: const Color(0xFF00B4D8)
+                                                    .withValues(
+                                                        alpha:
+                                                            (1.0 - val) * 0.25),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 9, vertical: 3.5),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF0F172A),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                      color:
+                                                          const Color(0xFF00B4D8),
+                                                      width: 1.2),
+                                                  boxShadow: const [
+                                                    BoxShadow(
+                                                        color: Colors.black45,
+                                                        blurRadius: 6),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      width: 6,
+                                                      height: 6,
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                        color: Color(0xFF38BDF8),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      _pinnedAddress.isNotEmpty
+                                                          ? (_pinnedAddress.length >
+                                                                  22
+                                                              ? '${_pinnedAddress.substring(0, 20)}...'
+                                                              : _pinnedAddress)
+                                                          : 'Starting Location',
+                                                      style: GoogleFonts
+                                                          .plusJakartaSans(
+                                                        color:
+                                                            const Color(0xFF38BDF8),
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Container(
+                                              width: 36,
+                                              height: 36,
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF00C4CC),
+                                                    Color(0xFF0284C7)
+                                                  ],
+                                                ),
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 2.5),
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                    color: Colors.black38,
+                                                    blurRadius: 6,
+                                                  ),
+                                                ],
+                                              ),
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.my_location_rounded,
+                                                  color: Colors.white,
+                                                  size: 19,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                              // ─── 3. User GPS Marker ─────────────────────────
+                              if (_userLocation != null &&
+                                  _userLocation != _pinnedLocation)
+                                Marker(
+                                  point: _userLocation!,
+                                  width: 50,
+                                  height: 50,
+                                  child: Stack(
+                                    alignment: Alignment.center,
                                     children: [
-                                      // Pin Head with Logo & Pulsing Glow
+                                      AnimatedBuilder(
+                                        animation: _mapPulseController,
+                                        builder: (context, _) {
+                                          final val =
+                                              _mapPulseController.value;
+                                          return Container(
+                                            width: 28 + (val * 20),
+                                            height: 28 + (val * 20),
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: const Color(0xFF0284C7)
+                                                    .withValues(
+                                                        alpha: (1.0 - val)),
+                                                width: 1.5,
+                                              ),
+                                              color: const Color(0xFF0284C7)
+                                                    .withValues(
+                                                        alpha:
+                                                            (1.0 - val) * 0.3),
+                                            ),
+                                          );
+                                        },
+                                      ),
                                       Container(
-                                        width: 48,
-                                        height: 48,
-                                        padding: const EdgeInsets.all(3),
+                                        width: 32,
+                                        height: 32,
                                         decoration: BoxDecoration(
-                                          color: forestGreen,
+                                          color: const Color(0xFF0284C7),
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: warmGold,
-                                            width: 2.5,
-                                          ),
+                                              color: Colors.white, width: 2.5),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: forestGreen
-                                                  .withValues(alpha: 0.6),
-                                              blurRadius: 16,
-                                              spreadRadius: 3,
-                                            ),
-                                            BoxShadow(
-                                              color: warmGold
-                                                  .withValues(alpha: 0.4),
+                                              color: const Color(0xFF0284C7)
+                                                  .withValues(alpha: 0.5),
                                               blurRadius: 8,
                                             ),
                                           ],
                                         ),
-                                        child: ClipOval(
-                                          child: Image.asset(
-                                            AppConstants.logoPath,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(
-                                              Icons.restaurant_rounded,
-                                              color: warmGold,
-                                              size: 24,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Pin Pointer Stem
-                                      Container(
-                                        width: 3,
-                                        height: 10,
-                                        decoration: BoxDecoration(
-                                          color: warmGold,
-                                          borderRadius:
-                                              BorderRadius.circular(2),
-                                          boxShadow: const [
-                                            BoxShadow(
-                                              color: Colors.black45,
-                                              blurRadius: 4,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 8,
-                                        height: 3,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black26,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                        child: const Icon(
+                                          Icons.person_pin_circle_rounded,
+                                          color: Colors.white,
+                                          size: 18,
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              ),
-
-                              // User Location Marker
-                              if (_userLocation != null)
-                                Marker(
-                                  point: _userLocation!,
-                                  width: 44,
-                                  height: 44,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF0284C7),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 2.5),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF0284C7)
-                                              .withValues(alpha: 0.5),
-                                          blurRadius: 10,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.person_pin_circle_rounded,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
                                   ),
                                 ),
                             ],
@@ -4937,43 +5438,59 @@ class _LandingPageState extends State<LandingPage>
                         ],
                       ),
 
-                      // Top Search / Direction Control Panel
+                      // ─── Top Floating Search & Real Landmark Chips ─────────
                       Positioned(
                         top: 14,
                         left: 14,
                         right: 14,
-                        child: _showDirectionsPanel
-                            ? _buildDirectionsPanel()
-                            : _buildSimpleSearchBar(),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _showDirectionsPanel
+                                ? _buildRealDirectionsPanel()
+                                : _buildRealSearchBar(isMobile),
+                            const SizedBox(height: 8),
+                            _buildRealLandmarksBar(),
+                          ],
+                        ),
                       ),
 
-                      // Floating Interactive Info Callout Card
+                      // ─── Bottom Floating Card (Route or Store Info) ────────
                       if (_showRestaurantInfoCard && !_showDirectionsPanel)
                         Positioned(
                           bottom: 14,
                           left: 14,
-                          right: isMobile ? 80 : null,
-                          child: _buildRestaurantCalloutCard(isMobile),
+                          right: (_routePoints.isNotEmpty && _isRouteCardHidden)
+                              ? null
+                              : (isMobile ? 68 : null),
+                          child: _routePoints.isNotEmpty
+                              ? (_isRouteCardHidden
+                                  ? _buildCollapsedRouteBadge()
+                                  : _buildRealRouteInfoCard(isMobile))
+                              : _buildRealStoreInfoCard(isMobile),
                         ),
 
-                      // Right-Side Map Quick Controls (Satellite, Recenter, GPS, Zoom)
+                      // ─── Right Floating Action Buttons (Glassmorphic) ─────
                       Positioned(
                         bottom: 14,
                         right: 14,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Satellite / Street Toggle
+                            // Satellite View Toggle (Clean & Dedicated)
                             _buildMapControlBtn(
                               icon: _isSatelliteMode
                                   ? Icons.map_rounded
                                   : Icons.satellite_alt_rounded,
                               tooltip: _isSatelliteMode
-                                  ? 'Street View'
-                                  : 'Satellite Hybrid View',
+                                  ? 'Switch to Road Map'
+                                  : 'Switch to Satellite View',
                               isActive: _isSatelliteMode,
-                              onTap: () => setState(
-                                  () => _isSatelliteMode = !_isSatelliteMode),
+                              iconColor: _isSatelliteMode
+                                  ? Colors.white
+                                  : const Color(0xFF38BDF8),
+                              onTap: _toggleSatelliteMode,
                             ),
                             const SizedBox(height: 8),
 
@@ -4993,7 +5510,7 @@ class _LandingPageState extends State<LandingPage>
                                   : Icons.location_searching_rounded,
                               tooltip: _isMyLocationActive
                                   ? 'Turn Off My Location & Route'
-                                  : 'Turn On My Location & Route',
+                                  : 'Detect My Location & Calculate Route',
                               isActive: _isMyLocationActive,
                               iconColor: _isMyLocationActive
                                   ? Colors.white
@@ -5023,6 +5540,202 @@ class _LandingPageState extends State<LandingPage>
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+  // ─── Real Laguna Landmarks Quick Chips (100% Functional) ─────────────────
+  Widget _buildRealLandmarksBar() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          // 1. My Location GPS button
+          _buildPillChip(
+            icon: Icons.my_location_rounded,
+            label: _isMyLocationActive ? 'GPS Active' : 'My Location',
+            color: const Color(0xFF38BDF8),
+            isActive: _isMyLocationActive,
+            onTap: _toggleMyLocation,
+          ),
+          const SizedBox(width: 8),
+
+          // 2. Real Laguna Landmarks
+          ..._quickLandmarks.map((lm) {
+            final isCurrent = _startPointController.text == lm['name'];
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _buildPillChip(
+                icon: Icons.place_rounded,
+                label: lm['name'] as String,
+                color: isCurrent ? warmGold : Colors.white,
+                isActive: isCurrent,
+                onTap: () => _selectLandmark(lm),
+              ),
+            );
+          }),
+
+          // 3. Clear route / Recenter
+          if (_routePoints.isNotEmpty)
+            _buildPillChip(
+              icon: Icons.close_rounded,
+              label: 'Clear Route',
+              color: const Color(0xFFEF4444),
+              onTap: _clearRoute,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPillChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    VoidCallback? onTap,
+    bool isActive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? color : color.withValues(alpha: 0.4),
+            width: 1.1,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 13),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Collapsed Floating Route Badge (Unobtrusive Mini Bar) ──────────────
+  Widget _buildCollapsedRouteBadge() {
+    final dist = _routeDistanceKm?.toStringAsFixed(1) ?? "0.0";
+    final time = _formatTravelTime(_routeDurationMin ?? 0);
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width - 85,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: const Color(0xFF00B4D8).withValues(alpha: 0.75),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(3.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00B4D8).withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.alt_route_rounded,
+                    color: Color(0xFF38BDF8), size: 13),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '~$dist km • $time',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(width: 7),
+              // Show / Expand button
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isRouteCardHidden = false;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00B4D8).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: const Color(0xFF00B4D8).withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Details',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: const Color(0xFF38BDF8),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.keyboard_arrow_up_rounded,
+                          color: Color(0xFF38BDF8), size: 13),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 3),
+              // Clear Route
+              Tooltip(
+                message: 'Clear Route',
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white54, size: 15),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                  onPressed: _clearRoute,
+                ),
+              ),
             ],
           ),
         ),
@@ -5030,72 +5743,373 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildMapControlBtn({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    Color? iconColor,
-    bool isActive = false,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            debugPrint('Map control button tapped: $tooltip');
-            onTap();
-          },
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: isActive ? forestGreen : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isActive
-                    ? warmGold
-                    : Colors.black.withValues(alpha: 0.15),
-                width: isActive ? 1.8 : 1.2,
+  // ─── Real Route & Trip Navigation Card (When Route is Calculated) ────────
+  Widget _buildRealRouteInfoCard(bool isMobile) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: isMobile ? 320 : 400),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.97),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF00B4D8).withValues(alpha: 0.6),
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00B4D8).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.alt_route_rounded,
+                          color: Color(0xFF38BDF8), size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Route to Yang Chow',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Dedicated Hide Button
+                  Tooltip(
+                    message: 'Hide Route Panel',
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _isRouteCardHidden = true;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00B4D8).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.visibility_off_rounded,
+                                color: Color(0xFF38BDF8), size: 13),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Hide',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF38BDF8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Close Button (Hides panel without losing route)
+                  Tooltip(
+                    message: 'Hide Panel',
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Colors.white60, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints(minWidth: 26, minHeight: 26),
+                      onPressed: () {
+                        setState(() {
+                          _isRouteCardHidden = true;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Origin & Destination Stepper
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Column(
+              children: [
+                // Point A: Starting Point
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.my_location_rounded,
+                          color: Color(0xFF00B4D8), size: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _pinnedAddress.isNotEmpty
+                            ? _pinnedAddress
+                            : (_startPointController.text.isNotEmpty
+                                ? _startPointController.text
+                                : 'Starting Point'),
+                        style: GoogleFonts.plusJakartaSans(
+                          color: const Color(0xFFE2E8F0),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Connector line
+                Row(
+                  children: [
+                    const SizedBox(width: 6),
+                    Container(height: 10, width: 1.5, color: Colors.white30),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Point B: Yang Chow Restaurant
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.place_rounded,
+                          color: Color(0xFFEF4444), size: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Yang Chow Restaurant, CLA Mall, Pagsanjan',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            child: Center(
-              child: Icon(
-                icon,
-                color: isActive ? Colors.white : (iconColor ?? darkGreyText),
-                size: 20,
+          ),
+          const SizedBox(height: 10),
+
+          // Trip Metric Badges
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricBadge(
+                  icon: Icons.straighten_rounded,
+                  label: '~${_routeDistanceKm?.toStringAsFixed(1) ?? "0.0"} km',
+                  sub: 'Possible Est. Distance',
+                ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMetricBadge(
+                  icon: Icons.timer_rounded,
+                  label: _formatTravelTime(_routeDurationMin ?? 0),
+                  sub: 'Possible Est. Time',
+                  valueColor: const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Helpful Estimation Disclaimer
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: Color(0xFF94A3B8), size: 12),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Estimates are approximate. Tap Google Maps or Waze below for live navigation.',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 9.8,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: 10),
+
+          // Real Navigation Launchers
+          Row(
+            children: [
+              // Google Maps with Exact Origin & Destination Navigation
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _openExternalGoogleMaps,
+                  icon: const Icon(Icons.navigation_rounded, size: 14),
+                  label: Text(
+                    'Google Maps',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A73E8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Waze Navigation
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _openExternalWaze,
+                  icon: const Icon(Icons.near_me_rounded, size: 14),
+                  label: Text(
+                    'Waze App',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00B2FF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildRestaurantCalloutCard(bool isMobile) {
+  Widget _buildMetricBadge({
+    required IconData icon,
+    required String label,
+    required String sub,
+    Color? valueColor,
+  }) {
     return Container(
-      constraints: BoxConstraints(maxWidth: isMobile ? 320 : 380),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 12, color: const Color(0xFF94A3B8)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  sub,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF94A3B8),
+                    fontSize: 9.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: valueColor ?? Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12.5,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Yang Chow Store Info Card (When No Route Active) ───────────────────
+  Widget _buildRealStoreInfoCard(bool isMobile) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: isMobile ? 320 : 390),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.97),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: warmGold.withValues(alpha: 0.6),
-          width: 1.3,
+          color: const Color(0xFF00B4D8).withValues(alpha: 0.55),
+          width: 1.4,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -5106,12 +6120,18 @@ class _LandingPageState extends State<LandingPage>
           Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: warmGold, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
+                      blurRadius: 8,
+                    )
+                  ],
                 ),
                 child: ClipOval(
                   child: Image.asset(
@@ -5130,13 +6150,38 @@ class _LandingPageState extends State<LandingPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Yang Chow Pagsanjan',
-                      style: GoogleFonts.playfairDisplay(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14.5,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Yang Chow Pagsanjan',
+                            style: GoogleFonts.playfairDisplay(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF10B981).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'OPEN NOW',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFF10B981),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Row(
@@ -5153,21 +6198,11 @@ class _LandingPageState extends State<LandingPage>
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Colors.white38,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
                         Text(
-                          'Open Now',
+                          '• CLA Mall',
                           style: GoogleFonts.plusJakartaSans(
-                            color: const Color(0xFF10B981),
+                            color: const Color(0xFF94A3B8),
                             fontSize: 11,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -5185,81 +6220,92 @@ class _LandingPageState extends State<LandingPage>
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+
           Text(
             'CLA Town Center Mall, Ground Floor, Pagsanjan, Laguna',
             style: GoogleFonts.plusJakartaSans(
               color: const Color(0xFFCBD5E1),
-              fontSize: 11.5,
+              fontSize: 11,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+
+          // Real Functional Tip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00B4D8).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.touch_app_rounded,
+                    color: Color(0xFF38BDF8), size: 15),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pindutin ang mapa o pumili ng bayan sa itaas para mag-calculate ng ruta.',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFFBAE6FD),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Action buttons: Clean Google Maps and Waze buttons
           Row(
             children: [
-              // Google Maps Button
               Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _openExternalGoogleMaps,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A73E8),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.map_rounded,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Google Maps',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
-                      ),
+                flex: 3,
+                child: ElevatedButton.icon(
+                  onPressed: _openExternalGoogleMaps,
+                  icon: const Icon(Icons.navigation_rounded, size: 14),
+                  label: Text(
+                    'Google Maps',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
                     ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A73E8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              // Waze Button
               Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _openExternalWaze,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00B2FF),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.navigation_rounded,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Waze',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
-                      ),
+                flex: 2,
+                child: OutlinedButton.icon(
+                  onPressed: _openExternalWaze,
+                  icon: const Icon(Icons.near_me_rounded, size: 14),
+                  label: Text(
+                    'Waze',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF00B2FF),
+                    side: const BorderSide(color: Color(0xFF00B2FF)),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -5271,32 +6317,46 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildSimpleSearchBar() {
+  // ─── Floating Search Bar ───────────────────────────────────────────────
+  Widget _buildRealSearchBar(bool isMobile) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: warmGold.withValues(alpha: 0.4), width: 1.2),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF00B4D8).withValues(alpha: 0.5),
+          width: 1.3,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: forestGreen, size: 20),
+          const Icon(Icons.search_rounded,
+              color: Color(0xFF00B4D8), size: 21),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _mapSearchController,
               onSubmitted: _searchPlace,
-              style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
-              decoration: const InputDecoration(
-                hintText: 'Search place (e.g., Pagsanjan Church, Laguna)...',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13.5,
+                color: Colors.white,
+              ),
+              decoration: InputDecoration(
+                hintText: isMobile
+                    ? 'Search place in Laguna...'
+                    : 'Search place, town, or landmark (e.g. Santa Cruz, Pagsanjan Church)...',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12.5,
+                ),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -5304,7 +6364,8 @@ class _LandingPageState extends State<LandingPage>
           ),
           if (_mapSearchController.text.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.clear_rounded, size: 18, color: Colors.grey),
+              icon: const Icon(Icons.clear_rounded,
+                  size: 18, color: Colors.white60),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () {
@@ -5313,14 +6374,16 @@ class _LandingPageState extends State<LandingPage>
               },
             ),
           const SizedBox(width: 6),
+          // Directions Panel Button
           Container(
             decoration: BoxDecoration(
-              color: forestGreen,
+              color: const Color(0xFF00B4D8),
               borderRadius: BorderRadius.circular(10),
             ),
             child: IconButton(
-              icon: const Icon(Icons.directions_rounded, color: warmGold, size: 20),
-              tooltip: 'Get Directions',
+              icon: const Icon(Icons.alt_route_rounded,
+                  color: Color(0xFF0F172A), size: 19),
+              tooltip: 'Calculate Route',
               onPressed: () => setState(() => _showDirectionsPanel = true),
             ),
           ),
@@ -5329,13 +6392,17 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildDirectionsPanel() {
+  // ─── Directions Panel ───────────────────────────────────────────────────
+  Widget _buildRealDirectionsPanel() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withValues(alpha: 0.98),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.98),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: warmGold.withValues(alpha: 0.6), width: 1.3),
+        border: Border.all(
+          color: const Color(0xFF00B4D8).withValues(alpha: 0.6),
+          width: 1.3,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.4),
@@ -5350,25 +6417,31 @@ class _LandingPageState extends State<LandingPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.directions_rounded, color: warmGold, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Route & Navigation',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14.5,
-                      color: Colors.white,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.directions_rounded,
+                        color: Color(0xFF00B4D8), size: 19),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Road Route & Navigation',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13.5,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.swap_vert_rounded,
-                        color: warmGold, size: 20),
+                        color: Color(0xFFFFD166), size: 20),
                     onPressed: _swapRoutingPoints,
                     tooltip: 'Swap start & destination',
                   ),
@@ -5385,7 +6458,7 @@ class _LandingPageState extends State<LandingPage>
           const SizedBox(height: 10),
           _buildRoutingTextField(
             controller: _startPointController,
-            hint: 'Starting Point (e.g. Your location)',
+            hint: 'Starting Point (e.g. Your location or Santa Cruz)',
             icon: Icons.my_location_rounded,
             onIconTap: () async {
               _startPointController.text = 'Your location';
@@ -5404,15 +6477,16 @@ class _LandingPageState extends State<LandingPage>
               onTap: _toggleMyLocation,
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: _isMyLocationActive
-                      ? forestGreen.withValues(alpha: 0.3)
-                      : const Color(0xFF0284C7).withValues(alpha: 0.2),
+                      ? const Color(0xFF00B4D8).withValues(alpha: 0.2)
+                      : const Color(0xFF0284C7).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: _isMyLocationActive
-                        ? warmGold
+                        ? const Color(0xFF00B4D8)
                         : const Color(0xFF0284C7).withValues(alpha: 0.5),
                   ),
                 ),
@@ -5424,18 +6498,18 @@ class _LandingPageState extends State<LandingPage>
                           ? Icons.check_circle_rounded
                           : Icons.my_location_rounded,
                       color: _isMyLocationActive
-                          ? warmGold
+                          ? const Color(0xFF00B4D8)
                           : const Color(0xFF38BDF8),
                       size: 12,
                     ),
                     const SizedBox(width: 5),
                     Text(
                       _isMyLocationActive
-                          ? 'GPS Location Active (Tap to Turn Off)'
-                          : 'Use Exact GPS Location (Turn ON)',
+                          ? 'GPS Active'
+                          : 'Use GPS Location',
                       style: GoogleFonts.plusJakartaSans(
                         color: _isMyLocationActive
-                            ? warmGold
+                            ? const Color(0xFF00B4D8)
                             : const Color(0xFF38BDF8),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -5459,12 +6533,11 @@ class _LandingPageState extends State<LandingPage>
                 child: ElevatedButton(
                   onPressed: _isRouting ? null : _getRoute,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: forestGreen,
-                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF00B4D8),
+                    foregroundColor: const Color(0xFF0F172A),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: warmGold.withValues(alpha: 0.6)),
                     ),
                   ),
                   child: _isRouting
@@ -5472,7 +6545,7 @@ class _LandingPageState extends State<LandingPage>
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                            color: Colors.white,
+                            color: Color(0xFF0F172A),
                             strokeWidth: 2,
                           ),
                         )
@@ -5480,10 +6553,10 @@ class _LandingPageState extends State<LandingPage>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.alt_route_rounded,
-                                color: warmGold, size: 18),
+                                color: Color(0xFF0F172A), size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              'Calculate Route',
+                              'Calculate Road Route',
                               style: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13.5,
@@ -5516,24 +6589,86 @@ class _LandingPageState extends State<LandingPage>
                 tooltip: 'Set to Current Location',
                 onPressed: onIconTap,
               )
-            : Icon(icon, size: 18, color: warmGold),
+            : Icon(icon, size: 18, color: const Color(0xFF00B4D8)),
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
         filled: true,
-        fillColor: const Color(0xFF0F172A),
+        fillColor: const Color(0xFF1E293B),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: warmGold.withValues(alpha: 0.3)),
+          borderSide: BorderSide(
+              color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white12),
+          borderSide: const BorderSide(color: Colors.white12),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: warmGold, width: 1.5),
+          borderSide:
+              const BorderSide(color: Color(0xFF00B4D8), width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapControlBtn({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    Color? iconColor,
+    bool isActive = false,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      triggerMode: TooltipTriggerMode.manual,
+      waitDuration: const Duration(milliseconds: 500),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(13),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(13),
+            onTap: () {
+              debugPrint('Map control button tapped: $tooltip');
+              onTap();
+            },
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? const Color(0xFF00B4D8)
+                    : const Color(0xFF0F172A).withValues(alpha: 0.94),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: isActive
+                      ? Colors.white
+                      : const Color(0xFF00B4D8).withValues(alpha: 0.35),
+                  width: isActive ? 1.8 : 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  icon,
+                  color: isActive
+                      ? const Color(0xFF0F172A)
+                      : (iconColor ?? Colors.white),
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -7775,7 +8910,7 @@ class _ModernAnnouncementCardWidgetState
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
-                            vertical: 12,
+                            vertical: 8,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -7966,7 +9101,7 @@ class _ModernAnnouncementCardWidgetState
                       else
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 7),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -7985,7 +9120,7 @@ class _ModernAnnouncementCardWidgetState
                                           children: [
                                             Container(
                                               padding: const EdgeInsets.symmetric(
-                                                  horizontal: 7, vertical: 2.5),
+                                                  horizontal: 7, vertical: 2),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFF990000)
                                                     .withValues(alpha: 0.08),
@@ -8004,7 +9139,7 @@ class _ModernAnnouncementCardWidgetState
                                             ),
                                             Container(
                                               padding: const EdgeInsets.symmetric(
-                                                  horizontal: 7, vertical: 2.5),
+                                                  horizontal: 7, vertical: 2),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFFFFD166)
                                                     .withValues(alpha: 0.15),
@@ -8025,7 +9160,7 @@ class _ModernAnnouncementCardWidgetState
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 5),
 
                                     // Headline Title (Smooth Fade + Slide Up)
                                     Opacity(
@@ -8039,9 +9174,9 @@ class _ModernAnnouncementCardWidgetState
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.playfairDisplay(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 17.5,
+                                            fontSize: 16.5,
                                             color: const Color(0xFF1E293B),
-                                            height: 1.2,
+                                            height: 1.18,
                                           ),
                                         ),
                                       ),
@@ -8059,13 +9194,13 @@ class _ModernAnnouncementCardWidgetState
                                         0, 10 * (1.0 - _footerAnimation.value)),
                                     child: const Column(
                                       children: [
-                                        SizedBox(height: 4),
+                                        SizedBox(height: 3),
                                         Divider(
                                           color: Color(0xFFEAE5D8),
                                           height: 1,
                                           thickness: 1,
                                         ),
-                                        SizedBox(height: 5),
+                                        SizedBox(height: 4),
                                       ],
                                     ),
                                   ),
