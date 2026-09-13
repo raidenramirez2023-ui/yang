@@ -75,16 +75,24 @@ class EmailVerificationService {
 
   /// Verify email using the 6-digit OTP code
   /// Returns true if verification is successful
-  Future<bool> verifyEmail(String otpCode) async {
+  Future<bool> verifyEmail(String otpCode, {String? email}) async {
     try {
-      // Find the verification record
-      final response = await _supabase
+      // Find the verification record matching code and optional email
+      var query = _supabase
           .from('email_verifications')
           .select()
-          .eq('verification_code', otpCode)
-          .single();
+          .eq('verification_code', otpCode.trim());
 
-      if (response.isEmpty) {
+      if (email != null && email.trim().isNotEmpty) {
+        query = query.eq('email', email.trim().toLowerCase());
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null) {
         debugPrint('Invalid verification token');
         return false;
       }
@@ -106,7 +114,7 @@ class EmailVerificationService {
         return false;
       }
 
-      // Mark as verified
+      // Mark as verified using the record id
       await _supabase
           .from('email_verifications')
           .update({
@@ -114,7 +122,7 @@ class EmailVerificationService {
             'verified': true,
             'verified_at': now.toUtc().toIso8601String(),
           })
-          .eq('verification_code', otpCode);
+          .eq('id', verification['id']);
 
       debugPrint('Email verified successfully for: ${verification['email']}');
       return true;

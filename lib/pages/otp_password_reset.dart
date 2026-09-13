@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -35,15 +37,177 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
   static const Color _primaryGold = Color(0xFFC9922E);
   static const Color _warmGold = Color(0xFFD9A441);
 
+  // Anti-Brute-Force & Rate-Limiting State
+  int _failedAttempts = 0;
+  static const int _maxAttempts = 5;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+  DateTime? _lockoutUntil;
+  Timer? _lockoutCountdownTimer;
+  int _lockoutSecondsRemaining = 0;
+
+  String get _lockoutPrefKey =>
+      'otp_lockout_${widget.email.trim().toLowerCase()}';
+  String get _attemptsPrefKey =>
+      'otp_attempts_${widget.email.trim().toLowerCase()}';
+  String get _resendPrefKey =>
+      'otp_resend_${widget.email.trim().toLowerCase()}';
+
+  Future<void> _safeSavePref(Future<void> Function(SharedPreferences prefs) op) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await op(prefs);
+    } catch (e) {
+      debugPrint('Storage warning (safe to ignore): $e');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersistedState();
+  }
+
+  Future<void> _loadPersistedState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lockoutMillis = prefs.getInt(_lockoutPrefKey);
+      final storedAttempts = prefs.getInt(_attemptsPrefKey) ?? 0;
+      final resendMillis = prefs.getInt(_resendPrefKey);
+
+      if (!mounted) return;
+
+      // Restore failed attempts
+      _failedAttempts = storedAttempts;
+
+      // Restore lockout if still active
+      if (lockoutMillis != null) {
+        final lockoutTime = DateTime.fromMillisecondsSinceEpoch(lockoutMillis);
+        if (DateTime.now().isBefore(lockoutTime)) {
+          setState(() {
+            _lockoutUntil = lockoutTime;
+          });
+          _startLockoutCountdown();
+        } else {
+          // Lockout expired while away
+          _safeSavePref((p) async {
+            await p.remove(_lockoutPrefKey);
+            await p.remove(_attemptsPrefKey);
+          });
+          setState(() {
+            _lockoutUntil = null;
+            _failedAttempts = 0;
+            _lockoutSecondsRemaining = 0;
+          });
+        }
+      }
+
+      // Restore resend cooldown if still active
+      if (resendMillis != null) {
+        final resendTime = DateTime.fromMillisecondsSinceEpoch(resendMillis);
+        if (DateTime.now().isBefore(resendTime)) {
+          _startResendCooldown(resendUntil: resendTime);
+        } else {
+          _safeSavePref((p) => p.remove(_resendPrefKey));
+        }
+      }
+    } catch (e) {
+      debugPrint('Error restoring OTP state: $e');
+    }
+  }
+
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
+    _lockoutCountdownTimer?.cancel();
     _otpController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
+  bool get _isLockedOut {
+    if (_lockoutUntil == null) return false;
+    return DateTime.now().isBefore(_lockoutUntil!);
+  }
+
+  void _startLockoutCountdown() {
+    _lockoutCountdownTimer?.cancel();
+    if (_lockoutUntil == null) return;
+    setState(() {
+      _lockoutSecondsRemaining =
+          _lockoutUntil!.difference(DateTime.now()).inSeconds;
+    });
+    _lockoutCountdownTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        _safeSavePref((prefs) async {
+          await prefs.remove(_lockoutPrefKey);
+          await prefs.remove(_attemptsPrefKey);
+        });
+        setState(() {
+          _lockoutUntil = null;
+          _lockoutSecondsRemaining = 0;
+          _failedAttempts = 0;
+        });
+      } else {
+        setState(() {
+          _lockoutSecondsRemaining = remaining;
+        });
+      }
+    });
+  }
+
+  void _startResendCooldown({DateTime? resendUntil}) {
+    _cooldownTimer?.cancel();
+    final target =
+        resendUntil ?? DateTime.now().add(const Duration(seconds: 60));
+    final initialSeconds = target.difference(DateTime.now()).inSeconds;
+    if (initialSeconds <= 0) return;
+
+    setState(() => _resendCooldown = initialSeconds);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = target.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        _safeSavePref((prefs) => prefs.remove(_resendPrefKey));
+        setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown = remaining);
+      }
+    });
+  }
+
+  String _formatLockoutTime(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _verifyOTP() async {
+    if (_isLockedOut) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Too many failed attempts. Please wait ${_formatLockoutTime(_lockoutSecondsRemaining)}.',
+          ),
+          backgroundColor: AppTheme.errorRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (_otpController.text.trim().length != 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -65,9 +229,16 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
       );
 
       if (mounted) {
+        _safeSavePref((prefs) async {
+          await prefs.remove(_lockoutPrefKey);
+          await prefs.remove(_attemptsPrefKey);
+          await prefs.remove(_resendPrefKey);
+        });
+
         setState(() {
           _isLoading = false;
           _otpVerified = true;
+          _failedAttempts = 0;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -79,14 +250,38 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
       }
     } on AuthException catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Invalid code. Please try again.'),
-            backgroundColor: AppTheme.errorRed,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _failedAttempts++;
+        _safeSavePref((prefs) => prefs.setInt(_attemptsPrefKey, _failedAttempts));
+
+        if (_failedAttempts >= _maxAttempts) {
+          final lockout = DateTime.now().add(const Duration(minutes: 10));
+          _lockoutUntil = lockout;
+          _safeSavePref((prefs) => prefs.setInt(_lockoutPrefKey, lockout.millisecondsSinceEpoch));
+          _startLockoutCountdown();
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Maximum attempts reached. For security, please wait 10 minutes before trying again.',
+              ),
+              backgroundColor: AppTheme.errorRed,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          final remaining = _maxAttempts - _failedAttempts;
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Invalid code. $remaining attempt${remaining == 1 ? '' : 's'} remaining.',
+              ),
+              backgroundColor: AppTheme.errorRed,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -140,12 +335,18 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
   }
 
   Future<void> _resendCode() async {
+    if (_resendCooldown > 0 || _isLoading) return;
+
     setState(() => _isLoading = true);
 
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(widget.email);
 
       if (mounted) {
+        final resendUntil = DateTime.now().add(const Duration(seconds: 60));
+        _safeSavePref((prefs) => prefs.setInt(_resendPrefKey, resendUntil.millisecondsSinceEpoch));
+
+        _startResendCooldown(resendUntil: resendUntil);
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -744,6 +945,40 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!_otpVerified) ...[
+                if (_isLockedOut) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3CD),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFFD180)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.lock_clock_rounded,
+                          color: Color(0xFF856404),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Too many failed attempts. Locked for ${_formatLockoutTime(_lockoutSecondsRemaining)}.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: const Color(0xFF856404),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 Text(
                   '8-Digit Code',
                   style: GoogleFonts.poppins(
@@ -756,7 +991,7 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                 TextFormField(
                   controller: _otpController,
                   keyboardType: TextInputType.number,
-                  enabled: !_isLoading,
+                  enabled: !_isLoading && !_isLockedOut,
                   maxLength: 8,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
@@ -809,18 +1044,33 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                 ),
                 const SizedBox(height: 22),
                 _buildActionButton(
-                  label: 'Verify Code',
+                  label: _isLockedOut
+                      ? 'Locked (${_formatLockoutTime(_lockoutSecondsRemaining)})'
+                      : 'Verify Code',
                   onPressed: _verifyOTP,
+                  enabled: !_isLockedOut,
                 ),
                 const SizedBox(height: 12),
                 Center(
                   child: TextButton.icon(
-                    onPressed: _isLoading ? null : _resendCode,
-                    icon: const Icon(Icons.refresh_rounded, size: 16, color: _forestGreen),
+                    onPressed: (_isLoading || _resendCooldown > 0)
+                        ? null
+                        : _resendCode,
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      size: 16,
+                      color: _resendCooldown > 0
+                          ? Colors.grey
+                          : _forestGreen,
+                    ),
                     label: Text(
-                      'Resend Code',
+                      _resendCooldown > 0
+                          ? 'Resend Code (${_resendCooldown}s)'
+                          : 'Resend Code',
                       style: GoogleFonts.poppins(
-                        color: _forestGreen,
+                        color: _resendCooldown > 0
+                            ? Colors.grey
+                            : _forestGreen,
                         fontWeight: FontWeight.w600,
                         fontSize: 12.5,
                       ),
@@ -962,33 +1212,46 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
   Widget _buildActionButton({
     required String label,
     required VoidCallback onPressed,
+    bool enabled = true,
   }) {
+    final bool isActionable = !_isLoading && enabled;
     return Container(
       width: double.infinity,
       height: 48,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(
-          colors: [
-            _forestGreen,
-            Color(0xFFBA1717),
-            _darkForest,
-          ],
-        ),
+        gradient: isActionable
+            ? const LinearGradient(
+                colors: [
+                  _forestGreen,
+                  Color(0xFFBA1717),
+                  _darkForest,
+                ],
+              )
+            : LinearGradient(
+                colors: [
+                  Colors.grey.shade600,
+                  Colors.grey.shade700,
+                ],
+              ),
         border: Border.all(
-          color: _warmGold.withValues(alpha: 0.55),
+          color: isActionable
+              ? _warmGold.withValues(alpha: 0.55)
+              : Colors.grey.shade400,
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: _forestGreen.withValues(alpha: 0.4),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: isActionable
+            ? [
+                BoxShadow(
+                  color: _forestGreen.withValues(alpha: 0.4),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : onPressed,
+        onPressed: isActionable ? onPressed : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
