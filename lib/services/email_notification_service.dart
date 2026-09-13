@@ -223,6 +223,109 @@ class EmailNotificationService {
     );
   }
 
+  // ==================== REMINDER EMAIL METHODS ====================
+
+  /// Send a reminder email for an event reservation (manual trigger from admin)
+  /// Calls the check-and-send-reminders Edge Function with the specific reservation ID
+  Future<bool> sendEventReminderEmail({
+    required String reservationId,
+  }) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'check-and-send-reminders',
+        body: {
+          'source': 'manual',
+          'reservationId': reservationId,
+        },
+      );
+
+      debugPrint('Event reminder response: ${response.data}');
+      return true;
+    } catch (e) {
+      debugPrint('Error sending event reminder: $e');
+      return false;
+    }
+  }
+
+  /// Send a reminder email for an advance order (manual trigger from admin)
+  /// Calls the check-and-send-reminders Edge Function with the specific order ID
+  Future<bool> sendAdvanceOrderReminderEmail({
+    required String advanceOrderId,
+  }) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'check-and-send-reminders',
+        body: {
+          'source': 'manual',
+          'advanceOrderId': advanceOrderId,
+        },
+      );
+
+      debugPrint('Advance order reminder response: ${response.data}');
+      return true;
+    } catch (e) {
+      debugPrint('Error sending advance order reminder: $e');
+      return false;
+    }
+  }
+
+  /// Check if a reminder has been sent for a reservation
+  Future<Map<String, dynamic>?> getReservationReminderStatus(String reservationId) async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('reminder_sent, reminder_sent_at')
+          .eq('id', reservationId)
+          .single();
+      return response;
+    } catch (e) {
+      debugPrint('Error checking reminder status: $e');
+      return null;
+    }
+  }
+
+  /// Check if a reminder has been sent for an advance order
+  Future<Map<String, dynamic>?> getAdvanceOrderReminderStatus(String orderId) async {
+    try {
+      final response = await _supabase
+          .from('advance_orders')
+          .select('reminder_sent, reminder_sent_at')
+          .eq('id', orderId)
+          .single();
+      return response;
+    } catch (e) {
+      debugPrint('Error checking advance order reminder status: $e');
+      return null;
+    }
+  }
+
+  /// Reset the reminder flag so it can be sent again (for admin resend)
+  Future<bool> resetReminderFlag({
+    String? reservationId,
+    String? advanceOrderId,
+  }) async {
+    try {
+      if (reservationId != null) {
+        await _supabase
+            .from('reservations')
+            .update({'reminder_sent': false, 'reminder_sent_at': null})
+            .eq('id', reservationId);
+      }
+      if (advanceOrderId != null) {
+        await _supabase
+            .from('advance_orders')
+            .update({'reminder_sent': false, 'reminder_sent_at': null})
+            .eq('id', advanceOrderId);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error resetting reminder flag: $e');
+      return false;
+    }
+  }
+
+  // ==================== END REMINDER EMAIL METHODS ====================
+
   /// Internal method to log email notification intent
   Future<bool> _logEmailNotification({
     required String recipientEmail,
