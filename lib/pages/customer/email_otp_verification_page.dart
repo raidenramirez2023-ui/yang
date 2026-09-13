@@ -41,9 +41,11 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
   bool _isSuccess = false;
   bool _isProcessing = false;
 
-  // Resend cooldown timer
+  // Resend cooldown timer & limit
   int _resendSecondsRemaining = 60;
   Timer? _resendTimer;
+  int _resendAttempts = 0;
+  static const int _maxResends = 3;
 
   // Pulse animation for the email icon
   late AnimationController _pulseController;
@@ -179,6 +181,13 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
   }
 
   Future<void> _resendEmail() async {
+    if (_resendAttempts >= _maxResends) {
+      _showSnackBar(
+        'Maximum resend attempts reached. Please check your Spam folder or contact support.',
+        isError: true,
+      );
+      return;
+    }
     if (_resendSecondsRemaining > 0 || _isResending) return;
     setState(() => _isResending = true);
 
@@ -189,8 +198,12 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
       );
 
       if (mounted) {
+        _resendAttempts++;
         _startResendTimer();
-        _showSnackBar('A new verification link has been sent to your email.');
+        final remaining = _maxResends - _resendAttempts;
+        _showSnackBar(
+          'A new verification link has been sent to your email. (${remaining} resend${remaining == 1 ? '' : 's'} remaining)',
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -463,12 +476,15 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: (_resendSecondsRemaining > 0 || _isResending)
+                    onPressed: (_resendSecondsRemaining > 0 ||
+                            _isResending ||
+                            _resendAttempts >= _maxResends)
                         ? null
                         : _resendEmail,
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
-                        color: _resendSecondsRemaining > 0
+                        color: (_resendSecondsRemaining > 0 ||
+                                _resendAttempts >= _maxResends)
                             ? Colors.grey.shade300
                             : AppTheme.primaryColor,
                       ),
@@ -486,11 +502,14 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
                             ),
                           )
                         : Text(
-                            _resendSecondsRemaining > 0
-                                ? 'Resend in ${_resendSecondsRemaining}s'
-                                : 'Resend Verification Email',
+                            _resendAttempts >= _maxResends
+                                ? 'Resend Limit Reached (Check Spam)'
+                                : (_resendSecondsRemaining > 0
+                                    ? 'Resend in ${_resendSecondsRemaining}s'
+                                    : 'Resend Email (${_maxResends - _resendAttempts} left)'),
                             style: TextStyle(
-                              color: _resendSecondsRemaining > 0
+                              color: (_resendSecondsRemaining > 0 ||
+                                      _resendAttempts >= _maxResends)
                                   ? AppTheme.mediumGrey
                                   : AppTheme.primaryColor,
                               fontWeight: FontWeight.w600,

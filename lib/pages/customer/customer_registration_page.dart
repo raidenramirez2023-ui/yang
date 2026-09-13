@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/services/email_verification_service.dart';
@@ -35,6 +37,192 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isEmailVerified = false;
   bool _isVerifyingEmail = false;
 
+  // Anti-Spam & Rate-Limiting for Email Verification (In-Memory + Persistent)
+  static final Map<String, int> _memAttempts = {};
+  static final Map<String, DateTime> _memLockout = {};
+  static final Map<String, DateTime> _memCooldown = {};
+
+  int _verifyCooldown = 0;
+  Timer? _verifyCooldownTimer;
+  int _failedOtpAttempts = 0;
+  static const int _maxOtpAttempts = 5;
+  DateTime? _lockoutUntil;
+  Timer? _lockoutCountdownTimer;
+  int _lockoutSecondsRemaining = 0;
+
+  String _lockoutPrefKey(String email) =>
+      'reg_lockout_${email.trim().toLowerCase()}';
+  String _attemptsPrefKey(String email) =>
+      'reg_attempts_${email.trim().toLowerCase()}';
+  String _cooldownPrefKey(String email) =>
+      'reg_cooldown_${email.trim().toLowerCase()}';
+
+  bool get _isLockedOut {
+    if (_lockoutUntil == null) return false;
+    return DateTime.now().isBefore(_lockoutUntil!);
+  }
+
+  bool get _isVerifyCooldownActive => _verifyCooldown > 0;
+
+  String _formatLockoutTime(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _safeSavePref(Future<void> Function(SharedPreferences prefs) op) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await op(prefs);
+    } catch (e) {
+      debugPrint('Storage warning (safe to ignore): $e');
+    }
+  }
+
+  void _checkEmailLockoutState(String rawEmail) async {
+    final email = rawEmail.trim().toLowerCase();
+    if (email.isEmpty) return;
+
+    // Fast in-memory check first
+    if (_memLockout.containsKey(email)) {
+      final lockoutTime = _memLockout[email]!;
+      if (DateTime.now().isBefore(lockoutTime)) {
+        setState(() {
+          _lockoutUntil = lockoutTime;
+          _failedOtpAttempts = _memAttempts[email] ?? 0;
+        });
+        _startLockoutCountdown();
+      } else {
+        _memLockout.remove(email);
+        _memAttempts.remove(email);
+        setState(() {
+          _lockoutUntil = null;
+          _failedOtpAttempts = 0;
+          _lockoutSecondsRemaining = 0;
+        });
+      }
+    }
+
+    if (_memCooldown.containsKey(email)) {
+      final cooldownTime = _memCooldown[email]!;
+      if (DateTime.now().isBefore(cooldownTime)) {
+        _startVerifyCooldown(targetTime: cooldownTime);
+      } else {
+        _memCooldown.remove(email);
+      }
+    }
+
+    // Then check persistent storage safely
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lockoutMillis = prefs.getInt(_lockoutPrefKey(email));
+      final storedAttempts = prefs.getInt(_attemptsPrefKey(email)) ?? 0;
+      final cooldownMillis = prefs.getInt(_cooldownPrefKey(email));
+
+      if (!mounted) return;
+
+      if (lockoutMillis != null) {
+        final lockoutTime = DateTime.fromMillisecondsSinceEpoch(lockoutMillis);
+        if (DateTime.now().isBefore(lockoutTime)) {
+          _memLockout[email] = lockoutTime;
+          _memAttempts[email] = storedAttempts;
+          setState(() {
+            _lockoutUntil = lockoutTime;
+            _failedOtpAttempts = storedAttempts;
+          });
+          _startLockoutCountdown();
+        } else {
+          _memLockout.remove(email);
+          _memAttempts.remove(email);
+          await _safeSavePref((p) async {
+            await p.remove(_lockoutPrefKey(email));
+            await p.remove(_attemptsPrefKey(email));
+          });
+          setState(() {
+            _lockoutUntil = null;
+            _failedOtpAttempts = 0;
+            _lockoutSecondsRemaining = 0;
+          });
+        }
+      }
+
+      if (cooldownMillis != null) {
+        final cooldownTime = DateTime.fromMillisecondsSinceEpoch(cooldownMillis);
+        if (DateTime.now().isBefore(cooldownTime)) {
+          _memCooldown[email] = cooldownTime;
+          _startVerifyCooldown(targetTime: cooldownTime);
+        } else {
+          _memCooldown.remove(email);
+          await _safeSavePref((p) => p.remove(_cooldownPrefKey(email)));
+        }
+      }
+    } catch (e) {
+      debugPrint('Storage check warning: $e');
+    }
+  }
+
+  void _startLockoutCountdown() {
+    _lockoutCountdownTimer?.cancel();
+    if (_lockoutUntil == null) return;
+    setState(() {
+      _lockoutSecondsRemaining =
+          _lockoutUntil!.difference(DateTime.now()).inSeconds;
+    });
+    _lockoutCountdownTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        final email = emailController.text.trim().toLowerCase();
+        _memLockout.remove(email);
+        _memAttempts.remove(email);
+        _safeSavePref((prefs) async {
+          await prefs.remove(_lockoutPrefKey(email));
+          await prefs.remove(_attemptsPrefKey(email));
+        });
+        setState(() {
+          _lockoutUntil = null;
+          _lockoutSecondsRemaining = 0;
+          _failedOtpAttempts = 0;
+        });
+      } else {
+        setState(() {
+          _lockoutSecondsRemaining = remaining;
+        });
+      }
+    });
+  }
+
+  void _startVerifyCooldown({DateTime? targetTime}) {
+    _verifyCooldownTimer?.cancel();
+    final target =
+        targetTime ?? DateTime.now().add(const Duration(seconds: 60));
+    final initialSec = target.difference(DateTime.now()).inSeconds;
+    if (initialSec <= 0) return;
+
+    setState(() => _verifyCooldown = initialSec);
+    _verifyCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = target.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        final email = emailController.text.trim().toLowerCase();
+        _memCooldown.remove(email);
+        _safeSavePref((prefs) => prefs.remove(_cooldownPrefKey(email)));
+        setState(() => _verifyCooldown = 0);
+      } else {
+        setState(() => _verifyCooldown = remaining);
+      }
+    });
+  }
+
   // OTP code input
 
   final TextEditingController otpController = TextEditingController();
@@ -54,10 +242,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     confirmPasswordController.addListener(() {
       _formKey.currentState?.validate();
     });
+
+    // Add listener to email field to check lockout/cooldown state for that email
+    emailController.addListener(() {
+      _checkEmailLockoutState(emailController.text);
+    });
   }
 
   @override
   void dispose() {
+    _verifyCooldownTimer?.cancel();
+    _lockoutCountdownTimer?.cancel();
     firstNameController.dispose();
     lastNameController.dispose();
     phoneController.dispose();
@@ -387,6 +582,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
   // Verify OTP code
   Future<void> _verifyOtpCode() async {
+    final email = emailController.text.trim();
+    if (_isLockedOut) {
+      _showSnackBar(
+        'Too many failed attempts. Locked for ${_formatLockoutTime(_lockoutSecondsRemaining)}.',
+        Colors.red.shade700,
+        Icons.lock_clock,
+      );
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
     final otpCode = otpController.text.trim();
 
     if (otpCode.length != 6) {
@@ -404,11 +610,23 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
     try {
       final verificationService = EmailVerificationService();
-      final isVerified = await verificationService.verifyEmail(otpCode);
+      final isVerified = await verificationService.verifyEmail(otpCode, email: email);
 
       if (isVerified) {
+        // Clear lockout and attempts from memory and storage
+        _memLockout.remove(email);
+        _memAttempts.remove(email);
+        _memCooldown.remove(email);
+        _safeSavePref((prefs) async {
+          await prefs.remove(_lockoutPrefKey(email));
+          await prefs.remove(_attemptsPrefKey(email));
+          await prefs.remove(_cooldownPrefKey(email));
+        });
+
         setState(() {
           _isEmailVerified = true;
+          _failedOtpAttempts = 0;
+          _verifyCooldown = 0;
         });
 
         // Close the modal
@@ -424,22 +642,50 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
         otpController.clear();
       } else {
-        _showSnackBar(
-          'Invalid or expired verification code',
-          Colors.red.shade700,
-          Icons.error_outline,
-        );
+        _failedOtpAttempts++;
+        _memAttempts[email] = _failedOtpAttempts;
+        _safeSavePref((prefs) => prefs.setInt(_attemptsPrefKey(email), _failedOtpAttempts));
+
+        if (_failedOtpAttempts >= _maxOtpAttempts) {
+          final lockout = DateTime.now().add(const Duration(minutes: 10));
+          _lockoutUntil = lockout;
+          _memLockout[email] = lockout;
+          _safeSavePref((prefs) => prefs.setInt(
+            _lockoutPrefKey(email),
+            lockout.millisecondsSinceEpoch,
+          ));
+          _startLockoutCountdown();
+
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+
+          _showSnackBar(
+            'Maximum attempts reached. Email verification locked for 10 minutes.',
+            Colors.red.shade700,
+            Icons.lock_outline,
+          );
+        } else {
+          final remaining = _maxOtpAttempts - _failedOtpAttempts;
+          _showSnackBar(
+            'Invalid or expired verification code. $remaining attempt${remaining == 1 ? '' : 's'} remaining.',
+            Colors.red.shade700,
+            Icons.error_outline,
+          );
+        }
       }
     } catch (e) {
       _showSnackBar(
-        'Error verifying code: $e',
+        'Invalid or expired verification code. Please try again.',
         Colors.red.shade700,
         Icons.error_outline,
       );
     } finally {
-      setState(() {
-        _isVerifyingEmail = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isVerifyingEmail = false;
+        });
+      }
     }
   }
 
@@ -465,6 +711,24 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       return;
     }
 
+    if (_isLockedOut) {
+      _showSnackBar(
+        'Too many failed verification attempts. Please wait ${_formatLockoutTime(_lockoutSecondsRemaining)}.',
+        Colors.red.shade700,
+        Icons.lock_clock,
+      );
+      return;
+    }
+
+    if (_isVerifyCooldownActive) {
+      _showSnackBar(
+        'Please wait ${_verifyCooldown}s before requesting a new code.',
+        Colors.orange.shade700,
+        Icons.timer,
+      );
+      return;
+    }
+
     setState(() {
       _isVerifyingEmail = true;
     });
@@ -478,6 +742,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       );
 
       if (otpCode != null) {
+        final cooldownTarget = DateTime.now().add(const Duration(seconds: 60));
+        _memCooldown[email] = cooldownTarget;
+        _safeSavePref((prefs) => prefs.setInt(
+          _cooldownPrefKey(email),
+          cooldownTarget.millisecondsSinceEpoch,
+        ));
+        _startVerifyCooldown(targetTime: cooldownTarget);
+
         _showSnackBar(
           'Verification code sent! Please check your inbox.',
           Colors.green.shade700,
@@ -495,9 +767,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         Icons.error_outline,
       );
     } finally {
-      setState(() {
-        _isVerifyingEmail = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isVerifyingEmail = false;
+        });
+      }
     }
   }
 
@@ -508,72 +782,145 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            'Enter Verification Code',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Please enter the 6-digit code sent to your email',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 10,
-                ),
-                decoration: InputDecoration(
-                  hintText: '000000',
-                  counterText: '',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final remainingAttempts = _maxOtpAttempts - _failedOtpAttempts;
+            return AlertDialog(
+              title: const Row(
                 children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed: _isVerifyingEmail ? null : _verifyOtpCode,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade700,
-                      foregroundColor: Colors.white,
+                  Icon(Icons.mark_email_read_outlined,
+                      color: Color(0xFF14332E), size: 22),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Enter Verification Code',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF14332E),
+                      ),
                     ),
-                    child: _isVerifyingEmail
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                        : const Text('Verify'),
                   ),
                 ],
               ),
-            ],
-          ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Please enter the 6-digit code sent to\n${emailController.text.trim()}',
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_failedOtpAttempts > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Text(
+                        '$remainingAttempts attempt${remainingAttempts == 1 ? '' : 's'} remaining',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 10,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '000000',
+                      counterText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                  const SizedBox(height: 14),
+                  // Resend in modal
+                  TextButton.icon(
+                    onPressed: (_verifyCooldown > 0 || _isVerifyingEmail)
+                        ? null
+                        : () async {
+                            await _sendVerificationEmail();
+                            if (mounted) {
+                              setModalState(() {});
+                            }
+                          },
+                    icon: const Icon(Icons.refresh_rounded, size: 15),
+                    label: Text(
+                      _verifyCooldown > 0
+                          ? 'Resend Code (${_verifyCooldown}s)'
+                          : 'Resend Code',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _isVerifyingEmail
+                            ? null
+                            : () async {
+                                await _verifyOtpCode();
+                                if (mounted) {
+                                  setModalState(() {});
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF14332E),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: _isVerifyingEmail
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text('Verify'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -1616,15 +1963,24 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               SizedBox(
                 height: 44,
                 child: ElevatedButton(
-                  onPressed: _isVerifyingEmail || _isLoading
+                  onPressed: (_isVerifyingEmail ||
+                          _isLoading ||
+                          _isVerifyCooldownActive ||
+                          _isLockedOut)
                       ? null
                       : _sendVerificationEmail,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _forestGreen,
+                    backgroundColor: (_isLockedOut || _isVerifyCooldownActive)
+                        ? Colors.grey.shade700
+                        : _forestGreen,
                     foregroundColor: const Color(0xFFFFFAEB),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     elevation: 0,
-                    side: BorderSide(color: _warmGold.withValues(alpha: 0.5)),
+                    side: BorderSide(
+                      color: (_isLockedOut || _isVerifyCooldownActive)
+                          ? Colors.grey.shade500
+                          : _warmGold.withValues(alpha: 0.5),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1641,7 +1997,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                           ),
                         )
                       : Text(
-                          'Verify',
+                          _isLockedOut
+                              ? 'Locked'
+                              : (_isVerifyCooldownActive
+                                  ? '${_verifyCooldown}s'
+                                  : 'Verify'),
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -1653,6 +2013,27 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             ],
           ],
         ),
+        if (_isLockedOut)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4, bottom: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_clock_rounded,
+                    color: Color(0xFFC62828), size: 14),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    'Verification locked due to failed attempts (${_formatLockoutTime(_lockoutSecondsRemaining)} left)',
+                    style: GoogleFonts.poppins(
+                      color: const Color(0xFFC62828),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (_isEmailVerified)
           Padding(
             padding: const EdgeInsets.only(top: 4, left: 4),

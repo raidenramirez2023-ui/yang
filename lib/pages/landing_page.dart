@@ -3655,7 +3655,9 @@ class _LandingPageState extends State<LandingPage>
   // ---------------------------------------------------------------------------
 
   Widget _buildMenuSection(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveUtils.isMobile(context);
+    final isSmallMobile = screenWidth < 360;
 
     // Filter items based on category & search query
     List<MenuItem> displayedItems = [];
@@ -3680,64 +3682,99 @@ class _LandingPageState extends State<LandingPage>
       width: double.infinity,
       color: creamBg,
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 38 : 52,
-        horizontal: isMobile ? 16 : 40,
+        vertical: isMobile ? 38 : 60,
+        horizontal: isSmallMobile ? 12 : (isMobile ? 16 : 40),
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1280),
           child: Column(
             children: [
-              // Header
+              // Header Badge
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                 decoration: BoxDecoration(
-                  color: forestGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'DELICIOUS SELECTIONS',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: forestGreen,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    letterSpacing: 1.2,
+                  color: forestGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: forestGreen.withValues(alpha: 0.18),
+                    width: 1,
                   ),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.restaurant_menu_rounded,
+                        size: 14, color: forestGreen),
+                    const SizedBox(width: 7),
+                    Text(
+                      'DELICIOUS SELECTIONS',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: forestGreen,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11.5,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
 
               Text(
                 'Explore Our Culinary Menu',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: isMobile ? 28 : 38,
-                  fontWeight: FontWeight.bold,
+                  fontSize: isSmallMobile ? 24 : (isMobile ? 28 : 40),
+                  fontWeight: FontWeight.w800,
                   color: darkGreyText,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 580),
+                child: Text(
+                  'Freshly prepared daily with time-honored Asian recipes, premium ingredients, and authentic spices.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: isSmallMobile ? 12 : (isMobile ? 13 : 14.5),
+                    color: const Color(0xFF64748B),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // Search & Category Filters Bar
               _buildMenuSearch(context),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               _buildMenuCategories(context),
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
 
               // Menu Items Horizontal Scrollable Carousel
               if (displayedItems.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(32),
+                  padding: const EdgeInsets.all(36),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
                       const Icon(Icons.search_off_rounded,
-                          size: 48, color: Colors.grey),
-                      const SizedBox(height: 10),
+                          size: 48, color: Color(0xFF94A3B8)),
+                      const SizedBox(height: 12),
                       Text(
                         'No dishes found matching your search',
                         style: GoogleFonts.plusJakartaSans(
@@ -3749,7 +3786,7 @@ class _LandingPageState extends State<LandingPage>
                     ],
                   ),
                 )
-               else
+              else
                 Column(
                   children: [
                     Stack(
@@ -3757,68 +3794,87 @@ class _LandingPageState extends State<LandingPage>
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          height: isMobile ? 270 : 330,
+                          height: isSmallMobile ? 280 : (isMobile ? 300 : 365),
                           child: ListView.builder(
                             controller: _menuScrollController,
                             scrollDirection: Axis.horizontal,
                             physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 6),
                             itemCount: displayedItems.length,
                             itemBuilder: (context, index) {
                               return Container(
-                                width: isMobile ? 195 : 260,
-                                margin: EdgeInsets.only(right: isMobile ? 12 : 18),
-                                child: _buildMenuCard(context, displayedItems[index],
-                                    isMobile: isMobile),
+                                width: isSmallMobile ? 180 : (isMobile ? 205 : 265),
+                                margin: EdgeInsets.only(
+                                    right: isSmallMobile ? 10 : (isMobile ? 12 : 18)),
+                                child: _buildMenuCard(
+                                  context,
+                                  displayedItems[index],
+                                  isMobile: isMobile,
+                                ),
                               );
                             },
                           ),
                         ),
 
-                        // Left Scroll Arrow
-                        Positioned(
-                          left: isMobile ? 4 : -20,
-                          child: _MenuScrollArrow(
-                            direction: _MenuArrowDirection.left,
-                            isMobile: isMobile,
-                            onTap: () => _scrollCarousel(-300),
+                        // Left Scroll Arrow (Desktop only)
+                        if (!isMobile)
+                          Positioned(
+                            left: -22,
+                            child: _MenuScrollArrow(
+                              direction: _MenuArrowDirection.left,
+                              isMobile: isMobile,
+                              onTap: () => _scrollCarousel(-300),
+                            ),
                           ),
-                        ),
 
-                        // Right Scroll Arrow
-                        Positioned(
-                          right: isMobile ? 4 : -20,
-                          child: _MenuScrollArrow(
-                            direction: _MenuArrowDirection.right,
-                            isMobile: isMobile,
-                            onTap: () => _scrollCarousel(300),
+                        // Right Scroll Arrow (Desktop only)
+                        if (!isMobile)
+                          Positioned(
+                            right: -22,
+                            child: _MenuScrollArrow(
+                              direction: _MenuArrowDirection.right,
+                              isMobile: isMobile,
+                              onTap: () => _scrollCarousel(300),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
                     // Swipe Hint Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.swipe_rounded,
-                          color: forestGreen.withValues(alpha: 0.6),
-                          size: isMobile ? 15 : 17,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                          width: 0.8,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isMobile
-                              ? 'Swipe to explore more dishes'
-                              : 'Swipe or use navigation arrows to explore dishes',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: AppTheme.mediumGrey,
-                            fontSize: isMobile ? 11.5 : 12.5,
-                            fontWeight: FontWeight.w500,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.swipe_rounded,
+                            color: forestGreen,
+                            size: isMobile ? 14 : 16,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Text(
+                            isMobile
+                                ? 'Swipe to explore more dishes'
+                                : 'Swipe or use navigation arrows to explore dishes',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFF64748B),
+                              fontSize: isMobile ? 11.5 : 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -3842,36 +3898,67 @@ class _LandingPageState extends State<LandingPage>
 
   Widget _buildMenuSearch(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 500),
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 520),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: TextField(
         onChanged: (val) => setState(() => _menuSearchQuery = val),
-        style: GoogleFonts.plusJakartaSans(fontSize: isMobile ? 13 : 14),
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: isMobile ? 13.5 : 14.5,
+          color: darkGreyText,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           hintText: 'Search dishes, dimsum, fried rice...',
-          prefixIcon: Icon(Icons.search_rounded,
-              color: forestGreen, size: isMobile ? 18 : 22),
+          hintStyle: GoogleFonts.plusJakartaSans(
+            color: const Color(0xFF94A3B8),
+            fontSize: isMobile ? 13 : 14,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 8),
+            child: Icon(
+              Icons.search_rounded,
+              color: forestGreen,
+              size: isMobile ? 20 : 22,
+            ),
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 44, minHeight: 44),
           suffixIcon: _menuSearchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, size: 18),
+                  icon: const Icon(Icons.cancel_rounded,
+                      size: 20, color: Color(0xFF94A3B8)),
+                  splashRadius: 18,
                   onPressed: () => setState(() => _menuSearchQuery = ''),
                 )
               : null,
           filled: true,
           fillColor: Colors.white,
           contentPadding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 16 : 20, vertical: isMobile ? 12 : 16),
+            horizontal: isMobile ? 16 : 20,
+            vertical: isMobile ? 13 : 15,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide(color: AppTheme.cardBorder),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30),
-            borderSide: const BorderSide(color: forestGreen, width: 1.5),
+            borderSide: const BorderSide(color: forestGreen, width: 1.8),
           ),
         ),
       ),
@@ -3879,243 +3966,100 @@ class _LandingPageState extends State<LandingPage>
   }
 
   Widget _buildMenuCategories(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveUtils.isMobile(context);
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        SingleChildScrollView(
-          controller: _categoryScrollController,
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: _menuCategories.map((cat) {
-              bool isSelected = _menuSelectedCategory == cat;
-              return Padding(
-                padding: EdgeInsets.only(right: isMobile ? 8 : 10),
-                child: ChoiceChip(
-                  label: Text(cat),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _menuSelectedCategory = cat);
-                    }
-                  },
-                  selectedColor: forestGreen,
-                  backgroundColor: Colors.white,
-                  labelStyle: GoogleFonts.plusJakartaSans(
-                    color: isSelected ? Colors.white : darkGreyText,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: isMobile ? 12 : 13,
-                  ),
+    final isSmallMobile = screenWidth < 360;
+
+    return SingleChildScrollView(
+      controller: _categoryScrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+      child: Row(
+        children: _menuCategories.map((cat) {
+          final bool isSelected = _menuSelectedCategory == cat;
+          return Padding(
+            padding: EdgeInsets.only(right: isSmallMobile ? 6 : (isMobile ? 8 : 10)),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  if (!isSelected) {
+                    setState(() => _menuSelectedCategory = cat);
+                  }
+                },
+                borderRadius: BorderRadius.circular(24),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
                   padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 12 : 16, vertical: isMobile ? 6 : 10),
-                  shape: RoundedRectangleBorder(
+                    horizontal: isSmallMobile ? 12 : (isMobile ? 14 : 18),
+                    vertical: isSmallMobile ? 7 : (isMobile ? 8 : 10),
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            colors: [forestGreen, activeEmerald],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: isSelected ? null : Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    side: BorderSide(
-                      color: isSelected ? forestGreen : AppTheme.cardBorder,
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : const Color(0xFFE2E8F0),
+                      width: 1.2,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: forestGreen.withValues(alpha: 0.32),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                  ),
+                  child: Text(
+                    cat,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: isSelected ? Colors.white : darkGreyText,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontSize: isSmallMobile ? 11.5 : (isMobile ? 12 : 13),
+                      letterSpacing: 0.1,
                     ),
                   ),
-                  showCheckmark: false,
                 ),
-              );
-            }).toList(),
-          ),
-        ),
-        if (_canScrollCategoryLeft)
-          Positioned(
-            left: isMobile ? 0 : -16,
-            child: _MenuScrollArrow(
-              direction: _MenuArrowDirection.left,
-              isMobile: isMobile,
-              onTap: () {
-                _categoryScrollController.animateTo(
-                  (_categoryScrollController.offset - 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
+              ),
             ),
-          ),
-        if (_canScrollCategoryRight)
-          Positioned(
-            right: isMobile ? 0 : -16,
-            child: _MenuScrollArrow(
-              direction: _MenuArrowDirection.right,
-              isMobile: isMobile,
-              onTap: () {
-                _categoryScrollController.animateTo(
-                  (_categoryScrollController.offset + 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
-            ),
-          ),
-      ],
+          );
+        }).toList(),
+      ),
     );
   }
 
-
-
   Widget _buildMenuCard(BuildContext context, MenuItem item,
       {bool isMobile = false}) {
-    final imageUrl =
-        MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          )
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Dish Image with Tag
-            Expanded(
-              flex: isMobile ? 5 : 5,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: AppTheme.lightGrey,
-                          child: const Icon(Icons.restaurant,
-                              size: 40, color: Colors.grey),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // Category Badge
-                  Positioned(
-                    top: isMobile ? 8 : 12,
-                    left: isMobile ? 8 : 12,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 8 : 10,
-                          vertical: isMobile ? 3 : 4),
-                      decoration: BoxDecoration(
-                        color: forestGreen.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        item.category,
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontSize: isMobile ? 9.5 : 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Details
-            Expanded(
-              flex: isMobile ? 4 : 4,
-              child: Padding(
-                padding: EdgeInsets.all(isMobile ? 10 : 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.bold,
-                            fontSize: isMobile ? 13.5 : 15,
-                            color: darkGreyText,
-                          ),
-                        ),
-                        SizedBox(height: isMobile ? 2 : 4),
-                        Text(
-                          item.description ??
-                              'Authentic Yang Chow recipe prepared fresh daily.',
-                          maxLines: isMobile ? 1 : 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: isMobile ? 10.5 : 12,
-                            color: AppTheme.mediumGrey,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Price & Action Button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '₱${item.price.toStringAsFixed(2)}',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: forestGreen,
-                            fontWeight: FontWeight.w800,
-                            fontSize: isMobile ? 13.5 : 16,
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () =>
-                              _showMenuItemDetailsDialog(context, item),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: isMobile ? 7 : 10,
-                                vertical: isMobile ? 4 : 6),
-                            decoration: BoxDecoration(
-                              color: forestGreen.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Details',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: forestGreen,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: isMobile ? 10.5 : 12,
-                                  ),
-                                ),
-                                SizedBox(width: isMobile ? 2 : 4),
-                                Icon(Icons.chevron_right_rounded,
-                                    color: forestGreen,
-                                    size: isMobile ? 13 : 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return _LandingMenuCard(
+      item: item,
+      isMobile: isMobile,
+      onDetailsTap: () => _showMenuItemDetailsDialog(context, item),
     );
   }
 
   void _showMenuItemDetailsDialog(BuildContext context, MenuItem item) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final isSmallMobile = screenWidth < 360;
     final imageUrl =
         MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
     showDialog(
@@ -4124,9 +4068,13 @@ class _LandingPageState extends State<LandingPage>
         return Dialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isSmallMobile ? 12 : (isMobile ? 16 : 24),
+            vertical: isSmallMobile ? 16 : 24,
+          ),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 580),
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isSmallMobile ? 14 : (isMobile ? 16 : 24)),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -4139,7 +4087,7 @@ class _LandingPageState extends State<LandingPage>
                         child: Text(
                           item.name,
                           style: GoogleFonts.playfairDisplay(
-                            fontSize: 22,
+                            fontSize: isMobile ? 18 : 22,
                             fontWeight: FontWeight.bold,
                             color: darkGreyText,
                           ),
@@ -4169,15 +4117,21 @@ class _LandingPageState extends State<LandingPage>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
                           color: forestGreen.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: forestGreen.withValues(alpha: 0.2),
+                          ),
                         ),
                         child: Text(
                           item.category,
@@ -4187,19 +4141,21 @@ class _LandingPageState extends State<LandingPage>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.lightGrey,
-                          borderRadius: BorderRadius.circular(12),
+                          color: warmGold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: primaryGold.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Text(
-                          '₱${item.price.toStringAsFixed(2)}',
+                          '₱${NumberFormat('#,##0.00').format(item.price)}',
                           style: GoogleFonts.plusJakartaSans(
                             color: forestGreen,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
@@ -5179,20 +5135,6 @@ class _LandingPageState extends State<LandingPage>
                                                         color: Colors.white,
                                                         fontSize: 10.5,
                                                         fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 5),
-                                                    const Icon(
-                                                        Icons.star_rounded,
-                                                        color: warmGold,
-                                                        size: 12),
-                                                    Text(
-                                                      '4.9',
-                                                      style: GoogleFonts
-                                                          .plusJakartaSans(
-                                                        color: warmGold,
-                                                        fontSize: 10.5,
-                                                        fontWeight: FontWeight.w800,
                                                       ),
                                                     ),
                                                   ],
@@ -7834,7 +7776,7 @@ class _LandingServiceCardState extends State<_LandingServiceCard> {
 
 enum _MenuArrowDirection { left, right }
 
-class _MenuScrollArrow extends StatefulWidget {
+class _MenuScrollArrow extends StatelessWidget {
   final _MenuArrowDirection direction;
   final bool isMobile;
   final VoidCallback onTap;
@@ -7846,90 +7788,332 @@ class _MenuScrollArrow extends StatefulWidget {
   });
 
   @override
-  State<_MenuScrollArrow> createState() => _MenuScrollArrowState();
-}
-
-class _MenuScrollArrowState extends State<_MenuScrollArrow>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _bounceController;
-  late final Animation<double> _bounceAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-
-    _bounceAnim = Tween<double>(begin: 0.0, end: 6.0).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _bounceController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isLeft = widget.direction == _MenuArrowDirection.left;
+    final isLeft = direction == _MenuArrowDirection.left;
 
-    // ── Desktop: original white circle ──
-    if (!widget.isMobile) {
-      return Material(
-        color: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: InkWell(
-          onTap: widget.onTap,
-          customBorder: const CircleBorder(),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        hoverColor: _LandingPageState.forestGreen.withValues(alpha: 0.08),
+        child: Container(
+          width: isMobile ? 36 : 44,
+          height: isMobile ? 36 : 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+              width: 1.2,
+            ),
+          ),
+          child: Center(
             child: Icon(
               isLeft
-                  ? Icons.arrow_back_ios_new_rounded
-                  : Icons.arrow_forward_ios_rounded,
+                  ? Icons.chevron_left_rounded
+                  : Icons.chevron_right_rounded,
               color: _LandingPageState.forestGreen,
-              size: 20,
+              size: isMobile ? 20 : 26,
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
+}
 
-    // ── Mobile: bouncing frosted pill arrow ──
-    return AnimatedBuilder(
-      animation: _bounceAnim,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(isLeft ? -_bounceAnim.value : _bounceAnim.value, 0),
-          child: child,
-        );
+// ─────────────────────────────────────────────────────────────────────────────
+// LANDING MENU CARD (HOVER-ANIMATED DISH CARD)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LandingMenuCard extends StatefulWidget {
+  final MenuItem item;
+  final bool isMobile;
+  final VoidCallback onDetailsTap;
+
+  const _LandingMenuCard({
+    required this.item,
+    required this.isMobile,
+    required this.onDetailsTap,
+  });
+
+  @override
+  State<_LandingMenuCard> createState() => _LandingMenuCardState();
+}
+
+class _LandingMenuCardState extends State<_LandingMenuCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final isMobile = widget.isMobile;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallMobile = screenWidth < 360;
+    final imageUrl =
+        MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+
+    return MouseRegion(
+      onEnter: (_) {
+        if (!isMobile) setState(() => _isHovered = true);
       },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration: BoxDecoration(
-            color: _LandingPageState.forestGreen.withValues(alpha: 0.82),
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
+      onExit: (_) {
+        if (!isMobile) setState(() => _isHovered = false);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.translationValues(0, _isHovered ? -5 : 0, 0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: _isHovered
+                ? _LandingPageState.forestGreen.withValues(alpha: 0.28)
+                : const Color(0xFFE2E8F0),
+            width: _isHovered ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _isHovered
+                  ? _LandingPageState.forestGreen.withValues(alpha: 0.14)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: _isHovered ? 20 : 12,
+              offset: Offset(0, _isHovered ? 10 : 5),
+            ),
+            if (_isHovered)
               BoxShadow(
-                color: _LandingPageState.forestGreen.withValues(alpha: 0.30),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(19),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dish Image with Tag
+              Expanded(
+                flex: 5,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: AppTheme.lightGrey,
+                            child: const Icon(Icons.restaurant,
+                                size: 40, color: Colors.grey),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Subtle bottom image vignette gradient for contrast
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.3),
+                            ],
+                            stops: const [0.65, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Category Badge (Elegant Frosted Pill)
+                    Positioned(
+                      top: isMobile ? 8 : 10,
+                      left: isMobile ? 8 : 10,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 10),
+                          vertical: isMobile ? 3.5 : 4.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _LandingPageState.forestGreen.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(
+                                color: _LandingPageState.warmGold,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: isSmallMobile ? 95 : (isMobile ? 120 : 150),
+                              ),
+                              child: Text(
+                                item.category,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: isSmallMobile ? 8.5 : (isMobile ? 9.5 : 10.5),
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Details
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 10 : 13)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: isSmallMobile ? 12.5 : (isMobile ? 13.5 : 15),
+                              color: _LandingPageState.darkGreyText,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          SizedBox(height: isMobile ? 3 : 5),
+                          Text(
+                            item.description?.trim().isNotEmpty == true
+                                ? item.description!
+                                : 'Authentic Yang Chow recipe prepared fresh daily.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: isSmallMobile ? 9.5 : (isMobile ? 10.5 : 11.5),
+                              color: const Color(0xFF64748B),
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Price & Action Button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: '₱',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: _LandingPageState.forestGreen,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 13.5),
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: NumberFormat('#,##0.00').format(item.price),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: _LandingPageState.forestGreen,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: isSmallMobile ? 13 : (isMobile ? 14 : 16.5),
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: widget.onDetailsTap,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 10),
+                                  vertical: isSmallMobile ? 3.5 : (isMobile ? 4 : 5.5),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _LandingPageState.forestGreen.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _LandingPageState.forestGreen.withValues(alpha: 0.18),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Details',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: _LandingPageState.forestGreen,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: isSmallMobile ? 9.5 : (isMobile ? 10.5 : 11.5),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: _LandingPageState.forestGreen,
+                                      size: isSmallMobile ? 11 : (isMobile ? 12 : 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
-          ),
-          child: Icon(
-            isLeft
-                ? Icons.chevron_left_rounded
-                : Icons.chevron_right_rounded,
-            color: _LandingPageState.warmGold,
-            size: 22,
           ),
         ),
       ),
