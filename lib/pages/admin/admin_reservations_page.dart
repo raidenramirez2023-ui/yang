@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
+import 'package:yang_chow/services/email_notification_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
 import 'package:yang_chow/widgets/admin_add_event_dialog.dart';
@@ -2279,6 +2280,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               ),
             ],
           ],
+          // Send/Resend Reminder button — available for active reservations
+          if (!isArchived && (status == 'pending' || status == 'confirmed' || status == 'approved'))
+            _buildCompactActionButton(
+              icon: reservation['reminder_sent'] == true ? Icons.mark_email_read_outlined : Icons.email_outlined,
+              color: reservation['reminder_sent'] == true ? const Color(0xFF059669) : const Color(0xFF7C3AED),
+              tooltip: reservation['reminder_sent'] == true ? 'Resend Reminder' : 'Send Reminder',
+              onPressed: () => _sendReminderEmail(reservation),
+            ),
           _buildCompactActionButton(
             icon: Icons.visibility_outlined,
             color: AppTheme.infoBlue,
@@ -2302,6 +2311,138 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         ],
       ),
     );
+  }
+
+  /// Send or resend a reminder email for a reservation
+  Future<void> _sendReminderEmail(Map<String, dynamic> reservation) async {
+    final reservationId = reservation['id'] as String;
+    final customerName = reservation['customer_name'] ?? 'Customer';
+    final eventType = reservation['event_type'] ?? 'Reservation';
+    final reminderAlreadySent = reservation['reminder_sent'] == true;
+    final emailService = EmailNotificationService();
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    // Show confirmation dialog
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              reminderAlreadySent ? Icons.mark_email_read_outlined : Icons.email_outlined,
+              color: reminderAlreadySent ? const Color(0xFF059669) : const Color(0xFF7C3AED),
+              size: 24,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                reminderAlreadySent ? 'Resend Reminder' : 'Send Reminder',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: isMobile ? 16 : 18,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              reminderAlreadySent
+                  ? 'Resend a reminder email to $customerName about their "$eventType"?'
+                  : 'Send a reminder email to $customerName about their "$eventType"?',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F3FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE9E5FF)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Color(0xFF7C3AED), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'The customer will receive an email reminder about their reservation at their registered email address.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: const Color(0xFF5B21B6),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C3AED),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: Text(
+              reminderAlreadySent ? 'Resend' : 'Send',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSend != true) return;
+
+    // Reset flag if resending
+    if (reminderAlreadySent) {
+      await emailService.resetReminderFlag(reservationId: reservationId);
+    }
+
+    // Determine if this is an advance order or event reservation
+    final isAdvanceOrder = (eventType).toString().toLowerCase().contains('advance order');
+    
+    bool success;
+    if (isAdvanceOrder) {
+      success = await emailService.sendAdvanceOrderReminderEmail(advanceOrderId: reservationId);
+    } else {
+      success = await emailService.sendEventReminderEmail(reservationId: reservationId);
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      _showSnackBar('✅ Reminder email sent to $customerName successfully!', const Color(0xFF059669));
+      _loadReservations(); // Refresh to update reminder_sent status
+    } else {
+      _showSnackBar('❌ Failed to send reminder email. Please try again.', Colors.red);
+    }
   }
 
   void _showMarkNoShowConfirmationDialog(String reservationId, Map<String, dynamic> reservation) {

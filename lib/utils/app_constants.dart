@@ -127,6 +127,10 @@ class AppConstants {
   static const String emailTypeRefundRejected = 'refund_rejected';
   static const String emailTypeRefundCompleted = 'refund_completed';
 
+  // Automated reminder email types
+  static const String emailTypeEventReminder = 'event_reminder';
+  static const String emailTypeAdvanceOrderReminder = 'advance_order_reminder';
+
   // Refund status values
   static const String refundStatusNone = 'none';
   static const String refundStatusPending = 'pending';

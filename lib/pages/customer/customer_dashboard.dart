@@ -5913,18 +5913,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               _buildFormLabel(
                                 _hasSavedValidId
                                     ? 'VALID ID (ON FILE)'
-                                    : 'VALID ID (REQUIRED FOR CHECK-IN)',
+                                    : 'VALID ID (OPTIONAL)',
                               ),
                               if (!_hasSavedValidId) ...[
                                 const SizedBox(width: 4),
-                                const Text(
-                                  '*',
-                                  style: TextStyle(
-                                    color: AppTheme.errorRed,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
                               ] else ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -6750,7 +6742,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                         Icon(Icons.stars_rounded, size: 12, color: AppTheme.warmGold),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'Yang\'s Patron Member',
+                                          'YangChow\'s Pagsanjan Member',
                                           style: GoogleFonts.inter(
                                             fontSize: 10.5,
                                             fontWeight: FontWeight.w700,
@@ -14169,10 +14161,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         return;
       }
 
-      if (_uploadedIdUrl == null || _uploadedIdUrl!.isEmpty) {
-        _showSnackBar('Please upload a Valid ID before confirming your reservation', Colors.red);
-        return;
-      }
+      // Valid ID is now optional — no blocking validation
     } else {
       if (date.isEmpty) hasRequiredFields = false;
       if (startTime.isEmpty) hasRequiredFields = false;
@@ -14602,10 +14591,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         _showSnackBar('Please wait for your Valid ID to finish uploading', Colors.orange);
         return;
       }
-      if (_uploadedIdUrl == null || _uploadedIdUrl!.isEmpty) {
-        _showSnackBar('Please upload a Valid ID before completing your reservation', Colors.red);
-        return;
-      }
+      // Valid ID is now optional — no blocking validation
     }
 
 
