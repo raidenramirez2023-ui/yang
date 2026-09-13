@@ -975,69 +975,63 @@ class _LandingPageState extends State<LandingPage>
   }
 
   Future<void> _openYangChowFacebookPage() async {
-    const String pageId = '100034844533234';
     const String pageUrl = 'https://www.facebook.com/yangchow.pagsanjan.2013';
 
-    // Try native Facebook app intents first with numeric ID (supports both Page and Profile schemes)
-    final List<Uri> appUris = [
-      Uri.parse('fb://page/$pageId'),
-      Uri.parse('fb://profile/$pageId'),
-    ];
+    // Try Facebook app native modal intent first (compatible with profiles and pages without Meta crash)
+    final Uri appUri = Uri.parse('fb://facewebmodal/f?href=$pageUrl');
     final Uri webUri = Uri.parse(pageUrl);
 
-    for (final uri in appUris) {
-      try {
-        if (await canLaunchUrl(uri)) {
-          final bool launchedInApp = await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
-          );
-          if (launchedInApp) return;
-        }
-      } catch (_) {}
-    }
-
-    // Fallback to web browser
     try {
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      debugPrint('Error launching Facebook Page: $e');
-    }
-  }
-
-  Future<void> _openYangChowFacebookMessenger() async {
-    const String pageId = '100034844533234';
-    const String username = 'yangchow.pagsanjan.2013';
-
-    // Native Messenger app intent requires numeric user/page ID
-    final Uri messengerAppUri = Uri.parse('fb-messenger://user-thread/$pageId');
-    final Uri mMeUri = Uri.parse('https://m.me/$username');
-    final Uri fallbackWebUri = Uri.parse('https://www.facebook.com/messages/t/$pageId');
-
-    try {
-      if (await canLaunchUrl(messengerAppUri)) {
+      if (await canLaunchUrl(appUri)) {
         final bool launchedInApp = await launchUrl(
-          messengerAppUri,
+          appUri,
           mode: LaunchMode.externalApplication,
         );
         if (launchedInApp) return;
       }
     } catch (_) {}
 
-    // Fallback: m.me redirect or direct web messenger thread
+    // Fallback: externalApplication delegates to native Facebook app or mobile browser cleanly
     try {
       final bool launchedWeb = await launchUrl(
-        mMeUri,
+        webUri,
         mode: LaunchMode.externalApplication,
       );
       if (!launchedWeb) {
-        await launchUrl(fallbackWebUri, mode: LaunchMode.externalApplication);
+        await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Error launching Facebook Page: $e');
+    }
+  }
+
+  Future<void> _openYangChowFacebookMessenger() async {
+    const String username = 'yangchow.pagsanjan.2013';
+    const String pageId = '100034844533234';
+
+    // Official Meta universal shortlink: opens directly into Messenger app conversation in 1 tap
+    final Uri mMeUri = Uri.parse('https://m.me/$username');
+    final Uri fallbackWebUri = Uri.parse('https://www.facebook.com/messages/t/$pageId');
+
+    try {
+      final bool launched = await launchUrl(
+        mMeUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched) return;
+    } catch (_) {}
+
+    // Fallback: direct web messenger thread
+    try {
+      final bool launchedFallback = await launchUrl(
+        fallbackWebUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launchedFallback) {
+        await launchUrl(fallbackWebUri, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
       debugPrint('Error launching Messenger: $e');
-      try {
-        await launchUrl(fallbackWebUri, mode: LaunchMode.externalApplication);
-      } catch (_) {}
     }
   }
 
@@ -1048,12 +1042,34 @@ class _LandingPageState extends State<LandingPage>
     try {
       final LatLng? target = await _geocodeAddress(trimmed);
       if (target != null) {
-        _mapController.move(target, 15.5);
+        // Drop the pin marker on the searched location immediately
+        setState(() {
+          _pinnedLocation = target;
+          _pinnedAddress = trimmed;
+          _startPointController.text = trimmed;
+          _startLatLng = target;
+          _isRouteCardHidden = false;
+        });
+
+        // Center map on the pinned location with clear zoom
+        _mapController.move(target, 16.0);
+
+        // Fetch detailed street name in background if available
+        _reverseGeocode(target).then((addr) {
+          if (mounted && addr.isNotEmpty && _pinnedLocation == target) {
+            setState(() {
+              _pinnedAddress = addr;
+            });
+          }
+        });
+
+        // Calculate road route and distance from the pinned point to Yang Chow
+        await _calculateRouteBetween(target, _restaurantLocation, showSnackbar: true);
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('No results found for "$trimmed". Try adding town or city name.'),
+              content: Text('No results found for "$trimmed". Try adding town or city name (e.g. "$trimmed, Laguna").'),
             ),
           );
         }
@@ -5029,7 +5045,7 @@ class _LandingPageState extends State<LandingPage>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: SizedBox(
-                    height: isMobile ? 480 : 560,
+                    height: isMobile ? 500 : 560,
                     width: double.infinity,
                     child: Stack(
                       children: [
@@ -5457,85 +5473,32 @@ class _LandingPageState extends State<LandingPage>
                       ),
 
                       // ─── Bottom Floating Card (Route or Store Info) ────────
-                      if (_showRestaurantInfoCard && !_showDirectionsPanel)
+                      if (!_showDirectionsPanel)
                         Positioned(
-                          bottom: 14,
-                          left: 14,
-                          right: (_routePoints.isNotEmpty && _isRouteCardHidden)
-                              ? null
-                              : (isMobile ? 68 : null),
-                          child: _routePoints.isNotEmpty
-                              ? (_isRouteCardHidden
-                                  ? _buildCollapsedRouteBadge()
-                                  : _buildRealRouteInfoCard(isMobile))
-                              : _buildRealStoreInfoCard(isMobile),
+                          bottom: 12,
+                          left: 12,
+                          right: 12,
+                          child: Align(
+                            alignment: isMobile
+                                ? Alignment.bottomCenter
+                                : Alignment.bottomLeft,
+                            child: _routePoints.isNotEmpty
+                                ? (_isRouteCardHidden
+                                    ? _buildCollapsedRouteBadge()
+                                    : _buildRealRouteInfoCard(isMobile))
+                                : (_showRestaurantInfoCard
+                                    ? _buildRealStoreInfoCard(isMobile)
+                                    : _buildCollapsedStoreBadge(isMobile)),
+                          ),
                         ),
 
-                      // ─── Right Floating Action Buttons (Glassmorphic) ─────
-                      Positioned(
-                        bottom: 14,
-                        right: 14,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Satellite View Toggle (Clean & Dedicated)
-                            _buildMapControlBtn(
-                              icon: _isSatelliteMode
-                                  ? Icons.map_rounded
-                                  : Icons.satellite_alt_rounded,
-                              tooltip: _isSatelliteMode
-                                  ? 'Switch to Road Map'
-                                  : 'Switch to Satellite View',
-                              isActive: _isSatelliteMode,
-                              iconColor: _isSatelliteMode
-                                  ? Colors.white
-                                  : const Color(0xFF38BDF8),
-                              onTap: _toggleSatelliteMode,
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Recenter on Yang Chow
-                            _buildMapControlBtn(
-                              icon: Icons.storefront_rounded,
-                              tooltip: 'Recenter on Yang Chow',
-                              iconColor: primaryGold,
-                              onTap: _recenterRestaurant,
-                            ),
-                            const SizedBox(height: 8),
-
-                            // GPS Current Location (Toggle ON / OFF)
-                            _buildMapControlBtn(
-                              icon: _isMyLocationActive
-                                  ? Icons.my_location_rounded
-                                  : Icons.location_searching_rounded,
-                              tooltip: _isMyLocationActive
-                                  ? 'Turn Off My Location & Route'
-                                  : 'Detect My Location & Calculate Route',
-                              isActive: _isMyLocationActive,
-                              iconColor: _isMyLocationActive
-                                  ? Colors.white
-                                  : const Color(0xFF0284C7),
-                              onTap: _toggleMyLocation,
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Zoom In
-                            _buildMapControlBtn(
-                              icon: Icons.add_rounded,
-                              tooltip: 'Zoom In',
-                              onTap: _zoomInMap,
-                            ),
-                            const SizedBox(height: 6),
-
-                            // Zoom Out
-                            _buildMapControlBtn(
-                              icon: Icons.remove_rounded,
-                              tooltip: 'Zoom Out',
-                              onTap: _zoomOutMap,
-                            ),
-                          ],
+                      // ─── Desktop-only subtle zoom controls (Mobile uses pinch-to-zoom) ─────
+                      if (!isMobile)
+                        Positioned(
+                          bottom: 20,
+                          right: 20,
+                          child: _buildDesktopZoomControls(),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -5554,7 +5517,16 @@ class _LandingPageState extends State<LandingPage>
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          // 1. My Location GPS button
+          // 1. Recenter Yang Chow Restaurant
+          _buildPillChip(
+            icon: Icons.storefront_rounded,
+            label: 'Yang Chow',
+            color: warmGold,
+            onTap: _recenterRestaurant,
+          ),
+          const SizedBox(width: 8),
+
+          // 2. My Location GPS button
           _buildPillChip(
             icon: Icons.my_location_rounded,
             label: _isMyLocationActive ? 'GPS Active' : 'My Location',
@@ -5746,7 +5718,8 @@ class _LandingPageState extends State<LandingPage>
   // ─── Real Route & Trip Navigation Card (When Route is Calculated) ────────
   Widget _buildRealRouteInfoCard(bool isMobile) {
     return Container(
-      constraints: BoxConstraints(maxWidth: isMobile ? 320 : 400),
+      width: isMobile ? double.infinity : null,
+      constraints: const BoxConstraints(maxWidth: 420),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withValues(alpha: 0.97),
@@ -6096,20 +6069,21 @@ class _LandingPageState extends State<LandingPage>
   // ─── Yang Chow Store Info Card (When No Route Active) ───────────────────
   Widget _buildRealStoreInfoCard(bool isMobile) {
     return Container(
-      constraints: BoxConstraints(maxWidth: isMobile ? 320 : 390),
-      padding: const EdgeInsets.all(14),
+      width: isMobile ? double.infinity : null,
+      constraints: const BoxConstraints(maxWidth: 400),
+      padding: EdgeInsets.all(isMobile ? 12 : 14),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withValues(alpha: 0.97),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: const Color(0xFF00B4D8).withValues(alpha: 0.55),
-          width: 1.4,
+          width: 1.3,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -6120,8 +6094,8 @@ class _LandingPageState extends State<LandingPage>
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -6129,7 +6103,7 @@ class _LandingPageState extends State<LandingPage>
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
-                      blurRadius: 8,
+                      blurRadius: 6,
                     )
                   ],
                 ),
@@ -6140,7 +6114,7 @@ class _LandingPageState extends State<LandingPage>
                     errorBuilder: (_, __, ___) => const Icon(
                       Icons.restaurant,
                       color: warmGold,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
                 ),
@@ -6158,7 +6132,7 @@ class _LandingPageState extends State<LandingPage>
                             style: GoogleFonts.playfairDisplay(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14.5,
+                              fontSize: isMobile ? 14 : 15,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -6176,7 +6150,7 @@ class _LandingPageState extends State<LandingPage>
                             'OPEN NOW',
                             style: GoogleFonts.plusJakartaSans(
                               color: const Color(0xFF10B981),
-                              fontSize: 9,
+                              fontSize: 8.5,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -6187,13 +6161,13 @@ class _LandingPageState extends State<LandingPage>
                     Row(
                       children: [
                         const Icon(Icons.star_rounded,
-                            color: warmGold, size: 14),
+                            color: warmGold, size: 13),
                         const SizedBox(width: 3),
                         Text(
                           '4.9 (150+ reviews)',
                           style: GoogleFonts.plusJakartaSans(
                             color: warmGold,
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -6202,7 +6176,7 @@ class _LandingPageState extends State<LandingPage>
                           '• CLA Mall',
                           style: GoogleFonts.plusJakartaSans(
                             color: const Color(0xFF94A3B8),
-                            fontSize: 11,
+                            fontSize: 10.5,
                           ),
                         ),
                       ],
@@ -6210,56 +6184,72 @@ class _LandingPageState extends State<LandingPage>
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded,
-                    color: Colors.white60, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () =>
-                    setState(() => _showRestaurantInfoCard = false),
+              Tooltip(
+                message: 'Minimize card',
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white60, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: () =>
+                      setState(() => _showRestaurantInfoCard = false),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
 
-          Text(
-            'CLA Town Center Mall, Ground Floor, Pagsanjan, Laguna',
-            style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFFCBD5E1),
-              fontSize: 11,
-              height: 1.3,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.place_rounded,
+                  size: 13, color: Color(0xFF38BDF8)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'CLA Town Center Mall, Ground Floor, Pagsanjan, Laguna',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFFCBD5E1),
+                    fontSize: 10.5,
+                    height: 1.25,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
 
-          // Real Functional Tip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00B4D8).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.touch_app_rounded,
-                    color: Color(0xFF38BDF8), size: 15),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Pindutin ang mapa o pumili ng bayan sa itaas para mag-calculate ng ruta.',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: const Color(0xFFBAE6FD),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
+          if (!isMobile) ...[
+            const SizedBox(height: 8),
+            // Real Functional Tip (Desktop / Tablet)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00B4D8).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.touch_app_rounded,
+                      color: Color(0xFF38BDF8), size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Pindutin ang mapa o pumili ng bayan sa itaas para mag-calculate ng ruta.',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFFBAE6FD),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 9),
 
           // Action buttons: Clean Google Maps and Waze buttons
           Row(
@@ -6320,34 +6310,43 @@ class _LandingPageState extends State<LandingPage>
   // ─── Floating Search Bar ───────────────────────────────────────────────
   Widget _buildRealSearchBar(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFF00B4D8).withValues(alpha: 0.5),
-          width: 1.3,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded,
-              color: Color(0xFF00B4D8), size: 21),
-          const SizedBox(width: 10),
+          InkWell(
+            onTap: () => _searchPlace(_mapSearchController.text),
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.all(3),
+              child: Icon(Icons.search_rounded,
+                  color: Color(0xFF00B4D8), size: 19),
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _mapSearchController,
               onSubmitted: _searchPlace,
+              cursorColor: const Color(0xFF00B4D8),
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 13.5,
+                fontSize: 13,
                 color: Colors.white,
+                fontWeight: FontWeight.w500,
               ),
               decoration: InputDecoration(
                 hintText: isMobile
@@ -6355,34 +6354,75 @@ class _LandingPageState extends State<LandingPage>
                     : 'Search place, town, or landmark (e.g. Santa Cruz, Pagsanjan Church)...',
                 hintStyle: TextStyle(
                   color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12.5,
+                  fontSize: 12,
                 ),
+                filled: false,
+                fillColor: Colors.transparent,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
                 isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
             ),
           ),
           if (_mapSearchController.text.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear_rounded,
-                  size: 18, color: Colors.white60),
+                  size: 16, color: Colors.white60),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
+              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
               onPressed: () {
                 _mapSearchController.clear();
                 setState(() {});
               },
             ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
+          // Satellite View Toggle Button (Integrated directly into Search Bar)
+          Container(
+            decoration: BoxDecoration(
+              color: _isSatelliteMode
+                  ? const Color(0xFF00B4D8)
+                  : Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _isSatelliteMode
+                    ? const Color(0xFF00B4D8)
+                    : Colors.white24,
+                width: 1,
+              ),
+            ),
+            child: IconButton(
+              icon: Icon(
+                _isSatelliteMode
+                    ? Icons.map_rounded
+                    : Icons.satellite_alt_rounded,
+                color: _isSatelliteMode
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFF38BDF8),
+                size: 16,
+              ),
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              tooltip: _isSatelliteMode
+                  ? 'Switch to Road Map'
+                  : 'Switch to Satellite View',
+              onPressed: _toggleSatelliteMode,
+            ),
+          ),
+          const SizedBox(width: 5),
           // Directions Panel Button
           Container(
             decoration: BoxDecoration(
               color: const Color(0xFF00B4D8),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: IconButton(
               icon: const Icon(Icons.alt_route_rounded,
-                  color: Color(0xFF0F172A), size: 19),
+                  color: Color(0xFF0F172A), size: 17),
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               tooltip: 'Calculate Route',
               onPressed: () => setState(() => _showDirectionsPanel = true),
             ),
@@ -6614,60 +6654,147 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildMapControlBtn({
+  // ─── Desktop-only Subtle Zoom Controls ──────────────────────────────────
+  Widget _buildDesktopZoomControls() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildCompactMapIconBtn(
+            icon: Icons.add_rounded,
+            tooltip: 'Zoom In',
+            iconColor: Colors.white,
+            onTap: _zoomInMap,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Container(
+              height: 1,
+              width: 20,
+              color: Colors.white.withValues(alpha: 0.15),
+            ),
+          ),
+          _buildCompactMapIconBtn(
+            icon: Icons.remove_rounded,
+            tooltip: 'Zoom Out',
+            iconColor: Colors.white,
+            onTap: _zoomOutMap,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactMapIconBtn({
     required IconData icon,
     required String tooltip,
     required VoidCallback onTap,
     Color? iconColor,
+    Color? activeBgColor,
     bool isActive = false,
   }) {
     return Tooltip(
       message: tooltip,
       triggerMode: TooltipTriggerMode.manual,
-      waitDuration: const Duration(milliseconds: 500),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(13),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(13),
-            onTap: () {
-              debugPrint('Map control button tapped: $tooltip');
-              onTap();
-            },
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFF00B4D8)
-                    : const Color(0xFF0F172A).withValues(alpha: 0.94),
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(
-                  color: isActive
-                      ? Colors.white
-                      : const Color(0xFF00B4D8).withValues(alpha: 0.35),
-                  width: isActive ? 1.8 : 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  color: isActive
-                      ? const Color(0xFF0F172A)
-                      : (iconColor ?? Colors.white),
-                  size: 20,
-                ),
-              ),
+      waitDuration: const Duration(milliseconds: 400),
+      child: Material(
+        color: isActive
+            ? (activeBgColor ?? const Color(0xFF00B4D8))
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              color: isActive
+                  ? const Color(0xFF0F172A)
+                  : (iconColor ?? Colors.white),
+              size: 18,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Collapsed Store Badge (Floating Reopen Pill) ──────────────────────
+  Widget _buildCollapsedStoreBadge(bool isMobile) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _showRestaurantInfoCard = true),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF00B4D8).withValues(alpha: 0.65),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.restaurant_rounded, color: warmGold, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                'Yang Chow Pagsanjan',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'OPEN',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF10B981),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              const Icon(Icons.keyboard_arrow_up_rounded,
+                  color: Color(0xFF38BDF8), size: 16),
+            ],
           ),
         ),
       ),
