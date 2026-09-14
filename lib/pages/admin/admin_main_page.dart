@@ -84,6 +84,12 @@ import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+class _AdminNavGroup {
+  final String title;
+  final List<int> indices;
+  const _AdminNavGroup({required this.title, required this.indices});
+}
+
 class AdminMainPage extends StatefulWidget {
   final int initialIndex;
 
@@ -757,13 +763,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildNavBadge(int count) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFFEF4444), // Uniform Red
+        color: const Color(0xFFEF4444),
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withValues(alpha: 0.35),
+            color: const Color(0xFFEF4444).withValues(alpha: 0.35),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -773,8 +779,168 @@ class _AdminMainPageState extends State<AdminMainPage> {
         count > 99 ? '99+' : '$count',
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 10.5,
-          fontWeight: FontWeight.bold,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  static const List<_AdminNavGroup> _adminNavGroups = [
+    _AdminNavGroup(
+      title: 'OVERVIEW',
+      indices: [0, 1], // Dashboard, Sales Reports
+    ),
+    _AdminNavGroup(
+      title: 'OPERATIONS',
+      indices: [5, 4, 2, 3], // Reservations, Menu Management, Inventory, Inventory Forecast
+    ),
+    _AdminNavGroup(
+      title: 'FINANCE & PAYMENTS',
+      indices: [6, 12, 11], // Payment Management, Refunds & Reschedules, Petty Cash
+    ),
+    _AdminNavGroup(
+      title: 'ADMIN & SYSTEM',
+      indices: [7, 8, 10, 9, 13], // Employee Management, Customers & Reviews, Customer Chat, Announcements, Audit Logs
+    ),
+  ];
+
+  String _getCategoryForIndex(int index) {
+    for (final group in _adminNavGroups) {
+      if (group.indices.contains(index)) {
+        return group.title;
+      }
+    }
+    return 'ADMIN';
+  }
+
+  Widget _buildCategorizedNavList({required bool isDrawer}) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      children: [
+        for (final group in _adminNavGroups) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 12, 6),
+            child: Row(
+              children: [
+                Text(
+                  group.title,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: Color(0xFF8BAAA4),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (final index in group.indices)
+            _buildNavTile(index: index, isDrawer: isDrawer),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildNavTile({required int index, required bool isDrawer}) {
+    final isSelected = _selectedIndex == index;
+
+    // Badges calculation - exactly preserves existing logic
+    int badgeCount = 0;
+    if (_pageTitles[index] == 'Reservations') {
+      badgeCount = _pendingReservationCount;
+    } else if (_pageTitles[index] == 'Payment Management') {
+      badgeCount = _pendingPaymentCount + _remainingBalanceCount;
+    } else if (_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') {
+      badgeCount = _pendingRefundCount;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: isSelected ? AppTheme.activeSidebarItemBackground : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          hoverColor: Colors.white.withValues(alpha: 0.05),
+          onTap: () {
+            _onSelectTab(index);
+
+            // Refresh count when switching to Payment Management
+            if (_pageTitles[index] == 'Payment Management') {
+              if (mounted) {
+                setState(() {
+                  _pendingPaymentCount = 0;
+                  _remainingBalanceCount = 0;
+                });
+              }
+            }
+
+            // Refresh count when switching to Reservations
+            if (_pageTitles[index] == 'Reservations') {
+              if (mounted) {
+                setState(() {
+                  _pendingReservationCount = 0;
+                });
+              }
+            }
+
+            // Refresh count when switching to Refunds & Reschedules
+            if (_pageTitles[index] == 'Refunds & Reschedules') {
+              _loadPendingRefundCount();
+            }
+
+            if (isDrawer) {
+              Navigator.pop(context);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                if (isSelected)
+                  Container(
+                    width: 3.5,
+                    height: 18,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.activeSidebarAccent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 0),
+                Icon(
+                  _pageIcons[index],
+                  size: 19,
+                  color: isSelected
+                      ? AppTheme.activeSidebarAccent
+                      : const Color(0xFFC7D6D3),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _pageTitles[index],
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 13,
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                ),
+                if (badgeCount > 0) _buildNavBadge(badgeCount),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -783,267 +949,140 @@ class _AdminMainPageState extends State<AdminMainPage> {
   Widget _buildSidebar() {
     return Material(
       color: AppTheme.adminSidebarBackground,
-
       child: SizedBox(
-
         width: 260,
-
         child: Column(
-
-        children: [
-
-          Padding(
-
-            padding: const EdgeInsets.all(24),
-
-            child: Row(
-
-              children: [
-
-                Container(
-
-                  padding: const EdgeInsets.all(8),
-
-                  decoration: BoxDecoration(
-
-                    color: AppTheme.adminActiveSidebarAccent,
-
-                    borderRadius: BorderRadius.circular(12),
-
-                  ),
-
-                  child: const Icon(
-
-                    Icons.restaurant,
-
-                    color: Colors.white,
-
-                    size: 24,
-
-                  ),
-
-                ),
-
-                const SizedBox(width: 12),
-
-                const Column(
-
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-
-                    Text(
-
-                      'AdminPanel',
-
-                      style: TextStyle(
-
-                        fontWeight: FontWeight.bold,
-
-                        fontSize: 18,
-
-                        color: Colors.white,
-
+          children: [
+            // Brand Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          AppTheme.adminActiveSidebarAccent,
+                          Color(0xFFB47D28),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-
-
-          const SizedBox(height: 8),
-
-          Expanded(
-
-            child: ListView.builder(
-
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-
-              itemCount: _pageTitles.length,
-
-              itemBuilder: (context, index) {
-
-                final isSelected = _selectedIndex == index;
-
-                return Padding(
-
-                  padding: const EdgeInsets.only(bottom: 4),
-
-                  child: Material(
-
-                    color: isSelected
-
-                        ? AppTheme.activeSidebarItemBackground
-
-                        : Colors.transparent,
-
-                    borderRadius: BorderRadius.circular(12),
-
-                    child: InkWell(
-
                       borderRadius: BorderRadius.circular(12),
-
-                      onTap: () {
-
-                        _onSelectTab(index);
-
-                        // Refresh count when switching to Payment Management
-                        if (_pageTitles[index] == 'Payment Management') {
-                          // Reset count to 0 when admin views payment management (mark as seen)
-                          if (mounted) {
-                            setState(() {
-                              _pendingPaymentCount = 0;
-                              _remainingBalanceCount = 0;
-                            });
-                          }
-                        }
-
-                        // Refresh count when switching to Reservations
-                        if (_pageTitles[index] == 'Reservations') {
-                          // Reset count to 0 when admin views reservations (mark as seen)
-                          if (mounted) {
-                            setState(() {
-                              _pendingReservationCount = 0;
-                            });
-                          }
-                        }
-
-                        // Refresh count when switching to Refunds & Reschedules
-                        if (_pageTitles[index] == 'Refunds & Reschedules') {
-                          _loadPendingRefundCount();
-                        }
-
-                      },
-
-                      child: Container(
-
-                        padding: const EdgeInsets.symmetric(
-
-                          horizontal: 16,
-
-                          vertical: 12,
-
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.adminActiveSidebarAccent.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
-
-                        child: Row(
-
-                          children: [
-
-                            Icon(
-
-                              _pageIcons[index],
-
-                              size: 20,
-
-                              color: isSelected
-
-                                  ? AppTheme.activeSidebarAccent
-
-                                  : AppTheme.sidebarInactiveIcon,
-
-                            ),
-
-                            const SizedBox(width: 12),
-
-                            Expanded(
-
-                              child: Text(
-
-                                _pageTitles[index],
-
-                                style: TextStyle(
-
-                                  fontWeight: isSelected
-
-                                      ? FontWeight.w600
-
-                                      : FontWeight.w500,
-
-                                  color: isSelected
-
-                                      ? AppTheme.activeSidebarAccent
-
-                                      : AppTheme.sidebarInactiveText,
-
-                                ),
-
-                              ),
-
-                            ),
-
-                            // Add badge for Reservations
-                            if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
-                              _buildNavBadge(_pendingReservationCount),
-
-                            // Add badge for Payment Management (combined Approvals & Balances)
-                            if (_pageTitles[index] == 'Payment Management' && (_pendingPaymentCount + _remainingBalanceCount) > 0)
-                              _buildNavBadge(_pendingPaymentCount + _remainingBalanceCount),
-
-                            // Add badge for Refunds & Reschedules
-                            if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
-                              _buildNavBadge(_pendingRefundCount),
-                          ],
-
-                        ),
-
-                      ),
-
+                      ],
                     ),
-
+                    child: const Icon(
+                      Icons.restaurant_menu_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
-
-                );
-
-              },
-
-            ),
-
-          ),
-
-          const Divider(height: 1, color: AppTheme.cardBorder),
-
-
-
-          ListTile(
-
-            onTap: () => _showLogoutDialog(context),
-
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-
-            title: const Text(
-
-              'Logout',
-
-              style: TextStyle(
-
-                color: Colors.redAccent,
-
-                fontWeight: FontWeight.w500,
-
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'YANG CHOW',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            letterSpacing: 0.8,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            const Text(
+                              'Admin Portal',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.sidebarSubtitle,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-
             ),
 
-          ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+            const SizedBox(height: 8),
 
+            // Categorized Navigation List
+            Expanded(
+              child: _buildCategorizedNavList(isDrawer: false),
+            ),
 
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
 
-          const SizedBox(height: 12),
-
-        ],
+            // Sidebar Footer: Logout
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  hoverColor: Colors.redAccent.withValues(alpha: 0.12),
+                  onTap: () => _showLogoutDialog(context),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 19),
+                        SizedBox(width: 12),
+                        Text(
+                          'Logout',
+                          style: TextStyle(
+                            color: Color(0xFFF87171),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildStaffDelegationToggle() {
     return Container(
@@ -1124,6 +1163,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildModernAppBar() {
     final currentUser = Supabase.instance.client.auth.currentUser;
+    final category = _getCategoryForIndex(_selectedIndex);
+
     return Container(
       height: 70,
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1133,96 +1174,130 @@ class _AdminMainPageState extends State<AdminMainPage> {
       ),
       child: Row(
         children: [
-          Text(
-            _pageTitles[_selectedIndex],
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.adminPrimaryText,
-            ),
+          // Breadcrumb & Page Title
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    category,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.9,
+                      color: AppTheme.adminSecondaryText,
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 5),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: AppTheme.adminSecondaryText,
+                    ),
+                  ),
+                  Text(
+                    _pageTitles[_selectedIndex],
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.adminPrimaryAccent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _pageTitles[_selectedIndex],
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: AppTheme.adminPrimaryText,
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           _buildStaffDelegationToggle(),
           const SizedBox(width: 14),
           _buildAdminNotificationIcon(),
-          const SizedBox(width: 8),
           const SizedBox(width: 16),
+          // User Profile Block
           Row(
             children: [
               Container(height: 32, width: 1, color: AppTheme.cardBorder),
-
-              const SizedBox(width: 24),
-
+              const SizedBox(width: 20),
               Column(
-
                 mainAxisAlignment: MainAxisAlignment.center,
-
                 crossAxisAlignment: CrossAxisAlignment.end,
-
                 children: [
-
                   Text(
-
                     currentUser?.email?.split('@')[0] ?? 'Admin',
-
                     style: const TextStyle(
-
-                      fontWeight: FontWeight.w600,
-
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.adminPrimaryText,
-
-                      fontSize: 14,
-
+                      fontSize: 13.5,
                     ),
-
                   ),
-
-                  const Text(
-
-                    'Admin',
-
-                    style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
-
+                  const SizedBox(height: 1),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'System Admin',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.adminSecondaryText,
+                      ),
+                    ),
                   ),
-
                 ],
-
               ),
-
               const SizedBox(width: 12),
-
-              CircleAvatar(
-
-                radius: 18,
-
-                backgroundColor: AppTheme.adminPricingBackground,
-
-                child: const Icon(Icons.person, color: AppTheme.adminChatButton),
-
+              Stack(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.4),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const CircleAvatar(
+                      radius: 17,
+                      backgroundColor: Color(0xFFF8FAFC),
+                      child: Icon(Icons.person_rounded, color: AppTheme.adminChatButton, size: 20),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(width: 8),
-
-              const Icon(
-
-                Icons.keyboard_arrow_down,
-
-                color: AppTheme.adminSecondaryText,
-
-                size: 20,
-
-              ),
-
             ],
-
           ),
-
         ],
-
       ),
-
     );
-
   }
 
 
@@ -1287,136 +1362,36 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   PreferredSizeWidget _buildAppBarWithDrawer() {
-
-
-
     return AppBar(
-
-
-
       backgroundColor: Colors.white,
-
-
-
       elevation: 0,
-
-
-
       centerTitle: true,
-
-
-
-      title: Row(
-
-
-
-        mainAxisSize: MainAxisSize.min,
-
-
-
-        children: [
-          const Text(
-
-
-
-            'AdminPanel',
-
-
-
-            style: TextStyle(
-
-
-
-              color: AppTheme.adminPrimaryText,
-
-
-
-              fontSize: 16,
-
-
-
-              fontWeight: FontWeight.bold,
-
-
-
-            ),
-
-
-
-          ),
-
-
-
-        ],
-
-
-
+      title: Text(
+        _pageTitles[_selectedIndex],
+        style: const TextStyle(
+          color: AppTheme.adminPrimaryText,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
       ),
-
-
-
       leading: Builder(
-
-
-
         builder: (context) => IconButton(
-
-
-
           icon: const Icon(Icons.menu, color: AppTheme.adminSecondaryText),
-
-
-
           onPressed: () => Scaffold.of(context).openDrawer(),
-
-
-
           tooltip: 'Menu',
-
-
-
         ),
-
-
-
       ),
-
-
-
       actions: [
-
         Padding(
-
           padding: const EdgeInsets.only(right: 8.0),
-
           child: _buildAdminNotificationIcon(),
-
         ),
-
       ],
-
-
-
       bottom: PreferredSize(
-
-
-
         preferredSize: const Size.fromHeight(1),
-
-
-
         child: Container(color: AppTheme.cardBorder, height: 1),
-
-
-
       ),
-
-
-
     );
-
-
-
   }
 
 
@@ -1426,316 +1401,135 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   Widget _buildDrawer() {
-
-
-
     return Drawer(
-
-
-
-      backgroundColor: Colors.white,
-
-
-
-      child: Column(
-
-
-
-        children: [
-
-
-
-          Container(
-            height: 56,
-            alignment: Alignment.center,
-            margin: EdgeInsets.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset('assets/images/mobile-logo.png', height: 36),
-                const SizedBox(width: 12),
-                const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'AdminPanel',
-
-
-
-                      style: TextStyle(
-
-
-
-                        fontWeight: FontWeight.bold,
-
-
-
-                        fontSize: 18,
-
-
-
-                        color: AppTheme.adminPrimaryText,
-
-
-
+      backgroundColor: AppTheme.adminSidebarBackground,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Brand Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          AppTheme.adminActiveSidebarAccent,
+                          Color(0xFFB47D28),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-
-
-
-                    ),
-
-
-
-                  ],
-                ),
-              ],
-
-
-
-            ),
-
-
-
-          ),
-
-
-
-          Expanded(
-
-
-
-            child: ListView.builder(
-
-
-
-              padding: const EdgeInsets.all(16),
-
-
-
-              itemCount: _pageTitles.length,
-
-
-
-              itemBuilder: (context, index) {
-
-
-
-                final isSelected = _selectedIndex == index;
-
-
-
-                return Padding(
-
-
-
-                  padding: const EdgeInsets.only(bottom: 4),
-
-
-
-                  child: Material(
-
-
-
-                    color: isSelected
-
-
-
-                        ? AppTheme.adminChatButton
-
-
-
-                        : Colors.transparent,
-
-
-
-                    borderRadius: BorderRadius.circular(12),
-
-
-
-                    child: InkWell(
-
-
-
                       borderRadius: BorderRadius.circular(12),
-
-
-
-                      onTap: () {
-                        setState(() => _selectedIndex = index);
-
-                        // Refresh count when switching to Payment Management
-                        if (_pageTitles[index] == 'Payment Management') {
-                          // Reset count to 0 when admin views payment management (mark as seen)
-                          if (mounted) {
-                            setState(() {
-                              _pendingPaymentCount = 0;
-                              _remainingBalanceCount = 0;
-                            });
-                          }
-                        }
-
-                        // Refresh count when switching to Reservations
-                        if (_pageTitles[index] == 'Reservations') {
-                          // Reset count to 0 when admin views reservations (mark as seen)
-                          if (mounted) {
-                            setState(() {
-                              _pendingReservationCount = 0;
-                            });
-                          }
-                        }
-
-                        Navigator.pop(context);
-                      },
-
-                      child: Container(
-
-                        padding: const EdgeInsets.symmetric(
-
-                          horizontal: 16,
-
-                          vertical: 12,
-
-                        ),
-
-                        child: Row(
-
-                          children: [
-
-                            Icon(
-
-                              _pageIcons[index],
-
-                              size: 20,
-
-                              color: isSelected
-
-                                  ? Colors.white
-
-                                  : AppTheme.adminSecondaryText,
-
-                            ),
-
-                            const SizedBox(width: 12),
-
-                            Expanded(
-
-                              child: Text(
-
-                                _pageTitles[index],
-
-                                style: TextStyle(
-
-                                  fontWeight: isSelected
-
-                                      ? FontWeight.w600
-
-                                      : FontWeight.w500,
-
-                                  color: isSelected
-
-                                      ? Colors.white
-
-                                      : AppTheme.adminSecondaryText,
-
-                                ),
-
-                              ),
-
-                            ),
-
-                            // Add badge for Reservations
-                            if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
-                              _buildNavBadge(_pendingReservationCount),
-
-                            // Add badge for Payment Management (combined Approvals & Balances)
-                            if (_pageTitles[index] == 'Payment Management' && (_pendingPaymentCount + _remainingBalanceCount) > 0)
-                              _buildNavBadge(_pendingPaymentCount + _remainingBalanceCount),
-
-                            // Add badge for Refunds & Reschedules
-                            if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
-                              _buildNavBadge(_pendingRefundCount),
-                          ],
-
-                        ),
-
-                      ),
-
-
-
                     ),
-
-
-
+                    child: const Icon(
+                      Icons.restaurant_menu_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'YANG CHOW',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            letterSpacing: 0.8,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            const Text(
+                              'Admin Portal',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.sidebarSubtitle,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+            const SizedBox(height: 8),
 
-
-
-                );
-
-
-
-              },
-
-
-
+            // Categorized Navigation List for Drawer
+            Expanded(
+              child: _buildCategorizedNavList(isDrawer: true),
             ),
 
-
-
-          ),
-
-
-
-          const Divider(height: 1, color: AppTheme.cardBorder),
-
-
-
-          ListTile(
-
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-
-            title: const Text(
-
-              'Logout',
-
-              style: TextStyle(color: Colors.redAccent),
-
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.08),
             ),
 
-            onTap: () {
-
-              Navigator.pop(context);
-
-              _showLogoutDialog(context);
-
-            },
-
-          ),
-
-
-
-          const SizedBox(height: 16),
-
-
-
-        ],
-
-
-
+            // Drawer Footer: Logout
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  hoverColor: Colors.redAccent.withValues(alpha: 0.12),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showLogoutDialog(context);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 19),
+                        SizedBox(width: 12),
+                        Text(
+                          'Logout',
+                          style: TextStyle(
+                            color: Color(0xFFF87171),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
       ),
-
-
-
     );
-
-
-
   }
 
 
@@ -2833,7 +2627,3 @@ class _AdminTopToastWidgetState extends State<_AdminTopToastWidget>
     );
   }
 }
-
-
-
-

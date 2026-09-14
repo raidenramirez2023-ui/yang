@@ -109,6 +109,214 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   static const _slateLight = Color(0xFFE2E8F0);
 
   // ── Status helpers ────────────────────────────────────────
+  String _formatDateDisplay(String dateStr) {
+    if (dateStr.isEmpty) return 'N/A';
+    try {
+      final parsed = DateTime.parse(dateStr);
+      return DateFormat('EEE, MMM dd, yyyy').format(parsed);
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  String _formatTimeDisplay(String timeStr) {
+    if (timeStr.isEmpty) return 'N/A';
+    final trimmed = timeStr.trim();
+    if (trimmed.toUpperCase().contains('AM') || trimmed.toUpperCase().contains('PM')) {
+      return trimmed;
+    }
+    final parts = trimmed.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h != null && m != null) {
+        final ampm = h >= 12 ? 'PM' : 'AM';
+        final displayHour = h % 12 == 0 ? 12 : h % 12;
+        final minStr = m.toString().padLeft(2, '0');
+        return '$displayHour:$minStr $ampm';
+      }
+    }
+    return trimmed;
+  }
+
+  Widget _buildRescheduleDialogStatusBadge(String status) {
+    Color textColor;
+    Color bgColor;
+    Color borderColor;
+    IconData icon;
+    final normalized = status.toLowerCase();
+    switch (normalized) {
+      case 'pending':
+        textColor = const Color(0xFFD97706);
+        bgColor = const Color(0xFFFEF3C7);
+        borderColor = const Color(0xFFFDE68A);
+        icon = Icons.hourglass_top_rounded;
+        break;
+      case 'approved':
+      case 'completed':
+        textColor = const Color(0xFF15803D);
+        bgColor = const Color(0xFFDCFCE7);
+        borderColor = const Color(0xFFBBF7D0);
+        icon = Icons.check_circle_rounded;
+        break;
+      case 'rejected':
+        textColor = const Color(0xFFDC2626);
+        bgColor = const Color(0xFFFEE2E2);
+        borderColor = const Color(0xFFFECACA);
+        icon = Icons.cancel_rounded;
+        break;
+      default:
+        textColor = _slate;
+        bgColor = const Color(0xFFF1F5F9);
+        borderColor = const Color(0xFFE2E8F0);
+        icon = Icons.help_outline_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: textColor),
+          const SizedBox(width: 5),
+          Text(
+            status.toUpperCase(),
+            style: GoogleFonts.plusJakartaSans(
+              color: textColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 10.5,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefundDialogStatusBadge(String status) {
+    Color textColor;
+    Color bgColor;
+    Color borderColor;
+    IconData icon;
+    final normalized = status.toLowerCase();
+    switch (normalized) {
+      case 'pending':
+        textColor = const Color(0xFFD97706);
+        bgColor = const Color(0xFFFEF3C7);
+        borderColor = const Color(0xFFFDE68A);
+        icon = Icons.hourglass_top_rounded;
+        break;
+      case 'approved':
+        textColor = const Color(0xFF15803D);
+        bgColor = const Color(0xFFDCFCE7);
+        borderColor = const Color(0xFFBBF7D0);
+        icon = Icons.gpp_good_rounded;
+        break;
+      case 'completed':
+        textColor = const Color(0xFF0284C7);
+        bgColor = const Color(0xFFE0F2FE);
+        borderColor = const Color(0xFFBAE6FD);
+        icon = Icons.verified_rounded;
+        break;
+      case 'rejected':
+        textColor = const Color(0xFFDC2626);
+        bgColor = const Color(0xFFFEE2E2);
+        borderColor = const Color(0xFFFECACA);
+        icon = Icons.cancel_rounded;
+        break;
+      default:
+        textColor = _slate;
+        bgColor = const Color(0xFFF1F5F9);
+        borderColor = const Color(0xFFE2E8F0);
+        icon = Icons.help_outline_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: textColor),
+          const SizedBox(width: 5),
+          Text(
+            status.toUpperCase(),
+            style: GoogleFonts.plusJakartaSans(
+              color: textColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 10.5,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefundDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? pillColor,
+    Color? pillBg,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: const Color(0xFF64748B)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        if (pillColor != null && pillBg != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: pillBg,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: pillColor,
+                letterSpacing: 0.4,
+              ),
+            ),
+          )
+        else
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+      ],
+    );
+  }
+
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -215,48 +423,120 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   void _showApproveRescheduleDialog(Map<String, dynamic> request) {
     final notesController = TextEditingController();
     final customerName = request['customer_name'] ?? 'Customer';
-    final newDate = request['new_date'] ?? '';
-    final newTime = request['new_time'] ?? '';
+    final newDate = request['new_date']?.toString() ?? '';
+    final newTime = request['new_time']?.toString() ?? '';
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         title: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Color(0xFF15803D)),
-            const SizedBox(width: 10),
-            Text(
-              'Approve Reschedule',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF15803D).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803D), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Approve Reschedule',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: _darkBg,
+                ),
+              ),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Confirm rescheduling reservation for $customerName to $newDate at $newTime?',
-              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              decoration: InputDecoration(
-                labelText: 'Admin Notes (optional)',
-                hintText: 'e.g., Table assigned, confirmed with customer',
-                labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Confirm rescheduling for $customerName:',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF166534),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF166534)),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_formatDateDisplay(newDate)} · ${_formatTimeDisplay(newTime)}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF14532D),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 2,
-            ),
-          ],
+              const SizedBox(height: 14),
+              TextField(
+                controller: notesController,
+                decoration: InputDecoration(
+                  labelText: 'Admin Notes (optional)',
+                  hintText: 'e.g., Table reassigned, customer notified',
+                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: _slate),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF15803D), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B))),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton.icon(
             onPressed: () async {
@@ -281,11 +561,13 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 );
               }
             },
-            icon: const Icon(Icons.check, size: 18),
+            icon: const Icon(Icons.check_rounded, size: 16),
             label: Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF15803D),
               foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
@@ -302,42 +584,94 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         title: Row(
           children: [
-            const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626)),
-            const SizedBox(width: 10),
-            Text(
-              'Reject Reschedule',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Reject Reschedule',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: _darkBg,
+                ),
+              ),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Reject reschedule request for $customerName?',
-              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: InputDecoration(
-                labelText: 'Rejection Reason (required)',
-                hintText: 'e.g., Fully booked on requested date/time',
-                labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Text(
+                  'Are you sure you want to reject this reschedule request for $customerName?',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF991B1B),
+                  ),
+                ),
               ),
-              maxLines: 2,
-            ),
-          ],
+              const SizedBox(height: 14),
+              TextField(
+                controller: reasonController,
+                decoration: InputDecoration(
+                  labelText: 'Rejection Reason (required)',
+                  hintText: 'e.g., Fully booked on requested date/time',
+                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: _slate),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B))),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton.icon(
             onPressed: () async {
@@ -362,11 +696,13 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 );
               }
             },
-            icon: const Icon(Icons.close, size: 18),
+            icon: const Icon(Icons.close_rounded, size: 16),
             label: Text('Reject Request', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
@@ -378,40 +714,114 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   // ── Approve dialog ────────────────────────────────────────
   void _showApproveDialog(Map<String, dynamic> refund) {
     final notesController = TextEditingController();
+    final customerName = refund['customer_name'] ?? 'Customer';
+    final amount = (refund['refund_amount'] as num?)?.toDouble() ?? 0;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         title: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: AppTheme.successGreen),
-            const SizedBox(width: 10),
-            const Text('Approve Refund'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF15803D).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803D), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Approve Refund',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: _darkBg,
+                ),
+              ),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Approve refund of ${_currencyFormat.format(refund['refund_amount'])} for ${refund['customer_name']}?',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              decoration: InputDecoration(
-                labelText: 'Admin Notes (optional)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Approve refund for $customerName:',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF166534),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currencyFormat.format(amount),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF14532D),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 2,
-            ),
-          ],
+              const SizedBox(height: 14),
+              TextField(
+                controller: notesController,
+                decoration: InputDecoration(
+                  labelText: 'Admin Notes (optional)',
+                  hintText: 'e.g., Verified with POS supervisor',
+                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: _slate),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF15803D), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton.icon(
             onPressed: () async {
@@ -443,11 +853,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 );
               }
             },
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('Approve'),
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successGreen,
+              backgroundColor: const Color(0xFF15803D),
               foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ],
@@ -458,40 +871,100 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   // ── Reject dialog ─────────────────────────────────────────
   void _showRejectDialog(Map<String, dynamic> refund) {
     final reasonController = TextEditingController();
+    final customerName = refund['customer_name'] ?? 'Customer';
+    final amount = (refund['refund_amount'] as num?)?.toDouble() ?? 0;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         title: Row(
           children: [
-            Icon(Icons.cancel_rounded, color: AppTheme.errorRed),
-            const SizedBox(width: 10),
-            const Text('Reject Refund'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Reject Refund',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: _darkBg,
+                ),
+              ),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Reject refund of ${_currencyFormat.format(refund['refund_amount'])} for ${refund['customer_name']}?',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: InputDecoration(
-                labelText: 'Rejection Reason (required)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Text(
+                  'Reject refund of ${_currencyFormat.format(amount)} for $customerName?',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF991B1B),
+                  ),
+                ),
               ),
-              maxLines: 2,
-            ),
-          ],
+              const SizedBox(height: 14),
+              TextField(
+                controller: reasonController,
+                decoration: InputDecoration(
+                  labelText: 'Rejection Reason (required)',
+                  hintText: 'e.g., Items consumed, policy exceeded',
+                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: _slate),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton.icon(
             onPressed: () async {
@@ -527,11 +1000,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 );
               }
             },
-            icon: const Icon(Icons.close, size: 18),
-            label: const Text('Reject'),
+            icon: const Icon(Icons.close_rounded, size: 16),
+            label: Text('Reject Request', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
+              backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ],
@@ -2101,7 +2577,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            '$oldDate @ $oldTime',
+                            '${_formatDateDisplay(oldDate)} · ${_formatTimeDisplay(oldTime)}',
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
@@ -2138,7 +2614,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            '$newDate @ $newTime',
+                            '${_formatDateDisplay(newDate)} · ${_formatTimeDisplay(newTime)}',
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
@@ -3001,231 +3477,490 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         : (refund['created_at'] != null
             ? DateFormat('MMM dd, yyyy · h:mm a').format(DateTime.parse(refund['created_at']).toLocal())
             : 'N/A');
+    final customerName = refund['customer_name']?.toString() ?? 'Guest';
+    final customerContact = refund['customer_email'] ?? refund['customer_phone'] ?? '';
+    final txId = refund['transaction_id'] ?? refund['id'] ?? '—';
+    final refundReason = refund['refund_reason']?.toString();
+    final adminNotes = refund['admin_notes']?.toString();
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _emerald.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.receipt_long_rounded, color: _emerald, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Refund Details',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: _darkBg,
-                    ),
-                  ),
-                  Text(
-                    'Tx: #${refund['transaction_id'] ?? refund['id']}',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: _slate,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _buildCompactRefundStatusChip(status),
-          ],
-        ),
-        content: SizedBox(
-          width: 500,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 14),
-                // Customer Information
-                Row(
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header ──
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+                ),
+                child: Row(
                   children: [
-                    _miniAvatar(refund['customer_name'] ?? '?'),
-                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0F766E), size: 22),
+                    ),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            refund['customer_name'] ?? 'N/A',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              color: _darkBg,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'Refund Details',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: _darkBg,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              _buildRefundDialogStatusBadge(status),
+                            ],
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            refund['customer_email'] ?? refund['customer_phone'] ?? 'No contact',
+                            'Transaction #$txId',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
+                              fontSize: 11.5,
                               color: _slate,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF94A3B8)),
+                      tooltip: 'Close',
+                      splashRadius: 20,
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                // Financial Info Card
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
+              ),
+
+              // ── Scrollable Body Content ──
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Refund Amount', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate, fontWeight: FontWeight.w600)),
-                          Text(
-                            _currencyFormat.format(amount),
-                            style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w900, color: _emerald),
+                      // 1. Customer Profile Card
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            _miniAvatar(customerName),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          customerName,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14.5,
+                                            color: _darkBg,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Customer',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF475569),
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  if (customerContact.toString().trim().isNotEmpty)
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          customerContact.toString().contains('@')
+                                              ? Icons.mail_outline_rounded
+                                              : Icons.phone_outlined,
+                                          size: 13,
+                                          color: const Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          customerContact.toString(),
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            color: const Color(0xFF475569),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    Text(
+                                      'No contact information provided',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        color: _slate,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // 2. Financial Breakdown Hero Card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            // Prominent Refund Amount Banner
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'REFUND AMOUNT',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF166534),
+                                          letterSpacing: 0.6,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _currencyFormat.format(amount),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w900,
+                                          color: const Color(0xFF14532D),
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Original Order',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: _slate,
+                                          ),
+                                        ),
+                                        Text(
+                                          _currencyFormat.format(originalAmount),
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: _darkBg,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Breakdown details
+                            _buildRefundDetailRow(
+                              icon: Icons.storefront_rounded,
+                              label: 'Source & Channel',
+                              value: _sourceLabel(sourceTable),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildRefundDetailRow(
+                              icon: Icons.payments_outlined,
+                              label: 'Payment Method',
+                              value: refundMethod.toUpperCase(),
+                              pillColor: refundMethod.toLowerCase() == 'paymongo'
+                                  ? const Color(0xFF007AFF)
+                                  : const Color(0xFF15803D),
+                              pillBg: refundMethod.toLowerCase() == 'paymongo'
+                                  ? const Color(0xFFE0F2FE)
+                                  : const Color(0xFFDCFCE7),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildRefundDetailRow(
+                              icon: Icons.schedule_rounded,
+                              label: 'Requested Date',
+                              value: requestedAt,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 3. Reason for Refund
+                      if (refundReason != null && refundReason.trim().isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Icon(Icons.chat_bubble_outline_rounded, size: 15, color: Color(0xFF64748B)),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Reason for Refund',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: _darkBg,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Original Amount', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate)),
-                          Text(_currencyFormat.format(originalAmount), style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: _darkBg)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Source & Method', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate)),
-                          Text('${_sourceLabel(sourceTable)} · ${refundMethod.toUpperCase()}', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF334155))),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Requested Date', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate)),
-                          Text(requestedAt, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: _darkBg)),
-                        ],
-                      ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.format_quote_rounded, size: 18, color: Color(0xFF94A3B8)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  refundReason,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    color: const Color(0xFF334155),
+                                    fontStyle: FontStyle.italic,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // 4. Admin Notes
+                      if (adminNotes != null && adminNotes.trim().isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Icon(Icons.admin_panel_settings_outlined, size: 15, color: Color(0xFF0F766E)),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Admin Notes',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: _darkBg,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.verified_outlined, size: 16, color: Color(0xFF0F766E)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  adminNotes,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    color: const Color(0xFF334155),
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                if (refund['refund_reason'] != null) ...[
-                  const SizedBox(height: 12),
-                  Text('Reason', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800, color: _darkBg)),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
+              ),
+
+              // ── Actions Footer ──
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(
+                        'Close',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      refund['refund_reason'],
-                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569), fontStyle: FontStyle.italic),
-                    ),
-                  ),
-                ],
-                if (refund['admin_notes'] != null && refund['admin_notes'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text('Admin Notes', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800, color: _darkBg)),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      refund['admin_notes'],
-                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF334155)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+                    if (status == 'pending') ...[
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showRejectDialog(refund);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        label: const Text('Reject'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFDC2626),
+                          side: const BorderSide(color: Color(0xFFDC2626)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showApproveDialog(refund);
+                        },
+                        icon: const Icon(Icons.check_rounded, size: 16),
+                        label: const Text('Approve'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _emerald,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                    if (status == 'approved') ...[
+                      const SizedBox(width: 10),
+                      if (refundMethod.toLowerCase() == 'paymongo')
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _processPayMongoRefund(refund);
+                          },
+                          icon: const Icon(Icons.credit_card_rounded, size: 16),
+                          label: const Text('Process PayMongo'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF007AFF),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        )
+                      else
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _markCashReturned(refund);
+                          },
+                          icon: const Icon(Icons.payments_rounded, size: 16),
+                          label: const Text('Mark Cash Returned'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF14332E),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: _slate)),
-          ),
-          if (status == 'pending') ...[
-            OutlinedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showRejectDialog(refund);
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFDC2626),
-                side: const BorderSide(color: Color(0xFFDC2626)),
-              ),
-              child: const Text('Reject'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showApproveDialog(refund);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _emerald,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Approve'),
-            ),
-          ],
-          if (status == 'approved') ...[
-            if (refundMethod.toLowerCase() == 'paymongo')
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _processPayMongoRefund(refund);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _emerald,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Process PayMongo'),
-              )
-            else
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _markCashReturned(refund);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _emerald,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Mark Cash Returned'),
-              ),
-          ],
-        ],
       ),
     );
   }
@@ -3424,7 +4159,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        '$oldDate @ $oldTime',
+                        '${_formatDateDisplay(oldDate)} · ${_formatTimeDisplay(oldTime)}',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -3463,7 +4198,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        '$newDate @ $newTime',
+                        '${_formatDateDisplay(newDate)} · ${_formatTimeDisplay(newTime)}',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
@@ -3648,182 +4383,621 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     final status = (request['status'] ?? 'pending').toString().toLowerCase();
     final adminNotes = request['admin_notes'];
 
+    String requestedAtStr = '';
+    if (request['created_at'] != null) {
+      try {
+        final parsed = DateTime.parse(request['created_at'].toString()).toLocal();
+        requestedAtStr = DateFormat('MMM dd, yyyy · h:mm a').format(parsed);
+      } catch (_) {
+        requestedAtStr = request['created_at'].toString();
+      }
+    }
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF007AFF).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Reschedule Details',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: _darkBg,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header ──
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
                 ),
-              ),
-            ),
-            _buildCompactRescheduleStatusChip(status),
-          ],
-        ),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 14),
-                // Customer Information
-                Row(
+                child: Row(
                   children: [
-                    _miniAvatar(customerName),
-                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.edit_calendar_rounded, color: Color(0xFF0F766E), size: 22),
+                    ),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            customerName,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              color: _darkBg,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'Reschedule Details',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: _darkBg,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              _buildRescheduleDialogStatusBadge(status),
+                            ],
                           ),
-                          Text(
-                            customerEmail.isNotEmpty ? customerEmail : (customerPhone.isNotEmpty ? customerPhone : 'No contact info'),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              color: _slate,
+                          if (requestedAtStr.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Requested on $requestedAtStr',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                color: _slate,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF94A3B8)),
+                      tooltip: 'Close',
+                      splashRadius: 20,
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                // Schedule comparison
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
+              ),
+
+              // ── Scrollable Body Content ──
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      // 1. Customer Information Card
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            _miniAvatar(customerName),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          customerName,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14.5,
+                                            color: _darkBg,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Customer',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF475569),
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 4,
+                                    children: [
+                                      if (customerEmail.isNotEmpty)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.mail_outline_rounded, size: 13, color: Color(0xFF64748B)),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              customerEmail,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12,
+                                                color: const Color(0xFF475569),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (customerPhone.isNotEmpty)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.phone_outlined, size: 13, color: Color(0xFF64748B)),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              customerPhone,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12,
+                                                color: const Color(0xFF475569),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (customerEmail.isEmpty && customerPhone.isEmpty)
+                                        Text(
+                                          'No contact details provided',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            color: _slate,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // 2. Schedule Shift Comparison
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 440;
+
+                          Widget buildScheduleSide({
+                            required String badgeLabel,
+                            required Color badgeColor,
+                            required Color badgeBg,
+                            required String date,
+                            required String time,
+                            dynamic duration,
+                            dynamic guests,
+                            required bool isRequested,
+                          }) {
+                            final bool isApproved = status == 'approved' && isRequested;
+                            final Color cardBg = isRequested
+                                ? (isApproved ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC))
+                                : Colors.white;
+                            final Color borderColor = isRequested
+                                ? (isApproved ? const Color(0xFF86EFAC) : const Color(0xFF0F766E).withValues(alpha: 0.35))
+                                : const Color(0xFFE2E8F0);
+                            final Color titleColor = isRequested
+                                ? (isApproved ? const Color(0xFF14532D) : const Color(0xFF0F766E))
+                                : const Color(0xFF1E293B);
+
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: borderColor, width: isRequested ? 1.5 : 1),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                    decoration: BoxDecoration(
+                                      color: badgeBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      badgeLabel,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: badgeColor,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        isRequested ? Icons.event_available_rounded : Icons.calendar_today_rounded,
+                                        size: 13,
+                                        color: isRequested ? badgeColor : const Color(0xFF64748B),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          _formatDateDisplay(date),
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: titleColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time_rounded,
+                                        size: 13,
+                                        color: isRequested ? badgeColor : const Color(0xFF64748B),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          _formatTimeDisplay(time),
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: titleColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE2E8F0).withValues(alpha: 0.7),
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.timer_outlined, size: 10.5, color: Color(0xFF475569)),
+                                            const SizedBox(width: 3.5),
+                                            Text(
+                                              '${duration ?? 2}h',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE2E8F0).withValues(alpha: 0.7),
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.people_outline_rounded, size: 10.5, color: Color(0xFF475569)),
+                                            const SizedBox(width: 3.5),
+                                            Text(
+                                              '${guests ?? 1} guests',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          final originalCard = buildScheduleSide(
+                            badgeLabel: 'CURRENT SCHEDULE',
+                            badgeColor: const Color(0xFF64748B),
+                            badgeBg: const Color(0xFFE2E8F0),
+                            date: oldDate,
+                            time: oldTime,
+                            duration: oldDuration,
+                            guests: oldGuests,
+                            isRequested: false,
+                          );
+
+                          final requestedCard = buildScheduleSide(
+                            badgeLabel: status == 'approved' ? 'APPROVED SCHEDULE' : 'REQUESTED SCHEDULE',
+                            badgeColor: status == 'approved' ? const Color(0xFF15803D) : const Color(0xFF0F766E),
+                            badgeBg: status == 'approved' ? const Color(0xFFDCFCE7) : const Color(0xFFCCFBF1),
+                            date: newDate,
+                            time: newTime,
+                            duration: newDuration,
+                            guests: newGuests,
+                            isRequested: true,
+                          );
+
+                          if (isNarrow) {
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                children: [
+                                  originalCard,
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFE2E8F0),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF475569)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Requested Change',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  requestedCard,
+                                ],
+                              ),
+                            );
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Text('CURRENT SCHEDULE', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w800, color: _slate)),
-                                const SizedBox(height: 4),
-                                Text('$oldDate @ $oldTime', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: _darkBg)),
-                                Text('${oldDuration ?? 2}h • ${oldGuests ?? 1} guests', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate)),
+                                Expanded(child: originalCard),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.04),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF0F766E)),
+                                  ),
+                                ),
+                                Expanded(child: requestedCard),
                               ],
                             ),
-                          ),
-                          const Icon(Icons.arrow_forward_rounded, color: Color(0xFF94A3B8), size: 18),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text('REQUESTED SCHEDULE', style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w800, color: _emerald)),
-                                const SizedBox(height: 4),
-                                Text('$newDate @ $newTime', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w800, color: _emerald)),
-                                Text('${newDuration ?? 2}h • ${newGuests ?? 1} guests', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate)),
-                              ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // 3. Reason for Rescheduling
+                      Row(
+                        children: [
+                          const Icon(Icons.chat_bubble_outline_rounded, size: 15, color: Color(0xFF64748B)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Reason for Rescheduling',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: _darkBg,
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.format_quote_rounded, size: 18, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                reason.isNotEmpty ? reason : 'No specific reason provided.',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12.5,
+                                  color: const Color(0xFF334155),
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 4. Admin Notes (if present)
+                      if (adminNotes != null && adminNotes.toString().trim().isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Icon(
+                              status == 'approved' ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+                              size: 15,
+                              color: status == 'approved' ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Admin Review Notes',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: _darkBg,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: status == 'approved' ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: status == 'approved' ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                            ),
+                          ),
+                          child: Text(
+                            adminNotes.toString(),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              color: status == 'approved' ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                              fontWeight: FontWeight.w600,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text('Reason for Rescheduling', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800, color: _darkBg)),
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    reason,
-                    style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569), fontStyle: FontStyle.italic),
-                  ),
+              ),
+
+              // ── Actions Footer ──
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
                 ),
-                if (adminNotes != null && adminNotes.toString().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text('Admin Notes', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800, color: _darkBg)),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: status == 'approved' ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(
+                        'Close',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      adminNotes.toString(),
-                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: status == 'approved' ? const Color(0xFF166534) : const Color(0xFF991B1B)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+                    if (status == 'pending') ...[
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showRejectRescheduleDialog(request);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        label: const Text('Reject'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFDC2626),
+                          side: const BorderSide(color: Color(0xFFDC2626)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showApproveRescheduleDialog(request);
+                        },
+                        icon: const Icon(Icons.check_rounded, size: 16),
+                        label: const Text('Approve Schedule'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF14332E),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: _slate)),
-          ),
-          if (status == 'pending') ...[
-            OutlinedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showRejectRescheduleDialog(request);
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFDC2626),
-                side: const BorderSide(color: Color(0xFFDC2626)),
-              ),
-              child: const Text('Reject'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showApproveRescheduleDialog(request);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _emerald,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Approve Schedule'),
-            ),
-          ],
-        ],
       ),
     );
   }
