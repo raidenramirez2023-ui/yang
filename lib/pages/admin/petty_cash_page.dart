@@ -56,9 +56,8 @@ class _PettyCashPageState extends State<PettyCashPage> {
 
     if (!mounted) return;
     final role = (res?['role'] ?? '').toString().toLowerCase();
-    final userEmail = user.email?.toLowerCase() ?? '';
 
-    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'admin') {
+    if (role == 'admin' || role == 'inventory') {
       setState(() => _isAdmin = true);
     }
   }

@@ -14,6 +14,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:intl/intl.dart';
 
+import 'package:yang_chow/services/app_settings_service.dart';
+
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -153,7 +155,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   String _selectedPeriod = 'Weekly'; // New period selector state
   final FocusNode _dashboardPeriodFocusNode = FocusNode(canRequestFocus: false);
 
-  final String _selectedYear = '2026'; // New year selector state
+  String _selectedYear = DateTime.now().year.toString(); // Dynamic year selector state
 
   int _schedulePage = 0;
 
@@ -173,43 +175,122 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     _focusedMonth = DateTime.now();
 
-    // Enhanced real-time streams with immediate updates
+    // Enhanced real-time streams with full paginated historical data
+    _ordersStream = (() async* {
+      const int pageSize = 1000;
+      Future<List<Map<String, dynamic>>> fetchAll() async {
+        List<Map<String, dynamic>> allRows = [];
+        int from = 0;
+        bool hasMore = true;
+        while (hasMore) {
+          final response = await _supabase
+              .from('orders')
+              .select()
+              .order('created_at', ascending: false)
+              .range(from, from + pageSize - 1);
+          final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(response);
+          allRows.addAll(rows.map((order) => {
+            ...order,
+            'total_amount': order['total_amount'] ?? 0.0,
+            'created_at': order['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String(),
+            'customer_name': order['customer_name'] ?? 'Guest',
+            'transaction_id': order['transaction_id'] ?? order['id'],
+          }));
+          if (rows.length < pageSize) {
+            hasMore = false;
+          } else {
+            from += pageSize;
+          }
+        }
+        return allRows;
+      }
 
-    _ordersStream = _supabase
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .map(
-          (events) => events.map((order) {
-            // Ensure all order data is properly loaded
+      try {
+        yield await fetchAll();
+      } catch (e) {
+        debugPrint('Error in admin _ordersStream: $e');
+      }
 
-            return {
-              ...order,
+      await for (final _ in _supabase.from('orders').stream(primaryKey: ['id'])) {
+        try {
+          yield await fetchAll();
+        } catch (_) {}
+      }
+    })();
 
-              'total_amount': order['total_amount'] ?? 0.0,
+    _advanceOrdersStream = (() async* {
+      const int pageSize = 1000;
+      Future<List<Map<String, dynamic>>> fetchAll() async {
+        List<Map<String, dynamic>> allRows = [];
+        int from = 0;
+        bool hasMore = true;
+        while (hasMore) {
+          final response = await _supabase
+              .from('advance_orders')
+              .select()
+              .order('created_at', ascending: false)
+              .range(from, from + pageSize - 1);
+          final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(response);
+          allRows.addAll(rows);
+          if (rows.length < pageSize) {
+            hasMore = false;
+          } else {
+            from += pageSize;
+          }
+        }
+        return allRows;
+      }
 
-              'created_at':
-                  order['created_at']?.toString() ??
-                  DateTime.now().toUtc().toIso8601String(),
+      try {
+        yield await fetchAll();
+      } catch (e) {
+        debugPrint('Error in admin _advanceOrdersStream: $e');
+      }
 
-              'customer_name': order['customer_name'] ?? 'Guest',
-
-              'transaction_id': order['transaction_id'] ?? order['id'],
-            };
-          }).toList(),
-        );
-
-    _advanceOrdersStream = _supabase
-        .from('advance_orders')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false);
+      await for (final _ in _supabase.from('advance_orders').stream(primaryKey: ['id'])) {
+        try {
+          yield await fetchAll();
+        } catch (_) {}
+      }
+    })();
 
     _inventoryStream = _supabase.from('inventory').stream(primaryKey: ['id']);
 
-    _reservationsStream = _supabase
-        .from('reservations')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false);
+    _reservationsStream = (() async* {
+      const int pageSize = 1000;
+      Future<List<Map<String, dynamic>>> fetchAll() async {
+        List<Map<String, dynamic>> allRows = [];
+        int from = 0;
+        bool hasMore = true;
+        while (hasMore) {
+          final response = await _supabase
+              .from('reservations')
+              .select()
+              .order('created_at', ascending: false)
+              .range(from, from + pageSize - 1);
+          final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(response);
+          allRows.addAll(rows);
+          if (rows.length < pageSize) {
+            hasMore = false;
+          } else {
+            from += pageSize;
+          }
+        }
+        return allRows;
+      }
+
+      try {
+        yield await fetchAll();
+      } catch (e) {
+        debugPrint('Error in admin _reservationsStream: $e');
+      }
+
+      await for (final _ in _supabase.from('reservations').stream(primaryKey: ['id'])) {
+        try {
+          yield await fetchAll();
+        } catch (_) {}
+      }
+    })();
 
     _controller = AnimationController(
       vsync: this,
@@ -1090,12 +1171,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   List<String> getChartLabels() {
     if (_selectedPeriod == 'Daily') {
-      // Extended business hours: 8:00 AM to 11:00 PM (8:00 to 23:00)
-      return [
-        '08:00', '09:00', '10:00', '11:00', '12:00',
-        '13:00', '14:00', '15:00', '16:00', '17:00',
-        '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
-      ];
+      // Dynamic business hours from AppSettingsService
+      final startHour = AppSettingsService().getOperatingHoursStart();
+      final endHour = AppSettingsService().getOperatingHoursEnd();
+      return List.generate(
+        endHour - startHour + 1,
+        (i) => '${(startHour + i).toString().padLeft(2, '0')}:00',
+      );
     } else if (_selectedPeriod == 'Weekly') {
       return [
         'Monday',
@@ -1191,13 +1273,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         // Apply period-specific filtering
         switch (_selectedPeriod) {
           case 'Daily':
+            final startH = AppSettingsService().getOperatingHoursStart();
+            final endH = AppSettingsService().getOperatingHoursEnd();
             if (date.year == now.year &&
                 date.month == now.month &&
                 date.day == now.day &&
-                date.hour >= 8 &&
-                date.hour <= 23) {
-              // Map hour to 0-based index within business hours (08:00–23:00)
-              final key = date.hour - 8;
+                date.hour >= startH &&
+                date.hour <= endH) {
+              // Map hour to 0-based index within business hours
+              final key = date.hour - startH;
               periodData[key] = (periodData[key] ?? 0) + amount;
             }
             break;
@@ -1244,7 +1328,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     // Convert to list based on selected period
     if (_selectedPeriod == 'Daily') {
-      return List.generate(16, (i) => periodData[i] ?? 0.0); // 16 business hours: 08:00-23:00
+      final startH = AppSettingsService().getOperatingHoursStart();
+      final endH = AppSettingsService().getOperatingHoursEnd();
+      final hourCount = endH - startH + 1;
+      return List.generate(hourCount, (i) => periodData[i] ?? 0.0);
     } else if (_selectedPeriod == 'Weekly') {
       return List.generate(7, (i) => periodData[i] ?? 0.0);
     } else if (_selectedPeriod == 'Monthly') {
@@ -1663,13 +1750,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                width: 52,
+                height: 52,
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppTheme.warmGold.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3)),
                 ),
-                child: const Icon(Icons.restaurant_rounded, color: AppTheme.warmGold, size: 28),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/images/yang_chow_logo.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.restaurant_rounded,
+                      color: AppTheme.warmGold,
+                      size: 28,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -2405,14 +2505,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ),
           );
         },
-      ),
-      crosshairBehavior: CrosshairBehavior(
-        enable: true,
-        activationMode: ActivationMode.singleTap,
-        lineType: CrosshairLineType.vertical,
-        lineColor: AppTheme.mediumGrey.withValues(alpha: 0.3),
-        lineWidth: 1,
-        lineDashArray: const [4, 4],
       ),
       primaryXAxis: CategoryAxis(
         majorGridLines: const MajorGridLines(width: 0),

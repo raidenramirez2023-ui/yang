@@ -13,7 +13,8 @@ class LocationAnalyticsService {
       final response = await _supabase
           .from('orders')
           .select('customer_address, discount_address, total_amount, created_at')
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(50000);
 
       final List<Map<String, dynamic>> orders = List<Map<String, dynamic>>.from(response);
 
@@ -110,7 +111,8 @@ class LocationAnalyticsService {
       final response = await _supabase
           .from('orders')
           .select('customer_address, discount_address, total_amount, created_at')
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(50000);
 
       final List<Map<String, dynamic>> orders = List<Map<String, dynamic>>.from(response);
 

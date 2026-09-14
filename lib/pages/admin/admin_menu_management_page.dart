@@ -1177,9 +1177,29 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     bool showCustomCategory = false;
     bool isSaving = false;
 
-    // Recipe ingredients state
-    const List<String> unitOptions = ['kilo', 'pcs', 'gram', 'ml', 'bot', 'pack', 'can', 'order', 'serving'];
-    const List<String> ingCategoryOptions = ['Groceries', 'Vegetables', 'Fresh', 'Sauces', 'Roasting', 'Davids', 'Pre-mix'];
+    // Recipe ingredients state — defaults extended by DB values
+    List<String> unitOptions = ['kilo', 'pcs', 'gram', 'ml', 'bot', 'pack', 'can', 'order', 'serving'];
+    List<String> ingCategoryOptions = ['Groceries', 'Vegetables', 'Fresh', 'Sauces', 'Roasting', 'Davids', 'Pre-mix'];
+    // Dynamically extend from inventory table
+    try {
+      final invRows = await Supabase.instance.client.from('inventory').select('category, unit');
+      final Set<String> dbCats = {};
+      final Set<String> dbUnits = {};
+      for (final row in invRows) {
+        final cat = (row['category'] as String?)?.trim();
+        final unit = (row['unit'] as String?)?.trim().toLowerCase();
+        if (cat != null && cat.isNotEmpty) dbCats.add(cat);
+        if (unit != null && unit.isNotEmpty) dbUnits.add(unit);
+      }
+      for (final c in dbCats) {
+        if (!ingCategoryOptions.contains(c)) ingCategoryOptions.add(c);
+      }
+      for (final u in dbUnits) {
+        if (!unitOptions.contains(u)) unitOptions.add(u);
+      }
+    } catch (e) {
+      debugPrint('Error loading dynamic ingredient options: $e');
+    }
     int nextIngUid = 0;
     List<Map<String, dynamic>> ingredients = [];
 

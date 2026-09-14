@@ -49,7 +49,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     (index) => (DateTime.now().year + index).toString(),
   );
 
-  static const List<String> categories = [
+  List<String> categories = [
     'All',
     'Fresh',
     'Roasting',
@@ -81,12 +81,40 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     // Initial load
     _fetchForecastData();
+    _loadDynamicCategories();
 
     // Live update stream & background silent poll
     _subscribeToKitchenRequests();
     _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) _fetchForecastData(silent: true);
     });
+  }
+
+  /// Fetch distinct inventory categories from the database
+  Future<void> _loadDynamicCategories() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('inventory')
+          .select('category');
+      final Set<String> dbCategories = {};
+      for (final row in response) {
+        final cat = (row['category'] as String?)?.trim();
+        if (cat != null && cat.isNotEmpty) {
+          dbCategories.add(cat);
+        }
+      }
+      if (dbCategories.isNotEmpty && mounted) {
+        setState(() {
+          categories = ['All', ...dbCategories.toList()..sort()];
+          if (!categories.contains(_selectedCategory)) {
+            _selectedCategory = 'All';
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading dynamic categories: $e');
+      // Keep default categories on error
+    }
   }
 
   @override
