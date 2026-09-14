@@ -541,7 +541,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'unknown_admin';
               final success = await _rescheduleService.approveReschedule(
                 requestId: request['id'].toString(),
                 reservationId: request['reservation_id'].toString(),
@@ -680,7 +680,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 return;
               }
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'unknown_admin';
               final success = await _rescheduleService.rejectReschedule(
                 requestId: request['id'].toString(),
                 reservationId: request['reservation_id'].toString(),
@@ -826,7 +826,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'unknown_admin';
               final success = await _refundService.approveRefund(
                 refundId: refund['id'],
                 adminEmail: adminEmail,
@@ -973,7 +973,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 return;
               }
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'unknown_admin';
               final success = await _refundService.rejectRefund(
                 refundId: refund['id'],
                 adminEmail: adminEmail,
@@ -1079,7 +1079,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+      final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'unknown_admin';
       final success = await _refundService.completeManualRefund(refundId: refund['id'], adminEmail: adminEmail);
       if (mounted) {
         _showSnackBar(

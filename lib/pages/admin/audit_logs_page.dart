@@ -10,6 +10,7 @@ import '../../models/audit_log_model.dart';
 import '../../services/audit_log_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
+import '../../utils/app_constants.dart';
 
 class AuditLogsPage extends StatefulWidget {
   const AuditLogsPage({super.key});
@@ -140,7 +141,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     try {
       List<List<dynamic>> rows = [];
       rows.add([
-        'YANG CHOW PALACE RESTAURANT AUDIT TRAIL REPORT',
+        '${AppConstants.appName.toUpperCase()} AUDIT TRAIL REPORT',
       ]);
       rows.add([
         'Exported At: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',

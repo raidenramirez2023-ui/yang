@@ -5043,7 +5043,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
         await NotificationService.sendNotification(
           isForAdmin: true,
-          actorName: 'Pagsanjan Inv',
+          actorName: _userName,
           actionType: 'stock_rejected',
           reservationId: 'Kitchen',
           eventType: 'Stock Request Declined: $itemName ($qty $unit)',
@@ -5148,7 +5148,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         if (!skipNotification) {
           await NotificationService.sendNotification(
             isForAdmin: true,
-            actorName: 'Pagsanjan Inv',
+            actorName: _userName,
             actionType: 'stock_approved',
             reservationId: 'Kitchen',
             eventType: 'Stock Approved: $itemName ($transferQty ${request['unit'] ?? ''})',
@@ -5330,7 +5330,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         // Send single consolidated notification to kitchen
         await NotificationService.sendNotification(
           isForAdmin: true,
-          actorName: 'Pagsanjan Inv',
+          actorName: _userName,
           actionType: 'stock_approved',
           reservationId: 'Kitchen',
           eventType: 'Stock Approved: $approvedCount item${approvedCount == 1 ? '' : 's'}',
@@ -5407,7 +5407,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       await NotificationService.sendNotification(
         isForAdmin: true,
-        actorName: 'Pagsanjan Inv',
+        actorName: _userName,
         actionType: 'stock_rejected',
         reservationId: 'Kitchen',
         eventType: 'Stock Requests Declined: $count item(s)',

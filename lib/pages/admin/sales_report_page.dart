@@ -11,6 +11,8 @@ import 'dart:io' show File;
 import 'dart:convert';
 import 'dart:async';
 import 'package:yang_chow/services/location_analytics_service.dart';
+import 'package:yang_chow/services/app_settings_service.dart';
+import 'package:yang_chow/utils/app_constants.dart';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -22,7 +24,7 @@ class SalesReportPage extends StatefulWidget {
 class _SalesReportPageState extends State<SalesReportPage>
     with TickerProviderStateMixin {
   String selectedPeriod = 'Monthly';
-  String selectedYear = '2026';
+  String selectedYear = DateTime.now().year.toString();
   String selectedChartType = 'Area'; // 'Area', 'Bar'
   Set<String> activeStreams = {'Regular', 'Advance', 'Reservation'};
   bool _showEventReservationPerformance = true;
@@ -60,25 +62,112 @@ class _SalesReportPageState extends State<SalesReportPage>
   final FocusNode _transactionPeriodFocusNode = FocusNode(canRequestFocus: false);
   final FocusNode _locationPeriodFocusNode = FocusNode(canRequestFocus: false);
 
-  Stream<List<Map<String, dynamic>>> _ordersStream() {
-    return _supabase
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false);
+  Stream<List<Map<String, dynamic>>> _ordersStream() async* {
+    const int pageSize = 1000;
+    Future<List<Map<String, dynamic>>> fetchAll() async {
+      List<Map<String, dynamic>> allRows = [];
+      int from = 0;
+      bool hasMore = true;
+      while (hasMore) {
+        final response = await _supabase
+            .from('orders')
+            .select()
+            .order('created_at', ascending: false)
+            .range(from, from + pageSize - 1);
+        final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(response);
+        allRows.addAll(rows);
+        if (rows.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
+      }
+      return allRows;
+    }
+
+    try {
+      yield await fetchAll();
+    } catch (e) {
+      debugPrint('Error in _ordersStream: $e');
+    }
+
+    await for (final _ in _supabase.from('orders').stream(primaryKey: ['id'])) {
+      try {
+        yield await fetchAll();
+      } catch (_) {}
+    }
   }
 
-  Stream<List<Map<String, dynamic>>> _advanceOrdersStream() {
-    return _supabase
-        .from('advance_orders')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false);
+  Stream<List<Map<String, dynamic>>> _advanceOrdersStream() async* {
+    const int pageSize = 1000;
+    Future<List<Map<String, dynamic>>> fetchAll() async {
+      List<Map<String, dynamic>> allRows = [];
+      int from = 0;
+      bool hasMore = true;
+      while (hasMore) {
+        final response = await _supabase
+            .from('advance_orders')
+            .select()
+            .order('created_at', ascending: false)
+            .range(from, from + pageSize - 1);
+        final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(response);
+        allRows.addAll(rows);
+        if (rows.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
+      }
+      return allRows;
+    }
+
+    try {
+      yield await fetchAll();
+    } catch (e) {
+      debugPrint('Error in _advanceOrdersStream: $e');
+    }
+
+    await for (final _ in _supabase.from('advance_orders').stream(primaryKey: ['id'])) {
+      try {
+        yield await fetchAll();
+      } catch (_) {}
+    }
   }
 
-  Stream<List<Map<String, dynamic>>> _reservationsStream() {
-    return _supabase
-        .from('reservations')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false);
+  Stream<List<Map<String, dynamic>>> _reservationsStream() async* {
+    const int pageSize = 1000;
+    Future<List<Map<String, dynamic>>> fetchAll() async {
+      List<Map<String, dynamic>> allRows = [];
+      int from = 0;
+      bool hasMore = true;
+      while (hasMore) {
+        final response = await _supabase
+            .from('reservations')
+            .select()
+            .order('created_at', ascending: false)
+            .range(from, from + pageSize - 1);
+        final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(response);
+        allRows.addAll(rows);
+        if (rows.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
+      }
+      return allRows;
+    }
+
+    try {
+      yield await fetchAll();
+    } catch (e) {
+      debugPrint('Error in _reservationsStream: $e');
+    }
+
+    await for (final _ in _supabase.from('reservations').stream(primaryKey: ['id'])) {
+      try {
+        yield await fetchAll();
+      } catch (_) {}
+    }
   }
 
   Stream<List<Map<String, dynamic>>> _inventoryStream() {
@@ -243,17 +332,10 @@ class _SalesReportPageState extends State<SalesReportPage>
       return item['actor_name'].toString().trim();
     }
     if (item['staff_email'] != null && item['staff_email'].toString().trim().isNotEmpty) {
-      final email = item['staff_email'].toString().trim();
-      if (email.toLowerCase().contains('staffycp')) return 'staffycp@gmail.com';
-      if (email.toLowerCase().contains('admn.pagsanjan') || email.toLowerCase().contains('pagsanjan')) return 'admn.pagsanjan@gmail.com';
-      if (email.toLowerCase() == 'staff') return 'staffycp@gmail.com';
-      if (email.toLowerCase() == 'admin') return 'admn.pagsanjan@gmail.com';
-      return email;
+      return item['staff_email'].toString().trim();
     }
-    if (channel == 'Regular') return 'staffycp@gmail.com';
-    if (channel == 'Advance') return 'admn.pagsanjan@gmail.com';
-    if (channel == 'Reservation') return 'admn.pagsanjan@gmail.com';
-    return 'staffycp@gmail.com';
+    // Fallback: use the currently logged-in user's email
+    return Supabase.instance.client.auth.currentUser?.email ?? 'POS Staff';
   }
 
   Map<String, dynamic> _processMetrics(
@@ -438,10 +520,13 @@ class _SalesReportPageState extends State<SalesReportPage>
       switch (selectedPeriod) {
         case 'Daily':
           if (date.year == now.year && date.month == now.month && date.day == now.day) {
-            // Hours 9 AM to 9 PM (9:00 - 21:00)
-            int hourIndex = date.hour - 9;
+            // Dynamic business hours from AppSettingsService
+            final startH = AppSettingsService().getOperatingHoursStart();
+            final endH = AppSettingsService().getOperatingHoursEnd();
+            int hourIndex = date.hour - startH;
             if (hourIndex < 0) hourIndex = 0;
-            if (hourIndex > 12) hourIndex = 12;
+            final maxIndex = endH - startH;
+            if (hourIndex > maxIndex) hourIndex = maxIndex;
             target[hourIndex] = (target[hourIndex] ?? 0) + amount;
           }
           break;
@@ -610,7 +695,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
       List<List<dynamic>> rows = [];
 
-      rows.add(['YANG CHOW RESTAURANT & CATERING - OFFICIAL SALES REPORT']);
+      rows.add(['${AppConstants.appName.toUpperCase()} - OFFICIAL SALES REPORT']);
       rows.add(['Report Period', '${selectedPeriod.toUpperCase()} ($selectedYear)']);
       rows.add(['Generated At', DateFormat('MMMM d, yyyy h:mm a').format(DateTime.now())]);
       rows.add([]);
@@ -738,7 +823,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Yang Chow Restaurant', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText), overflow: TextOverflow.ellipsis),
+                                  Text(AppConstants.appName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText), overflow: TextOverflow.ellipsis),
                                   Text('Sales Transaction Voucher', style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText)),
                                 ],
                               ),
@@ -1420,9 +1505,10 @@ class _SalesReportPageState extends State<SalesReportPage>
               icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.darkGrey),
               dropdownColor: Colors.white,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppTheme.darkGrey),
-              items: ['2023', '2024', '2025', '2026']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
+              items: List.generate(
+                    DateTime.now().year - 2023 + 1,
+                    (i) => (2023 + i).toString(),
+                  ).map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (v) {
                 _yearDropdownFocusNode.unfocus();
                 if (v != null && mounted) setState(() => selectedYear = v);

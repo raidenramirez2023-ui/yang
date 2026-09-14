@@ -75,7 +75,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
           .from('users')
           .update({
             'is_approved': true,
-            'approved_by': 'admn.pagsanjan@gmail.com',
+            'approved_by': _supabase.auth.currentUser?.email ?? 'unknown_admin',
             'approved_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', customerId);
@@ -108,7 +108,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
           .update({
             'is_approved': false,
             'rejection_reason': reason,
-            'approved_by': 'admn.pagsanjan@gmail.com',
+            'approved_by': _supabase.auth.currentUser?.email ?? 'unknown_admin',
             'approved_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', customerId);

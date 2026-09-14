@@ -142,7 +142,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
       final totalPrice = (currentData['total_price'] as num?)?.toDouble() ?? 0.0;
       final depositAmount = (currentData['deposit_amount'] as num?)?.toDouble() ?? 0.0;
       final settledBalance = (totalPrice - depositAmount).clamp(0.0, double.infinity);
-      final currentAdmin = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+      final currentAdmin = Supabase.instance.client.auth.currentUser?.email ?? 'unknown_admin';
 
       final updates = <String, dynamic>{
         'payment_status': 'fully_paid',

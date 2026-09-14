@@ -322,7 +322,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       final idx = reservations.indexWhere((r) => r['id'] == reservationId);
       if (idx != -1) {
         final currentUser = Supabase.instance.client.auth.currentUser;
-        final adminIdentifier = currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+        final adminIdentifier = currentUser?.email ?? 'unknown_admin';
         final updatedItem = {
           ...reservations[idx],
           'status': newStatus,
@@ -342,7 +342,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
-      final adminIdentifier = currentUser?.email ?? 'admn.pagsanjan@gmail.com';
+      final adminIdentifier = currentUser?.email ?? 'unknown_admin';
 
       final Map<String, dynamic> updateData = {
         'status': newStatus,
