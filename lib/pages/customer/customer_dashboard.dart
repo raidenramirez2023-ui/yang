@@ -1125,35 +1125,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   String _getAppBarTitle() {
-
     switch (_selectedIndex) {
-
       case 0:
-
         return 'Home';
-
       case 1:
-
-        return 'Reservation';
-
+        return 'Book & Order';
       case 2:
-
-        return 'Transaction';
-
+        return 'Billing & Payments';
       case 3:
-
-        return 'Activity';
-
+        return 'My Bookings';
       case 4:
-
         return 'Profile';
-
       default:
-
         return 'Home';
-
     }
-
   }
 
 
@@ -2280,11 +2265,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildDesktopSidebarColumn({bool closeable = false}) {
+    final pendingQuotationPayments = customerReservations
+        .where((r) => _reservationService.needsDepositPayment(r))
+        .length;
+
     final navItems = [
-      {'icon': Icons.home_rounded, 'label': 'Home', 'subtitle': 'Dashboard'},
-      {'icon': Icons.event_available_rounded, 'label': 'Reservations', 'subtitle': 'Book an event'},
-      {'icon': Icons.monetization_on_rounded, 'label': 'Transaction', 'subtitle': 'Payment history'},
-      {'icon': Icons.assignment_rounded, 'label': 'Activity', 'subtitle': 'Track orders'},
+      {'icon': Icons.home_rounded, 'label': 'Home', 'subtitle': 'Dashboard & Highlights'},
+      {'icon': Icons.event_available_rounded, 'label': 'Book & Order', 'subtitle': 'Event Hall & Advance Food'},
+      {'icon': Icons.payments_rounded, 'label': 'Billing & Payments', 'subtitle': 'Event rates & Downpayment'},
+      {'icon': Icons.receipt_long_rounded, 'label': 'My Bookings', 'subtitle': 'Track events & orders'},
     ];
 
 
@@ -2700,16 +2689,30 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+                      if (index == 2 && pendingQuotationPayments > 0) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$pendingQuotationPayments',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+
                       if (isSelected)
-
                         const Icon(
-
                           Icons.chevron_right_rounded,
-
                           size: 16,
-
                           color: AppTheme.warmGold,
-
                         ),
 
                     ],
@@ -3425,157 +3428,118 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               decoration: const BoxDecoration(
+                color: AppTheme.forestGreen, // #16302A
+                border: Border(top: BorderSide(color: AppTheme.sidebarDivider, width: 1)), // #2B4941
+              ),
+              child: Builder(
+                builder: (context) {
+                  final int pendingQuotesCount = customerReservations
+                      .where((r) => _reservationService.needsDepositPayment(r))
+                      .length;
 
-              color: AppTheme.forestGreen, // #16302A
-
-              border: Border(top: BorderSide(color: AppTheme.sidebarDivider, width: 1)), // #2B4941
-
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
+                      _buildMobileNavItem(1, Icons.event_available_rounded, 'Book & Order'),
+                      _buildMobileNavItem(2, Icons.payments_rounded, 'Billing & Pay', badgeCount: pendingQuotesCount),
+                      _buildMobileNavItem(3, Icons.receipt_long_rounded, 'My Bookings'),
+                    ],
+                  );
+                },
+              ),
             ),
-
-            child: Row(
-
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-
-              children: [
-
-                _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
-
-                _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
-
-                _buildMobileNavItem(2, Icons.monetization_on_rounded, 'Price'),
-
-                _buildMobileNavItem(3, Icons.assignment_rounded, 'Activity'),
-
-              ],
-
-            ),
-
           ),
-
-        ),
-
       ],
-
     );
-
   }
 
-
-
-  Widget _buildMobileNavItem(int index, IconData icon, String label) {
-
+  Widget _buildMobileNavItem(int index, IconData icon, String label, {int badgeCount = 0}) {
     final isSelected = _selectedIndex == index;
 
-
-
     return GestureDetector(
-
       onTap: () {
-
         HapticFeedback.selectionClick();
-
         _onSelectTab(index);
-
       },
-
       behavior: HitTestBehavior.opaque,
-
       child: AnimatedContainer(
-
         duration: const Duration(milliseconds: 280),
-
         curve: Curves.easeOutCubic,
-
         padding: EdgeInsets.symmetric(
-
-          horizontal: isSelected ? 18 : 12,
-
+          horizontal: isSelected ? 16 : 10,
           vertical: 7,
-
         ),
-
         decoration: BoxDecoration(
-
           color: isSelected ? AppTheme.warmGold : Colors.transparent, // #E8B84B warm gold when active
-
           borderRadius: BorderRadius.circular(26),
-
           boxShadow: isSelected
-
               ? [
-
                   BoxShadow(
-
                     color: AppTheme.warmGold.withValues(alpha: 0.35),
-
                     blurRadius: 10,
-
                     offset: const Offset(0, 4),
-
                   ),
-
                 ]
-
               : null,
-
         ),
-
         child: Row(
-
           mainAxisSize: MainAxisSize.min,
-
           children: [
-
-            AnimatedScale(
-
-              scale: isSelected ? 1.1 : 1.0,
-
-              duration: const Duration(milliseconds: 250),
-
-              child: Icon(
-
-                icon,
-
-                color: isSelected ? AppTheme.darkBrownText : AppTheme.sidebarInactiveIcon, // #412402 on gold / #9DB5AB inactive
-
-                size: 22,
-
-              ),
-
-            ),
-
-            if (isSelected) ...[
-
-              const SizedBox(width: 7),
-
-              Text(
-
-                label,
-
-                style: GoogleFonts.inter(
-
-                  color: AppTheme.darkBrownText, // #412402 Dark brown text
-
-                  fontWeight: FontWeight.w900,
-
-                  fontSize: 13,
-
-                  letterSpacing: 0.1,
-
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedScale(
+                  scale: isSelected ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 250),
+                  child: Icon(
+                    icon,
+                    color: isSelected ? AppTheme.darkBrownText : AppTheme.sidebarInactiveIcon, // #412402 on gold / #9DB5AB inactive
+                    size: 21,
+                  ),
                 ),
-
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -5,
+                    child: Container(
+                      padding: const EdgeInsets.all(3.5),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                      child: Center(
+                        child: Text(
+                          '$badgeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: AppTheme.darkBrownText, // #412402 Dark brown text
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12.5,
+                  letterSpacing: 0.1,
+                ),
               ),
-
             ],
-
           ],
-
         ),
-
       ),
-
     );
-
   }
 
 
@@ -4156,6 +4120,596 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  // ── Next Step Guidance Banner for Customer ──
+  Widget _buildHomeNextStepBanner() {
+    final pendingQuotationPayments = customerReservations
+        .where((r) => _reservationService.needsDepositPayment(r))
+        .toList();
+
+    final pendingReviewReservations = customerReservations.where((r) {
+      final status = r['status']?.toString().toLowerCase() ?? '';
+      final isQuotationSent = r['price_quotation_sent'] == true;
+      return (status == 'pending' || status == 'under_review') && !isQuotationSent;
+    }).toList();
+
+    final confirmedUpcoming = customerReservations.where((r) {
+      final status = r['status']?.toString().toLowerCase() ?? '';
+      return status == 'confirmed';
+    }).toList();
+
+    if (pendingQuotationPayments.isNotEmpty) {
+      final target = pendingQuotationPayments.first;
+      final totalPrice = (target['total_price'] as num?)?.toDouble() ?? 0.0;
+      final depositAmount = (target['deposit_amount'] as num?)?.toDouble() ?? (totalPrice * 0.5);
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2C1E07), Color(0xFF4A340E), Color(0xFF1F1604)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.warmGold, width: 1.4),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.warmGold.withValues(alpha: 0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warmGold,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.bolt_rounded, size: 12, color: AppTheme.darkBrownText),
+                          const SizedBox(width: 4),
+                          Text(
+                            'ACTION REQUIRED',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.darkBrownText,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                      ),
+                      child: Text(
+                        '${pendingQuotationPayments.length} Bill Ready',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFFCA5A5),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Event Package Rate Ready for Payment!',
+                  style: GoogleFonts.lora(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Admin has finalized your event package rate. Settle your deposit to confirm your booking slot.',
+                  style: GoogleFonts.inter(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+                if (depositAmount > 0) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Deposit Due: PHP ${_fmt.format(depositAmount)} (Total: PHP ${_fmt.format(totalPrice)})',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.warmGold,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                AnimatedTapScale(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedIndex = 2);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.goldGradient,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.warmGold.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.payment_rounded, size: 14, color: AppTheme.darkBrownText),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Review & Settle Downpayment',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.darkBrownText,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.darkBrownText),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (pendingReviewReservations.isNotEmpty) {
+      final target = pendingReviewReservations.first;
+      final dateStr = target['event_date']?.toString() ?? 'your event';
+      final typeStr = target['event_type']?.toString() ?? 'Reservation';
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0C241F), Color(0xFF143E35)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF4ADEAA).withValues(alpha: 0.4), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0C241F).withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4ADEAA).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.hourglass_top_rounded, color: Color(0xFF4ADEAA), size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4ADEAA).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'REQUEST UNDER REVIEW',
+                              style: GoogleFonts.inter(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF4ADEAA),
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Admin is preparing your event package rate for $typeStr ($dateStr). You will be notified once ready.',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AnimatedTapScale(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedIndex = 3);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Track',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (confirmedUpcoming.isNotEmpty) {
+      final target = confirmedUpcoming.first;
+      final dateStr = target['event_date']?.toString() ?? '';
+      final typeStr = target['event_type']?.toString() ?? 'Event';
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.verified_rounded, color: Color(0xFF16A34A), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Upcoming Confirmed: $typeStr',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dateStr.isNotEmpty ? 'Scheduled on $dateStr' : 'Active reservation in progress',
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedIndex = 3);
+                  },
+                  child: Text(
+                    'Details',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.forestGreen,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  // ── Quick Actions Navigation Hub ──
+  Widget _buildHomeQuickActionHub() {
+    final pendingQuotationPayments = customerReservations
+        .where((r) => _reservationService.needsDepositPayment(r))
+        .length;
+
+    final totalActive = customerReservations.where((r) {
+      final status = r['status']?.toString().toLowerCase() ?? '';
+      return status != 'cancelled' && status != 'done' && status != 'completed';
+    }).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3.5,
+                height: 18,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.goldGradient,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Quick Navigation',
+                style: GoogleFonts.lora(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildHomeQuickActionCard(
+                  icon: Icons.celebration_rounded,
+                  title: 'Book Event',
+                  subtitle: 'Venue & Banquet',
+                  color: const Color(0xFF14332E),
+                  iconBg: const Color(0xFFD9A441).withValues(alpha: 0.18),
+                  iconColor: const Color(0xFFD9A441),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _reservationType = 'Event Place';
+                      _selectedIndex = 1;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildHomeQuickActionCard(
+                  icon: Icons.restaurant_rounded,
+                  title: 'Advance Order',
+                  subtitle: 'Pre-order Food',
+                  color: const Color(0xFF92400E),
+                  iconBg: const Color(0xFFFEF3C7),
+                  iconColor: const Color(0xFFD97706),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _reservationType = 'Advance Order';
+                      _selectedIndex = 1;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildHomeQuickActionCard(
+                  icon: Icons.payments_rounded,
+                  title: 'Billing & Pay',
+                  subtitle: pendingQuotationPayments > 0
+                      ? '$pendingQuotationPayments bills due'
+                      : 'View bills & pay',
+                  badgeCount: pendingQuotationPayments,
+                  color: const Color(0xFF047857),
+                  iconBg: const Color(0xFFD1FAE5),
+                  iconColor: const Color(0xFF059669),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedIndex = 2);
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildHomeQuickActionCard(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'My Bookings',
+                  subtitle: totalActive > 0 ? '$totalActive active' : 'All orders',
+                  color: const Color(0xFF1E293B),
+                  iconBg: const Color(0xFFF1F5F9),
+                  iconColor: const Color(0xFF475569),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedIndex = 3);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeQuickActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required Color iconBg,
+    required Color iconColor,
+    required VoidCallback onTap,
+    int badgeCount = 0,
+  }) {
+    return AnimatedTapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: badgeCount > 0 ? AppTheme.warmGold : const Color(0xFFE2E8F0),
+            width: badgeCount > 0 ? 1.4 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Icon(icon, color: iconColor, size: 20),
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Center(
+                        child: Text(
+                          '$badgeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: badgeCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: Color(0xFF94A3B8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHomeSection() {
     final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
     final hour = DateTime.now().hour;
@@ -4431,6 +4985,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 ),
               ),
               const SizedBox(height: 18),
+              // Next Step Status Guidance Banner
+              _buildHomeNextStepBanner(),
+              // Quick Navigation Actions Hub
+              _buildHomeQuickActionHub(),
+              const SizedBox(height: 4),
               // Hero Advertising Carousel
               _buildHeroCarousel(),
               const SizedBox(height: 18),
@@ -8789,11 +9348,214 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           ),
 
         ],
-
       ),
-
     );
+  }
 
+  void _showReservationQuotationSuccessDialog({double? totalMenuPrice, double? depositAmount}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Booking Request Sent!',
+                            style: GoogleFonts.lora(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Admin received your event details',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                if (totalMenuPrice != null && totalMenuPrice > 0) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Selected Menu Estimate:',
+                              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
+                            ),
+                            Text(
+                              'PHP ${_fmt.format(totalMenuPrice)}',
+                              style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                            ),
+                          ],
+                        ),
+                        if (depositAmount != null && depositAmount > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Required Deposit (50%):',
+                                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
+                              ),
+                              Text(
+                                'PHP ${_fmt.format(depositAmount)}',
+                                style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.forestGreen),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  'What happens next?',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildDialogNextStepRow('1', 'Admin calculates final package & hall availability.'),
+                const SizedBox(height: 8),
+                _buildDialogNextStepRow('2', 'Official event bill & rate will be sent to "Billing & Payments".'),
+                const SizedBox(height: 8),
+                _buildDialogNextStepRow('3', 'Pay your downpayment within the grace period to confirm your slot.'),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          setState(() => _selectedIndex = 0);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(
+                          'Back to Home',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF475569),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          setState(() => _selectedIndex = 3);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF14332E),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Track in My Bookings',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogNextStepRow(String step, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: const Color(0xFF14332E).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              step,
+              style: GoogleFonts.inter(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF14332E),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: const Color(0xFF475569),
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
 
@@ -9137,34 +9899,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-        final paymentTypeText = _reservationType == 'Advance Order'
-
-            ? 'Full Payment Required'
-
-            : (_paymentOption == 'full' ? 'Full Payment Required' : '50% Deposit Required');
-
-
-
-        _showSuccessDialog(
-
-          'Reservation created successfully!\n\n'
-
-          'Total Menu Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n'
-
-          '$paymentTypeText: PHP ${NumberFormat('#,##0.00').format(paymentAmount)}\n\n'
-
-          'You will receive a price transaction shortly and can proceed with payment.',
-
+        _showReservationQuotationSuccessDialog(
+          totalMenuPrice: totalMenuPrice,
+          depositAmount: paymentAmount,
         );
-
       } else {
-
-        _showSuccessDialog(
-
-          'Reservation created successfully! You will receive a price transaction shortly.',
-
-        );
-
+        _showReservationQuotationSuccessDialog();
       }
 
     } catch (e) {
@@ -10635,7 +11375,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'ORDER & ACTIVITY TRACKER',
+                                    'MY BOOKINGS & ORDERS TRACKER',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFFD9A441),
                                       fontSize: 10,
@@ -10646,7 +11386,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    'Live Status & Schedule',
+                                    'Live Events & Advance Orders',
                                     style: GoogleFonts.inter(
                                       color: Colors.white.withValues(alpha: 0.85),
                                       fontSize: 13,
@@ -10909,11 +11649,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Event',
+                              'Event Bookings',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
                                 color: _activityTypeFilter == 'event'
                                     ? Colors.white
@@ -10948,7 +11688,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 ),
                 const SizedBox(width: 10),
 
-                // ── Advance Ord Button ──
+                // ── Advance Orders Button ──
                 Expanded(
                   child: AnimatedTapScale(
                     onTap: () {
@@ -10997,11 +11737,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Advance Ord',
+                              'Advance Orders',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
                                 color: _activityTypeFilter == 'advance_order'
                                     ? Colors.white
@@ -14346,9 +15086,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         _buildTermsSection(
                           icon: Icons.timer_outlined,
                           iconColor: const Color(0xFFD9A441),
-                          title: '1. Quotation Grace Period (Online & Cash on Site)',
+                          title: '1. Downpayment Grace Period (Online & Cash on Site)',
                           description:
-                              '• Online Payments (PayMongo & GCash QR): After Admin issues the Official Quotation, you have exactly 24 Hours to settle the downpayment to lock and guarantee your reserved date. Failure to pay within 24 hours will automatically cancel the quotation and release the slot.\n'
+                              '• Online Payments (PayMongo & GCash QR): After Admin issues your Official Event Bill, you have exactly 24 Hours to settle the downpayment to lock and guarantee your reserved date. Failure to pay within 24 hours will automatically release the slot.\n'
                               '• Cash on Site: If you select Cash on site for Event Reservations, your booking is held for up to 3 Days (24 Hours for Advance Orders) from the date of booking to settle your reservation on site. Reservations unsettled after the grace period will be automatically cancelled.',
                         ),
                         const SizedBox(height: 14),
@@ -15160,6 +15900,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           reservation['total_price'] > 0;
     }).toList();
 
+    final hasSubmittedRequests = customerReservations.any((r) {
+      final status = r['status']?.toString().toLowerCase() ?? '';
+      return status == 'pending' || status == 'under_review';
+    });
+
     if (quotations.isEmpty) {
       return Center(
         child: Container(
@@ -15205,21 +15950,59 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               ),
               const SizedBox(height: 18),
               Text(
-                'No Price Transactions Yet',
+                'No Pending Bills for Payment',
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                'Official price quotations and payment statements from admin will appear here.',
+                hasSubmittedRequests
+                    ? 'You have booking requests currently under review by Admin. Once the official event bill is prepared, it will appear here for downpayment.'
+                    : 'Official event bills and payment statements will appear here once issued by Admin.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   color: const Color(0xFF64748B),
-                  height: 1.4,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 20),
+              AnimatedTapScale(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedIndex = 3);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14332E),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.receipt_long_rounded, color: AppTheme.warmGold, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Track Requests in My Bookings',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -15338,7 +16121,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'PAYMENT STATEMENT',
+                                    'OFFICIAL BILLING & PAYMENTS',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFFD9A441),
                                       fontSize: 10,
@@ -15349,7 +16132,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    'Financial Ledger & Quotes',
+                                    'Review Rates & Settle Downpayment',
                                     style: GoogleFonts.inter(
                                       color: Colors.white.withValues(alpha: 0.85),
                                       fontSize: 13,
