@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
-
 import 'package:yang_chow/utils/responsive_utils.dart';
-
 import 'package:yang_chow/services/pricing_service.dart';
-
 import 'package:yang_chow/services/reservation_service.dart';
-
 import 'package:yang_chow/services/menu_service.dart';
 
 
@@ -837,25 +833,18 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
           SizedBox(height: 8),
 
           TextField(
-
             controller: _priceController,
-
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
             decoration: InputDecoration(
-
               labelText: 'Total Price (PHP)',
-
               prefixText: 'PHP ',
-
               border: OutlineInputBorder(),
-
               errorText: _getPriceValidationError(),
-
             ),
-
             onChanged: (value) => setState(() {}),
-
           ),
 
           SizedBox(height: 8),
