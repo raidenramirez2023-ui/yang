@@ -1169,9 +1169,16 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         payment['payment_status'] == 'fully_paid' ||
         payment['payment_status'] == 'paid' ||
         (totalAmount > 0 && rawDeposit >= totalAmount);
-    final double amountToVerify = isFullPayment
-        ? (totalAmount > 0 ? totalAmount : (rawDeposit > 0 ? rawDeposit : 0.0))
-        : (rawDeposit > 0 ? rawDeposit : totalAmount);
+
+    // Use the shared helper so the display is always consistent with OCR expected amount.
+    final double amountToVerify = _expectedReceiptAmount(payment);
+
+    // isRemainingBalancePayment: true when amountToVerify < totalAmount and it's a full-payment signal
+    final bool isRemainingBalancePayment = !isAdvanceOrder &&
+        payment['payment_option'] == 'full' &&
+        totalAmount > 0 &&
+        rawDeposit > 0 &&
+        rawDeposit < totalAmount;
     final String paymentRef = payment['payment_reference'] ?? (isCash ? 'CASH-ON-SITE' : 'REF-NOT-SET');
     final isMobile = ResponsiveUtils.isMobile(context);
 
@@ -1315,13 +1322,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFECFDF5),
+                                    color: isRemainingBalancePayment ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                                    border: Border.all(color: isRemainingBalancePayment ? const Color(0xFFFDE68A) : const Color(0xFFA7F3D0)),
                                   ),
                                   child: Text(
-                                    isFullPayment ? (isAdvanceOrder ? 'FULL PAYMENT' : 'FULL (100%)') : 'DEPOSIT (50%)',
-                                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+                                    isRemainingBalancePayment
+                                        ? 'REMAINING BAL.'
+                                        : isFullPayment
+                                            ? (isAdvanceOrder ? 'FULL PAYMENT' : 'FULL (100%)')
+                                            : 'DEPOSIT (50%)',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isRemainingBalancePayment ? const Color(0xFFB45309) : const Color(0xFF047857),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1369,21 +1384,44 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFECFDF5),
+                                          color: isRemainingBalancePayment ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                                          border: Border.all(color: isRemainingBalancePayment ? const Color(0xFFFDE68A) : const Color(0xFFA7F3D0)),
                                         ),
                                         child: Text(
-                                          isFullPayment ? (isAdvanceOrder ? 'FULL PAYMENT' : 'FULL (100%)') : 'DEPOSIT (50%)',
-                                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+                                          isRemainingBalancePayment
+                                              ? 'REMAINING BAL.'
+                                              : isFullPayment
+                                                  ? (isAdvanceOrder ? 'FULL PAYMENT' : 'FULL (100%)')
+                                                  : 'DEPOSIT (50%)',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: isRemainingBalancePayment ? const Color(0xFFB45309) : const Color(0xFF047857),
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  Text(
-                                    'Total Order Price: ₱${_moneyFmt.format(totalAmount)}',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                  ),
+                                  isRemainingBalancePayment
+                                      ? Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: 'Deposit already paid: ₱${_moneyFmt.format(rawDeposit)}  •  ',
+                                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                              ),
+                                              TextSpan(
+                                                text: 'Total: ₱${_moneyFmt.format(totalAmount)}',
+                                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : Text(
+                                          'Total Order Price: ₱${_moneyFmt.format(totalAmount)}',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                        ),
                                 ],
                               ),
                             ),
@@ -2227,6 +2265,32 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
+  /// Compute the amount that should appear on the submitted receipt.
+  /// For remaining balance payments (payment_option='full' but deposit_amount < total_price),
+  /// the receipt shows only the remaining portion, NOT the full order total.
+  /// For genuine full payments (deposit_amount >= total_price), returns the full total.
+  double _expectedReceiptAmount(Map<String, dynamic> payment) {
+    final double totalAmount = (payment['total_price'] as num?)?.toDouble() ?? 0.0;
+    final double rawDeposit = (payment['deposit_amount'] as num?)?.toDouble() ??
+        (payment['downpayment_amount'] as num?)?.toDouble() ?? 0.0;
+    final bool isAdvanceOrder = (payment['_table'] ?? '') == 'advance_orders';
+
+    if (!isAdvanceOrder && payment['payment_option'] == 'full' && totalAmount > 0) {
+      // Case A: deposit_amount is intact (< total) — receipt shows only remaining balance.
+      // This is the normal case for new records after our fix.
+      if (rawDeposit > 0 && rawDeposit < totalAmount) {
+        return totalAmount - rawDeposit; // e.g. 400 - 200 = 200
+      }
+      // Case B/C: deposit_amount is null/zero OR equals total (genuine full payment).
+      // Cannot distinguish reliably — fall through to default which returns
+      // rawDeposit > 0 ? rawDeposit : totalAmount.
+      // For new records, deposit_amount is always set so Case A handles them.
+    }
+    // Default: deposit_amount on record IS the receipt amount
+    // (covers deposits, full payments, and advance orders).
+    return rawDeposit > 0 ? rawDeposit : totalAmount;
+  }
+
   bool _canApprovePayment(Map<String, dynamic> payment) {
     final bool isCash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'cash';
     if (isCash) return true;
@@ -2237,7 +2301,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final ocr = _ocrResults[paymentId]!;
     if (ocr['success'] == false) return false;
 
-    final double expectedAmount = (payment['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final double expectedAmount = _expectedReceiptAmount(payment);
     final double? detectedAmount = ocr['detectedAmount'];
     final bool amountMatches = detectedAmount != null && (detectedAmount - expectedAmount).abs() < 1.0;
 
@@ -2344,7 +2408,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       );
     }
 
-    final double expectedAmount = (payment['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final double expectedAmount = _expectedReceiptAmount(payment);
     final double? detectedAmount = ocr['detectedAmount'];
     final bool amountMatches = detectedAmount != null && (detectedAmount - expectedAmount).abs() < 1.0;
 

@@ -9933,6 +9933,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final isConfirmed = bookingStatus == 'confirmed' || bookingStatus == 'completed';
 
     if (isConfirmed && (status == 'unpaid' || status == 'pending' || status == 'deposit_paid' || status == 'paid' || status == 'fully_paid')) {
+      // fully_paid = remaining balance was paid and approved → always FULLY SETTLED
+      if (status == 'paid' || status == 'fully_paid') {
+        return 'FULLY SETTLED';
+      }
       if (status == 'deposit_paid' && !isPayInFull && !isAdvanceOrder) {
         return 'DEPOSIT SETTLED';
       }
@@ -9974,9 +9978,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final paymentStatus = (reservation['payment_status']?.toString() ?? 'pending').toLowerCase();
     final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
     final isDepositPaid = paymentStatus == 'deposit_paid';
+    // Use the DB-stored remaining_balance as the authoritative source.
+    // Only fall back to computing (totalPrice - depositAmount) when the field is absent.
+    final storedRemainingBalance = (reservation['remaining_balance'] as num?)?.toDouble();
     final remainingBalance = isAdvanceOrder
         ? (isPaid ? 0.0 : totalPrice)
-        : (isPaid ? 0.0 : (isDepositPaid ? (totalPrice - depositAmount) : totalPrice));
+        : (isPaid
+            ? 0.0
+            : (isDepositPaid
+                ? (storedRemainingBalance != null && storedRemainingBalance >= 0
+                    ? storedRemainingBalance
+                    : (totalPrice - depositAmount).clamp(0.0, double.infinity))
+                : totalPrice));
     final orderedItems = reservation['selected_menu_items'] as Map<String, dynamic>? ?? {};
     final refId = reservation['id']?.toString() ?? 'N/A';
     final shortRef = refId.length > 8 ? refId.substring(0, 8).toUpperCase() : refId.toUpperCase();
@@ -10825,6 +10838,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   id: reservationId,
                   paymentStatus: 'pending_verification',
                   table: 'reservations',
+                  paymentAmount: remaining, // Pass the actual remaining amount so deposit_amount is saved in DB
                   paymentReference: 'PayMongo-Balance',
                 );
 
@@ -10945,11 +10959,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         reservation['payment_option'] == 'full' ||
         (totalPrice > 0 && depositAmount >= totalPrice);
 
-    // Only show payment option selection if not forced Pay in Full
-    final isEventPlace = reservation['_db_table'] != 'advance_orders' && !isPayInFull;
+    final paymentStatus = (reservation['payment_status'] ?? 'unpaid').toString().toLowerCase();
+    final double remainingBalance = (reservation['remaining_balance'] as num?)?.toDouble() ??
+        (totalPrice - depositAmount);
+    final bool isPayingRemaining = (paymentStatus == 'deposit_paid' || reservation['status'] == 'confirmed') && remainingBalance > 0.01;
+
+    // Only show payment option selection if not forced Pay in Full and not paying remaining balance
+    final isEventPlace = reservation['_db_table'] != 'advance_orders' && !isPayInFull && !isPayingRemaining;
 
     // Declare payment option outside builder to maintain state
-    String paymentOption = isPayInFull ? 'full' : 'half';
+    String paymentOption = (isPayInFull || isPayingRemaining) ? 'full' : 'half';
     final rawMethod = (reservation['payment_method'] ?? 'paymongo').toString().toLowerCase();
     final bool isGcash = rawMethod == 'gcash';
     final bool isCashOnSite = rawMethod == 'cash';
@@ -10969,9 +10988,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isCashOnSite
-                      ? 'Cash on Site Booking'
-                      : (isEventPlace ? 'Make Payment' : (isPayInFull ? 'Pay Full Amount' : 'Pay Deposit')),
+                  isPayingRemaining
+                      ? (isCashOnSite ? 'Cash on Site: Settle Balance' : 'Pay Remaining Balance')
+                      : (isCashOnSite
+                          ? 'Cash on Site Booking'
+                          : (isEventPlace ? 'Make Payment' : (isPayInFull ? 'Pay Full Amount' : 'Pay Deposit'))),
                 ),
               ],
             ),
@@ -10980,11 +11001,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCashOnSite
-                      ? 'Review your cash on site details below.'
-                      : (isEventPlace
-                          ? 'Choose your payment option below.'
-                          : 'Complete your payment by paying the full amount.'),
+                  isPayingRemaining
+                      ? 'Review and settle your remaining balance below.'
+                      : (isCashOnSite
+                          ? 'Review your cash on site details below.'
+                          : (isEventPlace
+                              ? 'Choose your payment option below.'
+                              : 'Complete your payment by paying the full amount.')),
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
@@ -11004,7 +11027,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Payment Method: Cash on Site\nYour booking is held for up to ${reservation['_db_table'] == 'advance_orders' ? "24 hours" : "3 days"} from the date of booking. Please settle this amount on site to confirm your reservation. Failure to pay within ${reservation['_db_table'] == 'advance_orders' ? "24 hours" : "3 days"} will automatically cancel your booking.',
+                            isPayingRemaining
+                                ? 'Payment Method: Cash on Site\nYour booking is confirmed! Please settle your remaining balance of PHP ${_fmt.format(remainingBalance)} on-site on the day of your event.'
+                                : 'Payment Method: Cash on Site\nYour booking is held for up to ${reservation['_db_table'] == 'advance_orders' ? "24 hours" : "3 days"} from the date of booking. Please settle this amount on site to confirm your reservation. Failure to pay within ${reservation['_db_table'] == 'advance_orders' ? "24 hours" : "3 days"} will automatically cancel your booking.',
                             style: GoogleFonts.inter(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
@@ -11105,13 +11130,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isEventPlace
-                            ? (paymentOption == 'full' ? 'Full Amount:' : 'Deposit Amount:')
-                            : 'Total Amount:',
+                        isPayingRemaining
+                            ? 'Remaining Balance:'
+                            : (isEventPlace
+                                ? (paymentOption == 'full' ? 'Full Amount:' : 'Deposit Amount:')
+                                : 'Total Amount:'),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'PHP ${(paymentOption == 'full' && isEventPlace ? totalPrice : depositAmount).toStringAsFixed(2)}',
+                        'PHP ${(isPayingRemaining ? remainingBalance : (paymentOption == 'full' && isEventPlace ? totalPrice : depositAmount)).toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.green,
@@ -11128,13 +11155,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      final paymentAmount = paymentOption == 'full' && isEventPlace
-                          ? totalPrice
-                          : depositAmount;
+                      final paymentAmount = isPayingRemaining
+                          ? remainingBalance
+                          : (paymentOption == 'full' && isEventPlace
+                              ? totalPrice
+                              : depositAmount);
 
                       if (isCashOnSite) {
-                        final isAdvance = reservation['_db_table'] == 'advance_orders';
-                        _showSnackBar('Please settle your cash payment on site within ${isAdvance ? "24 hours" : "3 days"} of booking.', Colors.green);
+                        if (isPayingRemaining) {
+                          _showSnackBar('Please settle your remaining balance of ₱${_fmt.format(remainingBalance)} on-site on the day of your event.', Colors.green);
+                        } else {
+                          final isAdvance = reservation['_db_table'] == 'advance_orders';
+                          _showSnackBar('Please settle your cash payment on site within ${isAdvance ? "24 hours" : "3 days"} of booking.', Colors.green);
+                        }
                       } else if (isGcash) {
                         _proceedToGCashPayment(
                           reservation,
@@ -11158,14 +11191,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ),
                     label: Text(
                       isCashOnSite
-                          ? 'Acknowledge Cash on Site'
+                          ? (isPayingRemaining ? 'Acknowledge Remaining Balance' : 'Acknowledge Cash on Site')
                           : (isGcash
-                              ? (isEventPlace
-                                  ? (paymentOption == 'full' ? 'Pay Full via GCash QR' : 'Pay Deposit via GCash QR')
-                                  : 'Pay with GCash QR')
-                              : (isEventPlace
-                                  ? (paymentOption == 'full' ? 'Pay Full via PayMongo' : 'Pay Deposit via PayMongo')
-                                  : 'Pay with PayMongo')),
+                              ? (isPayingRemaining
+                                  ? 'Pay Remaining Balance via GCash QR (₱${_fmt.format(remainingBalance)})'
+                                  : (isEventPlace
+                                      ? (paymentOption == 'full' ? 'Pay Full via GCash QR' : 'Pay Deposit via GCash QR')
+                                      : 'Pay with GCash QR'))
+                              : (isPayingRemaining
+                                  ? 'Pay Remaining Balance via PayMongo (₱${_fmt.format(remainingBalance)})'
+                                  : (isEventPlace
+                                      ? (paymentOption == 'full' ? 'Pay Full via PayMongo' : 'Pay Deposit via PayMongo')
+                                      : 'Pay with PayMongo'))),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isCashOnSite
@@ -16602,8 +16639,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final depositAmount = (reservation['deposit_amount'] ?? 0.0) as double;
     final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
 
+    // isPayInFull: customer originally chose 100% upfront payment plan.
+    // Do NOT include payment_option=='full' alone — that flag is also set during the
+    // remaining-balance payment path to signal final settlement to the admin, so it
+    // cannot reliably distinguish a "pay-in-full plan" from a "deposit plan fully settled".
+    // Instead, only treat as pay-in-full when deposit_amount itself covers the total.
     final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
-        reservation['payment_option'] == 'full' ||
+        (reservation['payment_option'] == 'full' &&
+            totalPrice > 0 &&
+            depositAmount >= totalPrice) ||
         (totalPrice > 0 && depositAmount >= totalPrice);
 
     final String resStatus = (reservation['status'] ?? 'pending').toString().toLowerCase();
@@ -16613,13 +16657,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final String paymentMethod = (reservation['payment_method'] ?? 'paymongo').toString().toLowerCase();
     final bool isCashPayment = paymentMethod == 'cash';
 
+    final double remainingBalance = (reservation['remaining_balance'] as num?)?.toDouble() ??
+        (totalPrice - depositAmount);
+    final bool hasRemainingBalance = !isPayInFull && remainingBalance > 0.01;
+
     final bool isConfirmedCash = isConfirmed && isCashPayment;
     final isDepositPaid = paymentStatus == 'deposit_paid' || (isConfirmedCash && !isPayInFull);
-    final isFullyPaid = paymentStatus == 'paid' ||
+    final isFullyPaid = (paymentStatus == 'paid' ||
         paymentStatus == 'fully_paid' ||
         (isConfirmedCash && isPayInFull) ||
-        (isConfirmed && (paymentStatus == 'deposit_paid' || paymentStatus == 'paid' || paymentStatus == 'fully_paid')) ||
-        (reservation['remaining_balance'] != null && (reservation['remaining_balance'] as num) <= 0 && paymentStatus != 'unpaid');
+        (isConfirmed && (paymentStatus == 'paid' || paymentStatus == 'fully_paid')) ||
+        // Only treat remaining_balance=0 as fully paid when the payment has been
+        // actually confirmed (not still pending verification or deposit state)
+        (reservation['remaining_balance'] != null &&
+            (reservation['remaining_balance'] as num) <= 0 &&
+            paymentStatus != 'unpaid' &&
+            paymentStatus != 'pending_verification' &&
+            paymentStatus != 'deposit_paid')) &&
+        !hasRemainingBalance;
 
     final bool isSettledOrConfirmed = isConfirmed || isFullyPaid || (isDepositPaid && !isPayInFull);
 
@@ -16629,8 +16684,36 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     final isUnpaidOrDue = !isSettledOrConfirmed && (paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment);
 
-    // Only deposit payments need admin approval notice; fully paid is automatically settled!
-    final bool isAwaitingAdminApproval = isDepositPaid && !isConfirmed && !isFullyPaid;
+    // isRemainingBalancePendingVerification: true ONLY for remaining balance submissions.
+    // Both deposit and remaining balance set payment_status='pending_verification',
+    // so we use the additional fingerprint set by the remaining-balance path:
+    //   - payment_option='full'  (set only when the accumulated total covers the full price)
+    //   - depositAmount < totalPrice  (original deposit is still 50%, not full)
+    final bool isRemainingBalancePendingVerification =
+        paymentStatus == 'pending_verification' &&
+        (reservation['status'] == 'pending_admin_approval' ||
+            reservation['status'] == 'awaiting_verification') &&
+        reservation['payment_option'] == 'full' &&
+        totalPrice > 0 &&
+        depositAmount > 0 &&
+        depositAmount < totalPrice;
+
+    // isFullPaymentPendingVerification: customer chose to pay 100% upfront in one shot.
+    //   - payment_option='full' AND depositAmount >= totalPrice (deposit covers everything)
+    final bool isFullPaymentPendingVerification =
+        paymentStatus == 'pending_verification' &&
+        (reservation['status'] == 'pending_admin_approval' ||
+            reservation['status'] == 'awaiting_verification') &&
+        reservation['payment_option'] == 'full' &&
+        totalPrice > 0 &&
+        depositAmount >= totalPrice;
+    final bool isAwaitingAdminApproval =
+        (isDepositPaid || isRemainingBalancePendingVerification ||
+            (paymentStatus == 'pending_verification' &&
+                (reservation['status'] == 'pending_admin_approval' ||
+                    reservation['status'] == 'awaiting_verification'))) &&
+        !isConfirmed &&
+        !isFullyPaid;
 
     // Compute grace period
     // Cash on site: 3 Days (Event) / 24 Hours (Advance Order) from created_at
@@ -17126,7 +17209,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Payment submitted — Awaiting admin verification & approval. Official receipt will be confirmed shortly.',
+                              isRemainingBalancePendingVerification
+                                  ? 'Remaining balance payment submitted — Awaiting admin verification & final settlement.'
+                                  : isFullPaymentPendingVerification
+                                      ? 'Full payment submitted — Awaiting admin verification & approval. Your booking will be confirmed shortly.'
+                                      : 'Deposit payment submitted — Awaiting admin verification & approval. Your booking will be confirmed shortly.',
                               style: GoogleFonts.inter(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
@@ -17189,7 +17276,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         ),
                       ),
                     )
-                  else if (isConfirmed)
+                  else if (isConfirmed) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -17217,23 +17304,90 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           ),
                         ],
                       ),
-                    )
-                  else if (paymentStatus == 'deposit_paid' && reservation['_db_table'] != 'advance_orders' && (totalPrice - depositAmount) > 0)
+                    ),
+                    if (hasRemainingBalance && (paymentStatus == 'deposit_paid' || isDepositPaid)) ...[
+                      const SizedBox(height: 12),
+                      AnimatedTapScale(
+                        onTap: () => _showPaymentDialog(reservation),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.goldGradient,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isCashPayment
+                                    ? Icons.payments_rounded
+                                    : (paymentMethod == 'gcash' ? Icons.qr_code_scanner_rounded : Icons.payment_rounded),
+                                color: AppTheme.darkBrownText,
+                                size: 17,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isCashPayment
+                                    ? 'Cash on Site: Remaining Balance (₱${_fmt.format(remainingBalance)})'
+                                    : (paymentMethod == 'gcash'
+                                        ? 'Pay Remaining Balance via GCash (₱${_fmt.format(remainingBalance)})'
+                                        : 'Pay Remaining Balance (₱${_fmt.format(remainingBalance)})'),
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.darkBrownText,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showOfficialReceiptDialog(reservation),
+                          icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF16302A)),
+                          label: Text(
+                            'View Official Receipt',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF16302A),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            side: const BorderSide(color: Color(0xFF16302A), width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ]
+                  else if (hasRemainingBalance && (paymentStatus == 'deposit_paid' || isDepositPaid) && reservation['_db_table'] != 'advance_orders')
                     AnimatedTapScale(
-                      onTap: () => _payRemainingBalanceOnline(reservation),
+                      onTap: () => _showPaymentDialog(reservation),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          gradient: AppTheme.goldGradient,
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
+                              color: AppTheme.warmGold.withValues(alpha: 0.35),
                               blurRadius: 10,
                               offset: const Offset(0, 3),
                             ),
@@ -17242,14 +17396,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.payment_rounded, color: Colors.white, size: 17),
+                            Icon(
+                              isCashPayment
+                                  ? Icons.payments_rounded
+                                  : (paymentMethod == 'gcash' ? Icons.qr_code_scanner_rounded : Icons.payment_rounded),
+                              color: AppTheme.darkBrownText,
+                              size: 17,
+                            ),
                             const SizedBox(width: 8),
                             Text(
-                              'Pay Remaining Balance (₱${_fmt.format(totalPrice - depositAmount)})',
+                              isCashPayment
+                                  ? 'Cash on Site: Remaining Balance (₱${_fmt.format(remainingBalance)})'
+                                  : (paymentMethod == 'gcash'
+                                      ? 'Pay Remaining Balance via GCash (₱${_fmt.format(remainingBalance)})'
+                                      : 'Pay Remaining Balance (₱${_fmt.format(remainingBalance)})'),
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w900,
-                                color: Colors.white,
+                                color: AppTheme.darkBrownText,
                                 letterSpacing: 0.2,
                               ),
                             ),

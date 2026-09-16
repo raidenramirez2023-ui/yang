@@ -1260,21 +1260,20 @@ class ReservationService {
       };
 
       bool wasDepositPaid = false;
+      double existingDepositAmount = 0.0;
       if (table == 'reservations') {
         try {
           final res = await getReservation(id);
           if (res != null && res['payment_status'] == 'deposit_paid') {
             wasDepositPaid = true;
+            // Capture the original deposit so we can accumulate below
+            existingDepositAmount = (res['deposit_amount'] as num?)?.toDouble() ??
+                (res['payment_amount'] as num?)?.toDouble() ?? 0.0;
           }
         } catch (_) {}
       }
 
       if (table == 'reservations') {
-        // Only write reservation-specific columns
-        if (paymentAmount != null) {
-          updates['deposit_amount'] = paymentAmount;
-          updates['payment_amount'] = paymentAmount;
-        }
         if (paymentReference != null) {
           updates['payment_reference'] = paymentReference;
         }
@@ -1284,34 +1283,78 @@ class ReservationService {
 
         final reservation = await getReservation(id);
         final totalPrice = (reservation?['total_price'] as num?)?.toDouble() ?? 0.0;
-        final deposit = paymentAmount ?? (reservation?['deposit_amount'] as num?)?.toDouble() ?? (reservation?['payment_amount'] as num?)?.toDouble() ?? 0.0;
-        final isFull = paymentStatus == 'fully_paid' || 
-            paymentStatus == 'paid' || 
-            (totalPrice > 0 && deposit >= totalPrice) || 
-            reservation?['payment_option'] == 'full';
 
-        if (paymentStatus == 'pending_verification') {
-          updates['payment_status'] = 'pending_verification';
-          updates['status'] = 'pending_admin_approval';
-          if (isFull) {
+        if (wasDepositPaid && paymentAmount != null) {
+          // ── REMAINING BALANCE PAYMENT PATH ─────────────────────────────────
+          // The customer already has a confirmed deposit. This submission is the
+          // remaining balance payment. Do NOT overwrite deposit_amount — instead
+          // accumulate: totalPaid = existingDeposit + thisPayment.
+          final totalPaid = existingDepositAmount + paymentAmount;
+          final isFinalSettlement = totalPrice <= 0 || totalPaid >= totalPrice;
+
+          // Cumulative payment_amount reflects all money paid so far
+          updates['payment_amount'] = isFinalSettlement
+              ? (totalPrice > 0 ? totalPrice : totalPaid)
+              : totalPaid;
+          updates['remaining_balance'] = isFinalSettlement
+              ? 0
+              : (totalPrice - totalPaid).clamp(0.0, double.infinity);
+          // Always explicitly store deposit_amount so admin-side can compute the
+          // remaining balance receipt amount (total - deposit) even if deposit_amount
+          // was null before this update.
+          if (existingDepositAmount > 0) {
+            updates['deposit_amount'] = existingDepositAmount;
+          }
+
+          if (paymentStatus == 'pending_verification') {
+            updates['payment_status'] = 'pending_verification';
+            updates['status'] = 'pending_admin_approval';
+            if (isFinalSettlement) {
+              // Signal to admin approval that this completes the full payment
+              updates['payment_option'] = 'full';
+            }
+          }
+        } else {
+          // ── INITIAL PAYMENT PATH (deposit or one-shot full payment) ─────────
+          if (paymentAmount != null) {
+            updates['deposit_amount'] = paymentAmount;
+            updates['payment_amount'] = paymentAmount;
+          }
+
+          final deposit = paymentAmount ??
+              (reservation?['deposit_amount'] as num?)?.toDouble() ??
+              (reservation?['payment_amount'] as num?)?.toDouble() ?? 0.0;
+          // isFull: only based on actual payment amount vs total price.
+          // Do NOT include reservation?['payment_option'] == 'full' here — that flag is set
+          // by the REMAINING BALANCE path and would falsely trigger isFull on re-submissions,
+          // causing deposit_amount to be overwritten to totalPrice (corruption bug).
+          final isFull = paymentStatus == 'fully_paid' ||
+              paymentStatus == 'paid' ||
+              (totalPrice > 0 && deposit >= totalPrice);
+
+          if (paymentStatus == 'pending_verification') {
+            updates['payment_status'] = 'pending_verification';
+            updates['status'] = 'pending_admin_approval';
+            if (isFull) {
+              updates['payment_option'] = 'full';
+              updates['remaining_balance'] = 0;
+              updates['deposit_amount'] = totalPrice > 0 ? totalPrice : deposit;
+              updates['payment_amount'] = totalPrice > 0 ? totalPrice : deposit;
+            } else {
+              updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
+            }
+          } else if (isFull) {
+            updates['payment_status'] = 'fully_paid';
             updates['payment_option'] = 'full';
             updates['remaining_balance'] = 0;
             updates['deposit_amount'] = totalPrice > 0 ? totalPrice : deposit;
             updates['payment_amount'] = totalPrice > 0 ? totalPrice : deposit;
+            updates['status'] = 'pending_admin_approval';
           } else {
+            updates['payment_status'] = 'deposit_paid';
             updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
+            updates['status'] = 'pending_admin_approval';
           }
-        } else if (isFull) {
-          updates['payment_status'] = 'fully_paid';
-          updates['payment_option'] = 'full';
-          updates['remaining_balance'] = 0;
-          updates['deposit_amount'] = totalPrice > 0 ? totalPrice : deposit;
-          updates['payment_amount'] = totalPrice > 0 ? totalPrice : deposit;
-          updates['status'] = 'pending_admin_approval';
-        } else {
-          updates['payment_status'] = 'deposit_paid';
-          updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
-          updates['status'] = 'pending_admin_approval';
         }
       } else {
         // advance_orders: only update payment_status + status, never overwrite total_price
@@ -1975,10 +2018,24 @@ class ReservationService {
         if (reservation != null) {
           final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
           final deposit = (reservation['deposit_amount'] as num?)?.toDouble() ?? (reservation['payment_amount'] as num?)?.toDouble() ?? 0.0;
+          // Use DB-stored remaining_balance as primary source for accuracy
+          final storedRemaining = (reservation['remaining_balance'] as num?)?.toDouble();
+
+          // isFull requires payment_option == 'full' with sufficient deposit amount,
+          // OR the record was already marked fully_paid by a prior approval.
+          // 'paid' alone (pre-verification state) is NOT sufficient to mark as fully paid.
+          // totalPaid tracks cumulative money received (deposit + any balance payments)
+          final totalPaid = (reservation['payment_amount'] as num?)?.toDouble() ?? deposit;
+
+          // isFull when:
+          //   1. Already explicitly marked fully_paid, OR
+          //   2. payment_option is 'full' (set by both initial full-pay and balance payment paths), OR
+          //   3. remaining_balance was cleared to 0 (set by the balance payment accumulation path), OR
+          //   4. cumulative payment_amount covers the total
           final isFull = reservation['payment_status'] == 'fully_paid' ||
-              reservation['payment_status'] == 'paid' ||
               reservation['payment_option'] == 'full' ||
-              (totalPrice > 0 && deposit >= totalPrice);
+              (storedRemaining != null && storedRemaining <= 0 && totalPrice > 0) ||
+              (totalPrice > 0 && totalPaid >= totalPrice);
 
           if (isFull) {
             updates['payment_status'] = 'fully_paid';
@@ -1986,7 +2043,11 @@ class ReservationService {
             updates['remaining_balance'] = 0;
           } else {
             updates['payment_status'] = 'deposit_paid';
-            updates['remaining_balance'] = (totalPrice > deposit) ? (totalPrice - deposit) : 0;
+            // Prefer DB-stored remaining_balance; fall back to computed value
+            final computedRemaining = (totalPrice > deposit) ? (totalPrice - deposit) : 0.0;
+            updates['remaining_balance'] = (storedRemaining != null && storedRemaining > 0)
+                ? storedRemaining
+                : computedRemaining;
           }
         }
         updates['status'] = 'confirmed';

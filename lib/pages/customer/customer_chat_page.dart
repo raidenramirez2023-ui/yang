@@ -2296,20 +2296,46 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
                       : '$rawPax Guests';
 
                   // Financial calculations
+                  // Use payment_status as the authoritative source for payment state.
+                  final paymentStatus = (res['payment_status'] ?? '').toString().toLowerCase();
                   double total = _parseAmount(res['total_amount'] ?? res['package_amount'] ?? res['total_price']);
-                  double paid = _parseAmount(res['downpayment_amount'] ?? res['payment_amount'] ?? res['paid_amount'] ?? res['downpayment']);
-                  double remaining = _parseAmount(res['remaining_balance']);
+                  double paid = _parseAmount(res['downpayment_amount'] ?? res['deposit_amount'] ?? res['payment_amount'] ?? res['paid_amount'] ?? res['downpayment']);
+                  // Use DB-stored remaining_balance as the primary source.
+                  // Use -1 as sentinel to distinguish "not stored" from "stored as 0".
+                  final rawRemaining = res['remaining_balance'];
+                  double remaining = rawRemaining != null ? _parseAmount(rawRemaining) : -1.0;
 
-                  // Realistic fallback logic if database stored 0 for total but has remaining
-                  if (total <= 0 && remaining > 0) {
-                    total = paid + remaining;
-                  } else if (total > 0 && remaining <= 0 && total > paid) {
-                    remaining = total - paid;
-                  } else if (total <= 0 && paid > 0 && remaining <= 0) {
-                    total = paid;
+                  // Fallback logic ONLY when remaining_balance is not stored in DB
+                  if (remaining < 0) {
+                    if (total <= 0 && paid > 0) {
+                      total = paid;
+                      remaining = 0;
+                    } else if (total > 0 && total > paid) {
+                      remaining = total - paid;
+                    } else {
+                      remaining = 0;
+                    }
+                  } else {
+                    // remaining_balance IS stored — only fix total if missing
+                    if (total <= 0 && remaining > 0) {
+                      total = paid + remaining;
+                    } else if (total <= 0 && paid > 0 && remaining <= 0) {
+                      total = paid;
+                    }
                   }
 
-                  final isFullyPaid = (remaining <= 0 && (total > 0 || paid > 0)) || status.toLowerCase().contains('completed');
+                  // payment_status is the authoritative source for whether payment is complete.
+                  // Do NOT rely on remaining <= 0 alone — a null DB field defaults to 0 falsely.
+                  final isFullyPaid = paymentStatus == 'fully_paid' ||
+                      paymentStatus == 'paid' ||
+                      paymentStatus == 'balance_cleared' ||
+                      (remaining <= 0 &&
+                          (total > 0 || paid > 0) &&
+                          paymentStatus != 'deposit_paid' &&
+                          paymentStatus != 'pending_verification' &&
+                          paymentStatus != 'pending' &&
+                          paymentStatus != 'unpaid') ||
+                      status.toLowerCase().contains('completed');
                   final isCancelled = status.toLowerCase().contains('cancel') || status.toLowerCase().contains('reject');
 
                   return Container(
