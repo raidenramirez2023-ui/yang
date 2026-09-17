@@ -2354,7 +2354,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       child: Image.asset(
 
-                        'assets/images/ycplogo.png',
+                        'assets/images/yang_chow_logo.png',
 
                         width: 36,
 
