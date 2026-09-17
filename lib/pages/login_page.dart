@@ -501,32 +501,74 @@ class _LoginPageState extends State<LoginPage> {
       // Check if user exists in the users table
       final userResponse = await Supabase.instance.client
           .from('users')
-          .select('id, role, avatar_url')
+          .select('id, role, avatar_url, firstname, lastname')
           .eq('email', email)
           .maybeSingle();
 
       debugPrint('OAuth: Database response: $userResponse');
 
       final metadata = session.user.userMetadata ?? {};
-      final name =
-          metadata['full_name']?.toString() ??
-          metadata['name']?.toString() ??
-          'Customer';
+      
+      // Extract first name and last name from Google metadata
+      String firstName = (metadata['given_name'] ??
+              metadata['firstname'] ??
+              metadata['first_name'])
+          ?.toString()
+          .trim() ??
+          '';
+      String lastName = (metadata['family_name'] ??
+              metadata['lastname'] ??
+              metadata['last_name'])
+          ?.toString()
+          .trim() ??
+          '';
+      final fullName = (metadata['full_name'] ?? metadata['name'])
+          ?.toString()
+          .trim() ??
+          '';
+
+      if (firstName.isEmpty && lastName.isEmpty && fullName.isNotEmpty) {
+        final parts = fullName.split(RegExp(r'\s+'));
+        if (parts.length == 1) {
+          firstName = parts[0];
+        } else if (parts.length > 1) {
+          firstName = parts.sublist(0, parts.length - 1).join(' ');
+          lastName = parts.last;
+        }
+      }
+
+      // Sync firstname/lastname into Supabase Auth user_metadata if needed
+      if (firstName.isNotEmpty || lastName.isNotEmpty) {
+        try {
+          await Supabase.instance.client.auth.updateUser(
+            UserAttributes(
+              data: {
+                if (firstName.isNotEmpty) 'firstname': firstName,
+                if (lastName.isNotEmpty) 'lastname': lastName,
+              },
+            ),
+          );
+        } catch (_) {}
+      }
+
       final avatarUrl =
           metadata['avatar_url']?.toString() ?? metadata['picture']?.toString();
 
       if (userResponse == null) {
-        debugPrint('OAuth: Registering new user: $name ($email)');
+        debugPrint('OAuth: Registering new user: $firstName $lastName ($email)');
         _showSnackBar(
           "New account detected, registering...",
           Colors.blue.shade700,
           Icons.person_add,
         );
 
-        // Create new user with 'customer' role
+        // Create new user with 'customer' role including firstname and lastname
         await Supabase.instance.client.from('users').insert({
+          'id': session.user.id,
           'email': email,
           'role': 'customer',
+          'firstname': firstName.isNotEmpty ? firstName : null,
+          'lastname': lastName.isNotEmpty ? lastName : null,
           'avatar_url': avatarUrl,
         });
 
@@ -544,9 +586,21 @@ class _LoginPageState extends State<LoginPage> {
         final Map<String, dynamic> updates = {};
         final existingAvatarUrl = userResponse['avatar_url']?.toString();
         final existingId = userResponse['id']?.toString();
+        final existingFirstName =
+            (userResponse['firstname'] ?? '').toString().trim();
+        final existingLastName =
+            (userResponse['lastname'] ?? '').toString().trim();
 
         if (avatarUrl != null && existingAvatarUrl != avatarUrl) {
           updates['avatar_url'] = avatarUrl;
+        }
+
+        // Auto-populate firstname and lastname if currently empty in database
+        if (existingFirstName.isEmpty && firstName.isNotEmpty) {
+          updates['firstname'] = firstName;
+        }
+        if (existingLastName.isEmpty && lastName.isNotEmpty) {
+          updates['lastname'] = lastName;
         }
 
         // Crucial: Sync the public.users id with the auth.users id

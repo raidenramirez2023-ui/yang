@@ -315,6 +315,15 @@ class StaffService {
           'dept': (s['dept'] ?? '').toString().trim(),
         };
 
+        final coreRow = {
+          'employee_id': empId,
+          'name': staffName,
+          'title': (s['title'] ?? '').toString().trim(),
+          'role': (s['role'] ?? '').toString().trim(),
+          'level': s['level'] is int ? s['level'] : int.tryParse(s['level']?.toString() ?? '2') ?? 2,
+          'status': statusStr,
+        };
+
         // Try insert/update into `staff` table
         try {
           final existing = await supabase
@@ -327,23 +336,23 @@ class StaffService {
             try {
               await supabase.from('staff').update(row).eq('id', existing['id']);
             } catch (colErr) {
-              // In case the DB table does not have 'image', update without it
-              final fallbackRow = Map<String, dynamic>.from(row)..remove('image');
-              await supabase.from('staff').update(fallbackRow).eq('id', existing['id']);
+              // If DB table does not have extended columns (image, phone, dept), update using core columns
+              debugPrint('[StaffService] Updating with core columns fallback: $colErr');
+              await supabase.from('staff').update(coreRow).eq('id', existing['id']);
             }
             debugPrint('[StaffService] Updated staff "$staffName" ($empId) in Supabase `staff` table');
           } else {
             try {
               await supabase.from('staff').insert(row);
             } catch (colErr) {
-              final fallbackRow = Map<String, dynamic>.from(row)..remove('image');
-              await supabase.from('staff').insert(fallbackRow);
+              debugPrint('[StaffService] Inserting with core columns fallback: $colErr');
+              await supabase.from('staff').insert(coreRow);
             }
             debugPrint('[StaffService] Inserted new staff "$staffName" ($empId) in Supabase `staff` table');
           }
           dbSuccess = true;
         } catch (tableErr) {
-          debugPrint('[StaffService] Single row sync note: $tableErr');
+          debugPrint('[StaffService] Single row sync error: $tableErr');
         }
       }
       debugPrint('[StaffService] Synced staff records to Supabase `staff` table (success: $dbSuccess)');
