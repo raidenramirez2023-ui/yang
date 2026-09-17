@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/admin/admin_reviews_page.dart';
+import 'package:yang_chow/services/reservation_service.dart';
 
 class CustomerManagementPage extends StatefulWidget {
   const CustomerManagementPage({super.key});
@@ -14,6 +15,7 @@ class CustomerManagementPage extends StatefulWidget {
 
 class _CustomerManagementPageState extends State<CustomerManagementPage> {
   final _supabase = Supabase.instance.client;
+  final _reservationService = ReservationService();
   final _searchController = TextEditingController();
 
   int _selectedTab = 0; // 0 = Customer Registry, 1 = Customer Reviews
@@ -22,6 +24,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   bool _isLoading = true;
   String _searchQuery = '';
   String _sortBy = 'newest'; // newest, oldest, name_asc, name_desc
+  String _selectedRestrictionFilter = 'all'; // all, active, warning, restricted, high_risk
   int _customerCurrentPage = 1;
   static const int _customersPerPage = 15;
 
@@ -56,18 +59,35 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
 
       final resResponse = await _supabase
           .from('reservations')
-          .select('customer_email, status');
+          .select('customer_email, status, price_quotation_sent, payment_status, quotation_expires_at');
 
       final stats = <String, Map<String, int>>{};
       for (final r in resResponse) {
         final email = (r['customer_email'] ?? '').toString().trim().toLowerCase();
         if (email.isEmpty) continue;
         final status = (r['status'] ?? '').toString().toLowerCase();
+        final paymentStatus = (r['payment_status'] ?? 'unpaid').toString().toLowerCase();
+        final priceQuotationSent = r['price_quotation_sent'] == true;
 
-        stats.putIfAbsent(email, () => {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0, 'confirmed': 0});
+        stats.putIfAbsent(email, () => {
+          'total': 0,
+          'no_show': 0,
+          'completed': 0,
+          'cancelled': 0,
+          'confirmed': 0,
+          'expired': 0,
+          'unpaid_quotations': 0,
+          'active': 0,
+        });
         stats[email]!['total'] = (stats[email]!['total'] ?? 0) + 1;
         if (stats[email]!.containsKey(status)) {
           stats[email]![status] = (stats[email]![status] ?? 0) + 1;
+        }
+        if (status == 'pending' || status == 'confirmed') {
+          stats[email]!['active'] = (stats[email]!['active'] ?? 0) + 1;
+        }
+        if (priceQuotationSent && paymentStatus == 'unpaid' && status == 'pending') {
+          stats[email]!['unpaid_quotations'] = (stats[email]!['unpaid_quotations'] ?? 0) + 1;
         }
       }
 
@@ -91,10 +111,46 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       final email = (c['email'] ?? '').toString().toLowerCase();
       final phone = (c['phone'] ?? '').toString().toLowerCase();
       final q = _searchQuery.toLowerCase();
-      return q.isEmpty ||
+
+      final matchesQuery = q.isEmpty ||
           name.contains(q) ||
           email.contains(q) ||
           phone.contains(q);
+      if (!matchesQuery) return false;
+
+      if (_selectedRestrictionFilter == 'all') return true;
+
+      final restrictionStatus = (c['restriction_status'] ?? 'active').toString().toLowerCase();
+      final warningCount = (c['warning_count'] as num? ?? 0).toInt();
+      final restrictionEndStr = c['restriction_end']?.toString();
+      DateTime? restrictionEnd;
+      if (restrictionEndStr != null && restrictionEndStr.isNotEmpty) {
+        restrictionEnd = DateTime.tryParse(restrictionEndStr)?.toLocal();
+      }
+      final now = DateTime.now();
+      final isRestricted = (restrictionStatus == 'temporarily_restricted' ||
+              restrictionStatus == 'blocked' ||
+              restrictionStatus == 'suspended') &&
+          (restrictionEnd == null || now.isBefore(restrictionEnd));
+
+      final stat = _customerReservationStats[email] ?? {};
+      final noShows = stat['no_show'] ?? 0;
+      final expired = stat['expired'] ?? 0;
+      final cancelled = stat['cancelled'] ?? 0;
+      final isHighRisk = noShows > 0 || expired >= 2 || cancelled >= 3;
+
+      switch (_selectedRestrictionFilter) {
+        case 'active':
+          return !isRestricted && warningCount == 0 && !isHighRisk;
+        case 'warning':
+          return warningCount > 0 && !isRestricted;
+        case 'restricted':
+          return isRestricted;
+        case 'high_risk':
+          return isHighRisk || isRestricted || warningCount > 0;
+        default:
+          return true;
+      }
     }).toList();
 
     switch (_sortBy) {
@@ -641,103 +697,166 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   // SEARCH & FILTER
   // -------------------------------------------------------------------------
   Widget _buildSearchAndFilter(bool isMobile) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _slateLight),
-              boxShadow: [
-                BoxShadow(
-                  color: _darkBg.withValues(alpha: 0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (v) => setState(() {
-                _searchQuery = v.trim();
-                _customerCurrentPage = 1;
-              }),
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                color: _darkBg,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search by name, email or phone...',
-                hintStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  color: const Color(0xFF94A3B8),
-                ),
-                prefixIcon: const Icon(Icons.search_rounded,
-                    color: _slate, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded,
-                            size: 18, color: Color(0xFF94A3B8)),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                            _customerCurrentPage = 1;
-                          });
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _slateLight),
-          ),
-          child: PopupMenuButton<String>(
-            onSelected: (v) => setState(() {
-              _sortBy = v;
-              _customerCurrentPage = 1;
-            }),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            tooltip: 'Sort',
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.sort_rounded, color: _slate, size: 18),
-                  if (!isMobile) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      'Sort',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _slate,
-                      ),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _slateLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _darkBg.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() {
+                    _searchQuery = v.trim();
+                    _customerCurrentPage = 1;
+                  }),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    color: _darkBg,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, email or phone...',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: _slate, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded,
+                                size: 18, color: Color(0xFF94A3B8)),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                                _customerCurrentPage = 1;
+                              });
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _slateLight),
+              ),
+              child: PopupMenuButton<String>(
+                onSelected: (v) => setState(() {
+                  _sortBy = v;
+                  _customerCurrentPage = 1;
+                }),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tooltip: 'Sort',
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sort_rounded, color: _slate, size: 18),
+                      if (!isMobile) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          'Sort',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _slate,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                itemBuilder: (context) => [
+                  _popupItem('newest', 'Newest First', Icons.arrow_downward_rounded),
+                  _popupItem('oldest', 'Oldest First', Icons.arrow_upward_rounded),
+                  _popupItem('name_asc', 'Name A–Z', Icons.sort_by_alpha_rounded),
+                  _popupItem('name_desc', 'Name Z–A', Icons.sort_by_alpha_rounded),
                 ],
               ),
             ),
-            itemBuilder: (context) => [
-              _popupItem('newest', 'Newest First', Icons.arrow_downward_rounded),
-              _popupItem('oldest', 'Oldest First', Icons.arrow_upward_rounded),
-              _popupItem('name_asc', 'Name A–Z', Icons.sort_by_alpha_rounded),
-              _popupItem('name_desc', 'Name Z–A', Icons.sort_by_alpha_rounded),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildRestrictionFilterChip('all', 'All Accounts', Icons.people_outline_rounded),
+              const SizedBox(width: 6),
+              _buildRestrictionFilterChip('active', 'Good Standing', Icons.verified_user_outlined),
+              const SizedBox(width: 6),
+              _buildRestrictionFilterChip('warning', 'Warnings', Icons.warning_amber_rounded),
+              const SizedBox(width: 6),
+              _buildRestrictionFilterChip('restricted', 'Restricted / Blocked', Icons.lock_outline_rounded),
+              const SizedBox(width: 6),
+              _buildRestrictionFilterChip('high_risk', 'High-Risk Patterns', Icons.gpp_maybe_outlined),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRestrictionFilterChip(String key, String label, IconData icon) {
+    final isSelected = _selectedRestrictionFilter == key;
+    Color activeColor = _emerald;
+    if (key == 'warning') activeColor = const Color(0xFFD97706);
+    if (key == 'restricted') activeColor = const Color(0xFFDC2626);
+    if (key == 'high_risk') activeColor = const Color(0xFFEA580C);
+
+    return InkWell(
+      onTap: () => setState(() {
+        _selectedRestrictionFilter = key;
+        _customerCurrentPage = 1;
+      }),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? activeColor : _slateLight,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: isSelected ? Colors.white : _slate),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : _slate,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1089,13 +1208,89 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                                   ),
                                 ),
                               ],
-                              // Reliability badge
+                              // Reliability & Restriction badge
                               () {
-                                final stat = _customerReservationStats[email.toLowerCase()] ?? {'total': 0, 'no_show': 0, 'completed': 0};
+                                final restrictionStatus = (customer['restriction_status'] ?? 'active').toString().toLowerCase();
+                                final warningCount = (customer['warning_count'] as num? ?? 0).toInt();
+                                final restrictionEndStr = customer['restriction_end']?.toString();
+                                DateTime? restrictionEnd;
+                                if (restrictionEndStr != null && restrictionEndStr.isNotEmpty) {
+                                  restrictionEnd = DateTime.tryParse(restrictionEndStr)?.toLocal();
+                                }
+                                final now = DateTime.now();
+                                final isRestricted = (restrictionStatus == 'temporarily_restricted' ||
+                                        restrictionStatus == 'blocked' ||
+                                        restrictionStatus == 'suspended') &&
+                                    (restrictionEnd == null || now.isBefore(restrictionEnd));
+
+                                if (isRestricted) {
+                                  final label = restrictionStatus == 'blocked' || restrictionStatus == 'suspended'
+                                      ? 'BLOCKED'
+                                      : 'RESTRICTED';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF2F2),
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: const Color(0xFFFECACA)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.lock_rounded, size: 10, color: Color(0xFFDC2626)),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            label,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFFDC2626),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                if (warningCount > 0 || restrictionStatus == 'warning') {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: const Color(0xFFFDE68A)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.warning_amber_rounded, size: 10, color: Color(0xFFD97706)),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            'WARN ($warningCount)',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFFD97706),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final stat = _customerReservationStats[email.toLowerCase()] ?? {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0, 'expired': 0};
                                 final noShows = stat['no_show'] ?? 0;
                                 final completed = stat['completed'] ?? 0;
+                                final expired = stat['expired'] ?? 0;
+                                final cancelled = stat['cancelled'] ?? 0;
 
-                                if (noShows >= 2) {
+                                if (noShows >= 2 || expired >= 2 || cancelled >= 3) {
                                   return Padding(
                                     padding: const EdgeInsets.only(left: 6),
                                     child: Container(
@@ -1111,7 +1306,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                                           const Icon(Icons.warning_amber_rounded, size: 10, color: Color(0xFFDC2626)),
                                           const SizedBox(width: 2),
                                           Text(
-                                            '$noShows NO-SHOWS',
+                                            noShows >= 2 ? '$noShows NO-SHOWS' : 'HIGH-RISK',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 9,
                                               fontWeight: FontWeight.w800,
@@ -1513,82 +1708,199 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                                   _formatDate(customer['created_at'])),
                               const SizedBox(height: 14),
 
-                              // Customer Reliability Stats Banner
+                              // Customer Reliability & Restriction Controls Banner
                               () {
                                 final custEmail = (customer['email'] ?? '').toString().trim().toLowerCase();
-                                final stat = _customerReservationStats[custEmail] ?? {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0};
+                                final userId = customer['id']?.toString();
+                                final custName = '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'.trim();
+                                final stat = _customerReservationStats[custEmail] ?? {
+                                  'total': 0,
+                                  'completed': 0,
+                                  'confirmed': 0,
+                                  'active': 0,
+                                  'cancelled': 0,
+                                  'expired': 0,
+                                  'no_show': 0,
+                                  'unpaid_quotations': 0,
+                                };
                                 final totalBookings = stat['total'] ?? 0;
                                 final completed = stat['completed'] ?? 0;
+                                final confirmed = stat['confirmed'] ?? 0;
+                                final active = stat['active'] ?? 0;
+                                final cancelled = stat['cancelled'] ?? 0;
+                                final expired = stat['expired'] ?? 0;
                                 final noShows = stat['no_show'] ?? 0;
+
+                                final restrictionStatus = (customer['restriction_status'] ?? 'active').toString().toLowerCase();
+                                final warningCount = (customer['warning_count'] as num? ?? 0).toInt();
+                                final restrictionEndStr = customer['restriction_end']?.toString();
+                                final restrictionReason = customer['restriction_reason']?.toString() ?? '';
+                                final restrictedBy = customer['restricted_by']?.toString();
+
+                                DateTime? restrictionEnd;
+                                if (restrictionEndStr != null && restrictionEndStr.isNotEmpty) {
+                                  restrictionEnd = DateTime.tryParse(restrictionEndStr)?.toLocal();
+                                }
+                                final now = DateTime.now();
+                                final isRestricted = (restrictionStatus == 'temporarily_restricted' ||
+                                        restrictionStatus == 'blocked' ||
+                                        restrictionStatus == 'suspended') &&
+                                    (restrictionEnd == null || now.isBefore(restrictionEnd));
+
+                                Color bannerColor = const Color(0xFFF0FDF4);
+                                Color bannerBorder = const Color(0xFFBBF7D0);
+                                Color bannerText = const Color(0xFF166534);
+                                IconData bannerIcon = Icons.verified_user_rounded;
+                                String bannerTitle = 'ACCOUNT IN GOOD STANDING';
+
+                                if (isRestricted) {
+                                  bannerColor = const Color(0xFFFEF2F2);
+                                  bannerBorder = const Color(0xFFFECACA);
+                                  bannerText = const Color(0xFF991B1B);
+                                  bannerIcon = Icons.lock_rounded;
+                                  bannerTitle = restrictionEnd != null
+                                      ? 'TEMPORARILY RESTRICTED UNTIL ${DateFormat('MMM dd, yyyy').format(restrictionEnd)}'
+                                      : 'ACCOUNT BLOCKED / INDEFINITE RESTRICTION';
+                                } else if (warningCount > 0 || restrictionStatus == 'warning') {
+                                  bannerColor = const Color(0xFFFFFBEB);
+                                  bannerBorder = const Color(0xFFFDE68A);
+                                  bannerText = const Color(0xFF92400E);
+                                  bannerIcon = Icons.warning_amber_rounded;
+                                  bannerTitle = 'WARNING RECORDED ($warningCount WARNINGS)';
+                                }
 
                                 return Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: noShows >= 2
-                                        ? const Color(0xFFFEF2F2)
-                                        : (noShows == 1 ? const Color(0xFFFFFBEB) : const Color(0xFFF8FAFC)),
+                                    color: bannerColor,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: noShows >= 2
-                                          ? const Color(0xFFFECACA)
-                                          : (noShows == 1 ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
-                                    ),
+                                    border: Border.all(color: bannerBorder),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Icon(
-                                            noShows >= 2
-                                                ? Icons.warning_amber_rounded
-                                                : (noShows == 1 ? Icons.info_outline_rounded : Icons.history_rounded),
-                                            size: 16,
-                                            color: noShows >= 2
-                                                ? const Color(0xFFDC2626)
-                                                : (noShows == 1 ? const Color(0xFFD97706) : _slate),
-                                          ),
+                                          Icon(bannerIcon, size: 16, color: bannerText),
                                           const SizedBox(width: 6),
-                                          Text(
-                                            'BOOKING & RELIABILITY HISTORY',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w800,
-                                              color: noShows >= 2
-                                                  ? const Color(0xFFDC2626)
-                                                  : (noShows == 1 ? const Color(0xFFD97706) : _slate),
-                                              letterSpacing: 0.8,
+                                          Expanded(
+                                            child: Text(
+                                              bannerTitle,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: bannerText,
+                                                letterSpacing: 0.8,
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _statMiniBox('Total Bookings', '$totalBookings', _slate),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _statMiniBox('Completed', '$completed', const Color(0xFF15803D)),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _statMiniBox('No-Shows', '$noShows', noShows > 0 ? const Color(0xFFDC2626) : _slate),
-                                          ),
-                                        ],
-                                      ),
-                                      if (noShows >= 2) ...[
-                                        const SizedBox(height: 8),
+                                      if (restrictionReason.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
                                         Text(
-                                          '⚠️ High-Risk: Requires 100% full advance payment before confirming future events.',
+                                          'Reason: $restrictionReason${restrictedBy != null ? ' (by $restrictedBy)' : ''}',
                                           style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFFB91C1C),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                            color: bannerText,
                                           ),
                                         ),
                                       ],
+                                      const SizedBox(height: 10),
+                                      // Stats row 1
+                                      Row(
+                                        children: [
+                                          Expanded(child: _statMiniBox('Total', '$totalBookings', _slate)),
+                                          const SizedBox(width: 6),
+                                          Expanded(child: _statMiniBox('Completed', '$completed', const Color(0xFF15803D))),
+                                          const SizedBox(width: 6),
+                                          Expanded(child: _statMiniBox('Confirmed', '$confirmed', const Color(0xFF0284C7))),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      // Stats row 2
+                                      Row(
+                                        children: [
+                                          Expanded(child: _statMiniBox('Active', '$active', const Color(0xFF0891B2))),
+                                          const SizedBox(width: 6),
+                                          Expanded(child: _statMiniBox('Cancelled/Exp', '${cancelled + expired}', const Color(0xFFDC2626))),
+                                          const SizedBox(width: 6),
+                                          Expanded(child: _statMiniBox('No-Shows', '$noShows', noShows > 0 ? const Color(0xFFDC2626) : _slate)),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      // Action buttons row
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              style: OutlinedButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                                foregroundColor: const Color(0xFFD97706),
+                                                side: const BorderSide(color: Color(0xFFFDE68A)),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              ),
+                                              icon: const Icon(Icons.warning_amber_rounded, size: 14),
+                                              label: Text('Warn', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700)),
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                _showIssueWarningDialog(custName, userId, custEmail);
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          if (isRestricted || warningCount > 0) ...[
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                                  backgroundColor: const Color(0xFF15803D),
+                                                  foregroundColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                ),
+                                                icon: const Icon(Icons.lock_open_rounded, size: 14),
+                                                label: Text('Lift', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700)),
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  _showUnrestrictDialog(custName, userId, custEmail);
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                          ],
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                                backgroundColor: const Color(0xFFDC2626),
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              ),
+                                              icon: const Icon(Icons.lock_outline_rounded, size: 14),
+                                              label: Text('Restrict', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700)),
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                _showRestrictAccountDialog(custName, userId, custEmail);
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Center(
+                                        child: TextButton.icon(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            _showCustomerRestrictionsHistoryDialog(custName, userId, custEmail);
+                                          },
+                                          icon: const Icon(Icons.history_rounded, size: 14),
+                                          label: Text(
+                                            'View Restriction History',
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 );
@@ -1907,6 +2219,552 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     } catch (_) {
       return 'N/A';
     }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  void _showIssueWarningDialog(String customerName, String? userId, String? email) {
+    final reasonController = TextEditingController(text: 'Customer has unresponsive quotations or repeated unconfirmed bookings.');
+    bool sendEmail = true;
+
+    final quickReasons = [
+      'Unresponsive to price quotation',
+      'Repeated booking cancellations',
+      'No-show for scheduled event date',
+      'Submitting speculative/spam bookings',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Issue Warning to $customerName',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This warning will be recorded on the customer account. Further non-compliance will trigger temporary booking restrictions.',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Quick Reasons:',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: _slate),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: quickReasons.map((r) {
+                    return ActionChip(
+                      label: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 11)),
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      onPressed: () => setDialogState(() => reasonController.text = r),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: 'Reason for Warning',
+                    labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(
+                    'Send email notification to customer',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  value: sendEmail,
+                  activeColor: const Color(0xFFD97706),
+                  onChanged: (val) => setDialogState(() => sendEmail = val ?? true),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD97706),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  _showSnackBar('Please enter a reason for the warning.', Colors.red);
+                  return;
+                }
+                Navigator.pop(dialogContext);
+
+                final currentAdmin = _supabase.auth.currentUser;
+                final adminName = (currentAdmin?.userMetadata?['full_name'] as String?) ??
+                    (currentAdmin?.email != null ? currentAdmin!.email!.split('@').first : 'Admin');
+
+                final success = await _reservationService.issueCustomerWarning(
+                  userId: userId,
+                  email: email,
+                  reason: reason,
+                  adminName: adminName,
+                  sendEmail: sendEmail,
+                );
+
+                if (success) {
+                  _showSnackBar('Warning successfully issued to $customerName.', Colors.green);
+                  _loadCustomers();
+                } else {
+                  _showSnackBar('Failed to issue warning. Check database logs.', Colors.red);
+                }
+              },
+              child: Text('Issue Warning', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRestrictAccountDialog(String customerName, String? userId, String? email) {
+    String restrictionType = 'temporarily_restricted'; // temporarily_restricted, blocked
+    Duration selectedDuration = const Duration(days: 7);
+    String selectedDurationLabel = '7 Days';
+    final reasonController = TextEditingController(text: 'Multiple expired quotations or unverified repeated bookings.');
+    bool sendEmail = true;
+
+    final durationOptions = [
+      {'label': '24 Hours', 'duration': const Duration(hours: 24)},
+      {'label': '3 Days', 'duration': const Duration(days: 3)},
+      {'label': '7 Days', 'duration': const Duration(days: 7)},
+      {'label': '14 Days', 'duration': const Duration(days: 14)},
+      {'label': '30 Days', 'duration': const Duration(days: 30)},
+      {'label': 'Indefinite', 'duration': null},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: Color(0xFFDC2626), size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Restrict Account: $customerName',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Restricting this account will prevent them from creating new event bookings or reservations.',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Restriction Type:',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Text('Temporary Suspension', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                          selected: restrictionType == 'temporarily_restricted',
+                          onSelected: (val) {
+                            if (val) setDialogState(() => restrictionType = 'temporarily_restricted');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Text('Permanent / Blocked', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                          selected: restrictionType == 'blocked',
+                          selectedColor: const Color(0xFFFEE2E2),
+                          onSelected: (val) {
+                            if (val) setDialogState(() => restrictionType = 'blocked');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (restrictionType == 'temporarily_restricted') ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      'Restriction Duration:',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: durationOptions.map((opt) {
+                        final isSelected = selectedDurationLabel == opt['label'];
+                        return ChoiceChip(
+                          label: Text(opt['label'] as String, style: GoogleFonts.plusJakartaSans(fontSize: 11)),
+                          selected: isSelected,
+                          onSelected: (val) {
+                            if (val) {
+                              setDialogState(() {
+                                selectedDurationLabel = opt['label'] as String;
+                                selectedDuration = (opt['duration'] as Duration?) ?? const Duration(days: 365);
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 3,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'Reason for Restriction',
+                      labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(
+                      'Send notification email to customer',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    value: sendEmail,
+                    activeColor: const Color(0xFFDC2626),
+                    onChanged: (val) => setDialogState(() => sendEmail = val ?? true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  _showSnackBar('Please enter a reason for the restriction.', Colors.red);
+                  return;
+                }
+                Navigator.pop(dialogContext);
+
+                final currentAdmin = _supabase.auth.currentUser;
+                final adminName = (currentAdmin?.userMetadata?['full_name'] as String?) ??
+                    (currentAdmin?.email != null ? currentAdmin!.email!.split('@').first : 'Admin');
+
+                final success = await _reservationService.restrictCustomerAccount(
+                  userId: userId,
+                  email: email,
+                  restrictionType: restrictionType,
+                  duration: restrictionType == 'blocked' || selectedDurationLabel == 'Indefinite'
+                      ? null
+                      : selectedDuration,
+                  reason: reason,
+                  adminName: adminName,
+                  sendEmail: sendEmail,
+                );
+
+                if (success) {
+                  _showSnackBar('Customer account restricted successfully.', Colors.green);
+                  _loadCustomers();
+                } else {
+                  _showSnackBar('Failed to restrict account. Check database logs.', Colors.red);
+                }
+              },
+              child: Text('Apply Restriction', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUnrestrictDialog(String customerName, String? userId, String? email) {
+    final noteController = TextEditingController(text: 'Admin approved account clearance.');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_open_rounded, color: Color(0xFF15803D), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Lift Restrictions for $customerName',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will restore full booking privileges and reset active restriction flags for this customer.',
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: _slate),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: noteController,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Clearance Note / Remarks',
+                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF15803D),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              final currentAdmin = _supabase.auth.currentUser;
+              final adminName = (currentAdmin?.userMetadata?['full_name'] as String?) ??
+                  (currentAdmin?.email != null ? currentAdmin!.email!.split('@').first : 'Admin');
+
+              final success = await _reservationService.unrestrictCustomerAccount(
+                userId: userId,
+                email: email,
+                reason: noteController.text.trim(),
+                adminName: adminName,
+              );
+
+              if (success) {
+                _showSnackBar('Restrictions lifted and warnings cleared for $customerName.', Colors.green);
+                _loadCustomers();
+              } else {
+                _showSnackBar('Failed to lift restrictions. Check database logs.', Colors.red);
+              }
+            },
+            child: Text('Confirm & Lift', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCustomerRestrictionsHistoryDialog(String customerName, String? userId, String? email) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.history_rounded, color: Color(0xFF0F172A), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Restriction History: $customerName',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 520,
+          height: 380,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _reservationService.getCustomerRestrictionsHistory(userId: userId, email: email),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final history = snapshot.data ?? [];
+              if (history.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_outlined, size: 48, color: Color(0xFF94A3B8)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No restriction or warning events recorded.',
+                        style: GoogleFonts.plusJakartaSans(color: _slate, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                itemCount: history.length,
+                separatorBuilder: (_, __) => const Divider(height: 16),
+                itemBuilder: (context, i) {
+                  final item = history[i];
+                  final action = (item['action'] ?? '').toString();
+                  final reason = item['reason'] ?? 'No reason provided';
+                  final admin = item['admin_name'] ?? 'Admin';
+                  final createdAtStr = item['created_at']?.toString();
+                  DateTime? createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr)?.toLocal() : null;
+
+                  Color actionColor = const Color(0xFF0F172A);
+                  IconData actionIcon = Icons.info_outline;
+
+                  if (action.contains('WARNING')) {
+                    actionColor = const Color(0xFFD97706);
+                    actionIcon = Icons.warning_amber_rounded;
+                  } else if (action.contains('RESTRICT') || action.contains('BLOCK')) {
+                    actionColor = const Color(0xFFDC2626);
+                    actionIcon = Icons.lock_outline_rounded;
+                  } else if (action.contains('UNRESTRICT') || action.contains('LIFT')) {
+                    actionColor = const Color(0xFF15803D);
+                    actionIcon = Icons.lock_open_rounded;
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: actionColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(actionIcon, size: 16, color: actionColor),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  action,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: actionColor,
+                                  ),
+                                ),
+                                if (createdAt != null)
+                                  Text(
+                                    DateFormat('MMM dd, yyyy hh:mm a').format(createdAt),
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              reason,
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF334155)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'By: $admin',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

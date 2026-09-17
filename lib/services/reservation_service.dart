@@ -9,6 +9,7 @@ import 'package:yang_chow/services/pricing_service.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/refund_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
+import 'package:yang_chow/services/app_settings_service.dart';
 
 
 
@@ -70,9 +71,22 @@ class ReservationService {
     String? transactedBy,
     String status = 'pending',
     String paymentStatus = 'unpaid',
+    bool bypassRestrictions = false,
   }) async {
     try {
       final now = DateTime.now();
+
+      // Validate customer booking eligibility (restrictions, limits, duplicate spam)
+      if (!bypassRestrictions) {
+        final eligibility = await validateCustomerBookingEligibility(
+          customerEmail: customerEmail,
+          eventDate: eventDate,
+          startTime: startTime,
+        );
+        if (eligibility['isEligible'] != true) {
+          throw Exception(eligibility['message'] ?? 'Booking validation failed');
+        }
+      }
 
       final response = await _supabase
           .from('reservations')
@@ -180,9 +194,22 @@ class ReservationService {
     String? transactedBy,
     String status = 'pending',
     String paymentStatus = 'unpaid',
+    bool bypassRestrictions = false,
   }) async {
     try {
       final now = DateTime.now();
+
+      // Validate customer booking eligibility (restrictions, limits, duplicate spam)
+      if (!bypassRestrictions) {
+        final eligibility = await validateCustomerBookingEligibility(
+          customerEmail: customerEmail,
+          eventDate: eventDate,
+          startTime: startTime,
+        );
+        if (eligibility['isEligible'] != true) {
+          throw Exception(eligibility['message'] ?? 'Booking validation failed');
+        }
+      }
 
       final response = await _supabase
           .from('reservations')
@@ -1055,96 +1082,77 @@ class ReservationService {
 
 
 
-  /// Set pricing for a reservation and send quotation
-
+  /// Set pricing for a reservation and send quotation with deadline
   Future<bool> setReservationPricing({
-
     required String reservationId,
-
     required double totalPrice,
-
     required double depositAmount,
-
     required String customerEmail,
-
     required String customerName,
-
     required String eventType,
-
     required String eventDate,
-
     required String startTime,
-
     required int durationHours,
-
     required int numberOfGuests,
-
+    int deadlineHours = 24,
+    DateTime? customDeadline,
   }) async {
-
     try {
-
       final now = DateTime.now();
       final currentUser = _supabase.auth.currentUser;
       final adminIdentifier = currentUser?.email ?? 'Admin';
 
-      // Update reservation with pricing details
+      final quotationExpiresAt = customDeadline ?? now.add(Duration(hours: deadlineHours));
 
+      // Update reservation with pricing details & deadline
       await _supabase
-
           .from('reservations')
-
           .update({
-
             'total_price': totalPrice,
-
             'deposit_amount': depositAmount,
-
             'payment_status': 'unpaid',
-
             'price_quotation_sent': true,
-
             'price_quotation_sent_at': now.toUtc().toIso8601String(),
-
+            'quotation_expires_at': quotationExpiresAt.toUtc().toIso8601String(),
             'admin_set_price': true,
-
             'transacted_by': adminIdentifier,
-
             'updated_at': now.toUtc().toIso8601String(),
-
           })
-
           .eq('id', reservationId);
 
+      final formattedDeadline = DateFormat('MMMM dd, yyyy • h:mm a').format(quotationExpiresAt.toLocal());
 
-
-      // Send price quotation email
-
+      // Send price quotation email with deadline
       await _emailService.sendPriceQuotation(
-
         customerEmail: customerEmail,
-
         customerName: customerName,
-
         eventType: eventType,
-
         eventDate: eventDate,
-
         startTime: startTime,
-
         duration: durationHours.toDouble(),
-
         guests: numberOfGuests,
-
         totalPrice: totalPrice,
-
         depositAmount: depositAmount,
-
+        paymentDeadlineStr: formattedDeadline,
+        reservationId: reservationId,
       );
 
-
+      // Audit log entry
+      await AuditLogService.logActivity(
+        action: 'PRICE_QUOTATION',
+        module: 'Reservations',
+        description: 'Admin sent quotation of ₱${totalPrice.toStringAsFixed(2)} with deadline $formattedDeadline',
+        entityId: reservationId,
+        metadata: {
+          'customer_email': customerEmail,
+          'total_price': totalPrice,
+          'deposit_amount': depositAmount,
+          'deadline': quotationExpiresAt.toIso8601String(),
+          'deadline_hours': deadlineHours,
+        },
+      );
 
       return true;
-
     } catch (e) {
 
       debugPrint('Error setting reservation pricing: $e');
@@ -1197,48 +1205,675 @@ class ReservationService {
 
   }
 
-  /// Get reliability metrics and no-show count for a customer by email
-  Future<Map<String, dynamic>> getCustomerReliabilityInfo(String customerEmail) async {
+  /// Validate whether a customer is eligible to create a new reservation
+  Future<Map<String, dynamic>> validateCustomerBookingEligibility({
+    String? userId,
+    required String customerEmail,
+    String? eventDate,
+    String? startTime,
+    String? proposedDate,
+    String? proposedStartTime,
+    double? proposedDurationHours,
+    String? reservationType,
+  }) async {
     try {
-      if (customerEmail.isEmpty) {
+      final email = customerEmail.trim().toLowerCase();
+      if (email.isEmpty) {
+        return {'isEligible': true, 'eligible': true};
+      }
+
+      final now = DateTime.now();
+
+      // 1. Check Customer Account Restriction Status in users table
+      try {
+        final userRes = await _supabase
+            .from('users')
+            .select('restriction_status, warning_count, restriction_reason, restriction_start, restriction_end')
+            .ilike('email', email)
+            .maybeSingle();
+
+        if (userRes != null) {
+          final status = (userRes['restriction_status'] ?? 'active').toString().toLowerCase();
+          final restrictionEndStr = userRes['restriction_end']?.toString();
+          DateTime? restrictionEnd;
+          if (restrictionEndStr != null && restrictionEndStr.isNotEmpty) {
+            restrictionEnd = DateTime.tryParse(restrictionEndStr)?.toLocal();
+          }
+
+          // If temporary restriction has expired, auto-unrestrict the customer
+          if (status == 'temporarily_restricted' && restrictionEnd != null && now.isAfter(restrictionEnd)) {
+            await _supabase.from('users').update({
+              'restriction_status': 'active',
+              'restriction_end': null,
+              'restriction_reason': null,
+            }).ilike('email', email);
+
+            // Log auto-unrestriction in audit log
+            await AuditLogService.logActivity(
+              action: 'UNRESTRICT',
+              module: 'Customer Accounts',
+              description: 'Customer temporary restriction expired and was automatically removed.',
+              entityId: email,
+            );
+          } else if (status == 'temporarily_restricted' || status == 'blocked' || status == 'suspended') {
+            final reason = userRes['restriction_reason']?.toString() ?? 'Repeated abandoned or unpaid bookings';
+            final expiryNotice = restrictionEnd != null
+                ? ' until ${DateFormat('MMMM dd, yyyy • h:mm a').format(restrictionEnd)}'
+                : '';
+            final msg = 'Your account is temporarily restricted from creating new reservations$expiryNotice. Please review your existing reservations or contact the administrator for assistance.';
+
+            return {
+              'isEligible': false,
+              'eligible': false,
+              'reason': msg,
+              'restriction_type': 'account_restricted',
+              'status': status,
+              'message': msg,
+              'adminRemark': reason,
+            };
+          }
+        }
+      } catch (e) {
+        debugPrint('Note: Account restriction check error (continuing): $e');
+      }
+
+      // 2. Check Existing Pending/Unconfirmed Inquiries against limit
+      // Note: Confirmed/approved reservations on DIFFERENT dates do NOT count against this limit!
+      int maxPendingBookings = AppSettingsService().getSetting<int>('max_active_reservations_per_customer') ?? 3;
+      final activeReservations = await _supabase
+          .from('reservations')
+          .select('id, status, event_date, price_quotation_sent, payment_status, created_at')
+          .ilike('customer_email', email)
+          .inFilter('status', ['pending', 'confirmed', 'pending_admin_approval', 'awaiting_verification'])
+          .eq('is_archived', false);
+
+      final activeList = List<Map<String, dynamic>>.from(activeReservations);
+
+      // Only count unconfirmed / pending requests awaiting quotation or approval
+      final pendingInquiries = activeList.where((r) {
+        final st = (r['status'] ?? '').toString().toLowerCase();
+        return st == 'pending' || st == 'pending_admin_approval' || st == 'awaiting_verification';
+      }).toList();
+
+      if (pendingInquiries.length >= maxPendingBookings) {
+        final msg = 'You currently have $maxPendingBookings pending reservation request${maxPendingBookings > 1 ? 's' : ''} awaiting review or quotation. Once confirmed or processed, you can submit bookings for other dates.';
         return {
-          'total': 0,
-          'noShows': 0,
-          'completed': 0,
-          'cancelled': 0,
-          'isHighRisk': false,
-          'hasWarning': false,
+          'isEligible': false,
+          'eligible': false,
+          'reason': msg,
+          'activeCount': pendingInquiries.length,
+          'maxAllowed': maxPendingBookings,
+          'message': msg,
         };
       }
+
+      // 3. Check if customer already has a quotation awaiting confirmation / payment
+      final pendingQuotation = activeList.firstWhere(
+        (r) {
+          final status = (r['status'] ?? '').toString().toLowerCase();
+          final quoteSent = r['price_quotation_sent'] == true;
+          final paymentStatus = (r['payment_status'] ?? '').toString().toLowerCase();
+          return status == 'pending' && quoteSent && paymentStatus == 'unpaid';
+        },
+        orElse: () => {},
+      );
+
+      if (pendingQuotation.isNotEmpty) {
+        final msg = 'You currently have a quotation awaiting payment/confirmation. Please settle or confirm your existing quotation before submitting a new booking.';
+        return {
+          'isEligible': false,
+          'eligible': false,
+          'reason': msg,
+          'reservationId': pendingQuotation['id'],
+          'message': msg,
+        };
+      }
+
+      // 4. Anti-spam rapid submission check (cooldown window)
+      final recentReservations = await _supabase
+          .from('reservations')
+          .select('created_at')
+          .ilike('customer_email', email)
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (recentReservations.isNotEmpty) {
+        final lastCreatedStr = recentReservations[0]['created_at']?.toString();
+        if (lastCreatedStr != null && lastCreatedStr.isNotEmpty) {
+          final lastCreated = DateTime.tryParse(lastCreatedStr)?.toLocal();
+          if (lastCreated != null) {
+            final diffMinutes = now.difference(lastCreated).inMinutes;
+            if (diffMinutes < 3) {
+              const msg = 'Please wait a moment before submitting another reservation inquiry.';
+              return {
+                'isEligible': false,
+                'eligible': false,
+                'reason': msg,
+                'message': msg,
+              };
+            }
+          }
+        }
+      }
+
+      return {'isEligible': true, 'eligible': true};
+    } catch (e) {
+      debugPrint('Error validating customer booking eligibility: $e');
+      return {'isEligible': true, 'eligible': true}; // Graceful fallback
+    }
+  }
+
+  /// Automatically check and expire unpaid quotations whose deadline has elapsed
+  Future<int> checkAndExpireQuotations() async {
+    try {
+      final now = DateTime.now();
+
+      // Query pending reservations with price quotation sent and unpaid
+      final response = await _supabase
+          .from('reservations')
+          .select('id, customer_email, customer_name, event_type, event_date, quotation_expires_at, price_quotation_sent_at, total_price')
+          .eq('status', 'pending')
+          .eq('price_quotation_sent', true)
+          .eq('payment_status', 'unpaid')
+          .eq('is_archived', false);
+
+      final list = List<Map<String, dynamic>>.from(response);
+      int expiredCount = 0;
+
+      for (final r in list) {
+        DateTime? expiresAt;
+        if (r['quotation_expires_at'] != null && r['quotation_expires_at'].toString().isNotEmpty) {
+          expiresAt = DateTime.tryParse(r['quotation_expires_at'].toString())?.toLocal();
+        } else if (r['price_quotation_sent_at'] != null && r['price_quotation_sent_at'].toString().isNotEmpty) {
+          // Default 24-hour fallback if no explicit deadline was set
+          final sentAt = DateTime.tryParse(r['price_quotation_sent_at'].toString())?.toLocal();
+          if (sentAt != null) {
+            expiresAt = sentAt.add(const Duration(hours: 24));
+          }
+        }
+
+        if (expiresAt != null && now.isAfter(expiresAt)) {
+          final resId = r['id'].toString();
+
+          await _supabase.from('reservations').update({
+            'status': 'expired',
+            'updated_at': now.toUtc().toIso8601String(),
+          }).eq('id', resId);
+
+          // Log in Audit Trail
+          await AuditLogService.logActivity(
+            action: 'EXPIRE',
+            module: 'Reservations',
+            description: 'Quotation for ${r['customer_name'] ?? 'Customer'} automatically expired (Deadline passed at ${DateFormat('MMM dd, h:mm a').format(expiresAt)}). Slot released.',
+            entityId: resId,
+            metadata: {
+              'customer_email': r['customer_email'],
+              'event_type': r['event_type'],
+              'event_date': r['event_date'],
+              'total_price': r['total_price'],
+            },
+          );
+
+          // Send in-app notification to customer
+          await NotificationService.sendNotification(
+            isForAdmin: false,
+            actorName: 'Yang Chow System',
+            actionType: 'expired',
+            reservationId: resId,
+            eventType: r['event_type'] ?? 'Reservation',
+            customerEmail: r['customer_email'] ?? '',
+            startTime: '',
+            guestCount: 0,
+            eventDate: r['event_date'] ?? '',
+          );
+
+          expiredCount++;
+        }
+      }
+
+      return expiredCount;
+    } catch (e) {
+      debugPrint('Error expiring quotations: $e');
+      return 0;
+    }
+  }
+
+  /// Get comprehensive customer reservation reliability metrics & restriction status
+  Future<Map<String, dynamic>> getCustomerReliabilityInfo({
+    String? userId,
+    String? email,
+    String? customerEmail,
+  }) async {
+    try {
+      final targetEmail = (customerEmail ?? email ?? '').trim().toLowerCase();
+      if (targetEmail.isEmpty) {
+        return {
+          'total': 0,
+          'completed': 0,
+          'confirmed': 0,
+          'cancelled': 0,
+          'expired': 0,
+          'unpaidQuotations': 0,
+          'noShows': 0,
+          'activeReservations': 0,
+          'abandonedBookings': 0,
+          'restrictionStatus': 'active',
+          'warningCount': 0,
+          'restrictionReason': null,
+          'restrictionStart': null,
+          'restrictionEnd': null,
+          'restrictedBy': null,
+          'isRestricted': false,
+          'hasWarning': false,
+          'isHighRisk': false,
+          'history': <Map<String, dynamic>>[],
+        };
+      }
+
+      // Fetch user restriction record from users table
+      Map<String, dynamic>? userRecord;
+      try {
+        userRecord = await _supabase
+            .from('users')
+            .select('id, firstname, lastname, restriction_status, warning_count, restriction_reason, restriction_start, restriction_end, restricted_by')
+            .ilike('email', targetEmail)
+            .maybeSingle();
+      } catch (e) {
+        debugPrint('Error fetching user restriction record: $e');
+      }
+
+      final restrictionStatus = (userRecord?['restriction_status'] ?? 'active').toString().toLowerCase();
+      final warningCount = (userRecord?['warning_count'] as num?)?.toInt() ?? 0;
+      final restrictionReason = userRecord?['restriction_reason']?.toString();
+      final restrictionStart = userRecord?['restriction_start'] != null ? DateTime.tryParse(userRecord!['restriction_start'])?.toLocal() : null;
+      final restrictionEnd = userRecord?['restriction_end'] != null ? DateTime.tryParse(userRecord!['restriction_end'])?.toLocal() : null;
+      final restrictedBy = userRecord?['restricted_by']?.toString();
+
+      final isRestricted = (restrictionStatus == 'temporarily_restricted' ||
+          restrictionStatus == 'blocked' ||
+          restrictionStatus == 'suspended') &&
+          (restrictionEnd == null || DateTime.now().isBefore(restrictionEnd));
+
+      // Fetch reservations for this customer
       final res = await _supabase
           .from('reservations')
-          .select('id, status')
-          .eq('customer_email', customerEmail.trim());
+          .select('id, event_type, event_date, start_time, total_price, deposit_amount, status, payment_status, price_quotation_sent, quotation_expires_at, created_at')
+          .ilike('customer_email', targetEmail)
+          .order('created_at', ascending: false);
 
       final list = List<Map<String, dynamic>>.from(res);
       final total = list.length;
-      final noShows = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'no_show').length;
       final completed = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'completed').length;
+      final confirmed = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'confirmed').length;
       final cancelled = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'cancelled').length;
+      final expired = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'expired').length;
+      final noShows = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'no_show').length;
+
+      final unpaidQuotations = list.where((r) {
+        final st = (r['status'] ?? '').toString().toLowerCase();
+        final quoteSent = r['price_quotation_sent'] == true;
+        final paySt = (r['payment_status'] ?? '').toString().toLowerCase();
+        return (st == 'pending' || st == 'expired') && quoteSent && paySt == 'unpaid';
+      }).length;
+
+      final activeReservations = list.where((r) {
+        final st = (r['status'] ?? '').toString().toLowerCase();
+        return st == 'pending' || st == 'confirmed' || st == 'pending_admin_approval' || st == 'awaiting_verification';
+      }).length;
+
+      final abandonedBookings = expired + noShows + list.where((r) {
+        final st = (r['status'] ?? '').toString().toLowerCase();
+        final quoteSent = r['price_quotation_sent'] == true;
+        return st == 'cancelled' && quoteSent;
+      }).length;
+
+      final isHighRisk = abandonedBookings >= 2 || noShows >= 1 || isRestricted;
 
       return {
         'total': total,
-        'noShows': noShows,
         'completed': completed,
+        'confirmed': confirmed,
         'cancelled': cancelled,
-        'isHighRisk': noShows >= 2,
-        'hasWarning': noShows == 1,
+        'expired': expired,
+        'noShows': noShows,
+        'unpaidQuotations': unpaidQuotations,
+        'activeReservations': activeReservations,
+        'abandonedBookings': abandonedBookings,
+        'restrictionStatus': restrictionStatus,
+        'restriction_status': restrictionStatus,
+        'warningCount': warningCount,
+        'warning_count': warningCount,
+        'restrictionReason': restrictionReason,
+        'restriction_reason': restrictionReason,
+        'warning_reason': restrictionReason,
+        'restrictionStart': restrictionStart,
+        'restriction_start': restrictionStart,
+        'restrictionEnd': restrictionEnd,
+        'restriction_end': restrictionEnd,
+        'restricted_until': restrictionEnd,
+        'restrictedBy': restrictedBy,
+        'restricted_by': restrictedBy,
+        'isRestricted': isRestricted,
+        'is_restricted': isRestricted,
+        'hasWarning': warningCount > 0 || restrictionStatus == 'warning',
+        'has_warning': warningCount > 0 || restrictionStatus == 'warning',
+        'isHighRisk': isHighRisk,
+        'is_high_risk': isHighRisk,
+        'history': list,
       };
     } catch (e) {
       debugPrint('Error getting customer reliability info: $e');
       return {
         'total': 0,
-        'noShows': 0,
         'completed': 0,
+        'confirmed': 0,
         'cancelled': 0,
-        'isHighRisk': false,
+        'expired': 0,
+        'unpaidQuotations': 0,
+        'noShows': 0,
+        'activeReservations': 0,
+        'abandonedBookings': 0,
+        'restrictionStatus': 'active',
+        'warningCount': 0,
+        'isRestricted': false,
         'hasWarning': false,
+        'isHighRisk': false,
+        'history': <Map<String, dynamic>>[],
       };
+    }
+  }
+
+  /// Issue an official Warning to a customer
+  Future<bool> issueCustomerWarning({
+    String? userId,
+    String? email,
+    String? customerEmail,
+    String? customerName,
+    required String reason,
+    String? adminName,
+    String? adminEmail,
+    bool sendEmail = true,
+  }) async {
+    try {
+      final effectiveCustomerEmail = (customerEmail ?? email ?? '').trim();
+      final effectiveCustomerName = customerName ?? 'Customer';
+      final effectiveAdminEmail = adminEmail ?? Supabase.instance.client.auth.currentUser?.email ?? adminName ?? 'Admin';
+      final now = DateTime.now();
+
+      // Fetch current warning count
+      final userRes = await _supabase
+          .from('users')
+          .select('warning_count, restriction_status')
+          .ilike('email', effectiveCustomerEmail)
+          .maybeSingle();
+
+      int currentWarnings = (userRes?['warning_count'] as num?)?.toInt() ?? 0;
+      final newWarningCount = currentWarnings + 1;
+      final previousStatus = userRes?['restriction_status']?.toString() ?? 'active';
+
+      // Update users table
+      await _supabase.from('users').update({
+        'warning_count': newWarningCount,
+        'restriction_status': 'warning',
+        'restriction_reason': reason,
+        'restricted_by': effectiveAdminEmail,
+        'restriction_start': now.toUtc().toIso8601String(),
+      }).ilike('email', effectiveCustomerEmail);
+
+      // Insert into customer_restrictions table
+      try {
+        await _supabase.from('customer_restrictions').insert({
+          'customer_email': effectiveCustomerEmail,
+          'customer_name': effectiveCustomerName,
+          'action_type': 'warning',
+          'previous_status': previousStatus,
+          'new_status': 'warning',
+          'reason': reason,
+          'starts_at': now.toUtc().toIso8601String(),
+          'created_by': effectiveAdminEmail,
+          'created_at': now.toUtc().toIso8601String(),
+        });
+      } catch (e) {
+        debugPrint('Note: customer_restrictions insert fallback: $e');
+      }
+
+      // Log in AuditLogService
+      await AuditLogService.logActivity(
+        action: 'WARNING',
+        module: 'Customer Accounts',
+        description: 'Admin issued Warning #$newWarningCount to $effectiveCustomerName ($effectiveCustomerEmail). Reason: $reason',
+        entityId: effectiveCustomerEmail,
+        metadata: {
+          'warning_count': newWarningCount,
+          'reason': reason,
+          'admin': effectiveAdminEmail,
+        },
+      );
+
+      // Send email notification
+      if (sendEmail) {
+        await _emailService.sendAccountWarningEmail(
+          customerEmail: effectiveCustomerEmail,
+          customerName: effectiveCustomerName,
+          warningNumber: newWarningCount,
+          reason: reason,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('Error issuing customer warning: $e');
+      throw Exception('Failed to issue warning: $e');
+    }
+  }
+
+  /// Restrict customer account (temporarily_restricted, blocked, suspended)
+  Future<bool> restrictCustomerAccount({
+    String? userId,
+    String? email,
+    String? customerEmail,
+    String? customerName,
+    String? status,
+    String? restrictionType,
+    dynamic duration,
+    int? durationHours,
+    int? durationDays,
+    required String reason,
+    String? adminName,
+    String? adminEmail,
+    bool sendEmail = true,
+  }) async {
+    try {
+      final effectiveCustomerEmail = (customerEmail ?? email ?? '').trim();
+      final effectiveCustomerName = customerName ?? 'Customer';
+      final effectiveType = restrictionType ?? status ?? 'temporarily_restricted';
+      final effectiveAdminEmail = adminEmail ?? Supabase.instance.client.auth.currentUser?.email ?? adminName ?? 'Admin';
+
+      int? effectiveHours = durationHours;
+      int? effectiveDays = durationDays;
+      if (duration != null) {
+        if (duration is Duration) {
+          effectiveHours = duration.inHours;
+        } else if (duration is String) {
+          if (duration == '24_hours') effectiveHours = 24;
+          else if (duration == '3_days') effectiveDays = 3;
+          else if (duration == '7_days') effectiveDays = 7;
+          else if (duration == '14_days') effectiveDays = 14;
+          else if (duration == '30_days') effectiveDays = 30;
+        }
+      }
+
+      final now = DateTime.now();
+      DateTime? expiresAt;
+
+      if (effectiveHours != null && effectiveHours > 0) {
+        expiresAt = now.add(Duration(hours: effectiveHours));
+      } else if (effectiveDays != null && effectiveDays > 0) {
+        expiresAt = now.add(Duration(days: effectiveDays));
+      }
+
+      final userRes = await _supabase
+          .from('users')
+          .select('restriction_status')
+          .ilike('email', effectiveCustomerEmail)
+          .maybeSingle();
+
+      final previousStatus = userRes?['restriction_status']?.toString() ?? 'active';
+
+      // Update users table
+      await _supabase.from('users').update({
+        'restriction_status': effectiveType,
+        'restriction_reason': reason,
+        'restriction_start': now.toUtc().toIso8601String(),
+        'restriction_end': expiresAt?.toUtc().toIso8601String(),
+        'restricted_by': effectiveAdminEmail,
+      }).ilike('email', effectiveCustomerEmail);
+
+      // Insert into customer_restrictions table
+      try {
+        await _supabase.from('customer_restrictions').insert({
+          'customer_email': effectiveCustomerEmail,
+          'customer_name': effectiveCustomerName,
+          'action_type': effectiveType,
+          'previous_status': previousStatus,
+          'new_status': effectiveType,
+          'reason': reason,
+          'duration_days': effectiveDays,
+          'duration_hours': effectiveHours,
+          'starts_at': now.toUtc().toIso8601String(),
+          'expires_at': expiresAt?.toUtc().toIso8601String(),
+          'created_by': effectiveAdminEmail,
+          'created_at': now.toUtc().toIso8601String(),
+        });
+      } catch (e) {
+        debugPrint('Note: customer_restrictions insert fallback: $e');
+      }
+
+      // Log in AuditLogService
+      await AuditLogService.logActivity(
+        action: 'RESTRICT',
+        module: 'Customer Accounts',
+        description: 'Admin restricted account of $effectiveCustomerName ($effectiveCustomerEmail) to $effectiveType. Reason: $reason',
+        entityId: effectiveCustomerEmail,
+        metadata: {
+          'restriction_type': effectiveType,
+          'duration_days': effectiveDays,
+          'duration_hours': effectiveHours,
+          'expires_at': expiresAt?.toIso8601String(),
+          'reason': reason,
+          'admin': effectiveAdminEmail,
+        },
+      );
+
+      // Send email notification
+      if (sendEmail) {
+        await _emailService.sendAccountRestrictedEmail(
+          customerEmail: effectiveCustomerEmail,
+          customerName: effectiveCustomerName,
+          restrictionType: effectiveType.replaceAll('_', ' ').toUpperCase(),
+          reason: reason,
+          expiresAt: expiresAt,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('Error restricting customer account: $e');
+      throw Exception('Failed to restrict customer account: $e');
+    }
+  }
+
+  /// Remove restriction / Unrestrict customer account
+  Future<bool> unrestrictCustomerAccount({
+    String? userId,
+    String? email,
+    String? customerEmail,
+    String? customerName,
+    required String reason,
+    String? adminName,
+    String? adminEmail,
+  }) async {
+    try {
+      final effectiveCustomerEmail = (customerEmail ?? email ?? '').trim();
+      final effectiveCustomerName = customerName ?? 'Customer';
+      final effectiveAdminEmail = adminEmail ?? Supabase.instance.client.auth.currentUser?.email ?? adminName ?? 'Admin';
+      final now = DateTime.now();
+
+      final userRes = await _supabase
+          .from('users')
+          .select('restriction_status')
+          .ilike('email', effectiveCustomerEmail)
+          .maybeSingle();
+
+      final previousStatus = userRes?['restriction_status']?.toString() ?? 'active';
+
+      // Update users table - resets restriction status and clears warning count back to 0
+      await _supabase.from('users').update({
+        'restriction_status': 'active',
+        'warning_count': 0,
+        'restriction_reason': null,
+        'restriction_start': null,
+        'restriction_end': null,
+        'restricted_by': effectiveAdminEmail,
+      }).ilike('email', effectiveCustomerEmail);
+
+      // Insert into customer_restrictions table
+      try {
+        await _supabase.from('customer_restrictions').insert({
+          'customer_email': effectiveCustomerEmail,
+          'customer_name': effectiveCustomerName,
+          'action_type': 'unrestrict',
+          'previous_status': previousStatus,
+          'new_status': 'active',
+          'reason': reason,
+          'starts_at': now.toUtc().toIso8601String(),
+          'created_by': effectiveAdminEmail,
+          'created_at': now.toUtc().toIso8601String(),
+        });
+      } catch (e) {
+        debugPrint('Note: customer_restrictions insert fallback: $e');
+      }
+
+      // Log in AuditLogService
+      await AuditLogService.logActivity(
+        action: 'UNRESTRICT',
+        module: 'Customer Accounts',
+        description: 'Admin removed restriction from $effectiveCustomerName ($effectiveCustomerEmail). Reason: $reason',
+        entityId: effectiveCustomerEmail,
+        metadata: {
+          'previous_status': previousStatus,
+          'reason': reason,
+          'admin': effectiveAdminEmail,
+        },
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Error unrestricting customer account: $e');
+      throw Exception('Failed to unrestrict customer account: $e');
+    }
+  }
+
+  /// Fetch customer restriction history
+  Future<List<Map<String, dynamic>>> getCustomerRestrictionsHistory({
+    String? customerEmail,
+    String? userId,
+    String? email,
+  }) async {
+    try {
+      final targetEmail = (customerEmail ?? email ?? '').trim();
+      final query = _supabase
+          .from('customer_restrictions')
+          .select('*');
+
+      final response = targetEmail.isNotEmpty
+          ? await query.ilike('customer_email', targetEmail).order('created_at', ascending: false)
+          : await query.order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching customer restrictions history: $e');
+      return [];
     }
   }
 
@@ -1671,7 +2306,7 @@ class ReservationService {
 
   bool needsDepositPayment(Map<String, dynamic> reservation) {
     final status = (reservation['status'] as String? ?? 'pending').toLowerCase();
-    if (status == 'confirmed' || status == 'completed' || status == 'cancelled') {
+    if (status == 'confirmed' || status == 'completed' || status == 'cancelled' || status == 'expired') {
       return false;
     }
 
@@ -1702,23 +2337,16 @@ class ReservationService {
 
     try {
 
-      // 1. Fetch all non-cancelled reservations for that date
-
+      // 1. Fetch all non-cancelled and non-expired reservations for that date
       final response = await _supabase
-
           .from('reservations')
-
-          .select('id, start_time, duration_hours')
-
-          .eq('event_date', eventDate)
-
-          .not('status', 'eq', 'cancelled');
-
-
+          .select('id, start_time, duration_hours, status')
+          .eq('event_date', eventDate);
 
       final List<Map<String, dynamic>> existingReservations = 
-
-          List<Map<String, dynamic>>.from(response);
+          List<Map<String, dynamic>>.from(response)
+              .where((r) => r['status'] != 'cancelled' && r['status'] != 'expired')
+              .toList();
 
 
 
@@ -1792,11 +2420,12 @@ class ReservationService {
     try {
       final response = await _supabase
           .from('reservations')
-          .select('event_date, start_time, duration_hours')
-          .not('status', 'eq', 'cancelled');
+          .select('event_date, start_time, duration_hours, status');
 
       final List<Map<String, dynamic>> reservations =
-          List<Map<String, dynamic>>.from(response);
+          List<Map<String, dynamic>>.from(response)
+              .where((r) => r['status'] != 'cancelled' && r['status'] != 'expired')
+              .toList();
 
       // Group reservations by event_date
       final Map<String, List<Map<String, dynamic>>> grouped = {};

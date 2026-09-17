@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 
@@ -614,10 +615,12 @@ $body
     required int guests,
     required double totalPrice,
     required double depositAmount,
+    String? paymentDeadlineStr,
+    String? reservationId,
   }) async {
     return _logEmailNotification(
       recipientEmail: customerEmail,
-      subject: 'Price Transaction - Yang Chow Restaurant',
+      subject: 'Official Price Quotation & Payment Deadline - Yang Chow Restaurant',
       emailType: 'price_quotation',
       body: _buildPriceQuotationBody(
         customerName: customerName,
@@ -628,7 +631,81 @@ $body
         guests: guests,
         totalPrice: totalPrice,
         depositAmount: depositAmount,
+        paymentDeadlineStr: paymentDeadlineStr,
       ),
+    );
+  }
+
+  /// Send account warning email to customer
+  Future<bool> sendAccountWarningEmail({
+    required String customerEmail,
+    required String customerName,
+    required int warningNumber,
+    required String reason,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Account Notice: Reservation Policy Warning (#$warningNumber) - Yang Chow Restaurant',
+      emailType: 'account_warning',
+      body: '''
+Dear $customerName,
+
+We are writing to notify you that an official Warning (#$warningNumber) has been issued regarding your customer account at Yang Chow Restaurant.
+
+REASON FOR WARNING:
+$reason
+
+POLICY REMINDER:
+Submitting repeated event bookings without proceeding, failing to respond to quotations, or abandoning bookings occupies reserved dates and staff preparation time. Continued occurrences may result in a temporary restriction on creating new reservations.
+
+Please review your current reservations in the Yang Chow customer dashboard. If you believe this notice was issued in error or need assistance, feel free to reply directly to this email or contact restaurant management.
+
+Thank you for your understanding.
+
+Best regards,
+Yang Chow Restaurant Management
+''',
+    );
+  }
+
+  /// Send account restriction email to customer
+  Future<bool> sendAccountRestrictedEmail({
+    required String customerEmail,
+    required String customerName,
+    required String restrictionType,
+    required String reason,
+    DateTime? expiresAt,
+  }) async {
+    final formattedExpiry = expiresAt != null
+        ? DateFormat('MMMM dd, yyyy • h:mm a').format(expiresAt.toLocal())
+        : 'Indefinite (Pending Admin Review)';
+
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Important: Your Yang Chow Account Has Been Temporarily Restricted',
+      emailType: 'account_restriction',
+      body: '''
+Dear $customerName,
+
+Your Yang Chow customer account has been placed under temporary restriction ($restrictionType) from creating new reservations.
+
+RESTRICTION DETAILS:
+- Status: $restrictionType
+- Reason: $reason
+- Restriction Effective Until: $formattedExpiry
+
+WHY WAS THIS APPLIED:
+Our system identified repeated abandoned reservations, unpaid quotations, or booking policy violations associated with your account.
+
+DURING THIS PERIOD:
+- You will not be able to submit new reservations or advance orders.
+- Existing confirmed or active reservations remain valid unless otherwise notified.
+
+To request an account review or speak with an administrator, please reach out to us at support@yangchow.com or call our hotline.
+
+Best regards,
+Yang Chow Restaurant Management
+''',
     );
   }
 
@@ -684,8 +761,12 @@ $body
     required int guests,
     required double totalPrice,
     required double depositAmount,
+    String? paymentDeadlineStr,
   }) {
     final isPayInFull = depositAmount >= totalPrice;
+    final deadlineNotice = paymentDeadlineStr != null && paymentDeadlineStr.isNotEmpty
+        ? 'Payment Deadline: $paymentDeadlineStr'
+        : 'within the 24-Hour Grace Period';
 
     final pricingBreakdownText = isPayInFull
         ? '''PRICING BREAKDOWN:
@@ -698,8 +779,8 @@ $body
 - Remaining Balance: PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}''';
 
     final nextStepsText = isPayInFull
-        ? 'To confirm and secure your reservation, please settle the full amount of PHP ${totalPrice.toStringAsFixed(2)} within the 24-Hour Grace Period.'
-        : 'To confirm and secure your reservation, please settle the required 50% deposit of PHP ${depositAmount.toStringAsFixed(2)} within the 24-Hour Grace Period.';
+        ? 'To confirm and secure your reservation, please settle the full amount of PHP ${totalPrice.toStringAsFixed(2)} before the deadline ($deadlineNotice).'
+        : 'To confirm and secure your reservation, please settle the required 50% deposit of PHP ${depositAmount.toStringAsFixed(2)} before the deadline ($deadlineNotice).';
 
     final balancePolicyText = !isPayInFull
         ? '''\nREMAINING BALANCE POLICY:
@@ -725,9 +806,10 @@ EVENT DETAILS:
 $pricingBreakdownText
 $balancePolicyText
 
-IMPORTANT PAYMENT POLICY & 24-HOUR GRACE PERIOD:
+IMPORTANT PAYMENT POLICY & CONFIRMATION DEADLINE:
 $nextStepsText
-- Please note: Your selected date & slot is reserved for exactly 24 Hours upon receiving this quotation. Unsettled reservations after the 24-hour grace period may be released to other customers.
+- Confirmation / Payment Deadline: $deadlineNotice
+- Please note: Your selected date & slot is reserved until this deadline. Unsettled reservations after the deadline will automatically expire, and the reservation slot will be released to other customers.
 - The initial deposit is non-refundable upon reservation confirmation.
 
 Payment can be made easily through our app via GCash, Maya, or Bank Transfer.

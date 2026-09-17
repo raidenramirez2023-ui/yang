@@ -24,7 +24,7 @@ class AdminReservationsPage extends StatefulWidget {
 class _AdminReservationsPageState extends State<AdminReservationsPage> {
   List<Map<String, dynamic>> reservations = [];
   bool _isLoading = true;
-  String _selectedFilter = 'all'; // all, pending, confirmed, completed, cancelled
+  String _selectedFilter = 'all'; // all, pending, quotation_sent, awaiting_payment, confirmed, completed, cancelled, no_show, expired, restricted_customers, archived
   int _currentPage = 0;
   final int _rowsPerPage = 10;
   String _searchQuery = '';
@@ -32,14 +32,15 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   String? _scannedReservationId;
   Map<String, dynamic>? _scannedReservationMeta;
   bool _headerCollapsed = false;
+  bool _showMoreFilters = false;
+  Map<String, Map<String, dynamic>> _customerRestrictionMap = {};
+  Set<String> _restrictedCustomerEmails = {};
   
   // Services
   final ReservationService _reservationService = ReservationService();
   
   // Controllers
   final ScrollController _horizontalScrollController = ScrollController();
-
-
 
   // Realtime subscription
   RealtimeChannel? _realtimeChannel;
@@ -87,8 +88,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     setState(() => _isLoading = true);
     
     try {
-      // Ensure schema is updated (adds uploaded_id_url if missing)
+      // Ensure schema is updated (adds uploaded_id_url, quotation_expires_at if missing)
       await _ensureSchemaSynchronized(silent: true);
+
+      // Check for expired quotations and automatically release slots
+      await _reservationService.checkAndExpireQuotations();
 
       // Debug: Check current user
       final currentUser = Supabase.instance.client.auth.currentUser;
@@ -101,10 +105,45 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .order('created_at', ascending: false);
 
       debugPrint('Reservations loaded: ${response.length}');
-      debugPrint('Response: $response');
 
-      // Check for expired reservations and update them
+      // Check for expired confirmed events and mark completed
       await _updateExpiredReservations(response);
+
+      // Load customer account restriction statuses
+      try {
+        final usersResponse = await Supabase.instance.client
+            .from('users')
+            .select('email, restriction_status, warning_count, restriction_reason, restriction_start, restriction_end, restricted_by');
+        
+        final map = <String, Map<String, dynamic>>{};
+        final emails = <String>{};
+        final now = DateTime.now();
+
+        for (final u in usersResponse) {
+          final email = (u['email'] ?? '').toString().toLowerCase().trim();
+          if (email.isNotEmpty) {
+            map[email] = Map<String, dynamic>.from(u);
+            final status = (u['restriction_status'] ?? 'active').toString().toLowerCase();
+            final restrictionEndStr = u['restriction_end']?.toString();
+            DateTime? restrictionEnd;
+            if (restrictionEndStr != null && restrictionEndStr.isNotEmpty) {
+              restrictionEnd = DateTime.tryParse(restrictionEndStr)?.toLocal();
+            }
+
+            final isRestricted = (status == 'temporarily_restricted' || status == 'blocked' || status == 'suspended') &&
+                (restrictionEnd == null || now.isBefore(restrictionEnd));
+            final hasWarning = (u['warning_count'] as num? ?? 0) > 0 || status == 'warning';
+
+            if (isRestricted || hasWarning) {
+              emails.add(email);
+            }
+          }
+        }
+        _customerRestrictionMap = map;
+        _restrictedCustomerEmails = emails;
+      } catch (e) {
+        debugPrint('Error loading customer restrictions: $e');
+      }
 
       setState(() {
         reservations = List<Map<String, dynamic>>.from(response);
@@ -138,7 +177,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   Future<void> _ensureSchemaSynchronized({bool silent = false}) async {
     try {
-      // 1. Ensure column exists
+      // 1. Ensure columns exist
       await Supabase.instance.client.rpc('exec_sql', params: {
         'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;"
       });
@@ -147,6 +186,30 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       });
       await Supabase.instance.client.rpc('exec_sql', params: {
         'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS transacted_by TEXT;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS quotation_expires_at TIMESTAMPTZ;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.reservations DROP CONSTRAINT IF EXISTS reservations_status_check;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS restriction_status VARCHAR(50) DEFAULT 'active';"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS warning_count INTEGER DEFAULT 0;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS restriction_reason TEXT;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS restriction_start TIMESTAMPTZ;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS restriction_end TIMESTAMPTZ;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS restricted_by TEXT;"
       });
       
       // 2. Notify PostgREST to reload schema cache
@@ -542,9 +605,25 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       base = reservations.where((r) => r['is_archived'] == true).toList();
     } else {
       final unarchived = reservations.where((r) => r['is_archived'] != true);
-      base = _selectedFilter == 'all'
-          ? unarchived.toList()
-          : unarchived.where((r) => r['status'] == _selectedFilter).toList();
+      if (_selectedFilter == 'all') {
+        base = unarchived.toList();
+      } else if (_selectedFilter == 'quotation_sent') {
+        base = unarchived.where((r) => r['price_quotation_sent'] == true && r['status'] == 'pending').toList();
+      } else if (_selectedFilter == 'awaiting_payment') {
+        base = unarchived.where((r) =>
+            r['price_quotation_sent'] == true &&
+            (r['payment_status'] ?? '').toString().toLowerCase() == 'unpaid' &&
+            r['status'] == 'pending').toList();
+      } else if (_selectedFilter == 'expired') {
+        base = unarchived.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'expired').toList();
+      } else if (_selectedFilter == 'restricted_customers') {
+        base = unarchived.where((r) {
+          final em = (r['customer_email'] ?? '').toString().toLowerCase().trim();
+          return _restrictedCustomerEmails.contains(em);
+        }).toList();
+      } else {
+        base = unarchived.where((r) => r['status'] == _selectedFilter).toList();
+      }
     }
     if (_searchQuery.isEmpty) return base;
     final q = _searchQuery.toLowerCase();
@@ -935,33 +1014,52 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   Widget _buildStatsBar() {
     final unarchived = reservations.where((r) => r['is_archived'] != true);
-    final pending   = unarchived.where((r) => r['status'] == 'pending').length;
-    final confirmed = unarchived.where((r) => r['status'] == 'confirmed').length;
-    final completed = unarchived.where((r) => r['status'] == 'completed').length;
-    final cancelled = unarchived.where((r) => r['status'] == 'cancelled').length;
-    final noShow    = unarchived.where((r) => r['status'] == 'no_show').length;
-    final archived  = reservations.where((r) => r['is_archived'] == true).length;
+    final pending     = unarchived.where((r) => r['status'] == 'pending').length;
+    final quoteSent   = unarchived.where((r) => r['price_quotation_sent'] == true && r['status'] == 'pending').length;
+    final awaitingPay = unarchived.where((r) =>
+        r['price_quotation_sent'] == true &&
+        (r['payment_status'] ?? '').toString().toLowerCase() == 'unpaid' &&
+        r['status'] == 'pending').length;
+    final expired     = unarchived.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'expired').length;
+    final confirmed   = unarchived.where((r) => r['status'] == 'confirmed').length;
+    final completed   = unarchived.where((r) => r['status'] == 'completed').length;
+    final cancelled   = unarchived.where((r) => r['status'] == 'cancelled').length;
+    final noShow      = unarchived.where((r) => r['status'] == 'no_show').length;
+    final restricted  = unarchived.where((r) {
+      final em = (r['customer_email'] ?? '').toString().toLowerCase().trim();
+      return _restrictedCustomerEmails.contains(em);
+    }).length;
+    final archived    = reservations.where((r) => r['is_archived'] == true).length;
 
-    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
 
-    if (!isDesktop) {
+    if (isMobile) {
       return SizedBox(
-        height: 54,
+        height: 52,
         child: ListView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           children: [
-            _statTile('Total', unarchived.length, Icons.calendar_month_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'all', width: 108),
+            _statTile('Total', unarchived.length, Icons.calendar_month_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'all', width: 110),
             const SizedBox(width: 8),
-            _statTile('Pending', pending, Icons.hourglass_top_rounded, const Color(0xFFFEF3C7), const Color(0xFFD97706), 'pending', width: 112),
+            _statTile('Pending', pending, Icons.hourglass_top_rounded, const Color(0xFFFEF3C7), const Color(0xFFD97706), 'pending', width: 114),
             const SizedBox(width: 8),
-            _statTile('Confirmed', confirmed, Icons.check_circle_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'confirmed', width: 124),
+            _statTile('Quote Sent', quoteSent, Icons.send_rounded, const Color(0xFFEFF6FF), const Color(0xFF2563EB), 'quotation_sent', width: 124),
             const SizedBox(width: 8),
-            _statTile('Completed', completed, Icons.done_all_rounded, const Color(0xFFE0F2FE), const Color(0xFF0284C7), 'completed', width: 124),
+            _statTile('Awaiting Pay', awaitingPay, Icons.pending_actions_rounded, const Color(0xFFFFFBEB), const Color(0xFFB45309), 'awaiting_payment', width: 130),
+            const SizedBox(width: 8),
+            _statTile('Confirmed', confirmed, Icons.check_circle_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'confirmed', width: 122),
+            const SizedBox(width: 8),
+            _statTile('Completed', completed, Icons.done_all_rounded, const Color(0xFFE0F2FE), const Color(0xFF0284C7), 'completed', width: 122),
+            const SizedBox(width: 8),
+            _statTile('Expired', expired, Icons.timer_off_rounded, const Color(0xFFF3E8FF), const Color(0xFF9333EA), 'expired', width: 114),
             const SizedBox(width: 8),
             _statTile('Cancelled', cancelled, Icons.cancel_rounded, const Color(0xFFFEE2E2), const Color(0xFFDC2626), 'cancelled', width: 118),
             const SizedBox(width: 8),
             _statTile('No-Show', noShow, Icons.person_off_rounded, const Color(0xFFFFEDD5), const Color(0xFFEA580C), 'no_show', width: 118),
+            const SizedBox(width: 8),
+            _statTile('Restricted', restricted, Icons.lock_outline_rounded, const Color(0xFFFEF2F2), const Color(0xFFB91C1C), 'restricted_customers', width: 126),
             const SizedBox(width: 8),
             _statTile('Archived', archived, Icons.inventory_2_rounded, const Color(0xFFF1F5F9), const Color(0xFF475569), 'archived', width: 114),
           ],
@@ -969,85 +1067,157 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       );
     }
 
-    return Row(
+    final bool hasActiveSecondary = ['expired', 'cancelled', 'no_show', 'restricted_customers', 'archived'].contains(_selectedFilter);
+    final bool isRow2Expanded = _showMoreFilters || hasActiveSecondary;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: _statTile(
-            'Total',
-            unarchived.length,
-            Icons.calendar_month_rounded,
-            const Color(0xFFDCFCE7),
-            const Color(0xFF15803D),
-            'all',
-          ),
+        // Row 1: Active Booking Flow (6 tiles) + Collapsible Toggle
+        Row(
+          children: [
+            Expanded(child: _statTile('Total', unarchived.length, Icons.calendar_month_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'all')),
+            const SizedBox(width: 8),
+            Expanded(child: _statTile('Pending', pending, Icons.hourglass_top_rounded, const Color(0xFFFEF3C7), const Color(0xFFD97706), 'pending')),
+            const SizedBox(width: 8),
+            Expanded(child: _statTile('Quote Sent', quoteSent, Icons.send_rounded, const Color(0xFFEFF6FF), const Color(0xFF2563EB), 'quotation_sent')),
+            const SizedBox(width: 8),
+            Expanded(child: _statTile('Awaiting Pay', awaitingPay, Icons.pending_actions_rounded, const Color(0xFFFFFBEB), const Color(0xFFB45309), 'awaiting_payment')),
+            const SizedBox(width: 8),
+            Expanded(child: _statTile('Confirmed', confirmed, Icons.check_circle_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'confirmed')),
+            const SizedBox(width: 8),
+            Expanded(child: _statTile('Completed', completed, Icons.done_all_rounded, const Color(0xFFE0F2FE), const Color(0xFF0284C7), 'completed')),
+            const SizedBox(width: 8),
+            _buildMoreToggleButton(isRow2Expanded, hasActiveSecondary),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _statTile(
-            'Pending',
-            pending,
-            Icons.hourglass_top_rounded,
-            const Color(0xFFFEF3C7),
-            const Color(0xFFD97706),
-            'pending',
+
+        // Row 2: Collapsible Outcomes, Exceptions & Archive (5 tiles)
+        AnimatedCrossFade(
+          firstChild: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Expanded(child: _statTile('Expired', expired, Icons.timer_off_rounded, const Color(0xFFF3E8FF), const Color(0xFF9333EA), 'expired')),
+                const SizedBox(width: 8),
+                Expanded(child: _statTile('Cancelled', cancelled, Icons.cancel_rounded, const Color(0xFFFEE2E2), const Color(0xFFDC2626), 'cancelled')),
+                const SizedBox(width: 8),
+                Expanded(child: _statTile('No-Show', noShow, Icons.person_off_rounded, const Color(0xFFFFEDD5), const Color(0xFFEA580C), 'no_show')),
+                const SizedBox(width: 8),
+                Expanded(child: _statTile('Restricted', restricted, Icons.lock_outline_rounded, const Color(0xFFFEF2F2), const Color(0xFFB91C1C), 'restricted_customers')),
+                const SizedBox(width: 8),
+                Expanded(child: _statTile('Archived', archived, Icons.inventory_2_rounded, const Color(0xFFF1F5F9), const Color(0xFF475569), 'archived')),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _statTile(
-            'Confirmed',
-            confirmed,
-            Icons.check_circle_rounded,
-            const Color(0xFFDCFCE7),
-            const Color(0xFF15803D),
-            'confirmed',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _statTile(
-            'Completed',
-            completed,
-            Icons.done_all_rounded,
-            const Color(0xFFE0F2FE),
-            const Color(0xFF0284C7),
-            'completed',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _statTile(
-            'Cancelled',
-            cancelled,
-            Icons.cancel_rounded,
-            const Color(0xFFFEE2E2),
-            const Color(0xFFDC2626),
-            'cancelled',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _statTile(
-            'No-Show',
-            noShow,
-            Icons.person_off_rounded,
-            const Color(0xFFFFEDD5),
-            const Color(0xFFEA580C),
-            'no_show',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _statTile(
-            'Archived',
-            archived,
-            Icons.inventory_2_rounded,
-            const Color(0xFFF1F5F9),
-            const Color(0xFF475569),
-            'archived',
-          ),
+          secondChild: const SizedBox.shrink(),
+          crossFadeState: isRow2Expanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+          duration: const Duration(milliseconds: 240),
+          sizeCurve: Curves.easeInOut,
         ),
       ],
+    );
+  }
+
+  Widget _buildMoreToggleButton(bool isExpanded, bool hasActiveSecondary) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isExpanded && hasActiveSecondary) {
+            _selectedFilter = 'all';
+            _currentPage = 0;
+            _showMoreFilters = false;
+          } else {
+            _showMoreFilters = !isExpanded;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: hasActiveSecondary
+              ? AppTheme.warmGold.withValues(alpha: 0.12)
+              : (isExpanded ? const Color(0xFFF1F5F9) : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasActiveSecondary
+                ? AppTheme.warmGold
+                : (isExpanded ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0)),
+            width: hasActiveSecondary ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: hasActiveSecondary
+                    ? AppTheme.warmGold.withValues(alpha: 0.22)
+                    : (isExpanded ? const Color(0xFFE2E8F0) : const Color(0xFFF8FAFC)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                isExpanded ? Icons.expand_less_rounded : Icons.tune_rounded,
+                size: 15,
+                color: hasActiveSecondary ? const Color(0xFFB45309) : const Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isExpanded ? 'Less' : '+5 More',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: hasActiveSecondary ? const Color(0xFFB45309) : const Color(0xFF1E293B),
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    if (hasActiveSecondary) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFB45309),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                Text(
+                  isExpanded ? 'Hide row' : 'Statuses',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    color: hasActiveSecondary ? const Color(0xFFB45309) : const Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1055,22 +1225,23 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final bool isSelected = _selectedFilter == filterKey;
 
     Widget content = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 180),
       width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isSelected ? iconColor.withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected ? iconColor : const Color(0xFFE2E8F0),
-          width: isSelected ? 2.0 : 1.0,
+          width: isSelected ? 1.8 : 1.0,
         ),
         boxShadow: isSelected
             ? [
                 BoxShadow(
                   color: iconColor.withValues(alpha: 0.18),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ]
             : [
@@ -1088,15 +1259,15 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: isSelected ? iconColor : bg,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: isSelected ? Colors.white : iconColor, size: 14),
+            child: Icon(icon, color: isSelected ? Colors.white : iconColor, size: 15),
           ),
-          const SizedBox(width: 8),
-          Flexible(
+          const SizedBox(width: 9),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   value.toString(),
@@ -1105,14 +1276,16 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     fontWeight: FontWeight.w800,
                     color: isSelected ? iconColor : _darkBg,
                     letterSpacing: -0.3,
+                    height: 1.1,
                   ),
                 ),
                 Text(
                   label,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 9.5,
-                    color: isSelected ? iconColor : _slate,
+                    fontSize: 10.5,
+                    color: isSelected ? iconColor : const Color(0xFF64748B),
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    height: 1.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1130,6 +1303,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         onTap: () => setState(() {
           _selectedFilter = filterKey;
           _currentPage = 0;
+          if (['expired', 'cancelled', 'no_show', 'restricted_customers', 'archived'].contains(filterKey)) {
+            _showMoreFilters = true;
+          }
         }),
         child: content,
       ),
@@ -1181,7 +1357,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Expanded(flex: 2, child: _tableHeader('SCHEDULE')),
                 Expanded(flex: 2, child: _tableHeader('PRICING')),
                 SizedBox(width: 110, child: _tableHeader('STATUS')),
-                SizedBox(width: 170, child: _tableHeader('ACTIONS')),
+                SizedBox(width: 85, child: _tableHeader('ACTIONS')),
               ],
             ),
           ),
@@ -1261,6 +1437,68 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                             const SizedBox(width: 6),
                             const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF0284C7)),
                           ],
+                          Builder(
+                            builder: (context) {
+                              final email = (r['customer_email'] ?? '').toString().toLowerCase().trim();
+                              final custInfo = _customerRestrictionMap[email];
+                              final status = (custInfo?['restriction_status'] ?? 'active').toString().toLowerCase();
+                              final isRestricted = status == 'temporarily_restricted' || status == 'blocked' || status == 'suspended';
+                              final warningCount = (custInfo?['warning_count'] as num?)?.toInt() ?? 0;
+
+                              if (isRestricted) {
+                                return Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF2F2),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: const Color(0xFFFECACA)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.lock_rounded, size: 9, color: Color(0xFFDC2626)),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        status == 'blocked' ? 'BLOCKED' : (status == 'suspended' ? 'SUSPENDED' : 'RESTRICTED'),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              } else if (warningCount > 0 || status == 'warning') {
+                                return Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: const Color(0xFFFDE68A)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.warning_amber_rounded, size: 9, color: Color(0xFFD97706)),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        'WARN ($warningCount)',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFFD97706),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -1396,14 +1634,58 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (totalPrice > 0) ...[
-                  Text(
-                    '₱${totalPrice.toStringAsFixed(2)}',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: _emerald,
+                if (status == 'expired') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFF87171)),
                     ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.timer_off_outlined, size: 11, color: Color(0xFFDC2626)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Slot Released (Expired)',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (totalPrice > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '₱${totalPrice.toStringAsFixed(2)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _slate,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ],
+                ] else if (totalPrice > 0) ...[
+                  Row(
+                    children: [
+                      Text(
+                        '₱${totalPrice.toStringAsFixed(2)}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: _emerald,
+                        ),
+                      ),
+                      if (r['quotation_expires_at'] != null && status == 'pending') ...[
+                        const SizedBox(width: 6),
+                        _buildQuotationCountdownChip(r['quotation_expires_at']),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Builder(
@@ -1468,7 +1750,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           ),
           // Actions
           SizedBox(
-            width: 170,
+            width: 85,
             child: _buildCompactActionButtons(r),
           ),
         ],
@@ -2190,6 +2472,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       case 'completed': color = const Color(0xFF0284C7); icon = Icons.done_all_rounded;       break;
       case 'cancelled': color = const Color(0xFFDC2626); icon = Icons.cancel_rounded;         break;
       case 'no_show':   color = const Color(0xFFEA580C); icon = Icons.person_off_rounded; label = 'NO-SHOW'; break;
+      case 'expired':   color = const Color(0xFF9333EA); icon = Icons.timer_off_rounded; label = 'EXPIRED'; break;
       default:          color = _slate;                  icon = Icons.help_outline_rounded;
     }
     return FittedBox(
@@ -2223,91 +2506,251 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Widget _buildCompactActionButtons(Map<String, dynamic> reservation) {
-    String status = reservation['status'] ?? 'pending';
-    String reservationId = reservation['id'];
-    bool isArchived = reservation['is_archived'] == true;
-    final needsPricing = _reservationService.needsPricing(reservation);
-    final priceQuotationSent = reservation['price_quotation_sent'] == true;
+    final String status = (reservation['status'] ?? 'pending').toString().toLowerCase();
+    final String reservationId = reservation['id'];
+    final bool isArchived = reservation['is_archived'] == true;
+    final bool priceQuotationSent = reservation['price_quotation_sent'] == true;
+    final bool reminderSent = reservation['reminder_sent'] == true;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    // 1. Primary contextual quick action
+    Widget primaryAction;
+    if (isArchived) {
+      primaryAction = _buildCompactActionButton(
+        icon: Icons.restore_rounded,
+        color: const Color(0xFF15803D),
+        tooltip: 'Restore Reservation',
+        onPressed: () => _restoreReservation(reservationId),
+      );
+    } else if (status == 'pending') {
+      if (priceQuotationSent) {
+        primaryAction = _buildCompactActionButton(
+          icon: Icons.check_circle_rounded,
+          color: const Color(0xFF15803D),
+          tooltip: 'Confirm Reservation',
+          onPressed: () => _showConfirmReservationDialog(reservation),
+        );
+      } else {
+        primaryAction = _buildCompactActionButton(
+          icon: Icons.request_quote_rounded,
+          color: const Color(0xFF7C3AED),
+          tooltip: 'Send Price Quotation',
+          onPressed: () => _showPriceQuotationDialog(reservation),
+        );
+      }
+    } else if (status == 'no_show') {
+      primaryAction = _buildCompactActionButton(
+        icon: Icons.restore_page_rounded,
+        color: const Color(0xFF15803D),
+        tooltip: 'Mark Arrived / Revert',
+        onPressed: () => _showRevertNoShowConfirmationDialog(reservationId, reservation),
+      );
+    } else {
+      // confirmed, completed, cancelled, expired, etc.
+      primaryAction = _buildCompactActionButton(
+        icon: Icons.visibility_rounded,
+        color: const Color(0xFF0284C7),
+        tooltip: 'View Details',
+        onPressed: () => _showViewReservationDialog(reservation),
+      );
+    }
+
+    // 2. 3-Dots PopupMenu for all secondary and management actions
+    Widget moreActionsMenu = PopupMenuButton<String>(
+      tooltip: 'More Actions',
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 8,
+      shadowColor: Colors.black26,
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      offset: const Offset(0, 36),
+      icon: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+        ),
+        child: const Icon(Icons.more_horiz_rounded, size: 15, color: Color(0xFF475569)),
+      ),
+      onSelected: (action) {
+        switch (action) {
+          case 'view':
+            _showViewReservationDialog(reservation);
+            break;
+          case 'price':
+            _showPriceQuotationDialog(reservation);
+            break;
+          case 'confirm':
+            _showConfirmReservationDialog(reservation);
+            break;
+          case 'reminder':
+            _sendReminderEmail(reservation);
+            break;
+          case 'reliability':
+            _showCustomerReliabilityDialog(reservation);
+            break;
+          case 'no_show':
+            _showMarkNoShowConfirmationDialog(reservationId, reservation);
+            break;
+          case 'revert_no_show':
+            _showRevertNoShowConfirmationDialog(reservationId, reservation);
+            break;
+          case 'restore':
+            _restoreReservation(reservationId);
+            break;
+          case 'cancel':
+            _updateReservationStatus(reservationId, 'cancelled', reservation);
+            break;
+          case 'archive':
+            _showDeleteConfirmationDialog(reservationId, reservation['event_type'], isArchived: isArchived);
+            break;
+        }
+      },
+      itemBuilder: (context) {
+        final List<PopupMenuEntry<String>> items = [];
+
+        // View Full Details
+        items.add(_buildPopupMenuItem(
+          value: 'view',
+          icon: Icons.visibility_outlined,
+          color: const Color(0xFF0284C7),
+          label: 'View Full Details',
+        ));
+
+        // Price quotation
+        if (!isArchived && status == 'pending') {
+          items.add(_buildPopupMenuItem(
+            value: 'price',
+            icon: Icons.request_quote_outlined,
+            color: const Color(0xFF7C3AED),
+            label: priceQuotationSent ? 'Update Quotation' : 'Send Price Quotation',
+          ));
+        }
+
+        // Confirm
+        if (!isArchived && status == 'pending' && priceQuotationSent) {
+          items.add(_buildPopupMenuItem(
+            value: 'confirm',
+            icon: Icons.check_circle_outline_rounded,
+            color: const Color(0xFF15803D),
+            label: 'Confirm Reservation',
+          ));
+        }
+
+        // Send / Resend Reminder
+        if (!isArchived && (status == 'pending' || status == 'confirmed' || status == 'approved')) {
+          items.add(_buildPopupMenuItem(
+            value: 'reminder',
+            icon: reminderSent ? Icons.mark_email_read_outlined : Icons.email_outlined,
+            color: reminderSent ? const Color(0xFF059669) : const Color(0xFF7C3AED),
+            label: reminderSent ? 'Resend Reminder' : 'Send Reminder Email',
+          ));
+        }
+
+        // Customer Reliability & Shield
+        items.add(_buildPopupMenuItem(
+          value: 'reliability',
+          icon: Icons.shield_outlined,
+          color: const Color(0xFFD97706),
+          label: 'Customer Reliability & Shield',
+        ));
+
+        // Mark as No-Show
+        if (!isArchived && status == 'confirmed') {
+          items.add(_buildPopupMenuItem(
+            value: 'no_show',
+            icon: Icons.person_off_outlined,
+            color: const Color(0xFFEA580C),
+            label: 'Mark as No-Show',
+          ));
+        }
+
+        // Revert No-Show
+        if (!isArchived && status == 'no_show') {
+          items.add(_buildPopupMenuItem(
+            value: 'revert_no_show',
+            icon: Icons.restore_page_outlined,
+            color: const Color(0xFF15803D),
+            label: 'Mark Arrived / Revert',
+          ));
+        }
+
+        // Restore
+        if (isArchived) {
+          items.add(_buildPopupMenuItem(
+            value: 'restore',
+            icon: Icons.restore_rounded,
+            color: const Color(0xFF15803D),
+            label: 'Restore Reservation',
+          ));
+        }
+
+        // Cancel Reservation (Destructive)
+        if (!isArchived && (status == 'pending' || status == 'confirmed')) {
+          items.add(const PopupMenuDivider(height: 8));
+          items.add(_buildPopupMenuItem(
+            value: 'cancel',
+            icon: Icons.cancel_outlined,
+            color: const Color(0xFFDC2626),
+            label: 'Cancel Reservation',
+            isDestructive: true,
+          ));
+        }
+
+        // Archive / Delete
+        if (isArchived || status == 'cancelled' || status == 'completed' || status == 'no_show' || status == 'expired') {
+          if (!items.any((it) => it is PopupMenuDivider)) {
+            items.add(const PopupMenuDivider(height: 8));
+          }
+          items.add(_buildPopupMenuItem(
+            value: 'archive',
+            icon: isArchived ? Icons.delete_forever_outlined : Icons.archive_outlined,
+            color: isArchived ? const Color(0xFFDC2626) : const Color(0xFF64748B),
+            label: isArchived ? 'Delete Permanently' : 'Archive Reservation',
+            isDestructive: isArchived,
+          ));
+        }
+
+        return items;
+      },
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        primaryAction,
+        moreActionsMenu,
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupMenuItem({
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String label,
+    bool isDestructive = false,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 38,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          if (!isArchived) ...[
-            if (status == 'pending') ...[
-              if (needsPricing || status == 'pending')
-                _buildCompactActionButton(
-                  icon: Icons.monetization_on_outlined,
-                  color: Colors.purple,
-                  tooltip: 'Price',
-                  onPressed: () => _showPriceQuotationDialog(reservation),
-                ),
-              if (priceQuotationSent)
-                _buildCompactActionButton(
-                  icon: Icons.check_circle_outline,
-                  color: AppTheme.successGreen,
-                  tooltip: 'Confirm',
-                  onPressed: () => _showConfirmReservationDialog(reservation),
-                ),
-              _buildCompactActionButton(
-                icon: Icons.close_rounded,
-                color: Colors.red,
-                tooltip: 'Cancel',
-                onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: isDestructive ? FontWeight.w700 : FontWeight.w600,
+                color: isDestructive ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
               ),
-            ],
-            if (status == 'confirmed') ...[
-              _buildCompactActionButton(
-                icon: Icons.person_off_outlined,
-                color: const Color(0xFFEA580C),
-                tooltip: 'Mark No-Show',
-                onPressed: () => _showMarkNoShowConfirmationDialog(reservationId, reservation),
-              ),
-              _buildCompactActionButton(
-                icon: Icons.cancel_outlined,
-                color: Colors.red,
-                tooltip: 'Cancel',
-                onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
-              ),
-            ],
-            if (status == 'no_show') ...[
-              _buildCompactActionButton(
-                icon: Icons.restore_page_rounded,
-                color: const Color(0xFF15803D),
-                tooltip: 'Mark Arrived / Revert',
-                onPressed: () => _showRevertNoShowConfirmationDialog(reservationId, reservation),
-              ),
-            ],
-          ],
-          // Send/Resend Reminder button — available for active reservations
-          if (!isArchived && (status == 'pending' || status == 'confirmed' || status == 'approved'))
-            _buildCompactActionButton(
-              icon: reservation['reminder_sent'] == true ? Icons.mark_email_read_outlined : Icons.email_outlined,
-              color: reservation['reminder_sent'] == true ? const Color(0xFF059669) : const Color(0xFF7C3AED),
-              tooltip: reservation['reminder_sent'] == true ? 'Resend Reminder' : 'Send Reminder',
-              onPressed: () => _sendReminderEmail(reservation),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          _buildCompactActionButton(
-            icon: Icons.visibility_outlined,
-            color: AppTheme.infoBlue,
-            tooltip: 'View',
-            onPressed: () => _showViewReservationDialog(reservation),
           ),
-          if (isArchived)
-            _buildCompactActionButton(
-              icon: Icons.restore_rounded,
-              color: AppTheme.successGreen,
-              tooltip: 'Restore',
-              onPressed: () => _restoreReservation(reservationId),
-            ),
-          if (isArchived || status == 'cancelled' || status == 'completed' || status == 'no_show')
-            _buildCompactActionButton(
-              icon: isArchived ? Icons.delete_outline_rounded : Icons.archive_outlined,
-              color: isArchived ? Colors.red : Colors.orange,
-              tooltip: isArchived ? 'Delete' : 'Archive',
-              onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type'], isArchived: isArchived),
-            ),
         ],
       ),
     );
@@ -2681,6 +3124,980 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         _loadReservations(); // Refresh the list after sending quotation
       }
     });
+  }
+
+  Widget _buildQuotationCountdownChip(dynamic expiresAtRaw) {
+    if (expiresAtRaw == null) return const SizedBox.shrink();
+    DateTime? expiresAt = DateTime.tryParse(expiresAtRaw.toString())?.toLocal();
+    if (expiresAt == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final difference = expiresAt.difference(now);
+    final isExpired = difference.isNegative;
+
+    final String text;
+    final Color textColor;
+    final Color bgColor;
+    final Color borderColor;
+
+    if (isExpired) {
+      text = 'Expired';
+      textColor = const Color(0xFFDC2626);
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = const Color(0xFFFCA5A5);
+    } else {
+      final hours = difference.inHours;
+      final minutes = difference.inMinutes % 60;
+      if (hours >= 24) {
+        final days = (hours / 24).floor();
+        text = '${days}d ${hours % 24}h left';
+      } else if (hours > 0) {
+        text = '${hours}h ${minutes}m left';
+      } else {
+        text = '${minutes}m left';
+      }
+      textColor = const Color(0xFFB45309);
+      bgColor = const Color(0xFFFEF3C7);
+      borderColor = const Color(0xFFFDE68A);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_rounded, size: 10, color: textColor),
+          const SizedBox(width: 3),
+          Text(
+            text,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCustomerReliabilityDialog(Map<String, dynamic> reservation) {
+    final customerName = reservation['customer_name']?.toString() ?? 'Customer';
+    final customerEmail = reservation['customer_email']?.toString() ?? '';
+    final userId = reservation['user_id']?.toString();
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return FutureBuilder<Map<String, dynamic>>(
+          future: _reservationService.getCustomerReliabilityInfo(
+            userId: userId,
+            email: customerEmail,
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                content: const SizedBox(
+                  height: 150,
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              );
+            }
+
+            final data = snapshot.data ?? {};
+            final restrictionStatus = (data['restriction_status'] ?? 'active').toString().toLowerCase();
+            final isRestricted = data['is_restricted'] == true;
+            final warningCount = data['warning_count'] as int? ?? 0;
+            final restrictionReason = data['restriction_reason']?.toString() ?? '';
+            final restrictionEnd = data['restriction_end'] as DateTime?;
+            final restrictedBy = data['restricted_by']?.toString();
+
+            final total = data['total'] ?? 0;
+            final completed = data['completed'] ?? 0;
+            final confirmed = data['confirmed'] ?? 0;
+            final active = data['active'] ?? 0;
+            final cancelled = data['cancelled'] ?? 0;
+            final expired = data['expired'] ?? 0;
+            final unpaidQuotes = data['unpaid_quotations'] ?? 0;
+            final noShows = data['no_shows'] ?? 0;
+
+            final totalClosed = completed + confirmed + cancelled + expired + noShows;
+            final reliabilityRate = totalClosed > 0
+                ? (((completed + confirmed) / totalClosed) * 100).clamp(0, 100).toStringAsFixed(1)
+                : '100.0';
+
+            final isHighRisk = noShows > 0 || expired >= 2 || cancelled >= 3 || isRestricted;
+
+            Color statusBadgeColor = const Color(0xFF15803D);
+            String statusBadgeLabel = 'GOOD STANDING';
+            IconData statusBadgeIcon = Icons.verified_user_rounded;
+
+            if (isRestricted) {
+              statusBadgeColor = const Color(0xFFDC2626);
+              statusBadgeLabel = restrictionStatus == 'blocked' || restrictionStatus == 'suspended'
+                  ? 'ACCOUNT BLOCKED'
+                  : 'TEMPORARILY RESTRICTED';
+              statusBadgeIcon = Icons.lock_rounded;
+            } else if (warningCount > 0 || restrictionStatus == 'warning') {
+              statusBadgeColor = const Color(0xFFD97706);
+              statusBadgeLabel = 'WARNING ISSUED ($warningCount)';
+              statusBadgeIcon = Icons.warning_amber_rounded;
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.shield_outlined, color: Color(0xFF0F172A), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Customer Reliability & Controls',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: isMobile ? 16 : 18,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          '$customerName • $customerEmail',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _slate,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: statusBadgeColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusBadgeColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusBadgeIcon, size: 12, color: statusBadgeColor),
+                        const SizedBox(width: 5),
+                        Text(
+                          statusBadgeLabel,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: statusBadgeColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 600,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Alert banner if restricted or high risk
+                      if (isRestricted) ...[
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.lock_clock_rounded, color: Color(0xFFDC2626), size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      restrictionEnd != null
+                                          ? 'Restricted until ${DateFormat('MMM dd, yyyy - hh:mm a').format(restrictionEnd)}'
+                                          : 'Permanently Blocked / Indefinite Restriction',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF991B1B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (restrictionReason.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Reason: $restrictionReason${restrictedBy != null ? ' (by $restrictedBy)' : ''}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: const Color(0xFFB91C1C),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ] else if (isHighRisk) ...[
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'High Cancellation / Abandonment Pattern. Customer has previous cancellations, expired quotations, or warnings.',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF92400E),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Grid of Reliability Metrics
+                      Text(
+                        'Booking Reliability Breakdown',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildMetricTile('Total Bookings', '$total', Icons.calendar_today_rounded, const Color(0xFF0F172A)),
+                          _buildMetricTile('Completed', '$completed', Icons.done_all_rounded, const Color(0xFF15803D)),
+                          _buildMetricTile('Confirmed', '$confirmed', Icons.check_circle_rounded, const Color(0xFF0284C7)),
+                          _buildMetricTile('Active/Pending', '$active', Icons.hourglass_top_rounded, const Color(0xFF0891B2)),
+                          _buildMetricTile('Cancelled', '$cancelled', Icons.cancel_rounded, const Color(0xFFDC2626)),
+                          _buildMetricTile('Expired Quotes', '$expired', Icons.timer_off_rounded, const Color(0xFF9333EA)),
+                          _buildMetricTile('Unpaid Quotes', '$unpaidQuotes', Icons.receipt_long_rounded, const Color(0xFFD97706)),
+                          _buildMetricTile('No-Shows', '$noShows', Icons.person_off_rounded, const Color(0xFFEA580C)),
+                          _buildMetricTile('Reliability Rate', '$reliabilityRate%', Icons.speed_rounded, const Color(0xFF059669)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Audit & History link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              _showCustomerRestrictionsHistoryDialog(customerName, userId, customerEmail);
+                            },
+                            icon: const Icon(Icons.history_rounded, size: 16),
+                            label: Text(
+                              'View Restriction Audit History',
+                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                // Issue Warning button
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFD97706),
+                    side: const BorderSide(color: Color(0xFFFDE68A)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                  label: Text('Issue Warning', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _showIssueWarningDialog(customerName, userId, customerEmail, () {
+                      _loadReservations();
+                    });
+                  },
+                ),
+                // Restrict or Unrestrict button
+                if (isRestricted || warningCount > 0) ...[
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF15803D),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.lock_open_rounded, size: 16),
+                    label: Text(
+                      isRestricted ? 'Lift Restriction' : 'Clear Warning',
+                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      _showUnrestrictDialog(customerName, userId, customerEmail, () {
+                        _loadReservations();
+                      });
+                    },
+                  ),
+                ],
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.lock_outline_rounded, size: 16),
+                  label: Text('Restrict Account', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _showRestrictAccountDialog(customerName, userId, customerEmail, () {
+                      _loadReservations();
+                    });
+                  },
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMetricTile(String title, String value, IconData icon, Color color) {
+    return Container(
+      width: 126,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showIssueWarningDialog(String customerName, String? userId, String? email, VoidCallback onUpdated) {
+    final reasonController = TextEditingController(text: 'Customer has unresponsive quotations or repeated unconfirmed bookings.');
+    bool sendEmail = true;
+
+    final quickReasons = [
+      'Unresponsive to price quotation',
+      'Repeated booking cancellations',
+      'No-show for scheduled event date',
+      'Submitting speculative/spam bookings',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Issue Warning to $customerName',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This warning will be recorded on the customer account. Further non-compliance can trigger temporary booking restrictions.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: _slate,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Quick Reasons:',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _slate,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: quickReasons.map((r) {
+                    return ActionChip(
+                      label: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 11)),
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      onPressed: () {
+                        setDialogState(() {
+                          reasonController.text = r;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: 'Reason for Warning',
+                    labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(
+                    'Send email notification to customer',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  value: sendEmail,
+                  activeColor: const Color(0xFFD97706),
+                  onChanged: (val) => setDialogState(() => sendEmail = val ?? true),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD97706),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  _showSnackBar('Please enter a reason for the warning.', Colors.red);
+                  return;
+                }
+                Navigator.pop(dialogContext);
+
+                final currentAdmin = Supabase.instance.client.auth.currentUser;
+                final adminName = (currentAdmin?.userMetadata?['full_name'] as String?) ??
+                    (currentAdmin?.email != null ? currentAdmin!.email!.split('@').first : 'Admin');
+
+                final success = await _reservationService.issueCustomerWarning(
+                  userId: userId,
+                  email: email,
+                  reason: reason,
+                  adminName: adminName,
+                  sendEmail: sendEmail,
+                );
+
+                if (success) {
+                  _showSnackBar('Warning successfully issued to $customerName.', Colors.green);
+                  onUpdated();
+                } else {
+                  _showSnackBar('Failed to issue warning. Check database logs.', Colors.red);
+                }
+              },
+              child: Text('Issue Warning', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRestrictAccountDialog(String customerName, String? userId, String? email, VoidCallback onUpdated) {
+    String restrictionType = 'temporarily_restricted'; // temporarily_restricted, blocked
+    Duration selectedDuration = const Duration(days: 7);
+    String selectedDurationLabel = '7 Days';
+    final reasonController = TextEditingController(text: 'Multiple expired quotations or unverified repeated bookings.');
+    bool sendEmail = true;
+
+    final durationOptions = [
+      {'label': '24 Hours', 'duration': const Duration(hours: 24)},
+      {'label': '3 Days', 'duration': const Duration(days: 3)},
+      {'label': '7 Days', 'duration': const Duration(days: 7)},
+      {'label': '14 Days', 'duration': const Duration(days: 14)},
+      {'label': '30 Days', 'duration': const Duration(days: 30)},
+      {'label': 'Indefinite', 'duration': null},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: Color(0xFFDC2626), size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Restrict Account: $customerName',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Restricting this account will prevent them from creating new event bookings or reservations.',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Restriction Type:',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Text('Temporary Suspension', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                          selected: restrictionType == 'temporarily_restricted',
+                          onSelected: (val) {
+                            if (val) setDialogState(() => restrictionType = 'temporarily_restricted');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Text('Permanent / Blocked', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                          selected: restrictionType == 'blocked',
+                          selectedColor: const Color(0xFFFEE2E2),
+                          onSelected: (val) {
+                            if (val) setDialogState(() => restrictionType = 'blocked');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (restrictionType == 'temporarily_restricted') ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      'Restriction Duration:',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: durationOptions.map((opt) {
+                        final isSelected = selectedDurationLabel == opt['label'];
+                        return ChoiceChip(
+                          label: Text(opt['label'] as String, style: GoogleFonts.plusJakartaSans(fontSize: 11)),
+                          selected: isSelected,
+                          onSelected: (val) {
+                            if (val) {
+                              setDialogState(() {
+                                selectedDurationLabel = opt['label'] as String;
+                                selectedDuration = (opt['duration'] as Duration?) ?? const Duration(days: 365);
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 3,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'Reason for Restriction',
+                      labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(
+                      'Send notification email to customer',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    value: sendEmail,
+                    activeColor: const Color(0xFFDC2626),
+                    onChanged: (val) => setDialogState(() => sendEmail = val ?? true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  _showSnackBar('Please enter a reason for the restriction.', Colors.red);
+                  return;
+                }
+                Navigator.pop(dialogContext);
+
+                final currentAdmin = Supabase.instance.client.auth.currentUser;
+                final adminName = (currentAdmin?.userMetadata?['full_name'] as String?) ??
+                    (currentAdmin?.email != null ? currentAdmin!.email!.split('@').first : 'Admin');
+
+                final success = await _reservationService.restrictCustomerAccount(
+                  userId: userId,
+                  email: email,
+                  restrictionType: restrictionType,
+                  duration: restrictionType == 'blocked' || selectedDurationLabel == 'Indefinite'
+                      ? null
+                      : selectedDuration,
+                  reason: reason,
+                  adminName: adminName,
+                  sendEmail: sendEmail,
+                );
+
+                if (success) {
+                  _showSnackBar('Customer account restricted successfully.', Colors.green);
+                  onUpdated();
+                } else {
+                  _showSnackBar('Failed to restrict account. Check database logs.', Colors.red);
+                }
+              },
+              child: Text('Apply Restriction', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUnrestrictDialog(String customerName, String? userId, String? email, VoidCallback onUpdated) {
+    final noteController = TextEditingController(text: 'Admin approved account clearance.');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_open_rounded, color: Color(0xFF15803D), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Lift Restrictions / Clear Warnings for $customerName',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will reset warnings to 0, lift any active restrictions, and return the customer account to good standing.',
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: _slate),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: noteController,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Clearance Note / Remarks',
+                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF15803D),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              final currentAdmin = Supabase.instance.client.auth.currentUser;
+              final adminName = (currentAdmin?.userMetadata?['full_name'] as String?) ??
+                  (currentAdmin?.email != null ? currentAdmin!.email!.split('@').first : 'Admin');
+
+              final success = await _reservationService.unrestrictCustomerAccount(
+                userId: userId,
+                email: email,
+                reason: noteController.text.trim(),
+                adminName: adminName,
+              );
+
+              if (success) {
+                _showSnackBar('Restrictions lifted and warnings cleared for $customerName.', Colors.green);
+                onUpdated();
+              } else {
+                _showSnackBar('Failed to lift restrictions. Check database logs.', Colors.red);
+              }
+            },
+            child: Text('Confirm & Lift', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCustomerRestrictionsHistoryDialog(String customerName, String? userId, String? email) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.history_rounded, color: Color(0xFF0F172A), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Restriction History: $customerName',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 520,
+          height: 380,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _reservationService.getCustomerRestrictionsHistory(userId: userId, email: email),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final history = snapshot.data ?? [];
+              if (history.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_outlined, size: 48, color: Color(0xFF94A3B8)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No restriction or warning events recorded.',
+                        style: GoogleFonts.plusJakartaSans(color: _slate, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                itemCount: history.length,
+                separatorBuilder: (_, __) => const Divider(height: 16),
+                itemBuilder: (context, i) {
+                  final item = history[i];
+                  final action = (item['action'] ?? '').toString();
+                  final reason = item['reason'] ?? 'No reason provided';
+                  final admin = item['admin_name'] ?? 'Admin';
+                  final createdAtStr = item['created_at']?.toString();
+                  DateTime? createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr)?.toLocal() : null;
+
+                  Color actionColor = const Color(0xFF0F172A);
+                  IconData actionIcon = Icons.info_outline;
+
+                  if (action.contains('WARNING')) {
+                    actionColor = const Color(0xFFD97706);
+                    actionIcon = Icons.warning_amber_rounded;
+                  } else if (action.contains('RESTRICT') || action.contains('BLOCK')) {
+                    actionColor = const Color(0xFFDC2626);
+                    actionIcon = Icons.lock_outline_rounded;
+                  } else if (action.contains('UNRESTRICT') || action.contains('LIFT')) {
+                    actionColor = const Color(0xFF15803D);
+                    actionIcon = Icons.lock_open_rounded;
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: actionColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(actionIcon, size: 16, color: actionColor),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  action,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: actionColor,
+                                  ),
+                                ),
+                                if (createdAt != null)
+                                  Text(
+                                    DateFormat('MMM dd, yyyy hh:mm a').format(createdAt),
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              reason,
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF334155)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'By: $admin',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<String?> _resolveCustomerUploadedId(String email, String? directIdUrl) async {
