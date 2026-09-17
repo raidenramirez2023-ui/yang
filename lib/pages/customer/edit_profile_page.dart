@@ -364,7 +364,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // ── 1. Upload new image if picked ──────────────────────────────────
       if (_pickedFile != null && _pickedFileBytes != null) {
         final userId = user.id;
-        final fileExt = _pickedFile!.path.split('.').last;
+        final fileExt = _pickedFile!.name.contains('.')
+            ? _pickedFile!.name.split('.').last
+            : 'jpg';
 
         // Upload to Firebase Cloud Storage 'avatars/' folder
         final uploadedFirebaseUrl = await ImageStorageService.uploadAvatar(

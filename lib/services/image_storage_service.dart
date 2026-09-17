@@ -44,7 +44,12 @@ class ImageStorageService {
     String extension = 'jpg',
   }) async {
     try {
-      final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      String cleanExt = extension.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (cleanExt.isEmpty || cleanExt.length > 5 || cleanExt.contains('blob') || cleanExt.contains('http')) {
+        cleanExt = 'jpg';
+      }
+      final cleanUserId = userId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final fileName = 'avatar_${cleanUserId}_${DateTime.now().millisecondsSinceEpoch}.$cleanExt';
       final ref = _storage.ref().child('avatars/$fileName');
       
       final metadata = SettableMetadata(
