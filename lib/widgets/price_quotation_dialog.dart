@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/pricing_service.dart';
@@ -48,12 +49,10 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
   
 
   bool _isLoading = false;
-
   final bool _useCustomPrice = true;
-
   double _suggestedPrice = 0.0;
-
   Map<String, dynamic>? _pricingBreakdown;
+  int _selectedDeadlineHours = 24;
 
   
 
@@ -270,9 +269,8 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
         startTime: widget.reservation['start_time'],
 
         durationHours: widget.reservation['duration_hours'],
-
         numberOfGuests: widget.reservation['number_of_guests'],
-
+        deadlineHours: _selectedDeadlineHours,
       );
 
 
@@ -1060,25 +1058,74 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
       children: [
         Container(
           margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFD9A441).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+            color: const Color(0xFFD9A441).withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.35)),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.timer_outlined, color: Color(0xFF9E6B0D), size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Sending this quotation starts a 24-Hour Grace Period for the customer to settle downpayment.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF7A4F01),
+              Row(
+                children: [
+                  const Icon(Icons.alarm_on_rounded, color: Color(0xFF9E6B0D), size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Payment / Confirmation Deadline:',
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF7A4F01),
+                    ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [24, 48, 72].map((hours) {
+                  final isSelected = _selectedDeadlineHours == hours;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () => setState(() => _selectedDeadlineHours = hours),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFF14332E) : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFFD9A441).withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Text(
+                          '$hours Hours (${hours ~/ 24} ${hours == 24 ? 'Day' : 'Days'})',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFFD9A441) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+              Builder(
+                builder: (context) {
+                  final calculatedDeadline = DateTime.now().add(Duration(hours: _selectedDeadlineHours));
+                  final formattedStr = DateFormat('EEEE, MMM dd, yyyy • h:mm a').format(calculatedDeadline);
+                  return Text(
+                    '⚠️ Deadline: $formattedStr. If unpaid by this time, the reservation will automatically expire and the reserved slot will be released.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF854D0E),
+                    ),
+                  );
+                },
               ),
             ],
           ),

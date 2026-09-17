@@ -410,6 +410,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   String? _savedAccountValidIdUrl;
   bool _hasSavedValidId = false;
 
+  // Customer restriction & reliability state
+  Map<String, dynamic>? _customerRestrictionInfo;
+
 
 
   // --- Category Scroll State ---
@@ -777,10 +780,203 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             _uploadedIdUrl ??= savedIdUrl;
           }
         });
+        _loadCustomerRestrictionInfo();
       }
     } catch (e) {
       debugPrint('Error loading customer records: $e');
     }
+  }
+
+  Future<void> _loadCustomerRestrictionInfo() async {
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final email = currentUser?.email;
+      if (email == null || email.isEmpty) return;
+      final info = await _reservationService.getCustomerReliabilityInfo(email: email);
+      if (mounted) {
+        setState(() {
+          _customerRestrictionInfo = info;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading customer restriction info: $e');
+    }
+  }
+
+  Widget _buildCustomerRestrictionBanner() {
+    if (_customerRestrictionInfo == null) return const SizedBox.shrink();
+
+    final status = (_customerRestrictionInfo!['restriction_status'] ?? 'active').toString().toLowerCase();
+    final isRestricted = status == 'temporarily_restricted' || status == 'blocked' || status == 'suspended';
+    final isWarning = status == 'warning' || (_customerRestrictionInfo!['warning_count'] as int? ?? 0) > 0;
+
+    if (!isRestricted && !isWarning) return const SizedBox.shrink();
+
+    final Color bgColor = isRestricted ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB);
+    final Color borderColor = isRestricted ? const Color(0xFFF87171) : const Color(0xFFFBBF24);
+    final Color titleColor = isRestricted ? const Color(0xFF991B1B) : const Color(0xFF92400E);
+    final Color textColor = isRestricted ? const Color(0xFFB91C1C) : const Color(0xFFB45309);
+    final IconData icon = isRestricted ? Icons.block_rounded : Icons.warning_amber_rounded;
+
+    final adminReason = (_customerRestrictionInfo!['restriction_reason'] ??
+            _customerRestrictionInfo!['warning_reason'])
+        ?.toString()
+        .trim();
+    final warningCount = (_customerRestrictionInfo!['warning_count'] as num?)?.toInt() ?? 1;
+
+    String headerTitle = isRestricted
+        ? 'Account Booking Restriction Active'
+        : (warningCount > 1 ? 'Account Booking Notice (Warning #$warningCount)' : 'Account Booking Notice');
+
+    String primaryNotice = (adminReason != null && adminReason.isNotEmpty)
+        ? adminReason
+        : (isRestricted
+            ? 'Your account is temporarily restricted from creating new reservations. Please review your existing reservations or contact the administrator for assistance.'
+            : 'Please only submit serious inquiries and respect quotation payment deadlines to keep your account in good standing.');
+
+    final until = _customerRestrictionInfo!['restricted_until'] != null
+        ? DateTime.tryParse(_customerRestrictionInfo!['restricted_until'].toString())
+        : null;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: borderColor.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: borderColor.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: titleColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  headerTitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: titleColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  primaryNotice,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (adminReason != null && adminReason.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    isRestricted
+                        ? 'Your account is currently restricted from creating new reservations. Please contact administration for assistance.'
+                        : 'Please only submit serious inquiries and respect quotation payment deadlines to keep your account in good standing.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      height: 1.3,
+                      color: textColor.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+                if (until != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: borderColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Restriction expires: ${DateFormat('MMM d, yyyy h:mm a').format(until.toLocal())}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerDeadlinePill(dynamic expiresAtRaw) {
+    if (expiresAtRaw == null) return const SizedBox.shrink();
+    final expiresAt = expiresAtRaw is DateTime
+        ? expiresAtRaw
+        : DateTime.tryParse(expiresAtRaw.toString());
+    if (expiresAt == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final isExpired = now.isAfter(expiresAt);
+    final diff = expiresAt.difference(now);
+
+    final Color bgColor = isExpired ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7);
+    final Color textColor = isExpired ? const Color(0xFF991B1B) : const Color(0xFF92400E);
+    final Color borderColor = isExpired ? const Color(0xFFF87171) : const Color(0xFFF59E0B);
+    final IconData icon = isExpired ? Icons.timer_off_rounded : Icons.timer_rounded;
+
+    final String text = isExpired
+        ? 'Payment Deadline Passed (Slot Released)'
+        : diff.inHours > 0
+            ? 'Pay within ${diff.inHours}h ${diff.inMinutes % 60}m to secure date'
+            : 'Pay within ${diff.inMinutes}m to secure date';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor.withValues(alpha: 0.8), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -4326,6 +4522,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ),
                   ),
                 ],
+                if (target['quotation_expires_at'] != null) ...[
+                  const SizedBox(height: 8),
+                  _buildCustomerDeadlinePill(target['quotation_expires_at']),
+                ],
                 const SizedBox(height: 12),
                 AnimatedTapScale(
                   onTap: () {
@@ -5862,6 +6062,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 ],
               ),
             ),
+            if (_customerRestrictionInfo != null) ...[
+              _buildCustomerRestrictionBanner(),
+              const SizedBox(height: 6),
+            ],
             const SizedBox(height: 10),
 
             // ── Primary Mode Switcher ──────────────────────────────────
@@ -10137,18 +10341,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       }
 
     } catch (e) {
-
-      _showErrorDialog('Failed to create reservation: $e');
-
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _showErrorDialog(msg);
     } finally {
-
       if (mounted) setState(() => _isLoading = false);
-
     }
-
   }
-
-
 
   String _getPaymentStatusText(
     String status,
@@ -10157,6 +10355,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     bool isPayInFull = false,
     String? bookingStatus,
   }) {
+    if (bookingStatus == 'expired') {
+      return 'EXPIRED';
+    }
     if (!isQuoted) return 'AWAITING TRANSACTION';
 
     final isConfirmed = bookingStatus == 'confirmed' || bookingStatus == 'completed';
@@ -15956,12 +16157,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
 
       } catch (e) {
-
         throw Exception('Invalid date format');
-
       }
 
+      // Validate customer booking eligibility (restrictions, limits, unpaid quotations, spam cooldown)
+      final eligibility = await _reservationService.validateCustomerBookingEligibility(
+        userId: currentUser.id,
+        customerEmail: currentUser.email ?? '',
+        proposedDate: formattedDate,
+        proposedStartTime: startTime,
+        proposedDurationHours: totalDuration,
+        reservationType: _reservationType,
+      );
 
+      if (eligibility['eligible'] != true) {
+        if (mounted) setState(() => _isLoading = false);
+        final reason = eligibility['reason']?.toString() ?? 'You cannot create a reservation at this time.';
+        _showErrorDialog(reason);
+        return;
+      }
 
       // Create record in the appropriate table
 
@@ -16958,8 +17172,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         !isFullyPaid;
 
     // Compute grace period
-    // Cash on site: 3 Days (Event) / 24 Hours (Advance Order) from created_at
-    // Online (PayMongo & GCash QR): 24 Hours from quotation sent (or created_at)
+    // Priority: Use explicit quotation_expires_at configured by admin; fallback to sentAt + grace duration
+    final DateTime? explicitExpiry = reservation['quotation_expires_at'] != null &&
+            reservation['quotation_expires_at'].toString().isNotEmpty
+        ? DateTime.tryParse(reservation['quotation_expires_at'].toString())?.toLocal()
+        : null;
+
     final sentAtRaw = isCashPayment
         ? reservation['created_at']
         : (reservation['price_quotation_sent_at'] ?? reservation['created_at']);
@@ -16971,16 +17189,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final isAdvanceOrder = reservation['_db_table'] == 'advance_orders';
     Duration? remainingGrace;
     bool isGraceExpired = false;
-    if (sentAt != null && !isSettledOrConfirmed) {
-      final Duration graceDuration = isCashPayment
-          ? (isAdvanceOrder ? const Duration(hours: 24) : const Duration(days: 3))
-          : const Duration(hours: 24);
-      final expiry = sentAt.add(graceDuration);
-      final now = DateTime.now();
-      if (now.isAfter(expiry)) {
-        isGraceExpired = true;
-      } else {
-        remainingGrace = expiry.difference(now);
+    DateTime? effectiveExpiry;
+
+    if (!isSettledOrConfirmed) {
+      if (explicitExpiry != null) {
+        effectiveExpiry = explicitExpiry;
+      } else if (sentAt != null) {
+        final Duration graceDuration = isCashPayment
+            ? (isAdvanceOrder ? const Duration(hours: 24) : const Duration(days: 3))
+            : const Duration(hours: 24);
+        effectiveExpiry = sentAt.add(graceDuration);
+      }
+
+      if (effectiveExpiry != null) {
+        final now = DateTime.now();
+        if (now.isAfter(effectiveExpiry)) {
+          isGraceExpired = true;
+        } else {
+          remainingGrace = effectiveExpiry.difference(now);
+        }
       }
     }
 
@@ -17024,7 +17251,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                gradient: isAutoCancelledDueToGrace
+                gradient: (isAutoCancelledDueToGrace || resStatus == 'expired')
                     ? const LinearGradient(
                         colors: [Color(0xFF450A0A), Color(0xFF7F1D1D)],
                         begin: Alignment.topLeft,
@@ -17046,8 +17273,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
                     ),
                     child: Icon(
-                      isAutoCancelledDueToGrace ? Icons.event_busy_rounded : Icons.receipt_long_rounded,
-                      color: isAutoCancelledDueToGrace ? const Color(0xFFFCA5A5) : const Color(0xFFD9A441),
+                      (isAutoCancelledDueToGrace || resStatus == 'expired') ? Icons.event_busy_rounded : Icons.receipt_long_rounded,
+                      color: (isAutoCancelledDueToGrace || resStatus == 'expired') ? const Color(0xFFFCA5A5) : const Color(0xFFD9A441),
                       size: 18,
                     ),
                   ),
@@ -17083,7 +17310,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isAutoCancelledDueToGrace
+                        color: (isAutoCancelledDueToGrace || resStatus == 'expired')
                             ? const Color(0xFFDC2626).withValues(alpha: 0.25)
                             : isAwaitingAdminApproval
                                 ? const Color(0xFFD97706).withValues(alpha: 0.25)
@@ -17094,7 +17321,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                         : const Color(0xFFD9A441).withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isAutoCancelledDueToGrace
+                          color: (isAutoCancelledDueToGrace || resStatus == 'expired')
                               ? const Color(0xFFDC2626).withValues(alpha: 0.6)
                               : isAwaitingAdminApproval
                                   ? const Color(0xFFD97706).withValues(alpha: 0.6)
@@ -17113,7 +17340,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                             height: 5,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isAutoCancelledDueToGrace
+                              color: (isAutoCancelledDueToGrace || resStatus == 'expired')
                                   ? const Color(0xFFEF4444)
                                   : isAwaitingAdminApproval
                                       ? const Color(0xFFF59E0B)
@@ -17127,8 +17354,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           const SizedBox(width: 5),
                           Flexible(
                             child: Text(
-                              isAutoCancelledDueToGrace
-                                  ? 'CANCELLED (EXPIRED)'
+                              (isAutoCancelledDueToGrace || resStatus == 'expired')
+                                  ? 'EXPIRED'
                                   : _getPaymentStatusText(
                                       paymentStatus,
                                       true,
@@ -17139,7 +17366,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               style: GoogleFonts.inter(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w900,
-                                color: isAutoCancelledDueToGrace
+                                color: (isAutoCancelledDueToGrace || resStatus == 'expired')
                                     ? const Color(0xFFFCA5A5)
                                     : isAwaitingAdminApproval
                                         ? const Color(0xFFFDE68A)
@@ -17199,6 +17426,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       ],
                     ),
                   ),
+
 
                   // ── Itemized Menu Items ──────────────────────────────────────────
                   if (reservation['selected_menu_items'] != null) ...[
@@ -17293,27 +17521,37 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   const SizedBox(height: 16),
 
-                  // ── Grace Period Alert Banner (24-Hour for Online / 3-Day Event or 24-Hour Advance for Cash on Site) ─────
+                  // ── Grace Period Alert Banner (Dynamic window configured by Admin / Cash on Site) ─────
                   if (needsDepositPayment && !isAutoCancelledDueToGrace && !isConfirmed && remainingGrace != null) ...[
                     Builder(
                       builder: (context) {
                         final grace = remainingGrace;
                         if (grace == null) return const SizedBox.shrink();
-                        final days = grace.inDays;
-                        final hours = grace.inHours % 24;
+                        final totalHours = grace.inHours;
                         final mins = grace.inMinutes % 60;
                         final secs = grace.inSeconds % 60;
-                        final timeStr = isCashPayment
-                            ? (days > 0
-                                ? '${days}d ${hours}h ${mins}m'
-                                : hours > 0
-                                    ? '${hours}h ${mins}m'
-                                    : '${mins}m ${secs}s')
-                            : (hours > 0
-                                ? '${hours}h ${mins}m'
-                                : mins > 0
-                                    ? '${mins}m ${secs}s'
-                                    : '${secs}s');
+                        final timeStr = totalHours > 0
+                            ? '${totalHours}h ${mins}m'
+                            : (mins > 0
+                                ? '${mins}m ${secs}s'
+                                : '${secs}s');
+
+                        String prefixTitle;
+                        if (explicitExpiry != null && sentAt != null) {
+                          final durationHours = explicitExpiry.difference(sentAt).inHours;
+                          if (durationHours >= 48 && durationHours % 24 == 0) {
+                            prefixTitle = '${durationHours ~/ 24}-Day Grace Period: ';
+                          } else if (durationHours > 0) {
+                            prefixTitle = '$durationHours-Hour Grace Period: ';
+                          } else {
+                            prefixTitle = 'Grace Period: ';
+                          }
+                        } else if (isCashPayment) {
+                          prefixTitle = reservation['_db_table'] == 'advance_orders' ? '24-Hour Payment Window: ' : '3-Day Payment Window: ';
+                        } else {
+                          prefixTitle = 'Grace Period: ';
+                        }
+
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -17339,9 +17577,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     ),
                                     children: [
                                       TextSpan(
-                                        text: isCashPayment
-                                            ? (reservation['_db_table'] == 'advance_orders' ? '24-Hour Payment Window: ' : '3-Day Payment Window: ')
-                                            : '24-Hour Grace Period: ',
+                                        text: prefixTitle,
                                         style: const TextStyle(fontWeight: FontWeight.w800),
                                       ),
                                       TextSpan(
@@ -17392,7 +17628,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   ],
 
                   // ── Actions & Status Pill Callouts ──────────────────────────────
-                  if (isAutoCancelledDueToGrace)
+                  if (isAutoCancelledDueToGrace || resStatus == 'expired')
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
@@ -17406,10 +17642,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 18),
+                              const Icon(Icons.event_busy_rounded, color: Color(0xFFDC2626), size: 18),
                               const SizedBox(width: 8),
                               Text(
-                                'RESERVATION CANCELLED',
+                                resStatus == 'expired' ? 'QUOTATION EXPIRED' : 'RESERVATION CANCELLED',
                                 style: GoogleFonts.inter(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w900,
@@ -17421,11 +17657,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            isCashPayment
-                                ? (reservation['_db_table'] == 'advance_orders'
-                                    ? 'As agreed in the Terms and Conditions upon booking, this Cash on Site advance order was not settled within the 24-hour grace period and has been automatically cancelled. The date slot has been released.'
-                                    : 'As agreed in the Terms and Conditions upon booking, this Cash on Site reservation was not settled within the 3-day grace period and has been automatically cancelled. The date slot has been released.')
-                                : 'As agreed in the Terms and Conditions upon booking, this quotation was not settled within the 24-hour grace period and has been automatically cancelled. The date slot has been released.',
+                            resStatus == 'expired'
+                                ? 'The payment deadline for this quotation has expired and the reserved date/time slot has been released back into availability.'
+                                : (isCashPayment
+                                    ? (reservation['_db_table'] == 'advance_orders'
+                                        ? 'As agreed in the Terms and Conditions upon booking, this Cash on Site advance order was not settled within the 24-hour grace period and has been automatically cancelled. The date slot has been released.'
+                                        : 'As agreed in the Terms and Conditions upon booking, this Cash on Site reservation was not settled within the 3-day grace period and has been automatically cancelled. The date slot has been released.')
+                                    : 'As agreed in the Terms and Conditions upon booking, this quotation was not settled within the grace period and has been automatically cancelled. The date slot has been released.'),
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
