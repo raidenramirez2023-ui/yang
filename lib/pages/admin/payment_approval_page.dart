@@ -40,6 +40,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
   // Collapsed items state (default is expanded)
   final Set<String> _collapsedItemIds = {};
+  String? _highlightedPaymentId;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -380,6 +388,321 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
+  void _showPendingVerificationsModal(BuildContext context) {
+    String searchQuery = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final filtered = _pendingPayments.where((p) {
+            if (searchQuery.trim().isEmpty) return true;
+            final query = searchQuery.toLowerCase().trim();
+            final name = (p['name'] ?? p['customer_name'] ?? p['contact_person'] ?? p['user_email'] ?? '').toString().toLowerCase();
+            final ref = (p['payment_reference'] ?? '').toString().toLowerCase();
+            final eventType = (p['event_type'] ?? '').toString().toLowerCase();
+            final table = (p['_table'] ?? '').toString().toLowerCase();
+            return name.contains(query) || ref.contains(query) || eventType.contains(query) || table.contains(query);
+          }).toList();
+
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: 680,
+                maxHeight: MediaQuery.of(context).size.height * 0.88,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Modal Header ──
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF14332E),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD9A441).withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.verified_user_rounded, color: Color(0xFFD9A441), size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Pending Payment Verifications',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_pendingPayments.length} transactions waiting for approval',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Search & Filter Box ──
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      onChanged: (val) {
+                        setModalState(() {
+                          searchQuery = val;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search customer name, ref #, or order type...',
+                        hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF64748B)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ── List of Pending Items ──
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    searchQuery.isEmpty ? 'No pending payments' : 'No matches found',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF475569)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final p = filtered[index];
+                              final String table = p['_table'] ?? 'reservations';
+                              final bool isAdvanceOrder = table == 'advance_orders';
+                              final String name = (p['name'] ?? p['customer_name'] ?? p['contact_person'] ?? p['user_email'] ?? 'Customer').toString();
+                              final String method = (p['payment_method'] ?? '').toString().toLowerCase();
+                              final bool isCash = method == 'cash';
+                              final double amount = _expectedReceiptAmount(p);
+                              final String dateStr = p['event_date']?.toString() ?? p['created_at']?.toString() ?? '';
+                              final String ref = p['payment_reference']?.toString() ?? (isCash ? 'CASH-ON-SITE' : 'N/A');
+                              final String? receiptUrl = p['receipt_url']?.toString();
+                              final bool hasReceipt = receiptUrl != null && receiptUrl.isNotEmpty;
+
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.02),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Row 1: Badges & Amount
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: isAdvanceOrder ? const Color(0xFFFEF3C7) : const Color(0xFFECFDF5),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                isAdvanceOrder ? 'ADVANCE ORDER' : 'RESERVATION',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isAdvanceOrder ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: isCash ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                isCash ? 'Cash' : 'GCash',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isCash ? const Color(0xFF166534) : const Color(0xFF1D4ED8),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Text(
+                                          '₱${_moneyFmt.format(amount)}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF14332E),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    // Row 2: Customer Name & Date
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        if (dateStr.isNotEmpty) ...[
+                                          const Icon(Icons.calendar_today_rounded, size: 12, color: Color(0xFF64748B)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            dateStr,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                          ),
+                                          const SizedBox(width: 10),
+                                        ],
+                                        const Icon(Icons.receipt_rounded, size: 12, color: Color(0xFF64748B)),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            'Ref: $ref',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+
+                                    // Row 3: Action Buttons
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        if (hasReceipt)
+                                          TextButton.icon(
+                                            onPressed: () => _viewReceiptImage(receiptUrl),
+                                            icon: const Icon(Icons.image_rounded, size: 15, color: Color(0xFFB45309)),
+                                            label: const Text('Receipt', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFFB45309))),
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              backgroundColor: const Color(0xFFFFFBEB),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            ),
+                                          ),
+                                        const SizedBox(width: 8),
+                                        OutlinedButton.icon(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                            final targetId = p['id']?.toString();
+                                            setState(() {
+                                              _selectedModuleTab = 0;
+                                              _currentPage = 1;
+                                              _highlightedPaymentId = targetId;
+
+                                              // Prioritize this targeted payment at index 0 so it appears directly at the top
+                                              final targetIdx = _pendingPayments.indexWhere((item) => item['id']?.toString() == targetId);
+                                              if (targetIdx > 0) {
+                                                final item = _pendingPayments.removeAt(targetIdx);
+                                                _pendingPayments.insert(0, item);
+                                              }
+                                            });
+
+                                            if (_scrollController.hasClients) {
+                                              _scrollController.animateTo(
+                                                0.0,
+                                                duration: const Duration(milliseconds: 300),
+                                                curve: Curves.easeOutCubic,
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFF14332E)),
+                                          label: const Text('Review Details', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF14332E))),
+                                          style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(color: Color(0xFF14332E)),
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Stats calculations
@@ -453,28 +776,51 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       ],
                     ),
                   ),
-                  if (_selectedModuleTab == 0 && totalPending > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
+                  if (totalPending > 0)
+                    Tooltip(
+                      message: 'Click to review $totalPending pending payments',
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _selectedModuleTab = 0;
+                            _currentPage = 1;
+                          });
+                          _showPendingVerificationsModal(context);
+                        },
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.hourglass_top_rounded, size: 14, color: Color(0xFFB45309)),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$totalPending Pending',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFB45309),
-                            ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFB45309).withValues(alpha: 0.12),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.hourglass_top_rounded, size: 14, color: Color(0xFFB45309)),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$totalPending Pending',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              const Icon(Icons.visibility_rounded, size: 13, color: Color(0xFFB45309)),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
 
@@ -664,6 +1010,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     Icons.pending_actions_rounded,
                     const Color(0xFFFFFBEB),
                     const Color(0xFFB45309),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      _showPendingVerificationsModal(context);
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -712,6 +1062,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   Icons.pending_actions_rounded,
                   const Color(0xFFFFFBEB),
                   const Color(0xFFB45309),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _showPendingVerificationsModal(context);
+                  },
                 ),
               ),
               const SizedBox(width: 10),
@@ -800,6 +1154,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       onRefresh: _loadPendingPayments,
                       color: const Color(0xFF14332E),
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.only(bottom: 16),
                         itemCount: paginatedPayments.length + (totalItems > 0 ? 1 : 0),
                         itemBuilder: (context, index) {
@@ -1054,8 +1409,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
-  Widget _buildApprovalStatCard(String label, String value, IconData icon, Color bg, Color iconColor) {
-    return Container(
+  Widget _buildApprovalStatCard(String label, String value, IconData icon, Color bg, Color iconColor, {VoidCallback? onTap}) {
+    final card = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1109,9 +1464,20 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               ],
             ),
           ),
+          if (onTap != null)
+            const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF94A3B8)),
         ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: card,
+      );
+    }
+    return card;
   }
 
   Widget _buildEmptyState() {
@@ -1158,6 +1524,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   Widget _buildPaymentCard(Map<String, dynamic> payment, BuildContext context) {
+    final String paymentId = (payment['id'] ?? '').toString();
+    final bool isHighlighted = _highlightedPaymentId != null && _highlightedPaymentId == paymentId;
     final String table = payment['_table'] ?? 'reservations';
     final bool isAdvanceOrder = table == 'advance_orders';
     final String paymentMethod = (payment['payment_method'] ?? '').toString().toLowerCase();
@@ -1187,15 +1555,26 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       child: _HoverAnimatedCard(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isHighlighted ? const Color(0xFFFFFDF5) : Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(
+              color: isHighlighted ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+              width: isHighlighted ? 2.2 : 1.0,
+            ),
             boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
+              if (isHighlighted)
+                BoxShadow(
+                  color: const Color(0xFFD9A441).withValues(alpha: 0.30),
+                  blurRadius: 18,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 4),
+                )
+              else
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
             ],
           ),
           child: Padding(
@@ -1203,6 +1582,53 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Targeted Account Focus Banner ──
+                if (isHighlighted) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF14332E), Color(0xFF1C453E)],
+                      ),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: const Color(0xFFD9A441), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFD9A441).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.stars_rounded, color: Color(0xFFD9A441), size: 18),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'TARGETED ACCOUNT FOR VERIFICATION',
+                            style: TextStyle(
+                              color: Color(0xFFD9A441),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => setState(() => _highlightedPaymentId = null),
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Padding(
+                            padding: EdgeInsets.all(3),
+                            child: Icon(Icons.close_rounded, color: Colors.white70, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 // ── Transaction Header Bar ────────────────────────────────────
                 Wrap(
                   spacing: 8,
