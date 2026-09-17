@@ -7734,7 +7734,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                         Icon(Icons.stars_rounded, size: 12, color: AppTheme.warmGold),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'YangChow\'s Pagsanjan Member',
+                                          'YC Pagsanjan Member',
                                           style: GoogleFonts.inter(
                                             fontSize: 10.5,
                                             fontWeight: FontWeight.w700,
