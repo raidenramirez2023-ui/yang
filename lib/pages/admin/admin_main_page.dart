@@ -605,7 +605,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       final res = await supabase
           .from('account_deletion_requests')
           .select('id')
-          .eq('status', 'pending_review');
+          .or('status.eq.pending_review,status.eq.pending');
 
       if (mounted) {
         setState(() {

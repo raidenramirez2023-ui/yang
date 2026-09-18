@@ -289,6 +289,7 @@ class _SimplePasswordResetPageState extends State<SimplePasswordResetPage> {
                           controller: _passwordController,
                           obscureText: !_isPasswordVisible,
                           enabled: !_isLoading,
+                          onChanged: (_) => setState(() {}),
                           decoration: InputDecoration(
                             labelText: 'New Password',
                             hintText: 'Enter new password',
@@ -309,12 +310,105 @@ class _SimplePasswordResetPageState extends State<SimplePasswordResetPage> {
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Please enter a password';
+                              return 'Please enter your Password';
                             }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
+                            final hasUppercase = value.contains(RegExp(r'[A-Z]'));
+                            final hasLowercase = value.contains(RegExp(r'[a-z]'));
+                            final hasDigits = value.contains(RegExp(r'[0-9]'));
+                            final hasSpecialCharacters = value.contains(
+                              RegExp(r'[!@#\$%^&*(),.?":{}|<>]'),
+                            );
+
+                            if (value.length < 8 ||
+                                !hasUppercase ||
+                                !hasLowercase ||
+                                !hasDigits ||
+                                !hasSpecialCharacters) {
+                              return 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and special character';
                             }
                             return null;
+                          },
+                        ),
+
+                        // Live Requirements Checklist
+                        Builder(
+                          builder: (_) {
+                            final pass = _passwordController.text;
+                            final hasMinLength = pass.length >= 8;
+                            final hasUppercase = pass.contains(RegExp(r'[A-Z]'));
+                            final hasLowercase = pass.contains(RegExp(r'[a-z]'));
+                            final hasDigits = pass.contains(RegExp(r'[0-9]'));
+                            final hasSpecialCharacters = pass.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+                            final isAllMet = hasMinLength && hasUppercase && hasLowercase && hasDigits && hasSpecialCharacters;
+
+                            Widget buildChip(String label, bool isMet) {
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 13,
+                                    color: isMet ? AppTheme.primaryColor : Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+                                      color: isMet ? AppTheme.primaryColor : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+
+                            return Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isAllMet ? AppTheme.primaryColor.withValues(alpha: 0.08) : Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                border: Border.all(
+                                  color: isAllMet ? AppTheme.primaryColor.withValues(alpha: 0.3) : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        isAllMet ? Icons.verified_user : Icons.shield_outlined,
+                                        size: 13,
+                                        color: isAllMet ? AppTheme.primaryColor : Colors.grey.shade700,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        isAllMet ? 'Strong Password' : 'Password Requirements:',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: isAllMet ? AppTheme.primaryColor : Colors.grey.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 4,
+                                    children: [
+                                      buildChip('8+ Characters', hasMinLength),
+                                      buildChip('Uppercase (A-Z)', hasUppercase),
+                                      buildChip('Lowercase (a-z)', hasLowercase),
+                                      buildChip('Number (0-9)', hasDigits),
+                                      buildChip('Special Char (!@#\$...)', hasSpecialCharacters),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
                           },
                         ),
 
@@ -324,6 +418,7 @@ class _SimplePasswordResetPageState extends State<SimplePasswordResetPage> {
                           controller: _confirmPasswordController,
                           obscureText: !_isConfirmPasswordVisible,
                           enabled: !_isLoading,
+                          onChanged: (_) => setState(() {}),
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             hintText: 'Confirm new password',
@@ -344,10 +439,11 @@ class _SimplePasswordResetPageState extends State<SimplePasswordResetPage> {
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Please confirm your password';
+                              return 'Please confirm your Password';
                             }
-                            if (value != _passwordController.text) {
-                              return 'Passwords do not match';
+                            if (_passwordController.text.isNotEmpty &&
+                                value != _passwordController.text) {
+                              return 'Confirm password does not match the password you entered';
                             }
                             return null;
                           },

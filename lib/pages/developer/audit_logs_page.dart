@@ -18,6 +18,8 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
   List<AuditLog> _logs = [];
   bool _isLoading = true;
   String? _errorMessage;
+  int _currentPage = 1;
+  static const int _pageSize = 100;
 
   // Filters
   final TextEditingController _searchController = TextEditingController();
@@ -97,13 +99,17 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
         action: _selectedAction == 'All Actions' ? null : _selectedAction,
         startDate: start,
         endDate: end,
-        limit: 300,
+        limit: 1500,
       );
 
       if (mounted) {
         setState(() {
           _logs = logs;
           _isLoading = false;
+          final totalPages = (_logs.length / _pageSize).ceil().clamp(1, 99999);
+          if (_currentPage > totalPages) {
+            _currentPage = 1;
+          }
         });
       }
     } catch (e) {
@@ -328,7 +334,12 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _loadLogs,
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            setState(() => _currentPage = 1);
+                            _loadLogs();
+                          },
                     icon: const Icon(Icons.refresh_rounded, size: 16),
                     label: const Text('Refresh'),
                     style: ElevatedButton.styleFrom(
@@ -354,12 +365,15 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 // Search Input
-                SizedBox(
+                  SizedBox(
                   width: 260,
                   height: 40,
                   child: TextField(
                     controller: _searchController,
-                    onSubmitted: (_) => _loadLogs(),
+                    onSubmitted: (_) {
+                      setState(() => _currentPage = 1);
+                      _loadLogs();
+                    },
                     style: GoogleFonts.inter(fontSize: 13, color: DeveloperTheme.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search email, action, text...',
@@ -386,7 +400,10 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                   items: _moduleOptions,
                   onChanged: (val) {
                     if (val != null) {
-                      setState(() => _selectedModule = val);
+                      setState(() {
+                        _selectedModule = val;
+                        _currentPage = 1;
+                      });
                       _loadLogs();
                     }
                   },
@@ -398,7 +415,10 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                   items: _actionOptions,
                   onChanged: (val) {
                     if (val != null) {
-                      setState(() => _selectedAction = val);
+                      setState(() {
+                        _selectedAction = val;
+                        _currentPage = 1;
+                      });
                       _loadLogs();
                     }
                   },
@@ -410,7 +430,10 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                   items: _dateOptions,
                   onChanged: (val) {
                     if (val != null) {
-                      setState(() => _selectedDateRange = val);
+                      setState(() {
+                        _selectedDateRange = val;
+                        _currentPage = 1;
+                      });
                       _loadLogs();
                     }
                   },
@@ -453,121 +476,146 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                               ],
                             ),
                           )
-                        : Container(
-                            decoration: DeveloperTheme.cardDecoration(),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: ListView.separated(
-                                itemCount: _logs.length,
-                                separatorBuilder: (_, __) => const Divider(
-                                  height: 1,
-                                  color: DeveloperTheme.borderSubtle,
-                                ),
-                                itemBuilder: (context, index) {
-                                  final log = _logs[index];
-                                  final actionColor = _getActionColor(log.action);
-                                  return InkWell(
-                                    onTap: () => _showLogDetailModal(log),
-                                    hoverColor: DeveloperTheme.bgCardHover,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      child: Row(
-                                        children: [
-                                          // Action Badge
-                                          Container(
-                                            width: 140,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: actionColor.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(
-                                                color: actionColor.withValues(alpha: 0.3),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              log.action,
-                                              textAlign: TextAlign.center,
-                                              style: DeveloperTheme.monoText(
-                                                fontSize: 11,
-                                                color: actionColor,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
+                        : Builder(
+                            builder: (context) {
+                              final totalItems = _logs.length;
+                              final totalPages = (totalItems / _pageSize).ceil().clamp(1, 99999);
+                              final currentPage = _currentPage.clamp(1, totalPages);
+                              final startIndex = totalItems == 0 ? 0 : (currentPage - 1) * _pageSize;
+                              final endIndex = (startIndex + _pageSize > totalItems) ? totalItems : startIndex + _pageSize;
+                              final paginatedLogs = totalItems == 0 ? <AuditLog>[] : _logs.sublist(startIndex, endIndex);
 
-                                          // Module Chip
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: DeveloperTheme.bgDark,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: DeveloperTheme.borderSubtle),
-                                            ),
-                                            child: Text(
-                                              log.module,
-                                              style: DeveloperTheme.monoText(
-                                                fontSize: 10,
-                                                color: DeveloperTheme.textSecondary,
-                                              ),
-                                            ),
+                              return Container(
+                                decoration: DeveloperTheme.cardDecoration(),
+                                child: Column(
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                        child: ListView.separated(
+                                          itemCount: paginatedLogs.length,
+                                          separatorBuilder: (_, __) => const Divider(
+                                            height: 1,
+                                            color: DeveloperTheme.borderSubtle,
                                           ),
-                                          const SizedBox(width: 16),
+                                          itemBuilder: (context, index) {
+                                            final log = paginatedLogs[index];
+                                            final actionColor = _getActionColor(log.action);
+                                            return InkWell(
+                                              onTap: () => _showLogDetailModal(log),
+                                              hoverColor: DeveloperTheme.bgCardHover,
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                child: Row(
+                                                  children: [
+                                                    // Action Badge
+                                                    Container(
+                                                      width: 140,
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: actionColor.withValues(alpha: 0.12),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(
+                                                          color: actionColor.withValues(alpha: 0.3),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        log.action,
+                                                        textAlign: TextAlign.center,
+                                                        style: DeveloperTheme.monoText(
+                                                          fontSize: 11,
+                                                          color: actionColor,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
 
-                                          // Description & User
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  log.description,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: DeveloperTheme.textPrimary,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  'By: ${log.userEmail} (${log.userRole})',
-                                                  style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                                    // Module Chip
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: DeveloperTheme.bgDark,
+                                                        borderRadius: BorderRadius.circular(4),
+                                                        border: Border.all(color: DeveloperTheme.borderSubtle),
+                                                      ),
+                                                      child: Text(
+                                                        log.module,
+                                                        style: DeveloperTheme.monoText(
+                                                          fontSize: 10,
+                                                          color: DeveloperTheme.textSecondary,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 16),
 
-                                          // Time
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: [
-                                              Text(
-                                                DateFormat('yyyy-MM-dd').format(log.createdAt),
-                                                style: DeveloperTheme.monoText(
-                                                  fontSize: 11,
-                                                  color: DeveloperTheme.textSecondary,
+                                                    // Description & User
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            log.description,
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 13,
+                                                              fontWeight: FontWeight.w500,
+                                                              color: DeveloperTheme.textPrimary,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                          const SizedBox(height: 2),
+                                                          Text(
+                                                            'By: ${log.userEmail} (${log.userRole})',
+                                                            style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+
+                                                    // Time
+                                                    Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                                      children: [
+                                                        Text(
+                                                          DateFormat('yyyy-MM-dd').format(log.createdAt),
+                                                          style: DeveloperTheme.monoText(
+                                                            fontSize: 11,
+                                                            color: DeveloperTheme.textSecondary,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          DateFormat('HH:mm:ss').format(log.createdAt),
+                                                          style: DeveloperTheme.monoText(
+                                                            fontSize: 11,
+                                                            color: DeveloperTheme.textMuted,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    const Icon(Icons.chevron_right_rounded,
+                                                        size: 18, color: DeveloperTheme.textMuted),
+                                                  ],
                                                 ),
                                               ),
-                                              Text(
-                                                DateFormat('HH:mm:ss').format(log.createdAt),
-                                                style: DeveloperTheme.monoText(
-                                                  fontSize: 11,
-                                                  color: DeveloperTheme.textMuted,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Icon(Icons.chevron_right_rounded,
-                                              size: 18, color: DeveloperTheme.textMuted),
-                                        ],
+                                            );
+                                          },
+                                        ),
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
+                                    const Divider(height: 1, color: DeveloperTheme.borderSubtle),
+                                    _buildPaginationFooter(
+                                      totalItems: totalItems,
+                                      startIndex: totalItems == 0 ? 0 : startIndex + 1,
+                                      endIndex: endIndex,
+                                      currentPage: currentPage,
+                                      totalPages: totalPages,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
           ),
         ],
@@ -602,6 +650,123 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
           }).toList(),
           onChanged: onChanged,
         ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationFooter({
+    required int totalItems,
+    required int startIndex,
+    required int endIndex,
+    required int currentPage,
+    required int totalPages,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: DeveloperTheme.bgDark,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 560;
+          final infoText = Text(
+            totalItems == 0
+                ? '0 entries'
+                : 'Showing $startIndex–$endIndex of $totalItems entries',
+            style: DeveloperTheme.monoText(
+              fontSize: 12,
+              color: DeveloperTheme.textSecondary,
+            ),
+          );
+
+          final controls = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page_rounded, size: 20),
+                tooltip: 'First Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage > 1
+                    ? () => setState(() => _currentPage = 1)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                tooltip: 'Previous Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage > 1
+                    ? () => setState(() => _currentPage = currentPage - 1)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.bgCard,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: DeveloperTheme.borderSubtle),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: DeveloperTheme.monoText(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: DeveloperTheme.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                tooltip: 'Next Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage < totalPages
+                    ? () => setState(() => _currentPage = currentPage + 1)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page_rounded, size: 20),
+                tooltip: 'Last Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage < totalPages
+                    ? () => setState(() => _currentPage = totalPages)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+            ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                infoText,
+                const SizedBox(height: 8),
+                controls,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              infoText,
+              controls,
+            ],
+          );
+        },
       ),
     );
   }

@@ -1091,6 +1091,7 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
                   enabled: !_isLoading,
+                  onChanged: (_) => setState(() {}),
                   style: GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Enter new password',
@@ -1121,11 +1122,109 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Please enter a password';
-                    if (value.length < 6) return 'Minimum 6 characters';
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your Password';
+                    }
+                    final hasUppercase = value.contains(RegExp(r'[A-Z]'));
+                    final hasLowercase = value.contains(RegExp(r'[a-z]'));
+                    final hasDigits = value.contains(RegExp(r'[0-9]'));
+                    final hasSpecialCharacters = value.contains(
+                      RegExp(r'[!@#\$%^&*(),.?":{}|<>]'),
+                    );
+
+                    if (value.length < 8 ||
+                        !hasUppercase ||
+                        !hasLowercase ||
+                        !hasDigits ||
+                        !hasSpecialCharacters) {
+                      return 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and special character';
+                    }
                     return null;
                   },
                 ),
+
+                // Live Requirements Checklist
+                Builder(
+                  builder: (_) {
+                    final pass = _passwordController.text;
+                    final hasMinLength = pass.length >= 8;
+                    final hasUppercase = pass.contains(RegExp(r'[A-Z]'));
+                    final hasLowercase = pass.contains(RegExp(r'[a-z]'));
+                    final hasDigits = pass.contains(RegExp(r'[0-9]'));
+                    final hasSpecialCharacters = pass.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+                    final isAllMet = hasMinLength && hasUppercase && hasLowercase && hasDigits && hasSpecialCharacters;
+
+                    Widget buildChip(String label, bool isMet) {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                            size: 13,
+                            color: isMet ? _forestGreen : Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            label,
+                            style: GoogleFonts.poppins(
+                              fontSize: 10.5,
+                              fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+                              color: isMet ? _forestGreen : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isAllMet ? const Color(0xFFE8F5E9) : const Color(0xFFF9F6F0),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isAllMet ? Colors.green.shade300 : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                isAllMet ? Icons.verified_user : Icons.shield_outlined,
+                                size: 13,
+                                color: isAllMet ? _forestGreen : _primaryGold,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                isAllMet ? 'Strong Password' : 'Password Requirements:',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isAllMet ? _forestGreen : const Color(0xFF3D2A1D),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 4,
+                            children: [
+                              buildChip('8+ Characters', hasMinLength),
+                              buildChip('Uppercase (A-Z)', hasUppercase),
+                              buildChip('Lowercase (a-z)', hasLowercase),
+                              buildChip('Number (0-9)', hasDigits),
+                              buildChip('Special Char (!@#\$...)', hasSpecialCharacters),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 14),
                 Text(
                   'Confirm Password',
@@ -1140,6 +1239,7 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                   controller: _confirmPasswordController,
                   obscureText: !_isConfirmPasswordVisible,
                   enabled: !_isLoading,
+                  onChanged: (_) => setState(() {}),
                   style: GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Confirm your password',
@@ -1170,8 +1270,13 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Please confirm your password';
-                    if (value != _passwordController.text) return 'Passwords do not match';
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please confirm your Password';
+                    }
+                    if (_passwordController.text.isNotEmpty &&
+                        value != _passwordController.text) {
+                      return 'Confirm password does not match the password you entered';
+                    }
                     return null;
                   },
                 ),

@@ -52,9 +52,11 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
         final delRes = await supabase
             .from('account_deletion_requests')
             .select('id')
-            .eq('status', 'pending');
+            .or('status.eq.pending_review,status.eq.pending');
         deletionCount = (delRes as List).length;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error loading pending deletions in security events: $e');
+      }
 
       if (mounted) {
         setState(() {
@@ -227,7 +229,7 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
                   ),
                   _buildStatusCard(
                     title: 'Pending Deletions',
-                    status: '$_pendingDeletionCount REQUESTS',
+                    status: _pendingDeletionCount == 1 ? '1 REQUEST' : '$_pendingDeletionCount REQUESTS',
                     details: 'GDPR / Privacy compliance',
                     icon: Icons.delete_sweep_outlined,
                     color: _pendingDeletionCount > 0 ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,

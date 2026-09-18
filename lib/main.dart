@@ -54,6 +54,7 @@ import 'pages/staff/chef_dashboard.dart';
 
 import 'pages/developer/developer_dashboard.dart';
 import 'pages/developer/developer_login_page.dart';
+import 'pages/developer/developer_forgot_password_page.dart';
 import 'pages/developer/error_log_viewer_page.dart';
 import 'pages/system_maintenance_page.dart';
 
@@ -369,6 +370,8 @@ class YangChowApp extends StatelessWidget {
         // ==========================================
         '/developer/login': (context) => const DeveloperLoginPage(),
         '/developer-login': (context) => const DeveloperLoginPage(),
+        '/developer/forgot-password': (context) => const DeveloperForgotPasswordPage(),
+        '/developer-forgot-password': (context) => const DeveloperForgotPasswordPage(),
 
         '/developer/dashboard': (context) => const AuthGuard(
           allowedRoles: ['developer'],
