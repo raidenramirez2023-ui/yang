@@ -83,6 +83,26 @@ class RoleHelper {
     return userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff';
   }
 
+  // Check if current user is developer
+  static Future<bool> isDeveloper() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final response = await _supabase
+          .from('users')
+          .select('role')
+          .eq('email', user.email!)
+          .maybeSingle();
+
+      final role = response?['role']?.toString().toLowerCase() ?? '';
+      return role == 'developer';
+    } catch (e) {
+      debugPrint('Error checking developer role: $e');
+      return false;
+    }
+  }
+
   // Get dashboard route for current user
   static Future<String> getDashboardRoute() async {
     final user = _supabase.auth.currentUser;
@@ -97,6 +117,8 @@ class RoleHelper {
     }
     
     switch (role) {
+      case 'developer':
+        return '/developer/dashboard';
       case 'admin':
         return '/admin/dashboard';
       case 'chef':
@@ -108,3 +130,4 @@ class RoleHelper {
     }
   }
 }
+

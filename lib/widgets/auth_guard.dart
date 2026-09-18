@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/app_settings_service.dart';
 /// A widget that protects routes by checking for a valid Supabase session.
 ///
 /// If the user is not authenticated (no active session), they are redirected
@@ -62,6 +63,17 @@ class _AuthGuardState extends State<AuthGuard> {
         return;
       }
       final userRole = userResponse['role']?.toString().toLowerCase() ?? '';
+
+      // Check Maintenance Mode: Block customer, staff, chef, etc. if maintenance mode is enabled
+      if (userRole != 'developer' && userRole != 'admin') {
+        final isMaintenance = AppSettingsService().isMaintenanceModeEnabled();
+        if (isMaintenance) {
+          debugPrint('🚧 AuthGuard: Maintenance mode active, redirecting $userRole to /maintenance');
+          _redirectToMaintenance();
+          return;
+        }
+      }
+
       if (widget.allowedRoles!.contains(userRole)) {
         if (mounted) {
           setState(() {
@@ -78,6 +90,17 @@ class _AuthGuardState extends State<AuthGuard> {
       _redirectToLogin();
     }
   }
+
+  void _redirectToMaintenance() {
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/maintenance');
+        }
+      });
+    }
+  }
+
   void _redirectToLogin() {
     if (mounted) {
       // Use a post-frame callback to avoid navigation during build

@@ -636,6 +636,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No transactions to export for the selected period.'),
+            backgroundColor: AppTheme.warningOrange,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -668,25 +669,31 @@ class _SalesReportPageState extends State<SalesReportPage>
       final orderIds = transactions
           .where((t) => t['type'] == 'Regular')
           .map((t) => t['db_id'])
+          .where((id) => id != null)
           .toList();
 
       Map<String, String> itemsMap = {};
       if (orderIds.isNotEmpty) {
-        final itemsResponse = await _supabase
-            .from('order_items')
-            .select('order_id, item_name, quantity')
-            .inFilter('order_id', orderIds);
+        // Batch into chunks of 100 to avoid HTTP URL length limit
+        const int chunkSize = 100;
+        for (int i = 0; i < orderIds.length; i += chunkSize) {
+          final chunk = orderIds.sublist(
+            i,
+            (i + chunkSize) > orderIds.length ? orderIds.length : (i + chunkSize),
+          );
+          final itemsResponse = await _supabase
+              .from('order_items')
+              .select('order_id, item_name, quantity')
+              .inFilter('order_id', chunk);
 
-        final List<Map<String, dynamic>> allItems =
-            List<Map<String, dynamic>>.from(itemsResponse);
-
-        for (var item in allItems) {
-          final orderId = item['order_id'].toString();
-          final itemStr = '${item['item_name']} x${item['quantity']}';
-          if (itemsMap.containsKey(orderId)) {
-            itemsMap[orderId] = '${itemsMap[orderId]}, $itemStr';
-          } else {
-            itemsMap[orderId] = itemStr;
+          for (var item in List<Map<String, dynamic>>.from(itemsResponse)) {
+            final orderId = item['order_id'].toString();
+            final itemStr = '${item['item_name']} x${item['quantity']}';
+            if (itemsMap.containsKey(orderId)) {
+              itemsMap[orderId] = '${itemsMap[orderId]}, $itemStr';
+            } else {
+              itemsMap[orderId] = itemStr;
+            }
           }
         }
       }
@@ -739,10 +746,10 @@ class _SalesReportPageState extends State<SalesReportPage>
         ]);
       }
 
-      String csvData = csv_pkg.CsvCodec().encode(rows);
-      final Uint8List bytes = utf8.encode(csvData);
+      final csvData = csv_pkg.CsvCodec().encode(rows);
+      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvData));
 
-      String? outputFile = await FilePicker.platform.saveFile(
+      final outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Yang Chow Sales Report CSV',
         fileName: '$fileName.csv',
         type: FileType.custom,
@@ -750,38 +757,29 @@ class _SalesReportPageState extends State<SalesReportPage>
         bytes: bytes,
       );
 
-      if (outputFile != null) { 
-        if (!kIsWeb) {
-          final file = File(outputFile);
-          await file.writeAsBytes(bytes);
-        }
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text('Sales report saved successfully: $fileName.csv')),
-                ],
-              ),
-              backgroundColor: AppTheme.successGreen,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        if (Navigator.canPop(context)) Navigator.pop(context);
+      if (outputFile != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: AppTheme.errorRed,
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Sales report saved: $fileName.csv')),
+              ],
+            ),
+            backgroundColor: const Color(0xFF15803D),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    } catch (e) {
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
     }
   }
 

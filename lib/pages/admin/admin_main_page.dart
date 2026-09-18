@@ -109,6 +109,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   int _remainingBalanceCount = 0;
   int _pendingRefundCount = 0;
   int _pendingDeletionCount = 0;
+  bool _isMaintenanceActive = false;
 
 
 
@@ -178,6 +179,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     _checkUserRole();
     _loadDelegationSetting();
+    _loadMaintenanceStatus();
     _loadPendingPaymentCount();
     _loadPendingReservationCount();
     _loadRemainingBalanceCount();
@@ -214,6 +216,29 @@ class _AdminMainPageState extends State<AdminMainPage> {
         }
       }
     });
+  }
+
+  Future<void> _loadMaintenanceStatus() async {
+    try {
+      final result = await Supabase.instance.client
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'maintenance_mode_enabled')
+          .maybeSingle();
+      final active =
+          result != null && result['setting_value']?.toString().toLowerCase() == 'true';
+      if (mounted) {
+        setState(() {
+          _isMaintenanceActive = active;
+          if (active && !_isPageAllowedDuringMaintenance(_selectedIndex)) {
+            _selectedIndex = 1; // Auto redirect to Sales Reports (Export Allowed)
+            _syncUrl();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[Admin] Error loading maintenance status: $e');
+    }
   }
 
   Future<void> _checkUserRole() async {
@@ -263,6 +288,16 @@ class _AdminMainPageState extends State<AdminMainPage> {
   }
 
   Future<void> _toggleStaffDelegation(bool newValue) async {
+    if (_isMaintenanceActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Cannot modify duty delegation while system maintenance is active.'),
+          backgroundColor: Color(0xFFB45309),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -623,6 +658,281 @@ class _AdminMainPageState extends State<AdminMainPage> {
     _syncUrl();
   }
 
+  /// Pages the admin is still allowed to access during system maintenance.
+  /// These are read-only / export-only pages that do not trigger any
+  /// approval, confirmation, or data-modification action.
+  static const Set<int> _maintenanceAllowedPages = {
+    0,  // Dashboard       – read-only overview
+    1,  // Sales Reports   – export allowed
+    2,  // Inventory       – view/export only (isViewOnly: true)
+    3,  // Inventory Forecast – read-only
+    5,  // Reservations    – scan pass & view only (actions locked)
+    14, // Audit Logs      – read-only audit trail
+  };
+
+  bool _isPageAllowedDuringMaintenance(int index) {
+    if (!_isMaintenanceActive) return true;
+    return _maintenanceAllowedPages.contains(index);
+  }
+
+  void _showMaintenanceBlockDialog(int index) {
+    final pageName = _pageTitles[index];
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 400,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB45309).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.engineering_rounded,
+                  size: 32,
+                  color: Color(0xFFB45309),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Access Restricted',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF92400E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'System maintenance is currently active.',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFB45309),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Text(
+                  '"$pageName" is not accessible while maintenance is running.\n\nYou may only export data from Sales Reports, Inventory, and Audit Logs during this period.',
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: const Color(0xFF78350F),
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB45309),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: Text(
+                    'Understood',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentPage() {
+    if (_isMaintenanceActive && !_isPageAllowedDuringMaintenance(_selectedIndex)) {
+      return _buildMaintenanceRestrictedView();
+    }
+    if (_selectedIndex == 5) {
+      return AdminReservationsPage(
+        isMaintenanceActive: _isMaintenanceActive,
+      );
+    }
+    return _pages[_selectedIndex];
+  }
+
+  Widget _buildMaintenanceRestrictedView() {
+    final pageName = _pageTitles[_selectedIndex];
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 620),
+        padding: const EdgeInsets.all(32),
+        margin: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFD97706).withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+              ),
+              child: const Icon(
+                Icons.lock_rounded,
+                color: Color(0xFFB45309),
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Actions Temporarily Restricted',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF92400E),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDC2626),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'SYSTEM MAINTENANCE IS ACTIVE',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFB91C1C),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Bawal magsagawa ng anumang aksyon (add, edit, approve, confirm, delete) sa "$pageName" habang aktibo ang maintenance upang maiwasan ang conflict sa system.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: const Color(0xFF475569),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Ang pwede mo lang magawa ngayon ay mag-export ng data:',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF14332E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _onSelectTab(1),
+                  icon: const Icon(Icons.analytics_rounded, size: 18),
+                  label: const Text('Export Sales Reports', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _onSelectTab(2),
+                  icon: const Icon(Icons.inventory_2_rounded, size: 18),
+                  label: const Text('Export Inventory', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF334155),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _onSelectTab(14),
+                  icon: const Icon(Icons.shield_outlined, size: 18),
+                  label: const Text('Export Audit Logs', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
 
 
@@ -716,7 +1026,137 @@ class _AdminMainPageState extends State<AdminMainPage> {
           _showLogoutDialog(context);
         }
       },
-      child: layout,
+      child: Column(
+        children: [
+          // ── Maintenance Warning Banner (Top) ──
+          if (_isMaintenanceActive)
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF92400E), Color(0xFFB45309), Color(0xFF92400E)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD97706).withValues(alpha: 0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Pulsing dot + icon
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const Icon(Icons.engineering_rounded, color: Colors.white, size: 18),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Label + details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFCA5A5),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'SYSTEM MAINTENANCE IS ACTIVE',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'System maintenance is currently running. All actions and modifications are restricted. Data export is permitted.',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            _buildBannerRestrictionChip(Icons.lock_rounded, 'Actions Locked'),
+                            _buildBannerRestrictionChip(Icons.money_off_rounded, 'Payments'),
+                            _buildBannerAllowedChip(Icons.qr_code_scanner_rounded, 'Scan Pass Allowed'),
+                            _buildBannerAllowedChip(Icons.file_download_outlined, 'Export Allowed'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+
+                  // Refresh button
+                  GestureDetector(
+                    onTap: _loadMaintenanceStatus,
+                    child: Tooltip(
+                      message: 'Refresh status',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.refresh_rounded, color: Colors.white, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Refresh',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(child: layout),
+        ],
+      ),
     );
   }
 
@@ -725,6 +1165,62 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
+
+  Widget _buildBannerRestrictionChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.block_rounded, size: 10, color: Color(0xFFFCA5A5)),
+          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: Colors.white70),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBannerAllowedChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF065F46).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.7)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFF6EE7B7)),
+          const SizedBox(width: 4),
+          Icon(icon, size: 11, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildDesktopLayout() {
 
@@ -759,7 +1255,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                           padding: const EdgeInsets.all(24),
 
-                          child: _pages[_selectedIndex],
+                          child: _buildCurrentPage(),
 
                         ),
 
@@ -878,6 +1374,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildNavTile({required int index, required bool isDrawer}) {
     final isSelected = _selectedIndex == index;
+    final isBlocked = !_isPageAllowedDuringMaintenance(index);
 
     // Badges calculation - exactly preserves existing logic
     int badgeCount = 0;
@@ -893,86 +1390,129 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: Material(
-        color: isSelected ? AppTheme.activeSidebarItemBackground : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
+      child: Opacity(
+        opacity: isBlocked ? 0.45 : 1.0,
+        child: Material(
+          color: isSelected && !isBlocked ? AppTheme.activeSidebarItemBackground : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          hoverColor: Colors.white.withValues(alpha: 0.05),
-          onTap: () {
-            _onSelectTab(index);
-
-            // Refresh count when switching to Payment Management
-            if (_pageTitles[index] == 'Payment Management') {
-              if (mounted) {
-                setState(() {
-                  _pendingPaymentCount = 0;
-                  _remainingBalanceCount = 0;
-                });
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            hoverColor: isBlocked
+                ? const Color(0xFFB45309).withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.05),
+            onTap: () {
+              // ── Maintenance guard ──
+              if (isBlocked) {
+                _showMaintenanceBlockDialog(index);
+                return;
               }
-            }
 
-            // Refresh count when switching to Reservations
-            if (_pageTitles[index] == 'Reservations') {
-              if (mounted) {
-                setState(() {
-                  _pendingReservationCount = 0;
-                });
+              _onSelectTab(index);
+
+              // Refresh count when switching to Payment Management
+              if (_pageTitles[index] == 'Payment Management') {
+                if (mounted) {
+                  setState(() {
+                    _pendingPaymentCount = 0;
+                    _remainingBalanceCount = 0;
+                  });
+                }
               }
-            }
 
-            // Refresh count when switching to Refunds & Reschedules
-            if (_pageTitles[index] == 'Refunds & Reschedules') {
-              _loadPendingRefundCount();
-            }
+              // Refresh count when switching to Reservations
+              if (_pageTitles[index] == 'Reservations') {
+                if (mounted) {
+                  setState(() {
+                    _pendingReservationCount = 0;
+                  });
+                }
+              }
 
-            // Refresh count when switching to Deletion Requests
-            if (_pageTitles[index] == 'Deletion Requests') {
-              _loadPendingDeletionCount();
-            }
+              // Refresh count when switching to Refunds & Reschedules
+              if (_pageTitles[index] == 'Refunds & Reschedules') {
+                _loadPendingRefundCount();
+              }
 
-            if (isDrawer) {
-              Navigator.pop(context);
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                if (isSelected)
-                  Container(
-                    width: 3.5,
-                    height: 18,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.activeSidebarAccent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  )
-                else
-                  const SizedBox(width: 0),
-                Icon(
-                  _pageIcons[index],
-                  size: 19,
-                  color: isSelected
-                      ? AppTheme.activeSidebarAccent
-                      : const Color(0xFFC7D6D3),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _pageTitles[index],
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      fontSize: 13,
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFFE2E8F0),
+              // Refresh count when switching to Deletion Requests
+              if (_pageTitles[index] == 'Deletion Requests') {
+                _loadPendingDeletionCount();
+              }
+
+              if (isDrawer) {
+                Navigator.pop(context);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  if (isSelected && !isBlocked)
+                    Container(
+                      width: 3.5,
+                      height: 18,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.activeSidebarAccent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 0),
+                  Icon(
+                    _pageIcons[index],
+                    size: 19,
+                    color: isBlocked
+                        ? const Color(0xFF92400E).withValues(alpha: 0.8)
+                        : isSelected
+                            ? AppTheme.activeSidebarAccent
+                            : const Color(0xFFC7D6D3),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _pageTitles[index],
+                      style: TextStyle(
+                        fontWeight: isSelected && !isBlocked ? FontWeight.w600 : FontWeight.w500,
+                        fontSize: 13,
+                        color: isBlocked
+                            ? const Color(0xFFFDE68A)
+                            : isSelected
+                                ? Colors.white
+                                : const Color(0xFFE2E8F0),
+                      ),
                     ),
                   ),
-                ),
-                if (badgeCount > 0) _buildNavBadge(badgeCount),
-              ],
+                  if (isBlocked)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.lock_rounded,
+                        size: 12,
+                        color: Color(0xFFFCA5A5),
+                      ),
+                    )
+                  else if (_isMaintenanceActive && index == 5)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF2DD4BF), width: 0.8),
+                      ),
+                      child: Text(
+                        'SCAN',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF2DD4BF),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    )
+                  else if (badgeCount > 0)
+                    _buildNavBadge(badgeCount),
+                ],
+              ),
             ),
           ),
         ),
@@ -1082,6 +1622,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
               height: 1,
               color: Colors.white.withValues(alpha: 0.08),
             ),
+            const SizedBox(height: 8),
+
             const SizedBox(height: 8),
 
             // Categorized Navigation List
@@ -1367,7 +1909,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
           children: [
 
-            _pages[_selectedIndex],
+            _buildCurrentPage(),
 
             // Chat Modal Overlay
 
@@ -1394,7 +1936,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
         drawer: _buildDrawer(),
         body: Stack(
           children: [
-            _pages[_selectedIndex],
+            _buildCurrentPage(),
             const AdminChatModal(),
           ],
         ),
@@ -1620,13 +2162,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
       onTap: (index) {
-
-
-
+        if (!_isPageAllowedDuringMaintenance(index)) {
+          _showMaintenanceBlockDialog(index);
+          return;
+        }
         setState(() => _selectedIndex = index);
-
-
-
       },
 
 

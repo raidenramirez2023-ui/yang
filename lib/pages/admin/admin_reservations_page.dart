@@ -12,16 +12,49 @@ import 'package:yang_chow/services/email_notification_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
 import 'package:yang_chow/widgets/admin_add_event_dialog.dart';
+import 'package:yang_chow/services/app_settings_service.dart';
+import 'package:yang_chow/utils/global_messenger.dart';
 
 class AdminReservationsPage extends StatefulWidget {
   final bool isFullscreen;
-  const AdminReservationsPage({super.key, this.isFullscreen = false});
+  final bool isMaintenanceActive;
+  const AdminReservationsPage({
+    super.key,
+    this.isFullscreen = false,
+    this.isMaintenanceActive = false,
+  });
 
   @override
   State<AdminReservationsPage> createState() => _AdminReservationsPageState();
 }
 
 class _AdminReservationsPageState extends State<AdminReservationsPage> {
+  bool _localMaintenanceActive = false;
+  bool get _isMaintenance =>
+      widget.isMaintenanceActive || _localMaintenanceActive || AppSettingsService().isMaintenanceModeEnabled();
+
+  void _showMaintenanceActionBlockedSnackbar([String actionName = 'This action']) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.lock_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '⚠️ $actionName is locked while system maintenance is active. Only QR scanning is allowed.',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFB45309),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> reservations = [];
   bool _isLoading = true;
   String _selectedFilter = 'all'; // all, pending, quotation_sent, awaiting_payment, confirmed, completed, cancelled, no_show, expired, restricted_customers, archived
@@ -93,6 +126,21 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
       // Check for expired quotations and automatically release slots
       await _reservationService.checkAndExpireQuotations();
+
+      // Check maintenance status dynamically
+      try {
+        final mRes = await Supabase.instance.client
+            .from('app_settings')
+            .select('setting_value')
+            .eq('setting_key', 'maintenance_mode_enabled')
+            .maybeSingle();
+        if (mRes != null) {
+          final isM = mRes['setting_value']?.toString().toLowerCase() == 'true';
+          if (mounted && isM != _localMaintenanceActive) {
+            setState(() => _localMaintenanceActive = isM);
+          }
+        }
+      } catch (_) {}
 
       // Debug: Check current user
       final currentUser = Supabase.instance.client.auth.currentUser;
@@ -563,34 +611,24 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              color == Colors.green ? Icons.check_circle_rounded : Icons.error_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        margin: EdgeInsets.only(
-          bottom: MediaQuery.of(context).size.height - 110,
-          left: 16,
-          right: 16,
-        ),
-      ),
-    );
+    final isGreen = color == Colors.green ||
+        color == const Color(0xFF15803D) ||
+        color == const Color(0xFF10B981);
+    final isRed = color == Colors.red ||
+        color == const Color(0xFFDC2626) ||
+        color == const Color(0xFFEF4444);
+    final isOrange = color == Colors.orange ||
+        color == const Color(0xFFF59E0B);
+
+    if (isGreen) {
+      GlobalMessenger.showSuccess(message);
+    } else if (isRed) {
+      GlobalMessenger.showError(message);
+    } else if (isOrange) {
+      GlobalMessenger.showWarning(message);
+    } else {
+      GlobalMessenger.showSuccess(message);
+    }
   }
 
   List<Map<String, dynamic>> get _filteredReservations {
@@ -927,15 +965,45 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Event Reservations',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _darkBg,
-                    letterSpacing: -0.4,
-                  ),
-                  maxLines: 2,
+                Row(
+                  children: [
+                    Text(
+                      'Event Reservations',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: _darkBg,
+                        letterSpacing: -0.4,
+                      ),
+                      maxLines: 2,
+                    ),
+                    if (_isMaintenance) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFF59E0B)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.qr_code_scanner_rounded, size: 11, color: Color(0xFFB45309)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'SCAN ONLY (MAINTENANCE)',
+                              style: GoogleFonts.inter(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF92400E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   'Manage, approve and track all reservation bookings',
@@ -951,22 +1019,28 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
           ),
           ElevatedButton.icon(
-            icon: const Icon(Icons.add_rounded, size: 18),
+            icon: Icon(_isMaintenance ? Icons.lock_outline_rounded : Icons.add_rounded, size: 18),
             label: ResponsiveUtils.isMobile(context) 
                 ? const SizedBox.shrink() 
                 : Text('Add Event', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF14332E),
-              foregroundColor: AppTheme.warmGold,
+              backgroundColor: _isMaintenance ? const Color(0xFFCBD5E1) : const Color(0xFF14332E),
+              foregroundColor: _isMaintenance ? const Color(0xFF64748B) : AppTheme.warmGold,
               padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () => AdminAddEventDialog.show(
-              context,
-              onEventCreated: () {
-                _loadReservations();
-              },
-            ),
+            onPressed: () {
+              if (_isMaintenance) {
+                _showMaintenanceActionBlockedSnackbar('Adding new events');
+                return;
+              }
+              AdminAddEventDialog.show(
+                context,
+                onEventCreated: () {
+                  _loadReservations();
+                },
+              );
+            },
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
@@ -975,8 +1049,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 ? const SizedBox.shrink() 
                 : Text('Scan Pass', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF14332E),
-              foregroundColor: AppTheme.warmGold,
+              backgroundColor: _isMaintenance ? const Color(0xFF0F766E) : const Color(0xFF14332E),
+              foregroundColor: _isMaintenance ? Colors.white : AppTheme.warmGold,
               padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -2514,7 +2588,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
     // 1. Primary contextual quick action
     Widget primaryAction;
-    if (isArchived) {
+    if (_isMaintenance) {
+      primaryAction = _buildCompactActionButton(
+        icon: Icons.visibility_rounded,
+        color: const Color(0xFF0284C7),
+        tooltip: 'View Details (Read-only during maintenance)',
+        onPressed: () => _showViewReservationDialog(reservation),
+      );
+    } else if (isArchived) {
       primaryAction = _buildCompactActionButton(
         icon: Icons.restore_rounded,
         color: const Color(0xFF15803D),
@@ -2574,6 +2655,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         child: const Icon(Icons.more_horiz_rounded, size: 15, color: Color(0xFF475569)),
       ),
       onSelected: (action) {
+        if (_isMaintenance && action != 'view') {
+          _showMaintenanceActionBlockedSnackbar('Modifying or confirming reservations');
+          return;
+        }
         switch (action) {
           case 'view':
             _showViewReservationDialog(reservation);
@@ -4699,85 +4784,87 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         onPressed: () => ReceiptPdfService.printOrShareVoucher(reservation),
                       ),
                     ),
-                    if (status == 'confirmed') ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.person_off_rounded, size: 16),
-                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Mark No-Show', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEA580C),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                    if (!_isMaintenance) ...[
+                      if (status == 'confirmed') ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.person_off_rounded, size: 16),
+                            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Mark No-Show', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEA580C),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showMarkNoShowConfirmationDialog(reservation['id'], reservation);
+                            },
                           ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showMarkNoShowConfirmationDialog(reservation['id'], reservation);
-                          },
                         ),
-                      ),
-                    ],
-                    if (status == 'no_show') ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.restore_page_rounded, size: 16),
-                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Mark Arrived', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF15803D),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                      ],
+                      if (status == 'no_show') ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.restore_page_rounded, size: 16),
+                            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Mark Arrived', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF15803D),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showRevertNoShowConfirmationDialog(reservation['id'], reservation);
+                            },
                           ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showRevertNoShowConfirmationDialog(reservation['id'], reservation);
-                          },
                         ),
-                      ),
-                    ],
-                    if (isPending && needsPricing) ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.monetization_on_rounded, size: 16),
-                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Set Price', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C3AED),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                      ],
+                      if (isPending && needsPricing) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.monetization_on_rounded, size: 16),
+                            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Set Price', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7C3AED),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showPriceQuotationDialog(reservation);
+                            },
                           ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showPriceQuotationDialog(reservation);
-                          },
                         ),
-                      ),
-                    ],
-                    if (isPending && priceQuotationSent) ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.check_rounded, size: 16),
-                          label: FittedBox(fit: BoxFit.scaleDown, child: Text('Accept', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF15803D),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                      ],
+                      if (isPending && priceQuotationSent) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check_rounded, size: 16),
+                            label: FittedBox(fit: BoxFit.scaleDown, child: Text('Accept', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700))),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF15803D),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _updateReservationStatus(reservation['id'], 'confirmed', reservation);
+                            },
                           ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _updateReservationStatus(reservation['id'], 'confirmed', reservation);
-                          },
                         ),
-                      ),
+                      ],
                     ],
                   ],
                 ),

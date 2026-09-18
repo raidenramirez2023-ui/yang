@@ -224,4 +224,111 @@ class AppSettingsService {
       _cachedSettings['inventory_import_passcode'] = newPasscode;
     }
   }
+
+  // ==================== Maintenance Mode Settings ====================
+
+  bool isMaintenanceModeEnabled() =>
+      getSetting<bool>('maintenance_mode_enabled', defaultValue: false) ?? false;
+
+  String getMaintenanceReason() =>
+      getSetting<String>('maintenance_reason', defaultValue: 'Scheduled System Maintenance') ??
+      'Scheduled System Maintenance';
+
+  String getMaintenanceMessage() =>
+      getSetting<String>('maintenance_message',
+          defaultValue: 'Yang Chow Palace is temporarily undergoing scheduled maintenance. Please check back shortly.') ??
+      'Yang Chow Palace is temporarily undergoing scheduled maintenance. Please check back shortly.';
+
+  String? getMaintenanceStartTime() =>
+      getSetting<String>('maintenance_start_time');
+
+  String? getMaintenanceEndTime() =>
+      getSetting<String>('maintenance_end_time');
+
+  String? getMaintenanceUpdatedBy() =>
+      getSetting<String>('maintenance_updated_by');
+
+  Future<void> setMaintenanceMode({
+    required bool enabled,
+    String? reason,
+    String? message,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? updatedBy,
+  }) async {
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    final startIso = startTime?.toUtc().toIso8601String() ?? '';
+    final endIso = endTime?.toUtc().toIso8601String() ?? '';
+    final cleanReason = reason ?? getMaintenanceReason();
+    final cleanMessage = message ?? getMaintenanceMessage();
+
+    final updates = [
+      {
+        'setting_key': 'maintenance_mode_enabled',
+        'setting_value': enabled ? 'true' : 'false',
+        'setting_type': 'boolean',
+        'description': 'Flag indicating whether system technical maintenance mode is active',
+        'updated_at': nowIso,
+      },
+      {
+        'setting_key': 'maintenance_reason',
+        'setting_value': cleanReason,
+        'setting_type': 'string',
+        'description': 'Reason for current or upcoming maintenance mode',
+        'updated_at': nowIso,
+      },
+      {
+        'setting_key': 'maintenance_message',
+        'setting_value': cleanMessage,
+        'setting_type': 'string',
+        'description': 'User-facing notice message displayed during maintenance',
+        'updated_at': nowIso,
+      },
+      {
+        'setting_key': 'maintenance_start_time',
+        'setting_value': startIso,
+        'setting_type': 'string',
+        'description': 'ISO timestamp of maintenance start window',
+        'updated_at': nowIso,
+      },
+      {
+        'setting_key': 'maintenance_end_time',
+        'setting_value': endIso,
+        'setting_type': 'string',
+        'description': 'ISO timestamp of estimated maintenance end window',
+        'updated_at': nowIso,
+      },
+    ];
+
+    if (updatedBy != null && updatedBy.isNotEmpty) {
+      updates.add({
+        'setting_key': 'maintenance_updated_by',
+        'setting_value': updatedBy,
+        'setting_type': 'string',
+        'description': 'Email of developer/IT admin who modified maintenance mode',
+        'updated_at': nowIso,
+      });
+    }
+
+    try {
+      for (final item in updates) {
+        await _supabase.from('app_settings').upsert(item, onConflict: 'setting_key');
+        _cachedSettings[item['setting_key'] as String] = item['setting_key'] == 'maintenance_mode_enabled'
+            ? enabled
+            : item['setting_value'];
+      }
+    } catch (e) {
+      debugPrint('Error saving maintenance mode settings: $e');
+      // Update cache even if offline/db issue
+      _cachedSettings['maintenance_mode_enabled'] = enabled;
+      _cachedSettings['maintenance_reason'] = cleanReason;
+      _cachedSettings['maintenance_message'] = cleanMessage;
+      _cachedSettings['maintenance_start_time'] = startIso;
+      _cachedSettings['maintenance_end_time'] = endIso;
+      if (updatedBy != null) {
+        _cachedSettings['maintenance_updated_by'] = updatedBy;
+      }
+    }
+  }
 }
+
