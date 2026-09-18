@@ -390,20 +390,20 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statMetric('Tracked Tables', '${tables.length}', DeveloperTheme.accentIndigo, Icons.table_view_rounded),
+                _statMetric('Tracked Tables', '${tables.length}', DeveloperTheme.accentIndigo, Icons.table_view),
                 Container(width: 1, height: 32, color: DeveloperTheme.borderSubtle),
                 _statMetric(
                   'Total Live Records',
                   _loadingCounts ? 'Scanning...' : '$totalRows rows',
                   DeveloperTheme.accentCyan,
-                  Icons.data_object_rounded,
+                  Icons.data_object,
                 ),
                 Container(width: 1, height: 32, color: DeveloperTheme.borderSubtle),
                 _statMetric(
                   'Selected for Export',
                   '${_selectedExportTables.length} / ${tables.length} tables',
                   DeveloperTheme.accentAmber,
-                  Icons.check_box_outlined,
+                  Icons.check_box,
                 ),
               ],
             ),
@@ -476,7 +476,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
       children: [
         _quickChip(
           label: allSelected ? 'Deselect All' : 'Select All',
-          icon: allSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+          icon: allSelected ? Icons.deselect : Icons.select_all_rounded,
           color: DeveloperTheme.accentIndigo,
           onTap: () => setState(() {
             if (allSelected) {
@@ -494,7 +494,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
           final allCatSelected = _selectedExportTables.containsAll(catTables);
           return _quickChip(
             label: cat,
-            icon: allCatSelected ? Icons.folder_rounded : Icons.folder_outlined,
+            icon: allCatSelected ? Icons.folder : Icons.folder,
             color: DeveloperTheme.accentCyan,
             onTap: () => setState(() {
               if (allCatSelected) {
@@ -668,7 +668,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.cloud_upload_outlined, size: 40, color: DeveloperTheme.textMuted),
+                    const Icon(Icons.cloud_upload, size: 40, color: DeveloperTheme.textMuted),
                     const SizedBox(height: 8),
                     Text(
                       'Upload a backup file to enable restore options',

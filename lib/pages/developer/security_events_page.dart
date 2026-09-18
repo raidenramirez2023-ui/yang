@@ -231,7 +231,7 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
                     title: 'Pending Deletions',
                     status: _pendingDeletionCount == 1 ? '1 REQUEST' : '$_pendingDeletionCount REQUESTS',
                     details: 'GDPR / Privacy compliance',
-                    icon: Icons.delete_sweep_outlined,
+                    icon: Icons.delete_sweep,
                     color: _pendingDeletionCount > 0 ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
                   ),
                 ],

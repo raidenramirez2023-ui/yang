@@ -283,7 +283,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     CircleAvatar(
                       radius: 12,
                       backgroundColor: DeveloperTheme.accentIndigo.withValues(alpha: 0.2),
-                      child: const Icon(Icons.terminal_rounded, size: 14, color: DeveloperTheme.accentIndigo),
+                      child: const Icon(Icons.terminal, size: 14, color: DeveloperTheme.accentIndigo),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -329,7 +329,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     border: Border.all(color: DeveloperTheme.accentIndigo.withValues(alpha: 0.4)),
                   ),
                   child: const Icon(
-                    Icons.terminal_rounded,
+                    Icons.terminal,
                     color: DeveloperTheme.accentIndigo,
                     size: 22,
                   ),
@@ -367,15 +367,15 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
               children: [
-                _buildNavItem(0, 'System Overview', Icons.dashboard_outlined),
-                _buildNavItem(1, 'System Health & Status', Icons.health_and_safety_outlined),
+                _buildNavItem(0, 'System Overview', Icons.dashboard),
+                _buildNavItem(1, 'System Health & Status', Icons.health_and_safety),
                 _buildNavItem(2, 'Audit Logs', Icons.receipt_long_outlined),
                 _buildNavItem(3, 'Security Events', Icons.shield_outlined),
-                _buildNavItem(4, 'User & Role Monitoring', Icons.manage_accounts_outlined),
-                _buildNavItem(5, 'Maintenance Mode', Icons.build_circle_outlined),
-                _buildNavItem(6, 'Backup Status', Icons.backup_outlined),
+                _buildNavItem(4, 'User & Role Monitoring', Icons.manage_accounts),
+                _buildNavItem(5, 'Maintenance Mode', Icons.build_circle),
+                _buildNavItem(6, 'Backup Status', Icons.backup),
                 _buildNavItem(7, 'System Information', Icons.info_outline_rounded),
-                _buildNavItem(8, 'Error Log Viewer', Icons.bug_report_outlined),
+                _buildNavItem(8, 'Error Log Viewer', Icons.bug_report),
               ],
             ),
           ),
@@ -520,7 +520,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     value: _isMaintenanceActive ? 'MAINTENANCE' : 'OPERATIONAL',
                     subtitle: _isMaintenanceActive ? 'Technical Mode Active' : 'Normal Operations',
                     color: _isMaintenanceActive ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
-                    icon: Icons.power_rounded,
+                    icon: Icons.power,
                     onTap: () => setState(() => _selectedIndex = 5),
                   ),
                   _buildQuickCard(
@@ -536,7 +536,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     value: 'VERIFIED',
                     subtitle: 'RLS & Identity Protected',
                     color: DeveloperTheme.accentIndigo,
-                    icon: Icons.shield_rounded,
+                    icon: Icons.shield,
                     onTap: () => setState(() => _selectedIndex = 3),
                   ),
                   _buildQuickCard(
@@ -544,7 +544,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     value: 'ISOLATED',
                     subtitle: 'Admin / IT Separated',
                     color: DeveloperTheme.accentPurple,
-                    icon: Icons.fingerprint_rounded,
+                    icon: Icons.fingerprint,
                     onTap: () => setState(() => _selectedIndex = 4),
                   ),
                 ],
@@ -564,7 +564,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 child: _buildActionTile(
                   title: 'Toggle Maintenance Mode',
                   desc: 'Activate scheduled technical maintenance or emergency pause',
-                  icon: Icons.build_circle_outlined,
+                  icon: Icons.build_circle,
                   color: DeveloperTheme.accentAmber,
                   onTap: () => setState(() => _selectedIndex = 5),
                 ),
@@ -584,7 +584,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 child: _buildActionTile(
                   title: 'Verify Database Backups',
                   desc: 'Inspect tables and trigger structured JSON data exports',
-                  icon: Icons.backup_outlined,
+                  icon: Icons.backup,
                   color: DeveloperTheme.accentIndigo,
                   onTap: () => setState(() => _selectedIndex = 6),
                 ),

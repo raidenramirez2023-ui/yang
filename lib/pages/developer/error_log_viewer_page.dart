@@ -1031,7 +1031,7 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
       children: [
         Row(
           children: [
-            const Icon(Icons.storage_rounded, size: 18, color: DeveloperTheme.accentAmber),
+            const Icon(Icons.storage, size: 18, color: DeveloperTheme.accentAmber),
             const SizedBox(width: 8),
             Text('Database-Level Error Activity', style: DeveloperTheme.headingMedium()),
             const SizedBox(width: 8),

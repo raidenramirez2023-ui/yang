@@ -172,7 +172,7 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
                 physics: const NeverScrollableScrollPhysics(),
                 childAspectRatio: isWide ? 2.0 : 1.8,
                 children: [
-                  _buildRoleCard('Developers', developerCount, DeveloperTheme.accentCyan, Icons.code_rounded),
+                  _buildRoleCard('Developers', developerCount, DeveloperTheme.accentCyan, Icons.code),
                   _buildRoleCard('Admins', adminCount, DeveloperTheme.accentRose, Icons.admin_panel_settings_rounded),
                   _buildRoleCard('Staff & POS', staffCount, DeveloperTheme.accentIndigo, Icons.badge_rounded),
                   _buildRoleCard('Chefs & Kitchen', chefCount, DeveloperTheme.accentAmber, Icons.restaurant_rounded),

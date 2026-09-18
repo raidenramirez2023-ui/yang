@@ -466,7 +466,7 @@ class _DeveloperForgotPasswordPageState
           decoration: InputDecoration(
             hintText: 'yangchowit@gmail.com',
             hintStyle: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
-            prefixIcon: const Icon(Icons.alternate_email_rounded,
+            prefixIcon: const Icon(Icons.badge_outlined,
                 size: 18, color: DeveloperTheme.textMuted),
             filled: true,
             fillColor: DeveloperTheme.bgDark,
