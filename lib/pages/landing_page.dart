@@ -1170,6 +1170,8 @@ class _LandingPageState extends State<LandingPage>
     } else if (email.toLowerCase() == 'chefycp@gmail.com' ||
         email.toLowerCase() == 'chefycp.gmail.com') {
       Navigator.pushReplacementNamed(context, '/chef/dashboard');
+    } else if (userRole == 'developer') {
+      Navigator.pushReplacementNamed(context, '/developer/dashboard');
     } else if (userRole == 'admin') {
       Navigator.pushReplacementNamed(context, '/admin/dashboard');
     } else if (userRole == 'inventory staff' || userRole == 'pagsanjaninv') {

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/audit_log_service.dart';
+import '../services/app_logger.dart';
 import '../utils/app_theme.dart';
 
 typedef ReservationVerifiedCallback = void Function(Map<String, dynamic> reservation);
@@ -178,7 +179,13 @@ class _QrScannerDialogState extends State<QrScannerDialog> with SingleTickerProv
           _isProcessing = false;
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error(
+        module: 'QR_SCANNER',
+        message: 'Error processing scanned code: "$code"',
+        error: e,
+        stackTrace: stack,
+      );
       if (mounted) {
         setState(() {
           _errorMessage = 'Scan error: $e';
@@ -190,6 +197,10 @@ class _QrScannerDialogState extends State<QrScannerDialog> with SingleTickerProv
 
   Future<void> _performCheckIn() async {
     if (_verifiedReservation == null) return;
+
+    // Capture Navigator and ScaffoldMessenger before async operations
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final navigator = Navigator.of(context);
 
     setState(() => _isProcessing = true);
 
@@ -240,32 +251,50 @@ class _QrScannerDialogState extends State<QrScannerDialog> with SingleTickerProv
         } catch (_) {}
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF15803D),
-            content: Row(
-              children: [
-                const Icon(Icons.verified_rounded, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isAdvanceOrder
-                        ? 'Order released and served to $customerName!'
-                        : 'Verified booking for $customerName!',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      final verifiedData = _verifiedReservation!;
 
-        final verifiedData = _verifiedReservation!;
-        Navigator.pop(context);
-        widget.onCheckInSuccess?.call(verifiedData);
+      // Safely dismiss the dialog
+      if (navigator.canPop()) {
+        navigator.pop();
       }
-    } catch (e) {
+
+      // Show success feedback via captured messenger
+      messenger?.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF15803D),
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.verified_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isAdvanceOrder
+                      ? 'Order released and served to $customerName!'
+                      : 'Verified booking for $customerName!',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      widget.onCheckInSuccess?.call(verifiedData);
+    } catch (e, stack) {
+      AppLogger.error(
+        module: 'QR_CHECK_IN',
+        message: 'Guest pass verification failed for ${_verifiedReservation?['customer_name'] ?? 'Guest'}',
+        error: e,
+        stackTrace: stack,
+        entityId: _verifiedReservation?['id']?.toString(),
+        context: {
+          'reservation_id': _verifiedReservation?['id'],
+          'customer_name': _verifiedReservation?['customer_name'],
+          'customer_email': _verifiedReservation?['customer_email'],
+        },
+      );
+
       if (mounted) {
         setState(() {
           _errorMessage = 'Check-in failed: $e';

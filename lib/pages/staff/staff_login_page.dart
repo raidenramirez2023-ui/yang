@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/global_messenger.dart';
+import '../../services/app_settings_service.dart';
 
 class StaffLoginPage extends StatefulWidget {
   const StaffLoginPage({super.key});
@@ -23,6 +24,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
 
   // Staff roles that can access this portal
   final List<String> _allowedRoles = [
+    'developer',
     'admin',
     'inventory staff',
     'chef',
@@ -94,8 +96,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           debugPrint('Staff display name: "$displayName"');
 
           if (mounted) {
-            GlobalMessenger.showSuccess("Welcome back, $displayName!");
-            _redirectByUserRole(session.user.email!, userRole);
+            await _redirectByUserRole(session.user.email!, userRole, displayName);
           }
           return;
         }
@@ -111,8 +112,51 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     }
   }
 
-  void _redirectByUserRole(String email, String userRole) {
+  Future<void> _redirectByUserRole(String email, String userRole, [String displayName = '']) async {
     if (!mounted) return;
+
+    // Check Maintenance Mode — always fetch fresh from DB, not from stale cache
+    if (userRole != 'developer' && userRole != 'admin') {
+      try {
+        final result = await Supabase.instance.client
+            .from('app_settings')
+            .select('setting_value')
+            .eq('setting_key', 'maintenance_mode_enabled')
+            .maybeSingle();
+        final isMaintenance =
+            result != null && result['setting_value']?.toString().toLowerCase() == 'true';
+        if (isMaintenance) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/maintenance',
+              arguments: {'returnRoute': '/staff-login'},
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint('⚠️ Could not verify maintenance mode: $e');
+        // Fall back to cached value as safety net
+        if (AppSettingsService().isMaintenanceModeEnabled()) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/maintenance',
+              arguments: {'returnRoute': '/staff-login'},
+            );
+          }
+          return;
+        }
+      }
+    }
+
+    if (!mounted) return;
+
+    // Only show welcome message if not blocked by maintenance
+    if (displayName.isNotEmpty) {
+      GlobalMessenger.showSuccess("Welcome back, $displayName!");
+    }
 
     if (email.toLowerCase() == 'pagsanjaninv@gmail.com' ||
         email.toLowerCase() == 'pagsanjaninv.gmail.com') {
@@ -120,6 +164,8 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     } else if (email.toLowerCase() == 'chefycp@gmail.com' ||
         email.toLowerCase() == 'chefycp.gmail.com') {
       Navigator.pushReplacementNamed(context, '/chef/dashboard');
+    } else if (userRole == 'developer') {
+      Navigator.pushReplacementNamed(context, '/developer/dashboard');
     } else if (userRole == 'admin') {
       Navigator.pushReplacementNamed(context, '/admin/dashboard');
     } else if (userRole == 'inventory staff' || userRole == 'pagsanjaninv') {
@@ -222,8 +268,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       }
 
       if (mounted) {
-        GlobalMessenger.showSuccess("Welcome back, $displayName!");
-        _redirectByUserRole(email, userRole);
+        await _redirectByUserRole(email, userRole, displayName);
       }
     } on AuthException catch (e) {
       String errorMessage;
@@ -252,7 +297,6 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
 
   // ─── Yang Chow Standard Red & Gold Theme Palette ───────────────────
   static const Color _forestGreen = Color(0xFF990000); // dark red
-  static const Color _activeEmerald = Color(0xFFAA0000); // medium red
   static const Color _warmGold = Color(0xFFFFD166); // warm gold accent
   static const Color _primaryGold = Color(0xFFC9922E); // amber gold
   static const Color _darkForest = Color(0xFF770000); // darkest red
@@ -271,11 +315,11 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withOpacity(0.3),
-                  border: Border.all(color: _warmGold.withOpacity(0.5), width: 1.5),
+                  color: Colors.black.withValues(alpha: 0.3),
+                  border: Border.all(color: _warmGold.withValues(alpha: 0.5), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: _warmGold.withOpacity(0.2),
+                      color: _warmGold.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -334,10 +378,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _deepBurgundy.withOpacity(0.94),
-                    _darkForest.withOpacity(0.90),
-                    _forestGreen.withOpacity(0.86),
-                    const Color(0xFF220000).withOpacity(0.96),
+                    _deepBurgundy.withValues(alpha: 0.94),
+                    _darkForest.withValues(alpha: 0.90),
+                    _forestGreen.withValues(alpha: 0.86),
+                    const Color(0xFF220000).withValues(alpha: 0.96),
                   ],
                 ),
               ),
@@ -353,7 +397,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _primaryGold.withOpacity(0.25),
+                    _primaryGold.withValues(alpha: 0.25),
                     Colors.transparent,
                   ],
                 ),
@@ -370,7 +414,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _warmGold.withOpacity(0.18),
+                    _warmGold.withValues(alpha: 0.18),
                     Colors.transparent,
                   ],
                 ),
@@ -422,14 +466,14 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.black.withOpacity(0.25),
+                              color: Colors.black.withValues(alpha: 0.25),
                               border: Border.all(
-                                color: _warmGold.withOpacity(0.4),
+                                color: _warmGold.withValues(alpha: 0.4),
                                 width: 2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _warmGold.withOpacity(0.25),
+                                  color: _warmGold.withValues(alpha: 0.25),
                                   blurRadius: 40,
                                   spreadRadius: 4,
                                 ),
@@ -452,7 +496,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                               letterSpacing: 3,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.6),
+                                  color: Colors.black.withValues(alpha: 0.6),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
@@ -476,10 +520,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.25),
+                              color: Colors.black.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _primaryGold.withOpacity(0.3),
+                                color: _primaryGold.withValues(alpha: 0.3),
                               ),
                             ),
                             child: Wrap(
@@ -513,17 +557,17 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: _primaryGold.withOpacity(0.4),
+                            color: _primaryGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.35),
+                              color: Colors.black.withValues(alpha: 0.35),
                               blurRadius: 30,
                               offset: const Offset(0, 15),
                             ),
                             BoxShadow(
-                              color: _primaryGold.withOpacity(0.15),
+                              color: _primaryGold.withValues(alpha: 0.15),
                               blurRadius: 20,
                               spreadRadius: 1,
                             ),
@@ -578,14 +622,14 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.25),
+                    color: Colors.black.withValues(alpha: 0.25),
                     border: Border.all(
-                      color: _warmGold.withOpacity(0.4),
+                      color: _warmGold.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _warmGold.withOpacity(0.2),
+                        color: _warmGold.withValues(alpha: 0.2),
                         blurRadius: 25,
                       ),
                     ],
@@ -613,17 +657,17 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: _primaryGold.withOpacity(0.4),
+                      color: _primaryGold.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.35),
+                        color: Colors.black.withValues(alpha: 0.35),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
                       BoxShadow(
-                        color: _primaryGold.withOpacity(0.15),
+                        color: _primaryGold.withValues(alpha: 0.15),
                         blurRadius: 20,
                       ),
                     ],
@@ -683,14 +727,14 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                         padding: EdgeInsets.all(isSmallPhone ? 10 : 12),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withOpacity(0.25),
+                          color: Colors.black.withValues(alpha: 0.25),
                           border: Border.all(
-                            color: _warmGold.withOpacity(0.4),
+                            color: _warmGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: _warmGold.withOpacity(0.2),
+                              color: _warmGold.withValues(alpha: 0.2),
                               blurRadius: 20,
                             ),
                           ],
@@ -718,17 +762,17 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: _primaryGold.withOpacity(0.4),
+                            color: _primaryGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 25,
                               offset: const Offset(0, 10),
                             ),
                             BoxShadow(
-                              color: _primaryGold.withOpacity(0.12),
+                              color: _primaryGold.withValues(alpha: 0.12),
                               blurRadius: 15,
                             ),
                           ],
@@ -778,10 +822,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _forestGreen.withOpacity(0.08),
+              color: _forestGreen.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: _primaryGold.withOpacity(0.5),
+                color: _primaryGold.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
@@ -1000,12 +1044,12 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               ],
             ),
             border: Border.all(
-              color: _warmGold.withOpacity(0.55),
+              color: _warmGold.withValues(alpha: 0.55),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: _forestGreen.withOpacity(0.4),
+                color: _forestGreen.withValues(alpha: 0.4),
                 blurRadius: 14,
                 offset: const Offset(0, 4),
               ),

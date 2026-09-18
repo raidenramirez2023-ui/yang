@@ -6,8 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import '../services/app_settings_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -302,6 +302,14 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         debugPrint('Customer user verified, allowing access');
+
+        // Check Maintenance Mode
+        if (AppSettingsService().isMaintenanceModeEnabled()) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/maintenance');
+          }
+          return;
+        }
 
         _showSnackBar(
           "Welcome back, ${email.split('@')[0]}!",
@@ -648,6 +656,12 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         if (mounted) {
+          // Check Maintenance Mode
+          if (AppSettingsService().isMaintenanceModeEnabled()) {
+            Navigator.pushReplacementNamed(context, '/maintenance');
+            return;
+          }
+
           _showSnackBar(
             "Welcome back, ${session.user.email!.split('@')[0]}!",
             Colors.green.shade700,
@@ -705,7 +719,6 @@ class _LoginPageState extends State<LoginPage> {
 
   // ─── Yang Chow Standard Red & Gold Theme Palette ───────────────────
   static const Color _forestGreen = Color(0xFF990000); // dark red
-  static const Color _activeEmerald = Color(0xFFAA0000); // medium red
   static const Color _warmGold = Color(0xFFFFD166); // warm gold accent
   static const Color _primaryGold = Color(0xFFC9922E); // amber gold
   static const Color _darkForest = Color(0xFF770000); // darkest red
@@ -727,11 +740,11 @@ class _LoginPageState extends State<LoginPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withOpacity(0.3),
-                  border: Border.all(color: _warmGold.withOpacity(0.5), width: 1.5),
+                  color: Colors.black.withValues(alpha: 0.3),
+                  border: Border.all(color: _warmGold.withValues(alpha: 0.5), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: _warmGold.withOpacity(0.2),
+                      color: _warmGold.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -787,10 +800,10 @@ class _LoginPageState extends State<LoginPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _deepBurgundy.withOpacity(0.94),
-                    _darkForest.withOpacity(0.90),
-                    _forestGreen.withOpacity(0.86),
-                    const Color(0xFF220000).withOpacity(0.96),
+                    _deepBurgundy.withValues(alpha: 0.94),
+                    _darkForest.withValues(alpha: 0.90),
+                    _forestGreen.withValues(alpha: 0.86),
+                    const Color(0xFF220000).withValues(alpha: 0.96),
                   ],
                 ),
               ),
@@ -807,7 +820,7 @@ class _LoginPageState extends State<LoginPage> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _primaryGold.withOpacity(0.25),
+                    _primaryGold.withValues(alpha: 0.25),
                     Colors.transparent,
                   ],
                 ),
@@ -825,7 +838,7 @@ class _LoginPageState extends State<LoginPage> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _warmGold.withOpacity(0.18),
+                    _warmGold.withValues(alpha: 0.18),
                     Colors.transparent,
                   ],
                 ),
@@ -859,14 +872,14 @@ class _LoginPageState extends State<LoginPage> {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.black.withOpacity(0.25),
+                              color: Colors.black.withValues(alpha: 0.25),
                               border: Border.all(
-                                color: _warmGold.withOpacity(0.4),
+                                color: _warmGold.withValues(alpha: 0.4),
                                 width: 2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _warmGold.withOpacity(0.25),
+                                  color: _warmGold.withValues(alpha: 0.25),
                                   blurRadius: 40,
                                   spreadRadius: 4,
                                 ),
@@ -889,7 +902,7 @@ class _LoginPageState extends State<LoginPage> {
                               letterSpacing: 3,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.6),
+                                  color: Colors.black.withValues(alpha: 0.6),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
@@ -913,10 +926,10 @@ class _LoginPageState extends State<LoginPage> {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.25),
+                              color: Colors.black.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _primaryGold.withOpacity(0.3),
+                                color: _primaryGold.withValues(alpha: 0.3),
                               ),
                             ),
                             child: Wrap(
@@ -950,17 +963,17 @@ class _LoginPageState extends State<LoginPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: _primaryGold.withOpacity(0.4),
+                            color: _primaryGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.35),
+                              color: Colors.black.withValues(alpha: 0.35),
                               blurRadius: 30,
                               offset: const Offset(0, 15),
                             ),
                             BoxShadow(
-                              color: _primaryGold.withOpacity(0.15),
+                              color: _primaryGold.withValues(alpha: 0.15),
                               blurRadius: 20,
                               spreadRadius: 1,
                             ),
@@ -1038,14 +1051,14 @@ class _LoginPageState extends State<LoginPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.25),
+                    color: Colors.black.withValues(alpha: 0.25),
                     border: Border.all(
-                      color: _warmGold.withOpacity(0.4),
+                      color: _warmGold.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _warmGold.withOpacity(0.2),
+                        color: _warmGold.withValues(alpha: 0.2),
                         blurRadius: 25,
                       ),
                     ],
@@ -1073,17 +1086,17 @@ class _LoginPageState extends State<LoginPage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: _primaryGold.withOpacity(0.4),
+                      color: _primaryGold.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.35),
+                        color: Colors.black.withValues(alpha: 0.35),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
                       BoxShadow(
-                        color: _primaryGold.withOpacity(0.15),
+                        color: _primaryGold.withValues(alpha: 0.15),
                         blurRadius: 20,
                       ),
                     ],
@@ -1143,14 +1156,14 @@ class _LoginPageState extends State<LoginPage> {
                         padding: EdgeInsets.all(isSmallPhone ? 10 : 12),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withOpacity(0.25),
+                          color: Colors.black.withValues(alpha: 0.25),
                           border: Border.all(
-                            color: _warmGold.withOpacity(0.4),
+                            color: _warmGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: _warmGold.withOpacity(0.2),
+                              color: _warmGold.withValues(alpha: 0.2),
                               blurRadius: 20,
                             ),
                           ],
@@ -1178,17 +1191,17 @@ class _LoginPageState extends State<LoginPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: _primaryGold.withOpacity(0.4),
+                            color: _primaryGold.withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 25,
                               offset: const Offset(0, 10),
                             ),
                             BoxShadow(
-                              color: _primaryGold.withOpacity(0.12),
+                              color: _primaryGold.withValues(alpha: 0.12),
                               blurRadius: 15,
                             ),
                           ],
@@ -1238,10 +1251,10 @@ class _LoginPageState extends State<LoginPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _forestGreen.withOpacity(0.08),
+              color: _forestGreen.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: _primaryGold.withOpacity(0.5),
+                color: _primaryGold.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
@@ -1462,12 +1475,12 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
             border: Border.all(
-              color: _warmGold.withOpacity(0.55),
+              color: _warmGold.withValues(alpha: 0.55),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: _forestGreen.withOpacity(0.4),
+                color: _forestGreen.withValues(alpha: 0.4),
                 blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
@@ -1553,7 +1566,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: _primaryGold.withOpacity(0.45), width: 1.2),
+              side: BorderSide(color: _primaryGold.withValues(alpha: 0.45), width: 1.2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

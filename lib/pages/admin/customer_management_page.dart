@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/admin/admin_reviews_page.dart';
 import 'package:yang_chow/services/reservation_service.dart';
+import 'package:yang_chow/utils/global_messenger.dart';
 
 class CustomerManagementPage extends StatefulWidget {
   const CustomerManagementPage({super.key});
@@ -2223,14 +2224,24 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
 
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    final isGreen = color == Colors.green ||
+        color == const Color(0xFF15803D) ||
+        color == const Color(0xFF10B981);
+    final isRed = color == Colors.red ||
+        color == const Color(0xFFDC2626) ||
+        color == const Color(0xFFEF4444);
+    final isOrange = color == Colors.orange ||
+        color == const Color(0xFFF59E0B);
+
+    if (isGreen) {
+      GlobalMessenger.showSuccess(message);
+    } else if (isRed) {
+      GlobalMessenger.showError(message);
+    } else if (isOrange) {
+      GlobalMessenger.showWarning(message);
+    } else {
+      GlobalMessenger.showSuccess(message);
+    }
   }
 
   void _showIssueWarningDialog(String customerName, String? userId, String? email) {

@@ -1,0 +1,1116 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'developer_theme.dart';
+import '../../services/app_logger.dart';
+
+// ---------------------------------------------------------------------------
+// Error Log Model
+// ---------------------------------------------------------------------------
+
+enum ErrorSeverity { critical, error, warning, info }
+
+class AppErrorLog {
+  final String id;
+  final DateTime timestamp;
+  final ErrorSeverity severity;
+  final String source;
+  final String message;
+  final String? stackTrace;
+  final Map<String, dynamic> context;
+
+  const AppErrorLog({
+    required this.id,
+    required this.timestamp,
+    required this.severity,
+    required this.source,
+    required this.message,
+    this.stackTrace,
+    this.context = const {},
+  });
+
+  factory AppErrorLog.fromAuditLog(Map<String, dynamic> row) {
+    final action = (row['action'] ?? '').toString().toUpperCase();
+    final meta = (row['metadata'] as Map<String, dynamic>?) ?? {};
+    final metaSeverity = (meta['severity'] ?? '').toString().toUpperCase();
+
+    ErrorSeverity severity;
+    if (action == 'CRITICAL' || action == 'SYSTEM_ERROR' || metaSeverity == 'CRITICAL') {
+      severity = ErrorSeverity.critical;
+    } else if (action == 'ERROR' || action == 'FAILED' || metaSeverity == 'ERROR') {
+      severity = ErrorSeverity.error;
+    } else if (action == 'WARNING' || metaSeverity == 'WARNING') {
+      severity = ErrorSeverity.warning;
+    } else {
+      severity = ErrorSeverity.info;
+    }
+
+    final createdAt = DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now();
+    return AppErrorLog(
+      id: row['id']?.toString() ?? 'ERR-${createdAt.millisecondsSinceEpoch}',
+      timestamp: createdAt,
+      severity: severity,
+      source: row['module']?.toString() ?? 'System',
+      message: row['description']?.toString() ?? 'No description recorded',
+      stackTrace: meta['stack_trace']?.toString(),
+      context: {
+        'user': row['user_email'] ?? 'system',
+        'action': action,
+        ...meta,
+      },
+    );
+  }
+
+  Color get severityColor {
+    switch (severity) {
+      case ErrorSeverity.critical:
+        return DeveloperTheme.accentRose;
+      case ErrorSeverity.error:
+        return const Color(0xFFFC8181);
+      case ErrorSeverity.warning:
+        return DeveloperTheme.accentAmber;
+      case ErrorSeverity.info:
+        return DeveloperTheme.accentCyan;
+    }
+  }
+
+  String get severityLabel {
+    switch (severity) {
+      case ErrorSeverity.critical:
+        return 'CRITICAL';
+      case ErrorSeverity.error:
+        return 'ERROR';
+      case ErrorSeverity.warning:
+        return 'WARNING';
+      case ErrorSeverity.info:
+        return 'INFO';
+    }
+  }
+
+  IconData get severityIcon {
+    switch (severity) {
+      case ErrorSeverity.critical:
+        return Icons.dangerous_rounded;
+      case ErrorSeverity.error:
+        return Icons.error_rounded;
+      case ErrorSeverity.warning:
+        return Icons.warning_rounded;
+      case ErrorSeverity.info:
+        return Icons.info_rounded;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// In-Memory Error Log Store (Singleton)
+// ---------------------------------------------------------------------------
+
+class ErrorLogStore {
+  static final ErrorLogStore _instance = ErrorLogStore._internal();
+  factory ErrorLogStore() => _instance;
+  ErrorLogStore._internal();
+
+  final List<AppErrorLog> _logs = [];
+  final StreamController<List<AppErrorLog>> _controller =
+      StreamController.broadcast();
+
+  Stream<List<AppErrorLog>> get stream => _controller.stream;
+  List<AppErrorLog> get logs => List.unmodifiable(_logs);
+
+  static int _counter = 0;
+
+  void addLog({
+    required ErrorSeverity severity,
+    required String source,
+    required String message,
+    String? stackTrace,
+    Map<String, dynamic> context = const {},
+  }) {
+    _counter++;
+    final log = AppErrorLog(
+      id: 'ERR-${_counter.toString().padLeft(4, '0')}',
+      timestamp: DateTime.now(),
+      severity: severity,
+      source: source,
+      message: message,
+      stackTrace: stackTrace,
+      context: context,
+    );
+    _logs.insert(0, log);
+    if (_logs.length > 500) _logs.removeLast();
+    _controller.add(List.unmodifiable(_logs));
+  }
+
+  void clear() {
+    _logs.clear();
+    _counter = 0;
+    _controller.add([]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Flutter Error Handler Integration (call AppErrorHandler.initialize() in main.dart)
+// ---------------------------------------------------------------------------
+
+class AppErrorHandler {
+  static void initialize() {
+    FlutterError.onError = (FlutterErrorDetails details) {
+      AppLogger.error(
+        module: details.library ?? 'Flutter',
+        message: details.exceptionAsString(),
+        stackTrace: details.stack,
+        context: {'context': details.context?.toDescription() ?? ''},
+      );
+      FlutterError.presentError(details);
+    };
+
+    PlatformDispatcher.instance.onError = (error, stack) {
+      AppLogger.critical(
+        module: 'PlatformDispatcher',
+        message: error.toString(),
+        stackTrace: stack,
+      );
+      return false;
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error Log Viewer Page
+// ---------------------------------------------------------------------------
+
+class ErrorLogViewerPage extends StatefulWidget {
+  const ErrorLogViewerPage({super.key});
+
+  @override
+  State<ErrorLogViewerPage> createState() => _ErrorLogViewerPageState();
+}
+
+class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
+  final _store = ErrorLogStore();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<AppErrorLog> _allLogs = [];
+  List<AppErrorLog> _filteredLogs = [];
+
+  ErrorSeverity? _severityFilter;
+  String _sourceFilter = 'All Sources';
+  String _searchQuery = '';
+  AppErrorLog? _selectedLog;
+  bool _autoRefresh = true;
+  Timer? _refreshTimer;
+  StreamSubscription<List<AppErrorLog>>? _streamSub;
+
+  List<Map<String, dynamic>> _dbErrors = [];
+  bool _loadingDbErrors = false;
+  RealtimeChannel? _realtimeSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _allLogs = _store.logs.toList();
+    _applyFilters();
+
+    _streamSub = _store.stream.listen((logs) {
+      if (mounted) {
+        setState(() {
+          final memoryIds = logs.map((l) => l.id).toSet();
+          final dbOnly = _allLogs.where((l) => !memoryIds.contains(l.id));
+          _allLogs = [...logs, ...dbOnly];
+          _applyFilters();
+        });
+      }
+    });
+
+    _fetchDbErrors();
+
+    // Subscribe to realtime database error insertions
+    try {
+      _realtimeSub = Supabase.instance.client
+          .channel('developer_error_log_stream')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'audit_logs',
+            callback: (payload) {
+              _fetchDbErrors();
+            },
+          )
+          .subscribe();
+    } catch (_) {}
+
+    if (_autoRefresh) {
+      _refreshTimer = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _fetchDbErrors(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _refreshTimer?.cancel();
+    _streamSub?.cancel();
+    _realtimeSub?.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _fetchDbErrors() async {
+    if (!mounted) return;
+    setState(() => _loadingDbErrors = true);
+    try {
+      final response = await Supabase.instance.client
+          .from('audit_logs')
+          .select('id, action, module, description, user_email, created_at, metadata')
+          .or('action.eq.CRITICAL,action.eq.ERROR,action.eq.FAILED,action.eq.SYSTEM_ERROR,action.eq.WARNING,action.eq.INFO,description.ilike.%error%,description.ilike.%failed%')
+          .order('created_at', ascending: false)
+          .limit(100);
+
+      final List<AppErrorLog> dbLogs = [];
+      for (final row in (response as List)) {
+        dbLogs.add(AppErrorLog.fromAuditLog(Map<String, dynamic>.from(row)));
+      }
+
+      // Merge persistent database errors with any local session logs
+      final existingIds = dbLogs.map((l) => l.id).toSet();
+      final memoryOnly = _store.logs.where((l) => !existingIds.contains(l.id));
+
+      if (mounted) {
+        setState(() {
+          _allLogs = [...memoryOnly, ...dbLogs];
+          _dbErrors = List<Map<String, dynamic>>.from(response);
+          _loadingDbErrors = false;
+          _applyFilters();
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loadingDbErrors = false);
+    }
+  }
+
+  void _applyFilters() {
+    List<AppErrorLog> result = _allLogs;
+
+    if (_severityFilter != null) {
+      result = result.where((l) => l.severity == _severityFilter).toList();
+    }
+
+    if (_sourceFilter != 'All Sources') {
+      result = result.where((l) => l.source == _sourceFilter).toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result
+          .where((l) =>
+              l.message.toLowerCase().contains(q) ||
+              l.source.toLowerCase().contains(q) ||
+              l.id.toLowerCase().contains(q))
+          .toList();
+    }
+
+    _filteredLogs = result;
+  }
+
+  List<String> get _availableSources {
+    final sources = _allLogs.map((l) => l.source).toSet().toList()..sort();
+    return ['All Sources', ...sources];
+  }
+
+  Map<ErrorSeverity, int> get _severityCounts {
+    final counts = <ErrorSeverity, int>{};
+    for (final log in _allLogs) {
+      counts[log.severity] = (counts[log.severity] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  void _clearAll() {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: DeveloperTheme.bgCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: DeveloperTheme.borderSubtle),
+        ),
+        title: Text('Clear All Logs?', style: DeveloperTheme.headingMedium()),
+        content: Text(
+          'This will remove all ${_allLogs.length} in-memory error logs. This cannot be undone.',
+          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DeveloperTheme.accentRose,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        _store.clear();
+        setState(() {
+          _allLogs = [];
+          _filteredLogs = [];
+          _selectedLog = null;
+        });
+      }
+    });
+  }
+
+  void _copyLogToClipboard(AppErrorLog log) {
+    final text = '''
+=== ${log.id} ===
+Timestamp : ${log.timestamp.toLocal()}
+Severity  : ${log.severityLabel}
+Source    : ${log.source}
+Message   : ${log.message}
+${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
+''';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: DeveloperTheme.accentEmerald,
+        content: Text(
+          'Log ${log.id} copied to clipboard.',
+          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 20),
+          _buildSeverityBar(),
+          const SizedBox(height: 20),
+          _buildFiltersRow(),
+          const SizedBox(height: 16),
+          _buildMainContent(),
+          const SizedBox(height: 28),
+          _buildDbErrorsSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Runtime Error Log Viewer', style: DeveloperTheme.headingLarge()),
+            const SizedBox(height: 4),
+            Text(
+              'In-memory Flutter errors, exceptions, and system-level warnings',
+              style: DeveloperTheme.bodySmall(),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: DeveloperTheme.bgSurface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: DeveloperTheme.borderSubtle),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.sync_rounded,
+                    size: 14,
+                    color: _autoRefresh
+                        ? DeveloperTheme.accentEmerald
+                        : DeveloperTheme.textMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Auto-Refresh',
+                    style: DeveloperTheme.bodySmall(
+                      color: _autoRefresh
+                          ? DeveloperTheme.textPrimary
+                          : DeveloperTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Switch(
+                    value: _autoRefresh,
+                    onChanged: (v) {
+                      setState(() => _autoRefresh = v);
+                      if (v) {
+                        _refreshTimer = Timer.periodic(
+                          const Duration(seconds: 10),
+                          (_) => _fetchDbErrors(),
+                        );
+                      } else {
+                        _refreshTimer?.cancel();
+                      }
+                    },
+                    activeThumbColor: DeveloperTheme.accentEmerald,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: DeveloperTheme.accentRose,
+                side: const BorderSide(color: DeveloperTheme.accentRose),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onPressed: _allLogs.isEmpty ? null : _clearAll,
+              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+              label: const Text('Clear Logs'),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: DeveloperTheme.accentEmerald,
+                side: const BorderSide(color: DeveloperTheme.accentEmerald),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+              onPressed: _showSimulateDialog,
+              icon: const Icon(Icons.bug_report_rounded, size: 18),
+              label: const Text('Simulate Log'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DeveloperTheme.accentIndigo,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: _fetchDbErrors,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Refresh'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showSimulateDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: DeveloperTheme.bgCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: DeveloperTheme.borderSubtle),
+        ),
+        title: Text('Simulate Test Log', style: DeveloperTheme.headingMedium()),
+        content: Text(
+          'Choose a severity to simulate a live error log. This tests the persistent pipeline to Supabase and the real-time stream.',
+          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: DeveloperTheme.accentAmber, foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(ctx);
+              AppLogger.warning(
+                module: 'SIMULATOR',
+                message: 'Test Warning: Inventory stock threshold reached for ingredient.',
+              );
+            },
+            child: const Text('Warning'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFC8181), foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(ctx);
+              AppLogger.error(
+                module: 'SIMULATOR',
+                message: 'Test Error: Payment gateway response timed out (HTTP 504).',
+                error: 'TimeoutException: Request exceeded 10000ms',
+              );
+            },
+            child: const Text('Error'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: DeveloperTheme.accentRose, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx);
+              AppLogger.critical(
+                module: 'SIMULATOR',
+                message: 'Test Critical: Database lock detected during settlement.',
+                error: 'PostgresException: deadlock detected on transaction table',
+              );
+            },
+            child: const Text('Critical'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeverityBar() {
+    final counts = _severityCounts;
+    final total = _allLogs.length;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DeveloperTheme.bgSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: DeveloperTheme.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          _buildSeverityChip(null, 'All', total, DeveloperTheme.textSecondary, Icons.list_alt_rounded),
+          const SizedBox(width: 8),
+          _buildSeverityChip(ErrorSeverity.critical, 'Critical', counts[ErrorSeverity.critical] ?? 0, DeveloperTheme.accentRose, Icons.dangerous_rounded),
+          const SizedBox(width: 8),
+          _buildSeverityChip(ErrorSeverity.error, 'Error', counts[ErrorSeverity.error] ?? 0, const Color(0xFFFC8181), Icons.error_rounded),
+          const SizedBox(width: 8),
+          _buildSeverityChip(ErrorSeverity.warning, 'Warning', counts[ErrorSeverity.warning] ?? 0, DeveloperTheme.accentAmber, Icons.warning_rounded),
+          const SizedBox(width: 8),
+          _buildSeverityChip(ErrorSeverity.info, 'Info', counts[ErrorSeverity.info] ?? 0, DeveloperTheme.accentCyan, Icons.info_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeverityChip(ErrorSeverity? severity, String label, int count, Color color, IconData icon) {
+    final isSelected = _severityFilter == severity;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _severityFilter = isSelected ? null : severity;
+          _applyFilters();
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.18) : DeveloperTheme.bgCard,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color.withValues(alpha: 0.6) : DeveloperTheme.borderSubtle,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(label, style: DeveloperTheme.bodySmall(color: isSelected ? DeveloperTheme.textPrimary : DeveloperTheme.textSecondary)),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '$count',
+                style: DeveloperTheme.monoText(fontSize: 11, color: color, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFiltersRow() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: DeveloperTheme.bgCard,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DeveloperTheme.borderSubtle),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: DeveloperTheme.monoText(fontSize: 13, color: DeveloperTheme.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search logs by message, source, or ID...',
+                hintStyle: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: DeveloperTheme.textMuted),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onChanged: (v) {
+                setState(() {
+                  _searchQuery = v;
+                  _applyFilters();
+                });
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: DeveloperTheme.bgCard,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DeveloperTheme.borderSubtle),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _availableSources.contains(_sourceFilter) ? _sourceFilter : 'All Sources',
+                dropdownColor: DeveloperTheme.bgCard,
+                style: DeveloperTheme.bodySmall(color: DeveloperTheme.textPrimary),
+                items: _availableSources.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      _sourceFilter = v;
+                      _applyFilters();
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: DeveloperTheme.bgCard,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: DeveloperTheme.borderSubtle),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.format_list_numbered_rounded, size: 14, color: DeveloperTheme.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                '${_filteredLogs.length} / ${_allLogs.length} logs',
+                style: DeveloperTheme.monoText(fontSize: 12, color: DeveloperTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainContent() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 5,
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 520),
+            decoration: DeveloperTheme.cardDecoration(),
+            child: _filteredLogs.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _filteredLogs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 4),
+                    itemBuilder: (context, index) => _buildLogRow(_filteredLogs[index]),
+                  ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 4,
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 520),
+            decoration: DeveloperTheme.cardDecoration(),
+            child: _selectedLog == null ? _buildDetailPlaceholder() : _buildDetailPanel(_selectedLog!),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_outline_rounded, size: 48, color: DeveloperTheme.accentEmerald.withValues(alpha: 0.5)),
+          const SizedBox(height: 12),
+          Text('No logs match your filters', style: DeveloperTheme.headingMedium(color: DeveloperTheme.textSecondary)),
+          const SizedBox(height: 4),
+          Text('System appears clean — no errors captured in memory.', style: DeveloperTheme.bodySmall()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.touch_app_rounded, size: 40, color: DeveloperTheme.accentIndigo.withValues(alpha: 0.4)),
+          const SizedBox(height: 12),
+          Text('Select a log entry', style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
+          const SizedBox(height: 4),
+          Text(
+            'Click any log row to inspect details\nand stack traces.',
+            textAlign: TextAlign.center,
+            style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogRow(AppErrorLog log) {
+    final isSelected = _selectedLog?.id == log.id;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedLog = log),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? log.severityColor.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? log.severityColor.withValues(alpha: 0.5) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: log.severityColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(log.severityIcon, size: 14, color: log.severityColor),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: log.severityColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          log.severityLabel,
+                          style: DeveloperTheme.monoText(fontSize: 9, color: log.severityColor, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(log.source, style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.accentCyan)),
+                      const Spacer(),
+                      Text(_formatTime(log.timestamp), style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.textMuted)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    log.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(log.id, style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailPanel(AppErrorLog log) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: DeveloperTheme.borderSubtle)),
+          ),
+          child: Row(
+            children: [
+              Icon(log.severityIcon, size: 16, color: log.severityColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  log.id,
+                  style: DeveloperTheme.monoText(fontSize: 13, color: log.severityColor, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy_rounded, size: 16, color: DeveloperTheme.textSecondary),
+                tooltip: 'Copy to clipboard',
+                onPressed: () => _copyLogToClipboard(log),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 16, color: DeveloperTheme.textMuted),
+                onPressed: () => setState(() => _selectedLog = null),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailField('Timestamp', log.timestamp.toLocal().toString()),
+                _buildDetailField('Severity', log.severityLabel),
+                _buildDetailField('Source', log.source),
+                const SizedBox(height: 10),
+                _buildCodeBlock('Message', log.message),
+                if (log.stackTrace != null) ...[
+                  const SizedBox(height: 12),
+                  _buildCodeBlock('Stack Trace', log.stackTrace!),
+                ],
+                if (log.context.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildCodeBlock('Context', log.context.entries.map((e) => '${e.key}: ${e.value}').join('\n')),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailField(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: DeveloperTheme.monoText(fontSize: 12, color: DeveloperTheme.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCodeBlock(String label, String content) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: DeveloperTheme.bgDark,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: DeveloperTheme.borderSubtle),
+          ),
+          child: SelectableText(
+            content,
+            style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDbErrorsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.storage_rounded, size: 18, color: DeveloperTheme.accentAmber),
+            const SizedBox(width: 8),
+            Text('Database-Level Error Activity', style: DeveloperTheme.headingMedium()),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: DeveloperTheme.accentAmber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('From Audit Logs', style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.accentAmber)),
+            ),
+            const Spacer(),
+            if (_loadingDbErrors)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: DeveloperTheme.accentAmber),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, size: 18, color: DeveloperTheme.textSecondary),
+                onPressed: _fetchDbErrors,
+                tooltip: 'Refresh DB Errors',
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: DeveloperTheme.cardDecoration(),
+          child: _dbErrors.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, size: 20, color: DeveloperTheme.accentEmerald),
+                      const SizedBox(width: 12),
+                      Text(
+                        'No error-level entries detected in recent audit trail.',
+                        style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _dbErrors.length,
+                  separatorBuilder: (_, __) => const Divider(color: DeveloperTheme.borderSubtle, height: 12),
+                  itemBuilder: (ctx, i) => _buildDbErrorRow(_dbErrors[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDbErrorRow(Map<String, dynamic> e) {
+    final action = e['action']?.toString() ?? '';
+    final isError = action == 'ERROR' || action == 'FAILED' || action == 'SYSTEM_ERROR';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isError
+                  ? DeveloperTheme.accentRose.withValues(alpha: 0.15)
+                  : DeveloperTheme.accentAmber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              isError ? Icons.error_rounded : Icons.warning_rounded,
+              size: 14,
+              color: isError ? DeveloperTheme.accentRose : DeveloperTheme.accentAmber,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isError
+                            ? DeveloperTheme.accentRose.withValues(alpha: 0.15)
+                            : DeveloperTheme.accentAmber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        action,
+                        style: DeveloperTheme.monoText(
+                          fontSize: 10,
+                          color: isError ? DeveloperTheme.accentRose : DeveloperTheme.accentAmber,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(e['module']?.toString() ?? 'Unknown Module', style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.accentCyan)),
+                    const Spacer(),
+                    Text(e['user_email']?.toString() ?? '', style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  e['description']?.toString() ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _formatTime(DateTime.tryParse(e['created_at']?.toString() ?? '') ?? DateTime.now()),
+            style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(local);
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${local.month}/${local.day} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+}

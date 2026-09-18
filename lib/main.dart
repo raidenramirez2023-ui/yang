@@ -52,10 +52,18 @@ import 'pages/admin/pagsanjaninv_dashboard.dart';
 
 import 'pages/staff/chef_dashboard.dart';
 
+import 'pages/developer/developer_dashboard.dart';
+import 'pages/developer/developer_login_page.dart';
+import 'pages/developer/error_log_viewer_page.dart';
+import 'pages/system_maintenance_page.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
+
+  // Capture Flutter + platform errors into the Developer Error Log Viewer
+  AppErrorHandler.initialize();
 
   // Initialize environment variables
   try {
@@ -147,6 +155,7 @@ class YangChowApp extends StatelessWidget {
 
         '/reset-password': (context) => const SimplePasswordResetPage(),
 
+        '/maintenance': (context) => const SystemMaintenancePage(),
         '/test-email-template': (context) => const TestEmailTemplate(),
 
         '/template-fix-complete': (context) => const TemplateFixComplete(),
@@ -353,6 +362,58 @@ class YangChowApp extends StatelessWidget {
           allowedRoles: ['staff'],
           redirectRoute: '/staff-login',
           child: StaffDashboardPage(),
+        ),
+
+        // ==========================================
+        // Developer / IT Maintenance Portal Routes
+        // ==========================================
+        '/developer/login': (context) => const DeveloperLoginPage(),
+        '/developer-login': (context) => const DeveloperLoginPage(),
+
+        '/developer/dashboard': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 0),
+        ),
+        '/developer/health': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 1),
+        ),
+        '/developer/audit-logs': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 2),
+        ),
+        '/developer/security': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 3),
+        ),
+        '/developer/users': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 4),
+        ),
+        '/developer/maintenance': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 5),
+        ),
+        '/developer/backup': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 6),
+        ),
+        '/developer/info': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 7),
+        ),
+        '/developer/error-logs': (context) => const AuthGuard(
+          allowedRoles: ['developer'],
+          redirectRoute: '/developer/login',
+          child: DeveloperDashboardPage(initialIndex: 8),
         ),
 
         // ==========================================
