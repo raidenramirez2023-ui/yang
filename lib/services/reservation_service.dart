@@ -1650,6 +1650,21 @@ class ReservationService {
         },
       );
 
+      // Send in-app notification to Customer
+      try {
+        await NotificationService.sendNotification(
+          recipientEmail: effectiveCustomerEmail,
+          isForAdmin: false,
+          actorName: 'Yang Chow Management',
+          actionType: 'account_warning',
+          reservationId: 'WARNING_$newWarningCount',
+          eventType: 'Account Warning #$newWarningCount: $reason',
+          customerEmail: effectiveCustomerEmail,
+        );
+      } catch (notifErr) {
+        debugPrint('Note: In-app warning notification error: $notifErr');
+      }
+
       // Send email notification
       if (sendEmail) {
         await _emailService.sendAccountWarningEmail(
@@ -1765,6 +1780,21 @@ class ReservationService {
         },
       );
 
+      // Send in-app notification to Customer
+      try {
+        await NotificationService.sendNotification(
+          recipientEmail: effectiveCustomerEmail,
+          isForAdmin: false,
+          actorName: 'Yang Chow Management',
+          actionType: 'account_restriction',
+          reservationId: 'RESTRICTION_${effectiveType.toUpperCase()}',
+          eventType: 'Account Restricted (${effectiveType.replaceAll('_', ' ')}): $reason',
+          customerEmail: effectiveCustomerEmail,
+        );
+      } catch (notifErr) {
+        debugPrint('Note: In-app restriction notification error: $notifErr');
+      }
+
       // Send email notification
       if (sendEmail) {
         await _emailService.sendAccountRestrictedEmail(
@@ -1846,6 +1876,32 @@ class ReservationService {
           'admin': effectiveAdminEmail,
         },
       );
+
+      // Send in-app notification to Customer
+      try {
+        await NotificationService.sendNotification(
+          recipientEmail: effectiveCustomerEmail,
+          isForAdmin: false,
+          actorName: 'Yang Chow Management',
+          actionType: 'account_unrestricted',
+          reservationId: 'UNRESTRICTED',
+          eventType: 'Your account restriction has been lifted: $reason',
+          customerEmail: effectiveCustomerEmail,
+        );
+      } catch (notifErr) {
+        debugPrint('Note: In-app unrestricted notification error: $notifErr');
+      }
+
+      // Send email notification to Customer
+      try {
+        await _emailService.sendAccountUnrestrictedEmail(
+          customerEmail: effectiveCustomerEmail,
+          customerName: effectiveCustomerName,
+          reason: reason,
+        );
+      } catch (emailErr) {
+        debugPrint('Note: Unrestricted email error: $emailErr');
+      }
 
       return true;
     } catch (e) {

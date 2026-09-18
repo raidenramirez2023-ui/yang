@@ -34,6 +34,7 @@ import 'pages/test_email_template.dart';
 import 'pages/template_fix_complete.dart';
 
 import 'pages/privacy_policy_page.dart';
+import 'pages/request_account_deletion_page.dart';
 
 import 'pages/otp_password_reset.dart';
 
@@ -151,6 +152,8 @@ class YangChowApp extends StatelessWidget {
         '/template-fix-complete': (context) => const TemplateFixComplete(),
 
         '/privacy': (context) => const PrivacyPolicyPage(),
+        '/request-account-deletion': (context) => const RequestAccountDeletionPage(),
+        '/delete-account': (context) => const RequestAccountDeletionPage(),
 
         '/otp-password-reset': (context) {
           final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
@@ -205,32 +208,32 @@ class YangChowApp extends StatelessWidget {
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 8),
         ),
-        '/admin/announcements': (context) => const AuthGuard(
+        '/admin/deletion-requests': (context) => const AuthGuard(
           allowedRoles: ['admin'],
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 9),
         ),
-        '/admin/customer-chat': (context) => const AuthGuard(
+        '/admin/announcements': (context) => const AuthGuard(
           allowedRoles: ['admin'],
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 10),
         ),
-        '/admin/petty-cash': (context) => const AuthGuard(
+        '/admin/customer-chat': (context) => const AuthGuard(
           allowedRoles: ['admin'],
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 11),
         ),
-        '/admin/refunds-reschedules': (context) => const AuthGuard(
+        '/admin/petty-cash': (context) => const AuthGuard(
           allowedRoles: ['admin'],
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 12),
         ),
-        '/admin/audit-logs': (context) => const AuthGuard(
+        '/admin/refunds-reschedules': (context) => const AuthGuard(
           allowedRoles: ['admin'],
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 13),
         ),
-        '/admin/backup-restore': (context) => const AuthGuard(
+        '/admin/audit-logs': (context) => const AuthGuard(
           allowedRoles: ['admin'],
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 14),

@@ -23,6 +23,7 @@ import 'package:yang_chow/pages/customer/customer_order_list.dart';
 import 'package:yang_chow/pages/customer/transactions_page.dart';
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
 import 'package:yang_chow/pages/customer/gcash_qr_payment_page.dart';
+import 'package:yang_chow/pages/login_page.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
@@ -412,8 +413,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   // Customer restriction & reliability state
   Map<String, dynamic>? _customerRestrictionInfo;
-
-
+  Map<String, dynamic>? _activeDeletionRequest;
 
   // --- Category Scroll State ---
   final ScrollController _categoryScrollController = ScrollController();
@@ -425,6 +425,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     super.initState();
     _selectedIndex = widget.initialIndex;
     _syncUrl();
+    _loadActiveDeletionRequest();
     _cancelPopState = UrlSyncHelper.listenPopState((path) {
       final idx = _tabUrls.indexOf(path);
       if (idx != -1 && idx != _selectedIndex && mounted) {
@@ -1607,6 +1608,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
     final currentUser = Supabase.instance.client.auth.currentUser;
+    _loadCustomerRestrictionInfo();
     if (currentUser?.email != null) {
       NotificationService.markAllAsRead(currentUser!.email!);
     }
@@ -1907,6 +1909,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               statusBadge = 'Refund Declined';
                               badgeBg = const Color(0xFFFEE2E2);
                               badgeText = const Color(0xFFB91C1C);
+                              break;
+                            case 'account_warning':
+                            case 'warning':
+                              icon = Icons.warning_amber_rounded;
+                              color = const Color(0xFFD97706);
+                              statusBadge = 'Account Warning';
+                              badgeBg = const Color(0xFFFEF3C7);
+                              badgeText = const Color(0xFFB45309);
+                              break;
+                            case 'account_restriction':
+                            case 'restriction':
+                              icon = Icons.block_rounded;
+                              color = const Color(0xFFDC2626);
+                              statusBadge = 'Account Restricted';
+                              badgeBg = const Color(0xFFFEE2E2);
+                              badgeText = const Color(0xFFB91C1C);
+                              break;
+                            case 'account_unrestricted':
+                              icon = Icons.verified_user_rounded;
+                              color = const Color(0xFF16A34A);
+                              statusBadge = 'Restriction Lifted';
+                              badgeBg = const Color(0xFFDCFCE7);
+                              badgeText = const Color(0xFF15803D);
                               break;
                             default:
                               icon = Icons.notifications_none_rounded;
@@ -2337,6 +2362,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
     switch (actionType) {
+      case 'account_warning':
+      case 'warning':
+        return 'Account Notice: Policy Warning';
+
+      case 'account_restriction':
+      case 'restriction':
+        return 'Account Notice: Account Restricted';
+
+      case 'account_unrestricted':
+        return 'Account Notice: Good Standing Restored';
 
       case 'created':
 
@@ -2395,7 +2430,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       case 'balance_cleared':
 
         return 'Remaining Balance Paid';
-
       case 'balance_payment_link':
 
         return 'Remaining Balance Payment Link';
@@ -7775,6 +7809,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   ),
                 ),
                 const SizedBox(height: 16),
+                // ── 14-Day Deletion Grace Period Active Banner ──
+                if (_activeDeletionRequest != null) ...[
+                  _buildDeletionGracePeriodBanner(),
+                  const SizedBox(height: 16),
+                ],
                 // ── Member Stats Grid ──
                 Row(
                   children: [
@@ -7878,6 +7917,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           );
                         },
                       ),
+                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                      _buildSettingsTile(
+                        icon: _activeDeletionRequest != null
+                            ? Icons.hourglass_top_rounded
+                            : Icons.person_remove_rounded,
+                        iconBgColor: const Color(0xFFFFF1F2),
+                        iconColor: const Color(0xFFE11D48),
+                        title: _activeDeletionRequest != null
+                            ? 'Account Deletion Status'
+                            : 'Request Account Deletion',
+                        subtitle: _activeDeletionRequest != null
+                            ? '14-Day Grace Period Active • Tap to view/cancel'
+                            : 'Permanently remove your account and data',
+                        isDestructive: true,
+                        onTap: () async {
+                          await Navigator.of(context).pushNamed('/request-account-deletion');
+                          _loadActiveDeletionRequest();
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -7916,7 +7974,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           Icon(Icons.shield_outlined, size: 13, color: const Color(0xFF94A3B8)),
                           const SizedBox(width: 5),
                           Text(
-                            'Yang\'s Kitchen Customer Portal',
+                            'YC Pagsanjan Customer Portal',
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -8410,6 +8468,828 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _loadActiveDeletionRequest() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      final userEmail = user.email?.trim();
+
+      dynamic response;
+      if (userEmail != null && userEmail.isNotEmpty) {
+        response = await Supabase.instance.client
+            .from('account_deletion_requests')
+            .select('*')
+            .ilike('email', userEmail)
+            .eq('status', 'pending_review')
+            .order('requested_at', ascending: false)
+            .limit(1);
+      }
+
+      if ((response == null || (response as List).isEmpty) && user.id.isNotEmpty) {
+        response = await Supabase.instance.client
+            .from('account_deletion_requests')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('status', 'pending_review')
+            .order('requested_at', ascending: false)
+            .limit(1);
+      }
+
+      if (mounted) {
+        setState(() {
+          if (response != null && (response as List).isNotEmpty) {
+            _activeDeletionRequest = response.first as Map<String, dynamic>;
+          } else {
+            _activeDeletionRequest = null;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading active deletion request: $e');
+    }
+  }
+
+  Widget _buildDeletionGracePeriodBanner() {
+    final requestedAtStr = _activeDeletionRequest?['requested_at']?.toString();
+    final graceExpiresStr = _activeDeletionRequest?['grace_period_expires_at']?.toString();
+
+    DateTime? expiresAt;
+    if (graceExpiresStr != null && graceExpiresStr.isNotEmpty) {
+      expiresAt = DateTime.tryParse(graceExpiresStr)?.toLocal();
+    } else if (requestedAtStr != null && requestedAtStr.isNotEmpty) {
+      final reqDate = DateTime.tryParse(requestedAtStr)?.toLocal();
+      if (reqDate != null) expiresAt = reqDate.add(const Duration(days: 14));
+    }
+
+    final now = DateTime.now();
+    int daysLeft = 14;
+    String dateFormatted = '14 days';
+    if (expiresAt != null) {
+      daysLeft = expiresAt.difference(now).inDays;
+      if (daysLeft < 0) daysLeft = 0;
+      dateFormatted = DateFormat('MMM dd, yyyy').format(expiresAt);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFECDD3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE11D48).withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE4E6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48), size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Account Scheduled for Deletion',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF9F1239),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '14-Day Grace Period Active • $daysLeft day(s) left (until $dateFormatted)',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFE11D48),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Your deletion request is currently pending. If you changed your mind, you can cancel your deletion request anytime during this 14-day grace period to keep your account active and preserve your booking history.',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: const Color(0xFF475569),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showCancelDeletionConfirmationDialog,
+              icon: const Icon(Icons.undo_rounded, size: 16),
+              label: const Text('Cancel Deletion Request (Keep My Account)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF14332E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCancelDeletionConfirmationDialog() {
+    bool isCancelling = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.verified_user_outlined, color: Color(0xFF059669), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Keep Your Account?',
+                  style: GoogleFonts.lora(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Cancelling your deletion request will restore your account to normal active status. All your personal data and booking history will remain secure.',
+            style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF475569), height: 1.4),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          actions: [
+            OutlinedButton(
+              onPressed: isCancelling ? null : () => Navigator.pop(dialogCtx),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Never Mind'),
+            ),
+            ElevatedButton(
+              onPressed: isCancelling
+                  ? null
+                  : () async {
+                      setDialogState(() => isCancelling = true);
+                      try {
+                        final reqId = _activeDeletionRequest?['id'];
+                        final user = Supabase.instance.client.auth.currentUser;
+                        final userEmail = (user?.email ?? _activeDeletionRequest?['email']?.toString() ?? '').trim();
+
+                        final updatePayload = {
+                          'status': 'cancelled_by_user',
+                          'processed_by': userEmail.isNotEmpty ? userEmail : 'Customer',
+                          'processed_at': DateTime.now().toIso8601String(),
+                          'admin_notes': 'Customer cancelled account deletion during 14-day grace period.',
+                        };
+
+                        if (reqId != null) {
+                          await Supabase.instance.client
+                              .from('account_deletion_requests')
+                              .update(updatePayload)
+                              .eq('id', reqId);
+                        }
+                        if (userEmail.isNotEmpty) {
+                          await Supabase.instance.client
+                              .from('account_deletion_requests')
+                              .update(updatePayload)
+                              .ilike('email', userEmail)
+                              .eq('status', 'pending_review');
+                        }
+                        if (user != null && user.id.isNotEmpty) {
+                          await Supabase.instance.client
+                              .from('account_deletion_requests')
+                              .update(updatePayload)
+                              .eq('user_id', user.id)
+                              .eq('status', 'pending_review');
+                        }
+
+                        if (user != null) {
+                          try {
+                            await Supabase.instance.client.auth.updateUser(
+                              UserAttributes(
+                                data: {
+                                  ...?user.userMetadata,
+                                  'deletion_requested': false,
+                                  'deletion_cancelled_at': DateTime.now().toIso8601String(),
+                                },
+                              ),
+                            );
+                          } catch (_) {}
+                        }
+
+                        // Send admin notification
+                        try {
+                          await NotificationService.sendNotification(
+                            isForAdmin: true,
+                            actorName: userEmail.isNotEmpty ? userEmail.split('@')[0] : 'Customer',
+                            actionType: 'account_deletion_cancelled',
+                            reservationId: 'account_deletion',
+                            customerEmail: userEmail,
+                          );
+                        } catch (_) {}
+
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        if (mounted) {
+                          setState(() => _activeDeletionRequest = null);
+                          _showSnackBar(
+                            'Your deletion request has been cancelled. Your account remains active!',
+                            const Color(0xFF059669),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isCancelling = false);
+                        if (dialogCtx.mounted) {
+                          _showSnackBar('Error cancelling deletion request: $e', AppTheme.errorRed);
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF059669),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: isCancelling
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Confirm & Keep Account'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRequestAccountDeletionDialog(List<Map<String, dynamic>> reservations) {
+    // Check if user has active/ongoing bookings (pending, approved, confirmed, preparing, out for delivery)
+    final activeBookings = reservations.where((r) {
+      final status = (r['status'] ?? '').toString().toLowerCase();
+      return status == 'pending' ||
+          status == 'confirmed' ||
+          status == 'approved' ||
+          status == 'preparing' ||
+          status == 'in_progress' ||
+          status == 'for delivery' ||
+          status == 'out for delivery';
+    }).toList();
+
+    if (activeBookings.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Cannot Delete Account',
+                  style: GoogleFonts.lora(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You currently have ${activeBookings.length} active or ongoing booking/reservation(s).',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'To protect your ongoing transactions, account deletion is not permitted while you have active bookings. Please complete or cancel your pending reservations first.',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: const Color(0xFF64748B),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.forestGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(
+                'Understood',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final reasonController = TextEditingController();
+    String selectedReason = 'I no longer need this account';
+    final List<String> reasons = [
+      'I no longer need this account',
+      'I have privacy concerns',
+      'I created a duplicate/new account',
+      'I had a bad customer experience',
+      'Other reason',
+    ];
+    bool isSubmitting = false;
+    bool agreeToTerms = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 28,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(22, 20, 18, 18),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFF1F2),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            topRight: Radius.circular(24),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFE4E6),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.person_remove_rounded,
+                                color: Color(0xFFE11D48),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Request Account Deletion',
+                                    style: GoogleFonts.lora(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 17,
+                                      color: const Color(0xFF9F1239),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Permanent Action Warning',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: const Color(0xFFE11D48),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF9F1239)),
+                              onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Body content
+                      Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFFBEB),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Submitting this request will disable your access. Your profile data and active sessions will be removed in accordance with Data Privacy policies.',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: const Color(0xFF92400E),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              'Reason for Deletion',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF334155),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedReason,
+                                  isExpanded: true,
+                                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+                                  items: reasons.map((r) {
+                                    return DropdownMenuItem(
+                                      value: r,
+                                      child: Text(
+                                        r,
+                                        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.darkGrey),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: isSubmitting
+                                      ? null
+                                      : (val) {
+                                          if (val != null) {
+                                            setDialogState(() => selectedReason = val);
+                                          }
+                                        },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Additional Feedback / Notes (Optional)',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF334155),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: reasonController,
+                              enabled: !isSubmitting,
+                              maxLines: 3,
+                              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.darkGrey),
+                              decoration: InputDecoration(
+                                hintText: 'Help us improve by telling us why you are leaving...',
+                                hintStyle: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF94A3B8)),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.all(12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFE11D48), width: 1.4),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            // Terms Agreement Checkbox
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: agreeToTerms,
+                                      activeColor: const Color(0xFFE11D48),
+                                      onChanged: isSubmitting
+                                          ? null
+                                          : (val) async {
+                                              if (val == true) {
+                                                final confirmed = await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (termsCtx) => AlertDialog(
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                    backgroundColor: Colors.white,
+                                                    title: Row(
+                                                      children: [
+                                                        Container(
+                                                          padding: const EdgeInsets.all(8),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(0xFFFFF1F2),
+                                                            borderRadius: BorderRadius.circular(10),
+                                                          ),
+                                                          child: const Icon(Icons.gavel_rounded, color: Color(0xFFE11D48), size: 22),
+                                                        ),
+                                                        const SizedBox(width: 12),
+                                                        Expanded(
+                                                          child: Text(
+                                                            'Terms & Conditions',
+                                                            style: GoogleFonts.lora(fontSize: 18, fontWeight: FontWeight.w700),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    content: SingleChildScrollView(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            '• Deletion is permanent and irreversible.\n'
+                                                            '• All profile information, active sessions, and rewards will be deleted.\n'
+                                                            '• Past transaction receipts are retained only as anonymized records for BIR & audit compliance in accordance with Data Privacy Act.\n'
+                                                            '• Deletion will not proceed if you have active/ongoing bookings.',
+                                                            style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF475569), height: 1.5),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                                    actions: [
+                                                      OutlinedButton(
+                                                        onPressed: () => Navigator.pop(termsCtx, false),
+                                                        style: OutlinedButton.styleFrom(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                                        ),
+                                                        child: Text(
+                                                          'Cancel',
+                                                          style: GoogleFonts.inter(
+                                                            color: const Color(0xFF64748B),
+                                                            fontWeight: FontWeight.w700,
+                                                            fontSize: 13,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      ElevatedButton(
+                                                        onPressed: () => Navigator.pop(termsCtx, true),
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor: const Color(0xFFE11D48),
+                                                          foregroundColor: Colors.white,
+                                                          elevation: 0,
+                                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                        ),
+                                                        child: Text(
+                                                          'Confirm',
+                                                          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                                setDialogState(() => agreeToTerms = confirmed == true);
+                                              } else {
+                                                setDialogState(() => agreeToTerms = false);
+                                              }
+                                            },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        Text(
+                                          'I agree to the ',
+                                          style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF334155)),
+                                        ),
+                                        Text(
+                                          'Account Deletion Terms & Conditions',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            color: const Color(0xFFE11D48),
+                                            fontWeight: FontWeight.w700,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // Action Buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Text(
+                                      'Cancel',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: (!agreeToTerms || isSubmitting)
+                                        ? null
+                                        : () async {
+                                            setDialogState(() => isSubmitting = true);
+                                            try {
+                                              final user = Supabase.instance.client.auth.currentUser;
+                                              if (user != null) {
+                                                // Optional: Log deletion request to backend or metadata
+                                                try {
+                                                  await Supabase.instance.client.from('account_deletion_requests').insert({
+                                                    'user_id': user.id,
+                                                    'email': user.email,
+                                                    'reason': selectedReason,
+                                                    'notes': reasonController.text.trim(),
+                                                    'status': 'pending_review',
+                                                    'requested_at': DateTime.now().toIso8601String(),
+                                                  });
+                                                } catch (_) {
+                                                  // In case account_deletion_requests table does not exist yet
+                                                }
+
+                                                // Update user metadata with deletion request flag
+                                                try {
+                                                  await Supabase.instance.client.auth.updateUser(
+                                                    UserAttributes(
+                                                      data: {
+                                                        ...?user.userMetadata,
+                                                        'deletion_requested': true,
+                                                        'deletion_requested_at': DateTime.now().toIso8601String(),
+                                                        'deletion_reason': selectedReason,
+                                                      },
+                                                    ),
+                                                  );
+                                                } catch (_) {}
+                                              }
+
+                                              if (dialogCtx.mounted) {
+                                                Navigator.pop(dialogCtx);
+                                              }
+
+                                              // Sign out user after request
+                                              await Supabase.instance.client.auth.signOut();
+                                              final prefs = await SharedPreferences.getInstance();
+                                              await prefs.clear();
+
+                                              if (context.mounted) {
+                                                _showSnackBar(
+                                                  'Your account deletion request has been received. You have been signed out.',
+                                                  const Color(0xFFE11D48),
+                                                );
+                                                Navigator.of(context).pushAndRemoveUntil(
+                                                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                                                  (route) => false,
+                                                );
+                                              }
+                                            } catch (e) {
+                                              setDialogState(() => isSubmitting = false);
+                                              if (dialogCtx.mounted) {
+                                                _showSnackBar('Error requesting account deletion: $e', AppTheme.errorRed);
+                                              }
+                                            }
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFE11D48),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    child: isSubmitting
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                          )
+                                        : Text(
+                                            'Confirm Request',
+                                            style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

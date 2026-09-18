@@ -70,6 +70,7 @@ import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
 import 'package:yang_chow/pages/admin/audit_logs_page.dart';
+import 'package:yang_chow/pages/admin/account_deletion_requests_page.dart';
 
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
@@ -107,6 +108,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   int _pendingReservationCount = 0;
   int _remainingBalanceCount = 0;
   int _pendingRefundCount = 0;
+  int _pendingDeletionCount = 0;
 
 
 
@@ -180,6 +182,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     _loadPendingReservationCount();
     _loadRemainingBalanceCount();
     _loadPendingRefundCount();
+    _loadPendingDeletionCount();
 
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
     _countRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
@@ -187,6 +190,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       _loadPendingReservationCount();
       _loadRemainingBalanceCount();
       _loadPendingRefundCount();
+      _loadPendingDeletionCount();
     });
 
     NotificationService.startStockMonitoring();
@@ -198,6 +202,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       _loadPendingReservationCount();
       _loadRemainingBalanceCount();
       _loadPendingRefundCount();
+      _loadPendingDeletionCount();
 
       final unread = notifs.where((n) => n['is_read'] == false).toList();
       if (unread.isNotEmpty) {
@@ -559,6 +564,24 @@ class _AdminMainPageState extends State<AdminMainPage> {
     }
   }
 
+  Future<void> _loadPendingDeletionCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final res = await supabase
+          .from('account_deletion_requests')
+          .select('id')
+          .eq('status', 'pending_review');
+
+      if (mounted) {
+        setState(() {
+          _pendingDeletionCount = (res as List).length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading pending deletion count: $e');
+    }
+  }
+
 
 
   @override
@@ -581,6 +604,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     '/admin/payment-management',
     '/admin/employee-management',
     '/admin/customers-reviews',
+    '/admin/deletion-requests',
     '/admin/announcements',
     '/admin/customer-chat',
     '/admin/petty-cash',
@@ -615,6 +639,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Payment Management',
     'Employee Management',
     'Customers & Reviews',
+    'Deletion Requests',
     'Announcements',
     'Customer Chat',
     'Petty Cash',
@@ -632,6 +657,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.payment,
     Icons.people,
     Icons.groups_rounded,
+    Icons.person_remove_rounded,
     Icons.campaign,
     Icons.chat_bubble,
     Icons.account_balance_wallet,
@@ -649,6 +675,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const PaymentApprovalPage(),
     const UserManagementPage(),
     const CustomerManagementPage(),
+    const AccountDeletionRequestsPage(),
     const AdminAnnouncementsPage(),
     const AdminChatPage(),
     const PettyCashPage(),
@@ -797,11 +824,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
     ),
     _AdminNavGroup(
       title: 'FINANCE & PAYMENTS',
-      indices: [6, 12, 11], // Payment Management, Refunds & Reschedules, Petty Cash
+      indices: [6, 13, 12], // Payment Management, Refunds & Reschedules, Petty Cash
     ),
     _AdminNavGroup(
       title: 'ADMIN & SYSTEM',
-      indices: [7, 8, 10, 9, 13], // Employee Management, Customers & Reviews, Customer Chat, Announcements, Audit Logs
+      indices: [7, 8, 9, 11, 10, 14], // Employee Management, Customers & Reviews, Deletion Requests, Customer Chat, Announcements, Audit Logs
     ),
   ];
 
@@ -860,6 +887,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
       badgeCount = _pendingPaymentCount + _remainingBalanceCount;
     } else if (_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') {
       badgeCount = _pendingRefundCount;
+    } else if (_pageTitles[index] == 'Deletion Requests') {
+      badgeCount = _pendingDeletionCount;
     }
 
     return Padding(
@@ -895,6 +924,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
             // Refresh count when switching to Refunds & Reschedules
             if (_pageTitles[index] == 'Refunds & Reschedules') {
               _loadPendingRefundCount();
+            }
+
+            // Refresh count when switching to Deletion Requests
+            if (_pageTitles[index] == 'Deletion Requests') {
+              _loadPendingDeletionCount();
             }
 
             if (isDrawer) {

@@ -636,18 +636,33 @@ $body
     );
   }
 
-  /// Send account warning email to customer
+  /// Send account warning email to customer via Edge Function / SMTP
   Future<bool> sendAccountWarningEmail({
     required String customerEmail,
     required String customerName,
     required int warningNumber,
     required String reason,
   }) async {
-    return _logEmailNotification(
-      recipientEmail: customerEmail,
-      subject: 'Account Notice: Reservation Policy Warning (#$warningNumber) - Yang Chow Restaurant',
-      emailType: 'account_warning',
-      body: '''
+    try {
+      final response = await _supabase.functions.invoke(
+        'send-account-alert-email',
+        body: {
+          'type': 'account_warning',
+          'recipientEmail': customerEmail.trim(),
+          'customerName': customerName,
+          'warningNumber': warningNumber,
+          'reason': reason,
+        },
+      );
+      debugPrint('Warning email sent response: ${response.data}');
+      return true;
+    } catch (e) {
+      debugPrint('Edge function warning email failed/fallback: $e');
+      return _logEmailNotification(
+        recipientEmail: customerEmail,
+        subject: 'Account Notice: Reservation Policy Warning (#$warningNumber) - Yang Chow Restaurant',
+        emailType: 'account_warning',
+        body: '''
 Dear $customerName,
 
 We are writing to notify you that an official Warning (#$warningNumber) has been issued regarding your customer account at Yang Chow Restaurant.
@@ -665,10 +680,11 @@ Thank you for your understanding.
 Best regards,
 Yang Chow Restaurant Management
 ''',
-    );
+      );
+    }
   }
 
-  /// Send account restriction email to customer
+  /// Send account restriction email to customer via Edge Function / SMTP
   Future<bool> sendAccountRestrictedEmail({
     required String customerEmail,
     required String customerName,
@@ -680,11 +696,27 @@ Yang Chow Restaurant Management
         ? DateFormat('MMMM dd, yyyy • h:mm a').format(expiresAt.toLocal())
         : 'Indefinite (Pending Admin Review)';
 
-    return _logEmailNotification(
-      recipientEmail: customerEmail,
-      subject: 'Important: Your Yang Chow Account Has Been Temporarily Restricted',
-      emailType: 'account_restriction',
-      body: '''
+    try {
+      final response = await _supabase.functions.invoke(
+        'send-account-alert-email',
+        body: {
+          'type': 'account_restriction',
+          'recipientEmail': customerEmail.trim(),
+          'customerName': customerName,
+          'restrictionType': restrictionType,
+          'reason': reason,
+          'expiresAt': formattedExpiry,
+        },
+      );
+      debugPrint('Restriction email sent response: ${response.data}');
+      return true;
+    } catch (e) {
+      debugPrint('Edge function restriction email failed/fallback: $e');
+      return _logEmailNotification(
+        recipientEmail: customerEmail,
+        subject: 'Important: Your Yang Chow Account Has Been Temporarily Restricted',
+        emailType: 'account_restriction',
+        body: '''
 Dear $customerName,
 
 Your Yang Chow customer account has been placed under temporary restriction ($restrictionType) from creating new reservations.
@@ -701,12 +733,51 @@ DURING THIS PERIOD:
 - You will not be able to submit new reservations or advance orders.
 - Existing confirmed or active reservations remain valid unless otherwise notified.
 
-To request an account review or speak with an administrator, please reach out to us at support@yangchow.com or call our hotline.
+To request an account review or speak with an administrator, please reach out to us at support@yc-pagsanjan.site or call our hotline.
 
 Best regards,
 Yang Chow Restaurant Management
 ''',
-    );
+      );
+    }
+  }
+
+  /// Send account unrestricted email to customer via Edge Function / SMTP
+  Future<bool> sendAccountUnrestrictedEmail({
+    required String customerEmail,
+    required String customerName,
+    required String reason,
+  }) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'send-account-alert-email',
+        body: {
+          'type': 'account_unrestricted',
+          'recipientEmail': customerEmail.trim(),
+          'customerName': customerName,
+          'reason': reason,
+        },
+      );
+      debugPrint('Unrestricted email sent response: ${response.data}');
+      return true;
+    } catch (e) {
+      debugPrint('Edge function unrestricted email failed/fallback: $e');
+      return _logEmailNotification(
+        recipientEmail: customerEmail,
+        subject: 'Account Active: Restriction Lifted - Yang Chow Restaurant',
+        emailType: 'account_unrestricted',
+        body: '''
+Dear $customerName,
+
+Your Yang Chow customer account restriction has been lifted and your account is now fully active.
+
+Admin Note: $reason
+
+Best regards,
+Yang Chow Restaurant Management
+''',
+      );
+    }
   }
 
   /// Send deposit payment confirmation email
