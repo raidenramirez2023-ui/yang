@@ -158,11 +158,26 @@ class ErrorLogStore {
 class AppErrorHandler {
   static void initialize() {
     FlutterError.onError = (FlutterErrorDetails details) {
+      // Don't pollute persistent system error logs with transient image loading/CORS failures
+      // that are handled gracefully by widget errorBuilders/fallbacks
+      final library = details.library ?? '';
+      final contextDesc = details.context?.toDescription() ?? '';
+      final msg = details.exceptionAsString();
+      final isImageResourceError = library == 'image resource service' ||
+          contextDesc.contains('image stream completer') ||
+          (msg.contains('HTTP request failed') && msg.contains('statusCode: 0')) ||
+          msg.contains('ImageCodecException');
+
+      if (isImageResourceError) {
+        debugPrint('⚠️ [ImageResource] Handled network image failure: $msg');
+        return;
+      }
+
       AppLogger.error(
         module: details.library ?? 'Flutter',
-        message: details.exceptionAsString(),
+        message: msg,
         stackTrace: details.stack,
-        context: {'context': details.context?.toDescription() ?? ''},
+        context: {'context': contextDesc},
       );
       FlutterError.presentError(details);
     };

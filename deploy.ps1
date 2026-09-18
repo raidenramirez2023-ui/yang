@@ -13,7 +13,7 @@ flutter pub get
 
 # Build for production
 Write-Host "Building Flutter web app for production..." -ForegroundColor Yellow
-flutter build web --release --pwa-strategy=none --base-href=/
+flutter build web --release --no-tree-shake-icons --pwa-strategy=none --base-href=/
 
 # Create deployment package
 Write-Host "Creating deployment package..." -ForegroundColor Yellow

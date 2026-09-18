@@ -247,7 +247,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final currentAvatarUrl = user.userMetadata?['avatar_url'] as String?;
     final hasNoExistingPhoto =
-        currentAvatarUrl == null || currentAvatarUrl.isEmpty;
+        currentAvatarUrl == null || currentAvatarUrl.isEmpty || !ImageStorageService.isValidImageUrl(currentAvatarUrl);
 
     if (hasNoExistingPhoto && _pickedFile == null) {
       if (!mounted) return;
@@ -647,7 +647,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       child: ClipOval(
                         child: _pickedFileBytes != null
                             ? Image.memory(_pickedFileBytes!, fit: BoxFit.cover)
-                            : (avatarUrl != null && avatarUrl.isNotEmpty)
+                            : (avatarUrl != null && avatarUrl.isNotEmpty && ImageStorageService.isValidImageUrl(avatarUrl))
                                 ? Image.network(
                                     avatarUrl,
                                     fit: BoxFit.cover,
