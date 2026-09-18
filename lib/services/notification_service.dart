@@ -355,6 +355,12 @@ class NotificationService {
       'refund_approved',
       'refund_processed',
       'refund_rejected',
+      // Account notices & restrictions
+      'account_warning',
+      'account_restriction',
+      'account_unrestricted',
+      'warning',
+      'restriction',
     ];
 
     return _supabase

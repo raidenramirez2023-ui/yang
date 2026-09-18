@@ -2344,6 +2344,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                 final success = await _reservationService.issueCustomerWarning(
                   userId: userId,
                   email: email,
+                  customerName: customerName,
                   reason: reason,
                   adminName: adminName,
                   sendEmail: sendEmail,
@@ -2522,6 +2523,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                 final success = await _reservationService.restrictCustomerAccount(
                   userId: userId,
                   email: email,
+                  customerName: customerName,
                   restrictionType: restrictionType,
                   duration: restrictionType == 'blocked' || selectedDurationLabel == 'Indefinite'
                       ? null
@@ -2613,6 +2615,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
               final success = await _reservationService.unrestrictCustomerAccount(
                 userId: userId,
                 email: email,
+                customerName: customerName,
                 reason: noteController.text.trim(),
                 adminName: adminName,
               );

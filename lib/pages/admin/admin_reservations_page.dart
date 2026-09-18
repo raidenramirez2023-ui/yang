@@ -3677,6 +3677,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 final success = await _reservationService.issueCustomerWarning(
                   userId: userId,
                   email: email,
+                  customerName: customerName,
                   reason: reason,
                   adminName: adminName,
                   sendEmail: sendEmail,
@@ -3698,19 +3699,18 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   void _showRestrictAccountDialog(String customerName, String? userId, String? email, VoidCallback onUpdated) {
-    String restrictionType = 'temporarily_restricted'; // temporarily_restricted, blocked
-    Duration selectedDuration = const Duration(days: 7);
-    String selectedDurationLabel = '7 Days';
+    String restrictionType = 'temporarily_restricted';
+    dynamic selectedDuration = '24_hours';
+    String selectedDurationLabel = '24 Hours';
     final reasonController = TextEditingController(text: 'Multiple expired quotations or unverified repeated bookings.');
     bool sendEmail = true;
 
-    final durationOptions = [
-      {'label': '24 Hours', 'duration': const Duration(hours: 24)},
-      {'label': '3 Days', 'duration': const Duration(days: 3)},
-      {'label': '7 Days', 'duration': const Duration(days: 7)},
-      {'label': '14 Days', 'duration': const Duration(days: 14)},
-      {'label': '30 Days', 'duration': const Duration(days: 30)},
-      {'label': 'Indefinite', 'duration': null},
+    final quickReasons = [
+      'Repeated unconfirmed bookings',
+      'No-show on scheduled event date',
+      'Unresponsive to price quotations',
+      'Abusive behavior towards staff',
+      'Spam reservation attempts',
     ];
 
     showDialog(
@@ -3735,7 +3735,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ],
           ),
           content: SizedBox(
-            width: 500,
+            width: 480,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3751,58 +3751,77 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          label: Text('Temporary Suspension', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
-                          selected: restrictionType == 'temporarily_restricted',
-                          onSelected: (val) {
-                            if (val) setDialogState(() => restrictionType = 'temporarily_restricted');
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ChoiceChip(
-                          label: Text('Permanent / Blocked', style: GoogleFonts.plusJakartaSans(fontSize: 12)),
-                          selected: restrictionType == 'blocked',
-                          selectedColor: const Color(0xFFFEE2E2),
-                          onSelected: (val) {
-                            if (val) setDialogState(() => restrictionType = 'blocked');
-                          },
-                        ),
-                      ),
+                  DropdownButtonFormField<String>(
+                    value: restrictionType,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'temporarily_restricted', child: Text('Temporarily Restricted')),
+                      DropdownMenuItem(value: 'suspended', child: Text('Suspended')),
+                      DropdownMenuItem(value: 'blocked', child: Text('Permanently Blocked')),
                     ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => restrictionType = val);
+                    },
                   ),
-                  if (restrictionType == 'temporarily_restricted') ...[
-                    const SizedBox(height: 14),
+                  if (restrictionType != 'blocked') ...[
+                    const SizedBox(height: 12),
                     Text(
-                      'Restriction Duration:',
-                      style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                      'Duration:',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: _slate),
                     ),
                     const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: durationOptions.map((opt) {
-                        final isSelected = selectedDurationLabel == opt['label'];
-                        return ChoiceChip(
-                          label: Text(opt['label'] as String, style: GoogleFonts.plusJakartaSans(fontSize: 11)),
-                          selected: isSelected,
-                          onSelected: (val) {
-                            if (val) {
-                              setDialogState(() {
-                                selectedDurationLabel = opt['label'] as String;
-                                selectedDuration = (opt['duration'] as Duration?) ?? const Duration(days: 365);
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
+                    DropdownButtonFormField<String>(
+                      value: selectedDurationLabel,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: '24 Hours', child: Text('24 Hours')),
+                        DropdownMenuItem(value: '3 Days', child: Text('3 Days')),
+                        DropdownMenuItem(value: '7 Days', child: Text('7 Days (1 Week)')),
+                        DropdownMenuItem(value: '14 Days', child: Text('14 Days (2 Weeks)')),
+                        DropdownMenuItem(value: '30 Days', child: Text('30 Days (1 Month)')),
+                        DropdownMenuItem(value: 'Indefinite', child: Text('Indefinite (Until manually lifted)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedDurationLabel = val;
+                            if (val == '24 Hours') selectedDuration = '24_hours';
+                            else if (val == '3 Days') selectedDuration = '3_days';
+                            else if (val == '7 Days') selectedDuration = '7_days';
+                            else if (val == '14 Days') selectedDuration = '14_days';
+                            else if (val == '30 Days') selectedDuration = '30_days';
+                            else selectedDuration = null;
+                          });
+                        }
+                      },
                     ),
                   ],
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Quick Reasons:',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: _slate),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: quickReasons.map((r) {
+                      return ActionChip(
+                        label: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 11)),
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        onPressed: () => setDialogState(() => reasonController.text = r),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: reasonController,
                     maxLines: 3,
@@ -3818,7 +3837,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     title: Text(
-                      'Send notification email to customer',
+                      'Send email notification to customer',
                       style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     value: sendEmail,
@@ -3855,6 +3874,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 final success = await _reservationService.restrictCustomerAccount(
                   userId: userId,
                   email: email,
+                  customerName: customerName,
                   restrictionType: restrictionType,
                   duration: restrictionType == 'blocked' || selectedDurationLabel == 'Indefinite'
                       ? null
@@ -3946,6 +3966,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               final success = await _reservationService.unrestrictCustomerAccount(
                 userId: userId,
                 email: email,
+                customerName: customerName,
                 reason: noteController.text.trim(),
                 adminName: adminName,
               );
