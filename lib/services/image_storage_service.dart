@@ -231,4 +231,12 @@ class ImageStorageService {
     if (lower.endsWith('.pdf')) return 'application/pdf';
     return 'image/jpeg';
   }
+
+  /// Checks if an image URL is a valid, clean web URL and not an invalid/corrupt blob string.
+  static bool isValidImageUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return false;
+    final u = url.trim().toLowerCase();
+    if (u.contains('blob%3a') || u.contains('blob:')) return false;
+    return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('data:image/');
+  }
 }

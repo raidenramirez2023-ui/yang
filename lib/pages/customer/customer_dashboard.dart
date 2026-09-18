@@ -22,6 +22,7 @@ import 'package:yang_chow/pages/customer/menu_selection_page.dart';
 import 'package:yang_chow/pages/customer/customer_order_list.dart';
 import 'package:yang_chow/pages/customer/transactions_page.dart';
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:yang_chow/pages/customer/gcash_qr_payment_page.dart';
 import 'package:yang_chow/pages/login_page.dart';
 import 'package:yang_chow/services/notification_service.dart';
@@ -52,6 +53,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   late int _selectedIndex;
   void Function()? _cancelPopState;
+
+  bool _isValidAvatar(String? url) => ImageStorageService.isValidImageUrl(url);
 
   static const List<String> _tabUrls = [
     '/customer/dashboard',
@@ -5378,14 +5381,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                             color: const Color(0xFF0C241F),
                                             width: 1.5,
                                           ),
-                                          image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
+                                          image: _isValidAvatar(Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] as String?)
                                               ? DecorationImage(
                                                   image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
                                                   fit: BoxFit.cover,
+                                                  onError: (_, __) {},
                                                 )
                                               : null,
                                         ),
-                                        child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
+                                        child: !_isValidAvatar(Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] as String?)
                                             ? const Center(
                                                 child: Icon(Icons.person_rounded, color: AppTheme.warmGold, size: 28),
                                               )
@@ -7693,14 +7697,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: const Color(0xFF0C241F),
-                                        image: currentUser?.userMetadata?['avatar_url'] != null
+                                        image: _isValidAvatar(currentUser?.userMetadata?['avatar_url'] as String?)
                                             ? DecorationImage(
                                                 image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
                                                 fit: BoxFit.cover,
+                                                onError: (_, __) {},
                                               )
                                             : null,
                                       ),
-                                      child: currentUser?.userMetadata?['avatar_url'] == null
+                                      child: !_isValidAvatar(currentUser?.userMetadata?['avatar_url'] as String?)
                                           ? Center(
                                               child: Text(
                                                 initial,
