@@ -187,7 +187,7 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
                       ),
                     ),
                     child: const Icon(
-                      Icons.terminal_rounded,
+                      Icons.terminal,
                       color: DeveloperTheme.accentIndigo,
                       size: 36,
                     ),
@@ -279,7 +279,7 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
                   decoration: InputDecoration(
                     hintText: 'developer@yangchow.com',
                     hintStyle: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
-                    prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18, color: DeveloperTheme.textMuted),
+                    prefixIcon: const Icon(Icons.badge_outlined, size: 18, color: DeveloperTheme.textMuted),
                     filled: true,
                     fillColor: DeveloperTheme.bgDark,
                     border: OutlineInputBorder(

@@ -483,7 +483,7 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
                 ElevatedButton.icon(
                   onPressed: _isSaving ? null : () => _confirmToggleMaintenanceMode(!_isMaintenanceActive),
                   icon: Icon(
-                    _isMaintenanceActive ? Icons.power_settings_new_rounded : Icons.build_rounded,
+                    _isMaintenanceActive ? Icons.power_settings_new_rounded : Icons.build,
                     size: 18,
                   ),
                   label: Text(_isMaintenanceActive ? 'Deactivate Maintenance' : 'Activate Maintenance'),
@@ -679,7 +679,7 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
                     onPressed: _isSaving
                         ? null
                         : () => _confirmToggleMaintenanceMode(_isMaintenanceActive),
-                    icon: const Icon(Icons.save_rounded, size: 18),
+                    icon: const Icon(Icons.save, size: 18),
                     label: const Text('Update Settings'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: DeveloperTheme.accentIndigo,
