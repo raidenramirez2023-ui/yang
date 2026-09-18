@@ -12,6 +12,7 @@ import 'maintenance_mode_page.dart';
 import 'user_monitoring_page.dart';
 import 'error_log_viewer_page.dart';
 import '../../utils/url_helper.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class DeveloperDashboardPage extends StatefulWidget {
   final int initialIndex;
@@ -43,15 +44,33 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   bool _isMaintenanceActive = false;
   Timer? _latencyTimer;
   String _developerEmail = 'Developer';
+  String _appVersion = '1.0.0+20';
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
     _developerEmail = Supabase.instance.client.auth.currentUser?.email ?? 'developer@yangchow.com';
+    _loadAppVersion();
     _checkSystemPulse();
     // Periodically update latency and maintenance status
     _latencyTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkSystemPulse());
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final ver = info.version;
+      final build = info.buildNumber;
+      if (ver.isNotEmpty) {
+        final full = build.isNotEmpty ? '$ver+$build' : ver;
+        if (mounted) {
+          setState(() => _appVersion = full);
+        }
+      }
+    } catch (e) {
+      debugPrint('[DeveloperDashboard] Error loading package version: $e');
+    }
   }
 
   @override
@@ -377,7 +396,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Role: developer\nEngine: v1.0.0+20',
+                      'Role: developer\nEngine: v$_appVersion',
                       style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.textMuted),
                     ),
                   ),
@@ -708,8 +727,8 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             decoration: DeveloperTheme.cardDecoration(),
             child: Column(
               children: [
-                _buildInfoRow('Application Name', 'Yang Chow Palace Restaurant Management System (YCPRMS)'),
-                _buildInfoRow('Software Release Version', '1.0.0+20 (Production)'),
+                _buildInfoRow('Application Name', 'Yang Chow Pagsanjan Restaurant Management System (YCPRMS)'),
+                _buildInfoRow('Software Release Version', '$_appVersion (Production)'),
                 _buildInfoRow('Framework & SDK', 'Flutter 3.x / Dart 3.x'),
                 _buildInfoRow('Relational Database', 'Supabase PostgreSQL 15.x with Row Level Security (RLS)'),
                 _buildInfoRow('Object Storage', 'Firebase Storage Bucket (Polyglot image storage)'),

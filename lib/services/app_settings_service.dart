@@ -236,8 +236,8 @@ class AppSettingsService {
 
   String getMaintenanceMessage() =>
       getSetting<String>('maintenance_message',
-          defaultValue: 'Yang Chow Palace is temporarily undergoing scheduled maintenance. Please check back shortly.') ??
-      'Yang Chow Palace is temporarily undergoing scheduled maintenance. Please check back shortly.';
+          defaultValue: 'Yang Chow Pagsanjan is temporarily undergoing scheduled maintenance. Please check back shortly.') ??
+      'Yang Chow Pagsanjan is temporarily undergoing scheduled maintenance. Please check back shortly.';
 
   String? getMaintenanceStartTime() =>
       getSetting<String>('maintenance_start_time');

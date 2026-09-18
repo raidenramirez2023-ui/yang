@@ -338,22 +338,36 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
 
                 const SizedBox(height: 12),
 
-                // Remember Me
+                // Remember Me & Forgot Password
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: _rememberMe,
-                        activeColor: DeveloperTheme.accentIndigo,
-                        checkColor: Colors.white,
-                        side: const BorderSide(color: DeveloperTheme.borderSubtle),
-                        onChanged: (val) => setState(() => _rememberMe = val ?? false),
-                      ),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: _rememberMe,
+                            activeColor: DeveloperTheme.accentIndigo,
+                            checkColor: Colors.white,
+                            side: const BorderSide(color: DeveloperTheme.borderSubtle),
+                            onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Remember credentials', style: DeveloperTheme.bodySmall()),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text('Remember credentials', style: DeveloperTheme.bodySmall()),
+                    _ForgotPasswordLink(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/developer/forgot-password',
+                          arguments: _emailController.text.trim(),
+                        );
+                      },
+                    ),
                   ],
                 ),
 
@@ -403,6 +417,43 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ForgotPasswordLink extends StatefulWidget {
+  final VoidCallback onTap;
+  const _ForgotPasswordLink({required this.onTap});
+
+  @override
+  State<_ForgotPasswordLink> createState() => _ForgotPasswordLinkState();
+}
+
+class _ForgotPasswordLinkState extends State<_ForgotPasswordLink> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Text(
+          'Forgot Password?',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: _isHovered
+                ? DeveloperTheme.accentCyan
+                : DeveloperTheme.accentIndigo,
+            decoration:
+                _isHovered ? TextDecoration.underline : TextDecoration.none,
+            decorationColor: DeveloperTheme.accentCyan,
           ),
         ),
       ),

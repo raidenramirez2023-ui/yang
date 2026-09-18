@@ -231,8 +231,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   void initState() {
     super.initState();
 
-    // Add listener to password field to trigger confirm password validation
+    // Add listener to password field to trigger confirm password validation and live checklist
     passwordController.addListener(() {
+      setState(() {});
       if (confirmPasswordController.text.isNotEmpty) {
         _formKey.currentState?.validate();
       }
@@ -2061,6 +2062,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.lock_outline,
           validator: _validatePassword,
           obscureText: !_isPasswordVisible,
+          onChanged: (_) => setState(() {}),
           suffixIcon: IconButton(
             icon: Icon(
               _isPasswordVisible
@@ -2073,6 +2075,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 setState(() => _isPasswordVisible = !_isPasswordVisible),
           ),
         ),
+
+        // Live Password Requirements Checklist
+        _buildPasswordRequirementsCard(),
+
         const SizedBox(height: 10),
 
         // Confirm Password Input
@@ -2082,6 +2088,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.lock_outline,
           validator: _validateConfirmPassword,
           obscureText: !_isConfirmPasswordVisible,
+          onChanged: (_) => setState(() {}),
           suffixIcon: IconButton(
             icon: Icon(
               _isConfirmPasswordVisible
@@ -2289,12 +2296,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     List<TextInputFormatter>? formatters,
     bool enabled = true,
     Widget? suffixIcon,
+    ValueChanged<String>? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       enabled: enabled && !_isLoading,
       validator: validator,
+      onChanged: onChanged,
       keyboardType: keyboardType,
       inputFormatters: formatters,
       style: GoogleFonts.poppins(
@@ -2334,6 +2343,85 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           borderSide: BorderSide(color: Colors.red, width: 1.8),
         ),
         errorStyle: GoogleFonts.poppins(fontSize: 10.5, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+
+  Widget _buildPasswordRequirementsCard() {
+    final pass = passwordController.text;
+    final hasMinLength = pass.length >= 8;
+    final hasUppercase = pass.contains(RegExp(r'[A-Z]'));
+    final hasLowercase = pass.contains(RegExp(r'[a-z]'));
+    final hasDigits = pass.contains(RegExp(r'[0-9]'));
+    final hasSpecialCharacters = pass.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+    final isAllMet = hasMinLength && hasUppercase && hasLowercase && hasDigits && hasSpecialCharacters;
+
+    Widget buildChip(String label, bool isMet) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 13,
+            color: isMet ? _forestGreen : Colors.grey.shade500,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 10.5,
+              fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+              color: isMet ? _forestGreen : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isAllMet ? const Color(0xFFE8F5E9) : const Color(0xFFFCFAF7),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isAllMet ? Colors.green.shade300 : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isAllMet ? Icons.verified_user : Icons.shield_outlined,
+                size: 13,
+                color: isAllMet ? _forestGreen : _primaryGold,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                isAllMet ? 'Strong Password' : 'Password Requirements:',
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isAllMet ? _forestGreen : const Color(0xFF3D2A1D),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              buildChip('8+ Characters', hasMinLength),
+              buildChip('Uppercase (A-Z)', hasUppercase),
+              buildChip('Lowercase (a-z)', hasLowercase),
+              buildChip('Number (0-9)', hasDigits),
+              buildChip('Special Char (!@#\$...)', hasSpecialCharacters),
+            ],
+          ),
+        ],
       ),
     );
   }

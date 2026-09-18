@@ -208,6 +208,10 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
   bool _loadingDbErrors = false;
   RealtimeChannel? _realtimeSub;
 
+  int _runtimePage = 1;
+  int _dbPage = 1;
+  static const int _pageSize = 50;
+
   @override
   void initState() {
     super.initState();
@@ -268,7 +272,7 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
           .select('id, action, module, description, user_email, created_at, metadata')
           .or('action.eq.CRITICAL,action.eq.ERROR,action.eq.FAILED,action.eq.SYSTEM_ERROR,action.eq.WARNING,action.eq.INFO,description.ilike.%error%,description.ilike.%failed%')
           .order('created_at', ascending: false)
-          .limit(100);
+          .limit(1000);
 
       final List<AppErrorLog> dbLogs = [];
       for (final row in (response as List)) {
@@ -285,6 +289,10 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
           _dbErrors = List<Map<String, dynamic>>.from(response);
           _loadingDbErrors = false;
           _applyFilters();
+          final totalDbPages = (_dbErrors.length / _pageSize).ceil().clamp(1, 99999);
+          if (_dbPage > totalDbPages) {
+            _dbPage = 1;
+          }
         });
       }
     } catch (e) {
@@ -314,6 +322,10 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
     }
 
     _filteredLogs = result;
+    final totalPages = (_filteredLogs.length / _pageSize).ceil().clamp(1, 99999);
+    if (_runtimePage > totalPages) {
+      _runtimePage = 1;
+    }
   }
 
   List<String> get _availableSources {
@@ -730,21 +742,44 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
   }
 
   Widget _buildMainContent() {
+    final totalItems = _filteredLogs.length;
+    final totalPages = (totalItems / _pageSize).ceil().clamp(1, 99999);
+    final currentPage = _runtimePage.clamp(1, totalPages);
+    final startIndex = totalItems == 0 ? 0 : (currentPage - 1) * _pageSize;
+    final endIndex = (startIndex + _pageSize > totalItems) ? totalItems : startIndex + _pageSize;
+    final paginatedLogs = totalItems == 0 ? <AppErrorLog>[] : _filteredLogs.sublist(startIndex, endIndex);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           flex: 5,
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 520),
+            constraints: const BoxConstraints(maxHeight: 560),
             decoration: DeveloperTheme.cardDecoration(),
             child: _filteredLogs.isEmpty
                 ? _buildEmptyState()
-                : ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _filteredLogs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 4),
-                    itemBuilder: (context, index) => _buildLogRow(_filteredLogs[index]),
+                : Column(
+                    children: [
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: paginatedLogs.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 4),
+                          itemBuilder: (context, index) => _buildLogRow(paginatedLogs[index]),
+                        ),
+                      ),
+                      const Divider(height: 1, color: DeveloperTheme.borderSubtle),
+                      _buildPaginationFooter(
+                        totalItems: totalItems,
+                        startIndex: totalItems == 0 ? 0 : startIndex + 1,
+                        endIndex: endIndex,
+                        currentPage: currentPage,
+                        totalPages: totalPages,
+                        itemLabel: 'logs',
+                        onPageChanged: (p) => setState(() => _runtimePage = p),
+                      ),
+                    ],
                   ),
           ),
         ),
@@ -752,7 +787,7 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
         Expanded(
           flex: 4,
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 520),
+            constraints: const BoxConstraints(maxHeight: 560),
             decoration: DeveloperTheme.cardDecoration(),
             child: _selectedLog == null ? _buildDetailPlaceholder() : _buildDetailPanel(_selectedLog!),
           ),
@@ -969,6 +1004,13 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
   }
 
   Widget _buildDbErrorsSection() {
+    final totalItems = _dbErrors.length;
+    final totalPages = (totalItems / _pageSize).ceil().clamp(1, 99999);
+    final currentPage = _dbPage.clamp(1, totalPages);
+    final startIndex = totalItems == 0 ? 0 : (currentPage - 1) * _pageSize;
+    final endIndex = (startIndex + _pageSize > totalItems) ? totalItems : startIndex + _pageSize;
+    final paginatedDbErrors = totalItems == 0 ? <Map<String, dynamic>>[] : _dbErrors.sublist(startIndex, endIndex);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -996,7 +1038,10 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
             else
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, size: 18, color: DeveloperTheme.textSecondary),
-                onPressed: _fetchDbErrors,
+                onPressed: () {
+                  setState(() => _dbPage = 1);
+                  _fetchDbErrors();
+                },
                 tooltip: 'Refresh DB Errors',
               ),
           ],
@@ -1018,13 +1063,27 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
                     ],
                   ),
                 )
-              : ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _dbErrors.length,
-                  separatorBuilder: (_, __) => const Divider(color: DeveloperTheme.borderSubtle, height: 12),
-                  itemBuilder: (ctx, i) => _buildDbErrorRow(_dbErrors[i]),
+              : Column(
+                  children: [
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(12),
+                      itemCount: paginatedDbErrors.length,
+                      separatorBuilder: (_, __) => const Divider(color: DeveloperTheme.borderSubtle, height: 12),
+                      itemBuilder: (ctx, i) => _buildDbErrorRow(paginatedDbErrors[i]),
+                    ),
+                    const Divider(height: 1, color: DeveloperTheme.borderSubtle),
+                    _buildPaginationFooter(
+                      totalItems: totalItems,
+                      startIndex: totalItems == 0 ? 0 : startIndex + 1,
+                      endIndex: endIndex,
+                      currentPage: currentPage,
+                      totalPages: totalPages,
+                      itemLabel: 'entries',
+                      onPageChanged: (p) => setState(() => _dbPage = p),
+                    ),
+                  ],
                 ),
         ),
       ],
@@ -1112,5 +1171,116 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${local.month}/${local.day} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildPaginationFooter({
+    required int totalItems,
+    required int startIndex,
+    required int endIndex,
+    required int currentPage,
+    required int totalPages,
+    required String itemLabel,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: DeveloperTheme.bgDark,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 560;
+          final infoText = Text(
+            totalItems == 0
+                ? '0 $itemLabel'
+                : 'Showing $startIndex–$endIndex of $totalItems $itemLabel',
+            style: DeveloperTheme.monoText(
+              fontSize: 12,
+              color: DeveloperTheme.textSecondary,
+            ),
+          );
+
+          final controls = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page_rounded, size: 20),
+                tooltip: 'First Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                tooltip: 'Previous Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.bgCard,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: DeveloperTheme.borderSubtle),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: DeveloperTheme.monoText(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: DeveloperTheme.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                tooltip: 'Next Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page_rounded, size: 20),
+                tooltip: 'Last Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage < totalPages ? () => onPageChanged(totalPages) : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+            ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                infoText,
+                const SizedBox(height: 8),
+                controls,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              infoText,
+              controls,
+            ],
+          );
+        },
+      ),
+    );
   }
 }

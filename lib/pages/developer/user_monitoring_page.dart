@@ -15,6 +15,8 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
   String? _errorMessage;
+  int _currentPage = 1;
+  static const int _pageSize = 30;
 
   String _searchQuery = '';
   String _selectedRoleFilter = 'All Roles';
@@ -48,12 +50,16 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
           .from('users')
           .select()
           .order('created_at', ascending: false)
-          .limit(500);
+          .limit(1000);
 
       if (mounted) {
         setState(() {
           _users = List<Map<String, dynamic>>.from(response);
           _isLoading = false;
+          final totalPages = (_users.length / _pageSize).ceil().clamp(1, 99999);
+          if (_currentPage > totalPages) {
+            _currentPage = 1;
+          }
         });
       }
     } catch (e) {
@@ -134,7 +140,12 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
                 ],
               ),
               ElevatedButton.icon(
-                onPressed: _isLoading ? null : _loadUsers,
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        setState(() => _currentPage = 1);
+                        _loadUsers();
+                      },
                 icon: const Icon(Icons.refresh_rounded, size: 16),
                 label: const Text('Refresh Directory'),
                 style: ElevatedButton.styleFrom(
@@ -181,7 +192,10 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
               children: [
                 Expanded(
                   child: TextField(
-                    onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                    onChanged: (val) => setState(() {
+                      _searchQuery = val.trim();
+                      _currentPage = 1;
+                    }),
                     style: GoogleFonts.inter(fontSize: 13, color: DeveloperTheme.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search user by email or name...',
@@ -218,7 +232,12 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
                       style: DeveloperTheme.bodySmall(color: DeveloperTheme.textPrimary),
                       items: _roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                       onChanged: (val) {
-                        if (val != null) setState(() => _selectedRoleFilter = val);
+                        if (val != null) {
+                          setState(() {
+                            _selectedRoleFilter = val;
+                            _currentPage = 1;
+                          });
+                        }
                       },
                     ),
                   ),
@@ -242,100 +261,123 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
                           child: Text('No users match the search criteria',
                               style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
                         )
-                      : Container(
-                          decoration: DeveloperTheme.cardDecoration(),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filteredUsers.length,
-                              separatorBuilder: (_, __) => const Divider(
-                                height: 1,
-                                color: DeveloperTheme.borderSubtle,
-                              ),
-                              itemBuilder: (context, index) {
-                                final user = filteredUsers[index];
-                                final role = (user['role'] ?? 'customer').toString();
-                                final roleColor = _getRoleBadgeColor(role);
-                                final email = user['email'] ?? 'No email';
-                                final name = '${user['firstname'] ?? ''} ${user['lastname'] ?? ''}'.trim();
-                                final displayName = name.isNotEmpty ? name : (user['name'] ?? email.split('@').first);
-                                final createdAt = user['created_at'] != null
-                                    ? DateTime.tryParse(user['created_at'].toString())
-                                    : null;
+                      : Builder(
+                            builder: (context) {
+                              final totalItems = filteredUsers.length;
+                              final totalPages = (totalItems / _pageSize).ceil().clamp(1, 99999);
+                              final currentPage = _currentPage.clamp(1, totalPages);
+                              final startIndex = totalItems == 0 ? 0 : (currentPage - 1) * _pageSize;
+                              final endIndex = (startIndex + _pageSize > totalItems) ? totalItems : startIndex + _pageSize;
+                              final paginatedUsers = totalItems == 0 ? <Map<String, dynamic>>[] : filteredUsers.sublist(startIndex, endIndex);
 
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 18,
-                                        backgroundColor: roleColor.withValues(alpha: 0.15),
-                                        child: Text(
-                                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                                          style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.bold,
-                                            color: roleColor,
-                                            fontSize: 14,
-                                          ),
+                              return Container(
+                                decoration: DeveloperTheme.cardDecoration(),
+                                child: Column(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                      child: ListView.separated(
+                                        shrinkWrap: true,
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        itemCount: paginatedUsers.length,
+                                        separatorBuilder: (_, __) => const Divider(
+                                          height: 1,
+                                          color: DeveloperTheme.borderSubtle,
                                         ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              displayName,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: DeveloperTheme.textPrimary,
-                                              ),
+                                        itemBuilder: (context, index) {
+                                          final user = paginatedUsers[index];
+                                          final role = (user['role'] ?? 'customer').toString();
+                                          final roleColor = _getRoleBadgeColor(role);
+                                          final email = user['email'] ?? 'No email';
+                                          final name = '${user['firstname'] ?? ''} ${user['lastname'] ?? ''}'.trim();
+                                          final displayName = name.isNotEmpty ? name : (user['name'] ?? email.split('@').first);
+                                          final createdAt = user['created_at'] != null
+                                              ? DateTime.tryParse(user['created_at'].toString())
+                                              : null;
+
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            child: Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 18,
+                                                  backgroundColor: roleColor.withValues(alpha: 0.15),
+                                                  child: Text(
+                                                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                                    style: GoogleFonts.inter(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: roleColor,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        displayName,
+                                                        style: GoogleFonts.inter(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: DeveloperTheme.textPrimary,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        email,
+                                                        style: DeveloperTheme.monoText(
+                                                          fontSize: 11,
+                                                          color: DeveloperTheme.textSecondary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                // Role Tag
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: roleColor.withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                                                  ),
+                                                  child: Text(
+                                                    role.toUpperCase(),
+                                                    style: DeveloperTheme.monoText(
+                                                      fontSize: 11,
+                                                      color: roleColor,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 16),
+                                                // Registered Date
+                                                if (createdAt != null)
+                                                  Text(
+                                                    'Joined ${DateFormat('yyyy-MM-dd').format(createdAt)}',
+                                                    style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                                                  ),
+                                              ],
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              email,
-                                              style: DeveloperTheme.monoText(
-                                                fontSize: 11,
-                                                color: DeveloperTheme.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          );
+                                        },
                                       ),
-                                      // Role Tag
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: roleColor.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: roleColor.withValues(alpha: 0.3)),
-                                        ),
-                                        child: Text(
-                                          role.toUpperCase(),
-                                          style: DeveloperTheme.monoText(
-                                            fontSize: 11,
-                                            color: roleColor,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      // Registered Date
-                                      if (createdAt != null)
-                                        Text(
-                                          'Joined ${DateFormat('yyyy-MM-dd').format(createdAt)}',
-                                          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
-                                        ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                                    ),
+                                    const Divider(height: 1, color: DeveloperTheme.borderSubtle),
+                                    _buildPaginationFooter(
+                                      totalItems: totalItems,
+                                      startIndex: totalItems == 0 ? 0 : startIndex + 1,
+                                      endIndex: endIndex,
+                                      currentPage: currentPage,
+                                      totalPages: totalPages,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                        ),
         ],
       ),
     );
@@ -366,6 +408,123 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPaginationFooter({
+    required int totalItems,
+    required int startIndex,
+    required int endIndex,
+    required int currentPage,
+    required int totalPages,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: DeveloperTheme.bgDark,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 560;
+          final infoText = Text(
+            totalItems == 0
+                ? '0 users'
+                : 'Showing $startIndex–$endIndex of $totalItems users',
+            style: DeveloperTheme.monoText(
+              fontSize: 12,
+              color: DeveloperTheme.textSecondary,
+            ),
+          );
+
+          final controls = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page_rounded, size: 20),
+                tooltip: 'First Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage > 1
+                    ? () => setState(() => _currentPage = 1)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                tooltip: 'Previous Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage > 1
+                    ? () => setState(() => _currentPage = currentPage - 1)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.bgCard,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: DeveloperTheme.borderSubtle),
+                ),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: DeveloperTheme.monoText(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: DeveloperTheme.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                tooltip: 'Next Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage < totalPages
+                    ? () => setState(() => _currentPage = currentPage + 1)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page_rounded, size: 20),
+                tooltip: 'Last Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: currentPage < totalPages
+                    ? () => setState(() => _currentPage = totalPages)
+                    : null,
+                color: DeveloperTheme.accentIndigo,
+                disabledColor: DeveloperTheme.textMuted.withValues(alpha: 0.3),
+              ),
+            ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                infoText,
+                const SizedBox(height: 8),
+                controls,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              infoText,
+              controls,
+            ],
+          );
+        },
       ),
     );
   }
