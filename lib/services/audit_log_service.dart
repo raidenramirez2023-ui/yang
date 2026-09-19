@@ -66,6 +66,10 @@ class AuditLogService {
           role = 'ADMIN';
         } else if (lowerEmail == 'chefycp@gmail.com' || lowerEmail.contains('chef')) {
           role = 'CHEF';
+        } else if (lowerEmail.contains('yangchowit') ||
+            lowerEmail.contains('developer') ||
+            lowerEmail.contains('dev')) {
+          role = 'DEVELOPER';
         } else {
           role = 'STAFF';
         }
@@ -91,13 +95,16 @@ class AuditLogService {
     }
   }
 
-  /// Fetch audit logs with filtering options
+  /// Fetch audit logs with filtering options.
+  /// Set [operationsOnly] to true to strictly show Yang Chow business operations
+  /// and exclude IT Developer testing, maintenance toggles, and system diagnostic logs.
   static Future<List<AuditLog>> fetchLogs({
     String? searchQuery,
     String? module,
     String? action,
     DateTime? startDate,
     DateTime? endDate,
+    bool operationsOnly = false,
     int limit = 150,
   }) async {
     try {
@@ -126,6 +133,43 @@ class AuditLogService {
       List<AuditLog> logs = (response as List)
           .map((item) => AuditLog.fromJson(item as Map<String, dynamic>))
           .toList();
+
+      if (operationsOnly) {
+        logs = logs.where((log) {
+          final email = log.userEmail.toLowerCase();
+          final role = log.userRole.toUpperCase();
+          final actionUpper = log.action.toUpperCase();
+          final moduleLower = log.module.toLowerCase();
+
+          // Exclude developer / IT test account
+          if (email.contains('yangchowit') || role == 'DEVELOPER' || role == 'IT') {
+            return false;
+          }
+
+          // Exclude technical IT / Maintenance actions
+          if (moduleLower.contains('it access') ||
+              actionUpper.startsWith('IT_ACCESS') ||
+              actionUpper.contains('MAINTENANCE') ||
+              actionUpper == 'PURGE_MAINTENANCE_TEST_DATA') {
+            return false;
+          }
+
+          // Exclude internal Flutter framework exceptions, rendering crashes & developer telemetry
+          // (e.g. widgets library, gestures library, scheduler library, FlutterFramework)
+          final isTechnicalFrameworkLog = actionUpper == 'ERROR' ||
+              actionUpper == 'CRITICAL' ||
+              actionUpper == 'WARNING' ||
+              moduleLower.contains('library') ||
+              moduleLower.contains('flutter') ||
+              moduleLower == 'platformdispatcher' ||
+              (log.metadata['is_system_telemetry'] == true);
+          if (isTechnicalFrameworkLog) {
+            return false;
+          }
+
+          return true;
+        }).toList();
+      }
 
       if (searchQuery != null && searchQuery.trim().isNotEmpty) {
         final q = searchQuery.toLowerCase().trim();

@@ -107,6 +107,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
         action: _selectedAction,
         startDate: start,
         endDate: end,
+        operationsOnly: true,
         limit: _limit,
       );
 

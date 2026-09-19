@@ -5,3 +5,8 @@ import 'package:web/web.dart' as web;
 void pushUrlState(String path) {
   web.window.history.pushState(null, path, path);
 }
+
+/// Opens a URL in a new browser tab.
+void openUrlInNewTab(String url) {
+  web.window.open(url, '_blank');
+}

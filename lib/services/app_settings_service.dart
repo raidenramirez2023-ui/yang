@@ -353,5 +353,205 @@ class AppSettingsService {
       }
     }
   }
+
+  /// Purges test payment and order records created during maintenance mode.
+  /// This ensures developer tests do not corrupt sales analytics or financial reports.
+  Future<Map<String, int>> purgeMaintenanceTestData({
+    DateTime? windowStartTime,
+    String? operatorEmail,
+  }) async {
+    int deletedOrders = 0;
+    int deletedReservations = 0;
+    int deletedAdvanceOrders = 0;
+
+    DateTime? effectiveStartTime = windowStartTime;
+    if (effectiveStartTime == null) {
+      final settingStart = getMaintenanceStartTime();
+      if (settingStart != null && settingStart.trim().isNotEmpty) {
+        effectiveStartTime = DateTime.tryParse(settingStart.trim());
+      }
+    }
+    // Default to last 24 hours to capture any test orders placed recently
+    effectiveStartTime ??= DateTime.now().subtract(const Duration(hours: 24));
+
+    try {
+      // 1. Find and delete test POS orders
+      try {
+        final ordersResponse = await _supabase
+            .from('orders')
+            .select('id, customer_name, staff_email, created_at');
+
+        final List<String> orderIds = [];
+        for (final o in (ordersResponse as List<dynamic>)) {
+          final id = o['id']?.toString();
+          if (id == null) continue;
+
+          final cName = (o['customer_name'] ?? '').toString().toLowerCase();
+          final sEmail = (o['staff_email'] ?? '').toString().toLowerCase();
+          final cDateStr = (o['created_at'] ?? '').toString();
+          final cDate = DateTime.tryParse(cDateStr);
+
+          bool shouldDelete = false;
+          if (cDate != null && cDate.isAfter(effectiveStartTime)) {
+            shouldDelete = true;
+          }
+          if (operatorEmail != null && sEmail == operatorEmail.toLowerCase()) {
+            shouldDelete = true;
+          }
+          if (sEmail.contains('yangchowit') ||
+              sEmail.contains('test') ||
+              sEmail.contains('dev') ||
+              cName.contains('test') ||
+              cName.contains('dev')) {
+            shouldDelete = true;
+          }
+
+          if (shouldDelete) {
+            orderIds.add(id);
+          }
+        }
+
+        if (orderIds.isNotEmpty) {
+          try {
+            await _supabase.from('refunds').delete().inFilter('source_id', orderIds);
+          } catch (_) {}
+          try {
+            await _supabase.from('order_items').delete().inFilter('order_id', orderIds);
+          } catch (_) {}
+          await _supabase.from('orders').delete().inFilter('id', orderIds);
+          deletedOrders = orderIds.length;
+        }
+      } catch (e) {
+        debugPrint('Error cleaning orders: $e');
+      }
+
+      // 2. Find and delete test reservations / events
+      try {
+        final resResponse = await _supabase
+            .from('reservations')
+            .select('id, customer_name, customer_email, created_at, event_date');
+
+        final List<String> resIds = [];
+        for (final r in (resResponse as List<dynamic>)) {
+          final id = r['id']?.toString();
+          if (id == null) continue;
+
+          final cName = (r['customer_name'] ?? '').toString().toLowerCase();
+          final cEmail = (r['customer_email'] ?? r['email'] ?? '').toString().toLowerCase();
+          final cDateStr = (r['created_at'] ?? r['event_date'] ?? '').toString();
+          final cDate = DateTime.tryParse(cDateStr);
+
+          bool shouldDelete = false;
+          if (cDate != null && cDate.isAfter(effectiveStartTime)) {
+            shouldDelete = true;
+          }
+          if (operatorEmail != null && cEmail == operatorEmail.toLowerCase()) {
+            shouldDelete = true;
+          }
+          if (cEmail.contains('yangchowit') ||
+              cEmail.contains('test') ||
+              cEmail.contains('dev') ||
+              cName.contains('test') ||
+              cName.contains('dev')) {
+            shouldDelete = true;
+          }
+
+          if (shouldDelete) {
+            resIds.add(id);
+          }
+        }
+
+        if (resIds.isNotEmpty) {
+          try {
+            await _supabase.from('refunds').delete().inFilter('source_id', resIds);
+          } catch (_) {}
+          await _supabase.from('reservations').delete().inFilter('id', resIds);
+          deletedReservations = resIds.length;
+        }
+      } catch (e) {
+        debugPrint('Error cleaning reservations: $e');
+      }
+
+      // 3. Find and delete test advance orders
+      try {
+        final advResponse = await _supabase
+            .from('advance_orders')
+            .select('id, customer_name, customer_email, created_at, order_date');
+
+        final List<String> advIds = [];
+        for (final a in (advResponse as List<dynamic>)) {
+          final id = a['id']?.toString();
+          if (id == null) continue;
+
+          final cName = (a['customer_name'] ?? '').toString().toLowerCase();
+          final cEmail = (a['customer_email'] ?? a['email'] ?? '').toString().toLowerCase();
+          final cDateStr = (a['created_at'] ?? a['order_date'] ?? '').toString();
+          final cDate = DateTime.tryParse(cDateStr);
+
+          bool shouldDelete = false;
+          if (cDate != null && cDate.isAfter(effectiveStartTime)) {
+            shouldDelete = true;
+          }
+          if (operatorEmail != null && cEmail == operatorEmail.toLowerCase()) {
+            shouldDelete = true;
+          }
+          if (cEmail.contains('yangchowit') ||
+              cEmail.contains('test') ||
+              cEmail.contains('dev') ||
+              cName.contains('test') ||
+              cName.contains('dev')) {
+            shouldDelete = true;
+          }
+
+          if (shouldDelete) {
+            advIds.add(id);
+          }
+        }
+
+        if (advIds.isNotEmpty) {
+          try {
+            await _supabase.from('refunds').delete().inFilter('source_id', advIds);
+          } catch (_) {}
+          await _supabase.from('advance_orders').delete().inFilter('id', advIds);
+          deletedAdvanceOrders = advIds.length;
+        }
+      } catch (e) {
+        debugPrint('Error cleaning advance orders: $e');
+      }
+
+      // 4. Find and delete test audit logs and framework crash logs created during this window
+      try {
+        await _supabase
+            .from('audit_logs')
+            .delete()
+            .or('user_email.ilike.%yangchowit%,user_role.eq.DEVELOPER,action.eq.ERROR,action.eq.CRITICAL,module.ilike.%library%')
+            .gte('created_at', effectiveStartTime.toUtc().toIso8601String());
+      } catch (e) {
+        debugPrint('Error cleaning test audit logs: $e');
+      }
+
+      // 5. Log audit activity
+      try {
+        await _supabase.from('audit_logs').insert({
+          'action': 'PURGE_MAINTENANCE_TEST_DATA',
+          'module': 'Maintenance',
+          'description':
+              'Purged $deletedOrders test orders, $deletedReservations test events/reservations, and $deletedAdvanceOrders test advance orders.',
+          'user_email': operatorEmail ?? 'developer',
+          'user_role': 'DEVELOPER',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('Error purging maintenance test data: $e');
+      rethrow;
+    }
+
+    return {
+      'orders': deletedOrders,
+      'reservations': deletedReservations,
+      'advance_orders': deletedAdvanceOrders,
+    };
+  }
 }
 

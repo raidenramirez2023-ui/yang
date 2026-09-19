@@ -39,6 +39,7 @@ class AppLogger {
         metadata: {
           ...?context,
           'severity': 'CRITICAL',
+          'is_system_telemetry': true,
           if (error != null) 'error': error.toString(),
           'stack_trace': fullStackTrace,
         },
@@ -82,6 +83,7 @@ class AppLogger {
         metadata: {
           ...?context,
           'severity': 'ERROR',
+          'is_system_telemetry': true,
           if (error != null) 'error': error.toString(),
           if (fullStackTrace != null) 'stack_trace': fullStackTrace,
         },
@@ -120,6 +122,7 @@ class AppLogger {
         metadata: {
           ...?context,
           'severity': 'WARNING',
+          'is_system_telemetry': true,
         },
       );
     } catch (_) {}
@@ -154,6 +157,7 @@ class AppLogger {
         metadata: {
           ...?context,
           'severity': 'INFO',
+          'is_system_telemetry': true,
         },
       );
     } catch (_) {}
