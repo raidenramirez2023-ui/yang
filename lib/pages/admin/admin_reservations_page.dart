@@ -30,8 +30,16 @@ class AdminReservationsPage extends StatefulWidget {
 
 class _AdminReservationsPageState extends State<AdminReservationsPage> {
   bool _localMaintenanceActive = false;
+
+  /// Developer account is never subject to maintenance mode restrictions.
+  bool get _isDeveloper {
+    final email = Supabase.instance.client.auth.currentUser?.email?.toLowerCase() ?? '';
+    return email == 'yangchowit@gmail.com' || email.contains('developer');
+  }
+
   bool get _isMaintenance =>
-      widget.isMaintenanceActive || _localMaintenanceActive || AppSettingsService().isMaintenanceModeEnabled();
+      !_isDeveloper &&
+      (widget.isMaintenanceActive || _localMaintenanceActive || AppSettingsService().isMaintenanceModeEnabled());
 
   void _showMaintenanceActionBlockedSnackbar([String actionName = 'This action']) {
     ScaffoldMessenger.of(context).showSnackBar(

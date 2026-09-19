@@ -191,99 +191,151 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
 
   Future<void> _confirmToggleMaintenanceMode(bool targetEnable) async {
     final user = Supabase.instance.client.auth.currentUser;
-    final developerEmail = user?.email ?? 'developer@yangchow.com';
+    final developerEmail = user?.email ?? 'yangchowit@gmail.com';
 
     final reason = _reasonController.text.trim().isEmpty ? _selectedPreset : _reasonController.text.trim();
     final message = _messageController.text.trim();
     final startCombined = _combineDateTime(_formStartTime, _formStartTimeOfDay);
     final endCombined = _combineDateTime(_formEndTime, _formEndTimeOfDay);
 
+    bool shouldPurgeTestData = !targetEnable; // Default true when disabling maintenance
+
     // Confirmation Dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: DeveloperTheme.bgCard,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
-            ),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                targetEnable ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
-                color: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                targetEnable ? 'Confirm Enable Maintenance Mode' : 'Confirm Disable Maintenance Mode',
-                style: DeveloperTheme.headingMedium(),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                targetEnable
-                    ? 'Enabling maintenance mode will flag the system as undergoing technical maintenance. Are you sure you want to proceed?'
-                    : 'Disabling maintenance mode will immediately restore normal runtime state across all modules.',
-                style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: DeveloperTheme.bgDark,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: DeveloperTheme.borderSubtle),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: DeveloperTheme.bgCard,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Action: ${targetEnable ? "ACTIVATE MAINTENANCE" : "DEACTIVATE MAINTENANCE"}',
-                        style: DeveloperTheme.monoText(
-                          fontSize: 12,
-                          color: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
-                          fontWeight: FontWeight.bold,
-                        )),
-                    const SizedBox(height: 4),
-                    Text('Reason: $reason', style: DeveloperTheme.bodySmall()),
-                    if (startCombined != null) ...[
-                      const SizedBox(height: 2),
-                      Text('Start: ${DateFormat('yyyy-MM-dd HH:mm').format(startCombined)}',
-                          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
-                    ],
-                    if (endCombined != null) ...[
-                      const SizedBox(height: 2),
-                      Text('End: ${DateFormat('yyyy-MM-dd HH:mm').format(endCombined)}',
-                          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
-                    ],
-                    const SizedBox(height: 4),
-                    Text('Authorized by: $developerEmail',
-                        style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.accentCyan)),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    targetEnable ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                    color: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    targetEnable ? 'Confirm Enable Maintenance Mode' : 'Confirm Disable Maintenance Mode',
+                    style: DeveloperTheme.headingMedium(),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    targetEnable
+                        ? 'Enabling maintenance mode will flag the system as undergoing technical maintenance. Normal users are blocked while developer testing is permitted.'
+                        : 'Disabling maintenance mode will immediately restore normal runtime state across all modules.',
+                    style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: DeveloperTheme.bgDark,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: DeveloperTheme.borderSubtle),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Action: ${targetEnable ? "ACTIVATE MAINTENANCE" : "DEACTIVATE MAINTENANCE"}',
+                            style: DeveloperTheme.monoText(
+                              fontSize: 12,
+                              color: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
+                              fontWeight: FontWeight.bold,
+                            )),
+                        const SizedBox(height: 4),
+                        Text('Reason: $reason', style: DeveloperTheme.bodySmall()),
+                        if (startCombined != null) ...[
+                          const SizedBox(height: 2),
+                          Text('Start: ${DateFormat('yyyy-MM-dd HH:mm').format(startCombined)}',
+                              style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
+                        ],
+                        if (endCombined != null) ...[
+                          const SizedBox(height: 2),
+                          Text('End: ${DateFormat('yyyy-MM-dd HH:mm').format(endCombined)}',
+                              style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
+                        ],
+                        const SizedBox(height: 4),
+                        Text('Authorized by: $developerEmail',
+                            style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.accentCyan)),
+                      ],
+                    ),
+                  ),
+                  if (!targetEnable) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: DeveloperTheme.accentRose.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: DeveloperTheme.accentRose.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: shouldPurgeTestData,
+                            activeColor: DeveloperTheme.accentRose,
+                            checkColor: Colors.white,
+                            onChanged: (val) {
+                              setDialogState(() {
+                                shouldPurgeTestData = val ?? false;
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Auto-purge test payments & orders',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: DeveloperTheme.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Deletes orders, payments & test reservations created during this maintenance so admin sales reports stay clean.',
+                                  style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
-                foregroundColor: Colors.black,
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(targetEnable ? 'Yes, Enable Maintenance' : 'Yes, Restore Normal Runtime'),
-            ),
-          ],
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(targetEnable ? 'Yes, Enable Maintenance' : 'Yes, Restore Normal Runtime'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -291,6 +343,14 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
     if (confirmed == true) {
       setState(() => _isSaving = true);
       try {
+        Map<String, int>? purgeResults;
+        if (!targetEnable && shouldPurgeTestData) {
+          purgeResults = await _settings.purgeMaintenanceTestData(
+            windowStartTime: _currentStartTime,
+            operatorEmail: developerEmail,
+          );
+        }
+
         await _settings.setMaintenanceMode(
           enabled: targetEnable,
           reason: reason,
@@ -301,12 +361,15 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
         );
 
         // Immutable Audit Log
+        final purgeSummary = purgeResults != null
+            ? ' Purged ${purgeResults['orders']} test orders and ${purgeResults['reservations']} test reservations.'
+            : '';
         await AuditLogService.logActivity(
           action: 'MAINTENANCE_TOGGLE',
           module: 'Maintenance',
           description: targetEnable
               ? 'Developer enabled system maintenance mode: "$reason"'
-              : 'Developer disabled maintenance mode. Normal operations restored.',
+              : 'Developer disabled maintenance mode. Normal operations restored.$purgeSummary',
           customUserEmail: developerEmail,
           customUserRole: 'DEVELOPER',
           metadata: {
@@ -316,6 +379,9 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
             'start_time': startCombined?.toIso8601String(),
             'end_time': endCombined?.toIso8601String(),
             'operator': developerEmail,
+            'purged_orders': purgeResults?['orders'] ?? 0,
+            'purged_reservations': purgeResults?['reservations'] ?? 0,
+            'purged_advance_orders': purgeResults?['advance_orders'] ?? 0,
           },
         );
 
@@ -324,13 +390,20 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
         widget.onMaintenanceChanged?.call();
 
         if (mounted) {
+          final totalPurged = (purgeResults?['orders'] ?? 0) +
+              (purgeResults?['reservations'] ?? 0) +
+              (purgeResults?['advance_orders'] ?? 0);
+          final messageText = targetEnable
+              ? 'Maintenance Mode successfully ACTIVATED.'
+              : (purgeResults != null && totalPurged > 0)
+                  ? 'Maintenance DEACTIVATED & Purged ${purgeResults['orders']} orders, ${purgeResults['reservations']} events/reservations, and ${purgeResults['advance_orders']} advance orders.'
+                  : 'Maintenance Mode successfully DEACTIVATED.';
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: targetEnable ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
               content: Text(
-                targetEnable
-                    ? 'Maintenance Mode successfully ACTIVATED.'
-                    : 'Maintenance Mode successfully DEACTIVATED.',
+                messageText,
                 style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
               ),
             ),
@@ -349,6 +422,108 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
         if (mounted) {
           setState(() => _isSaving = false);
         }
+      }
+    }
+  }
+
+  Future<void> _showManualPurgeDialog() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    final developerEmail = user?.email ?? 'developer@yangchow.com';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: DeveloperTheme.bgCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: DeveloperTheme.accentRose),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.delete_sweep_rounded, color: DeveloperTheme.accentRose),
+              const SizedBox(width: 10),
+              Text('Purge Test Payments & Orders', style: DeveloperTheme.headingMedium()),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will permanently delete all test orders, payments, order items, and test reservations created during this maintenance session (or with test indicators / developer email).',
+                style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.bgDark,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: DeveloperTheme.borderSubtle),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Target Tables: orders, order_items, reservations, refunds',
+                        style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.accentAmber)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Window: Since ${_currentStartTime != null ? DateFormat('yyyy-MM-dd HH:mm').format(_currentStartTime!) : "last 4 hours"}',
+                      style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DeveloperTheme.accentRose,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Purge Test Records Now'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() => _isSaving = true);
+      try {
+        final res = await _settings.purgeMaintenanceTestData(
+          windowStartTime: _currentStartTime,
+          operatorEmail: developerEmail,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: DeveloperTheme.accentEmerald,
+              content: Text(
+                'Purged ${res['orders']} test orders, ${res['reservations']} events/reservations, and ${res['advance_orders']} advance orders.',
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: DeveloperTheme.accentRose,
+              content: Text('Error purging test records: $e'),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }
@@ -687,6 +862,61 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // Maintenance Test Data Purge Section
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: DeveloperTheme.cardDecoration(
+              borderColor: DeveloperTheme.accentRose.withValues(alpha: 0.35),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: DeveloperTheme.accentRose.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.delete_sweep_rounded, color: DeveloperTheme.accentRose, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Purge Maintenance Test Payments & Orders',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: DeveloperTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Permanently delete all test orders, payments, order items, and test reservations created during maintenance mode. Keeps the Admin daily/monthly sales reports accurate.',
+                        style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _showManualPurgeDialog,
+                  icon: const Icon(Icons.cleaning_services_rounded, size: 16),
+                  label: const Text('Purge Test Data'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DeveloperTheme.accentRose,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],

@@ -14,6 +14,7 @@ import 'user_monitoring_page.dart';
 import 'error_log_viewer_page.dart';
 import '../../utils/url_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../services/it_access_service.dart';
 
 class DeveloperDashboardPage extends StatefulWidget {
   final int initialIndex;
@@ -44,8 +45,11 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   int _latencyMs = 0;
   bool _isMaintenanceActive = false;
   Timer? _latencyTimer;
+  Timer? _itAccessPollTimer;
   String _developerEmail = 'Developer';
   String _appVersion = '1.0.0+20';
+  List<Map<String, dynamic>> _pendingItRequests = [];
+  Map<String, dynamic>? _activeItRequest;
 
   @override
   void initState() {
@@ -54,8 +58,11 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     _developerEmail = Supabase.instance.client.auth.currentUser?.email ?? 'developer@yangchow.com';
     _loadAppVersion();
     _checkSystemPulse();
+    _loadItAccessRequests();
     // Periodically update latency and maintenance status
     _latencyTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkSystemPulse());
+    // Poll for IT access requests every 30 seconds
+    _itAccessPollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadItAccessRequests());
   }
 
   Future<void> _loadAppVersion() async {
@@ -77,7 +84,52 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   @override
   void dispose() {
     _latencyTimer?.cancel();
+    _itAccessPollTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadItAccessRequests() async {
+    try {
+      final pending = await ItAccessService.getPendingRequests();
+      final active = await ItAccessService.getActiveRequest();
+      if (mounted) {
+        setState(() {
+          _pendingItRequests = pending;
+          _activeItRequest = active;
+        });
+      }
+    } catch (e) {
+      debugPrint('[DevDashboard] Error loading IT access requests: $e');
+    }
+  }
+
+  Future<void> _acceptItRequest(Map<String, dynamic> request) async {
+    final id = request['id']?.toString() ?? '';
+    final duration = (request['duration_hours'] as int?) ?? 2;
+    final ok = await ItAccessService.acceptRequest(id, duration);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok
+            ? '✅ Access granted for ${duration}h. Auto-expires at ${DateTime.now().add(Duration(hours: duration)).toLocal().toString().substring(11, 16)}.'
+            : '❌ Failed to accept request.'),
+        backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFB45309),
+        behavior: SnackBarBehavior.floating,
+      ));
+      _loadItAccessRequests();
+    }
+  }
+
+  Future<void> _declineItRequest(Map<String, dynamic> request) async {
+    final id = request['id']?.toString() ?? '';
+    final ok = await ItAccessService.declineRequest(id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok ? 'Request declined.' : '❌ Failed to decline request.'),
+        backgroundColor: ok ? const Color(0xFF475569) : const Color(0xFFB45309),
+        behavior: SnackBarBehavior.floating,
+      ));
+      _loadItAccessRequests();
+    }
   }
 
   Future<void> _checkSystemPulse() async {
@@ -513,6 +565,168 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
 
           const SizedBox(height: 24),
 
+          // ── IT Access Request Notification Panel ──────────────────────────
+          if (_activeItRequest != null) ...[  
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF064E3B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF34D399).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.verified_user_rounded, color: Color(0xFF34D399), size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🔓 Elevated Access ACTIVE',
+                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: const Color(0xFF34D399)),
+                        ),
+                        Text(
+                          'Scope: ${_activeItRequest!['access_scope'] ?? 'Full Access'}  •  ${ItAccessService.getRemainingTimeString(_activeItRequest!)}',
+                          style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6EE7B7)),
+                        ),
+                        Text(
+                          'Issue: ${_activeItRequest!['issue_description'] ?? ''}',
+                          style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF6EE7B7).withValues(alpha: 0.8)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showEndSessionDialog(_activeItRequest!),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.stop_circle_outlined, size: 16),
+                    label: Text('End Session', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          if (_pendingItRequests.isNotEmpty) ...[  
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1B4B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: DeveloperTheme.accentIndigo.withValues(alpha: 0.6)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 10, height: 10,
+                        decoration: const BoxDecoration(color: Color(0xFF818CF8), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_pendingItRequests.length} Pending IT Access Request${_pendingItRequests.length > 1 ? 's' : ''}',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: DeveloperTheme.accentIndigo),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: _loadItAccessRequests,
+                        icon: const Icon(Icons.refresh_rounded, size: 16, color: DeveloperTheme.textSecondary),
+                        tooltip: 'Refresh',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ..._pendingItRequests.map((req) {
+                    final scope = req['access_scope']?.toString() ?? 'Full Access';
+                    final issue = req['issue_description']?.toString() ?? '';
+                    final duration = (req['duration_hours'] as int?) ?? 2;
+                    final adminName = req['requested_by_name']?.toString() ?? 'Admin';
+                    final requestedAt = DateTime.tryParse(req['requested_at'] ?? '');
+                    final timeAgo = requestedAt != null
+                        ? '${DateTime.now().difference(requestedAt.toLocal()).inMinutes} min ago'
+                        : '';
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: DeveloperTheme.bgCard,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: DeveloperTheme.borderSubtle),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.support_agent_rounded, size: 16, color: Color(0xFF818CF8)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '$adminName requests IT access',
+                                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: DeveloperTheme.textPrimary),
+                                ),
+                              ),
+                              Text(timeAgo, style: GoogleFonts.inter(fontSize: 11, color: DeveloperTheme.textMuted)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text('🔍 Issue: $issue', style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary)),
+                          Text('🔓 Scope: $scope  •  ⏰ Duration: ${duration}h', style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textMuted)),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () => _declineItRequest(req),
+                                style: TextButton.styleFrom(foregroundColor: DeveloperTheme.accentRose, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
+                                child: Text('Decline', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700)),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: () => _acceptItRequest(req),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: DeveloperTheme.accentEmerald,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                icon: const Icon(Icons.check_circle_rounded, size: 16),
+                                label: Text('Accept (${duration}h)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Overview KPI Grid
           LayoutBuilder(
             builder: (context, constraints) {
@@ -604,7 +818,123 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
 
           const SizedBox(height: 32),
 
+          // ─── Portal Access Launchpad ──────────────────────────────────────────
+          // Allows the Developer to navigate directly into any portal for testing
+          // without typing URLs manually. This bypass works even during Maintenance Mode.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Portal Access Launchpad', style: DeveloperTheme.headingMedium()),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Direct access to all portals for testing and debugging',
+                    style: DeveloperTheme.bodySmall(),
+                  ),
+                ],
+              ),
+              Builder(
+                builder: (context) {
+                  final hasElevated = _activeItRequest != null;
+                  final color = _isMaintenanceActive
+                      ? DeveloperTheme.accentAmber
+                      : (hasElevated ? DeveloperTheme.accentEmerald : const Color(0xFFEF4444));
+                  final icon = _isMaintenanceActive
+                      ? Icons.build_circle_rounded
+                      : (hasElevated ? Icons.verified_user_rounded : Icons.lock_rounded);
+                  final text = _isMaintenanceActive
+                      ? 'MAINTENANCE ACTIVE — Test Access Unlocked'
+                      : (hasElevated
+                          ? 'ELEVATED ACCESS ACTIVE — Authorized by Admin'
+                          : 'LOCKED — Maintenance or Admin Request Required');
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: color.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 14, color: color),
+                        const SizedBox(width: 6),
+                        Text(
+                          text,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final crossCount = constraints.maxWidth > 900 ? 5 : (constraints.maxWidth > 600 ? 3 : 2);
+              return GridView.count(
+                crossAxisCount: crossCount,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: 1.15,
+                children: [
+                  _buildPortalCard(
+                    label: 'Staff Portal',
+                    subtitle: 'POS, orders, tables',
+                    icon: Icons.point_of_sale_rounded,
+                    color: const Color(0xFFFF6B35),
+                    route: '/staff/dashboard',
+                  ),
+                  _buildPortalCard(
+                    label: 'Admin Portal',
+                    subtitle: 'Reservations, reports',
+                    icon: Icons.admin_panel_settings_rounded,
+                    color: DeveloperTheme.accentIndigo,
+                    route: '/admin/dashboard',
+                  ),
+                  _buildPortalCard(
+                    label: 'Customer Portal',
+                    subtitle: 'Bookings, transactions',
+                    icon: Icons.person_rounded,
+                    color: DeveloperTheme.accentEmerald,
+                    route: '/customer/dashboard',
+                  ),
+                  _buildPortalCard(
+                    label: 'Chef Portal',
+                    subtitle: 'Kitchen, menu requests',
+                    icon: Icons.restaurant_rounded,
+                    color: DeveloperTheme.accentCyan,
+                    route: '/chef/dashboard',
+                  ),
+                  _buildPortalCard(
+                    label: 'Inventory Portal',
+                    subtitle: 'Stock, storage room',
+                    icon: Icons.inventory_2_rounded,
+                    color: DeveloperTheme.accentPurple,
+                    route: '/inventory/dashboard',
+                  ),
+                ],
+              );
+            },
+          ),
+
+
+          const SizedBox(height: 32),
+
           // Architecture Notice
+
           Container(
             padding: const EdgeInsets.all(20),
             decoration: DeveloperTheme.cardDecoration(),
@@ -772,5 +1102,441 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
         ],
       ),
     );
+  }
+
+  /// Portal card for the Portal Access Launchpad.
+  /// Unlocked if Maintenance Mode is active OR if an Admin IT Access request is active.
+  Widget _buildPortalCard({
+    required String label,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required String route,
+  }) {
+    final hasAccess = _isMaintenanceActive || _activeItRequest != null;
+    final isLocked = !hasAccess;
+    final isElevated = !isLocked && !_isMaintenanceActive && _activeItRequest != null;
+
+    final cardBorderColor = isLocked
+        ? DeveloperTheme.borderSubtle
+        : (isElevated ? const Color(0xFF10B981).withValues(alpha: 0.4) : color.withValues(alpha: 0.35));
+
+    final badgeColor = isLocked
+        ? const Color(0xFFEF4444)
+        : (isElevated ? const Color(0xFF10B981) : color);
+
+    final badgeText = isLocked
+        ? 'LOCKED'
+        : (isElevated ? 'ELEVATED' : 'TEST ACCESS');
+
+    return InkWell(
+      onTap: () {
+        if (isLocked) {
+          _showAccessRequiredDialog(label);
+          return;
+        }
+        Navigator.pushNamed(context, route);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: DeveloperTheme.bgCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cardBorderColor),
+          boxShadow: isLocked
+              ? null
+              : [
+                  BoxShadow(
+                    color: (isElevated ? const Color(0xFF10B981) : color).withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: (isLocked ? DeveloperTheme.textMuted : (isElevated ? const Color(0xFF10B981) : color))
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isLocked ? Icons.lock_outline_rounded : icon,
+                    size: 20,
+                    color: isLocked ? DeveloperTheme.textMuted : (isElevated ? const Color(0xFF10B981) : color),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: badgeColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isLocked) ...[
+                        const Icon(Icons.lock_rounded, size: 9, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 3),
+                      ] else if (isElevated) ...[
+                        const Icon(Icons.verified_user_rounded, size: 9, color: Color(0xFF10B981)),
+                        const SizedBox(width: 3),
+                      ],
+                      Text(
+                        badgeText,
+                        style: GoogleFonts.inter(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                          color: badgeColor,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isLocked ? DeveloperTheme.textSecondary : DeveloperTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              isLocked
+                  ? 'Locked (Admin Request or Maintenance Required)'
+                  : (isElevated ? 'Authorized by Admin • Live Session' : subtitle),
+              style: DeveloperTheme.bodySmall(
+                color: isElevated ? const Color(0xFF34D399) : DeveloperTheme.textMuted,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  isLocked
+                      ? Icons.block_rounded
+                      : (isElevated ? Icons.open_in_new_rounded : Icons.arrow_forward_rounded),
+                  size: 13,
+                  color: isLocked
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.7)
+                      : (isElevated ? const Color(0xFF34D399) : DeveloperTheme.textMuted),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    isLocked ? 'Authorization Required' : route,
+                    style: DeveloperTheme.monoText(
+                      fontSize: 10,
+                      color: isLocked
+                          ? const Color(0xFFEF4444).withValues(alpha: 0.7)
+                          : (isElevated ? const Color(0xFF34D399) : DeveloperTheme.textMuted),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAccessRequiredDialog(String portalName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: DeveloperTheme.bgCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: DeveloperTheme.accentAmber),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: DeveloperTheme.accentAmber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.lock_rounded, color: DeveloperTheme.accentAmber, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Access Authorization Required',
+                style: DeveloperTheme.headingMedium(),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hindi mabubuksan ang $portalName dahil kasalukuyang OPERATIONAL (Live) ang sistema.',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: DeveloperTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Naka-lock ang direct portal access habang live ang operations upang maprotektahan ang live sales, orders, at customer records.',
+              style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: DeveloperTheme.bgSurface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: DeveloperTheme.borderSubtle),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Para ma-unlock ang portal, kailangan ng isa sa mga ito:',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: DeveloperTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.support_agent_rounded, size: 16, color: Color(0xFF60A5FA)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '1. Mag-request si Admin ng IT Support sa Admin Sidebar at i-accept mo ito rito sa dashboard.',
+                          style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.build_circle_outlined, size: 16, color: DeveloperTheme.accentAmber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '2. I-activate ang Maintenance Mode kung routine technical maintenance ang gagawin.',
+                          style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Close',
+              style: GoogleFonts.inter(color: DeveloperTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DeveloperTheme.accentAmber,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _selectedIndex = 5);
+            },
+            icon: const Icon(Icons.build_circle_rounded, size: 16),
+            label: Text(
+              'Go to Maintenance Control',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEndSessionDialog(Map<String, dynamic> request) async {
+    final requestId = request['id']?.toString() ?? '';
+    final scope = request['access_scope'] ?? 'Full Access';
+    final defaultAutoPurge = ItAccessService.shouldAutoPurge(request);
+    bool shouldPurgeTestData = defaultAutoPurge;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: DeveloperTheme.bgCard,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: DeveloperTheme.accentRose),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: DeveloperTheme.accentRose.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.stop_circle_rounded, color: DeveloperTheme.accentRose, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text('End IT Support Session', style: DeveloperTheme.headingMedium()),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to conclude this elevated IT support session ($scope)?',
+                    style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Auto-purge test payments & orders Checkbox
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: DeveloperTheme.accentRose.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: DeveloperTheme.accentRose.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: shouldPurgeTestData,
+                          activeColor: DeveloperTheme.accentRose,
+                          checkColor: Colors.white,
+                          onChanged: (val) {
+                            setDialogState(() {
+                              shouldPurgeTestData = val ?? false;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Auto-purge test payments & orders',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: DeveloperTheme.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Deletes orders, payments & test reservations created during this IT session so admin sales reports stay clean.',
+                                style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('Cancel', style: GoogleFonts.inter(color: DeveloperTheme.textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DeveloperTheme.accentRose,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text('End Session Now', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      try {
+        int purgedCount = 0;
+        if (shouldPurgeTestData) {
+          final acceptedAtStr = request['accepted_at']?.toString();
+          final startTime = acceptedAtStr != null ? DateTime.tryParse(acceptedAtStr) : null;
+          final purgeRes = await _settings.purgeMaintenanceTestData(
+            windowStartTime: startTime,
+            operatorEmail: _developerEmail,
+          );
+          purgedCount = (purgeRes['orders'] ?? 0) + (purgeRes['reservations'] ?? 0);
+        }
+
+        await ItAccessService.completeSession(
+          requestId,
+          notes: shouldPurgeTestData
+              ? 'Session ended. Auto-purged $purgedCount test records.'
+              : 'Session ended without purging test data.',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: DeveloperTheme.accentEmerald,
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              shouldPurgeTestData
+                  ? '✅ IT Support Session completed. Test payments & orders were auto-purged.'
+                  : '✅ IT Support Session completed.',
+              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+          ));
+          _loadItAccessRequests();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: DeveloperTheme.accentRose,
+            content: Text('Error ending session: $e'),
+          ));
+        }
+      }
+    }
   }
 }

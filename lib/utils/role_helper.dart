@@ -4,10 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class RoleHelper {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Check if current user is admin
+  // Check if current user is admin (or developer testing superuser)
   static Future<bool> isAdmin() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
+
+    // Fast path: developer email has full admin test access
+    if (user.email?.toLowerCase() == 'yangchowit@gmail.com') return true;
 
     try {
       final response = await _supabase
@@ -17,7 +20,7 @@ class RoleHelper {
           .maybeSingle();
 
       final role = response?['role']?.toString().toLowerCase() ?? 'staff';
-      return role == 'admin';
+      return role == 'admin' || role == 'developer';
     } catch (e) {
       debugPrint('Error checking admin role: $e');
       return false;
@@ -28,6 +31,8 @@ class RoleHelper {
   static Future<String> getCurrentUserRole() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return 'staff';
+
+    if (user.email?.toLowerCase() == 'yangchowit@gmail.com') return 'developer';
 
     try {
       final response = await _supabase
@@ -62,8 +67,8 @@ class RoleHelper {
     final userEmail = user.email?.toLowerCase() ?? '';
     final role = await getCurrentUserRole();
     
-    // pagsanjaninv@gmail.com and inventory staff have full inventory control
-    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
+    // Developer, pagsanjaninv@gmail.com and inventory staff have full inventory control
+    if (role == 'developer' || userEmail == 'yangchowit@gmail.com' || userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
       return true;
     }
 
@@ -79,14 +84,16 @@ class RoleHelper {
     final userEmail = user.email?.toLowerCase() ?? '';
     final role = await getCurrentUserRole();
     
-    // pagsanjaninv@gmail.com and inventory staff can manage inventory
-    return userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff';
+    // Developer, pagsanjaninv@gmail.com and inventory staff can manage inventory
+    return role == 'developer' || userEmail == 'yangchowit@gmail.com' || userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff';
   }
 
   // Check if current user is developer
   static Future<bool> isDeveloper() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
+
+    if (user.email?.toLowerCase() == 'yangchowit@gmail.com') return true;
 
     try {
       final response = await _supabase
