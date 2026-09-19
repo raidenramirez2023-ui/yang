@@ -117,8 +117,8 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     if (!mounted) return;
 
     // Check Maintenance Mode — always fetch fresh from DB, not from stale cache.
-    // Block all roles EXCEPT developer (admin is also blocked per requirements).
-    if (userRole != 'developer') {
+    // Block roles EXCEPT developer and admin (admin has restricted access during maintenance).
+    if (userRole != 'developer' && userRole != 'admin') {
       try {
         final isMaintenance = await AppSettingsService.checkMaintenanceModeFromDB();
         if (isMaintenance) {
