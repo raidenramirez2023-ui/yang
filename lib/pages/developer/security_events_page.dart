@@ -194,10 +194,21 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
 
           const SizedBox(height: 24),
 
-          // Security Posture Cards
+          // Live Security Telemetry KPI Cards
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 800;
+              final authEventCount = _securityLogs
+                  .where((l) =>
+                      l.action.toUpperCase().contains('LOGIN') ||
+                      l.action.toUpperCase().contains('AUTH'))
+                  .length;
+              final securityNotesCount = _securityLogs
+                  .where((l) =>
+                      l.module.toLowerCase() == 'security' ||
+                      l.action.toUpperCase().contains('SECURITY'))
+                  .length;
+
               return GridView.count(
                 crossAxisCount: isWide ? 4 : 2,
                 crossAxisSpacing: 16,
@@ -207,74 +218,36 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
                 childAspectRatio: isWide ? 2.1 : 1.7,
                 children: [
                   _buildStatusCard(
-                    title: 'Row Level Security',
-                    status: 'ACTIVE & ENFORCED',
-                    details: 'Table isolation verified',
-                    icon: Icons.lock_outline_rounded,
-                    color: DeveloperTheme.accentEmerald,
+                    title: 'Total Security Events',
+                    status: '${_securityLogs.length} EVENTS',
+                    details: 'Live audit log events',
+                    icon: Icons.shield_outlined,
+                    color: DeveloperTheme.accentCyan,
                   ),
                   _buildStatusCard(
-                    title: 'Role Boundaries',
-                    status: 'STRICTLY SEGREGATED',
-                    details: 'Admin & Developer decoupled',
-                    icon: Icons.admin_panel_settings_outlined,
+                    title: 'Auth & Session Events',
+                    status: '$authEventCount LOGS',
+                    details: 'Logins & session tokens',
+                    icon: Icons.vpn_key_rounded,
                     color: DeveloperTheme.accentIndigo,
                   ),
                   _buildStatusCard(
-                    title: 'Credential Hygiene',
-                    status: 'ZERO BACKDOORS',
-                    details: 'No hardcoded credentials',
+                    title: 'Security Audit Notes',
+                    status: '$securityNotesCount RECORDED',
+                    details: 'Manual audit inspections',
                     icon: Icons.verified_user_outlined,
-                    color: DeveloperTheme.accentCyan,
+                    color: DeveloperTheme.accentEmerald,
                   ),
                   _buildStatusCard(
                     title: 'Pending Deletions',
                     status: _pendingDeletionCount == 1 ? '1 REQUEST' : '$_pendingDeletionCount REQUESTS',
-                    details: 'GDPR / Privacy compliance',
-                    icon: Icons.delete_sweep,
+                    details: 'Pending account deletions',
+                    icon: Icons.delete_sweep_rounded,
                     color: _pendingDeletionCount > 0 ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
                   ),
                 ],
               );
             },
-          ),
-
-          const SizedBox(height: 28),
-
-          // Security Architecture Checklist
-          Text('System Security Verification Checklist', style: DeveloperTheme.headingMedium()),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: DeveloperTheme.cardDecoration(),
-            child: Column(
-              children: [
-                _buildCheckItem(
-                  'Strict Role Verification',
-                  'Developer module is strictly gated behind AuthGuard(allowedRoles: [developer]). Unauthorized requests are rejected immediately.',
-                  true,
-                ),
-                const Divider(color: DeveloperTheme.borderSubtle, height: 24),
-                _buildCheckItem(
-                  'Zero Client-Side Service Keys',
-                  'Client uses public anonKey with PostgreSQL RLS policies. Service role keys remain server-side only.',
-                  true,
-                ),
-                const Divider(color: DeveloperTheme.borderSubtle, height: 24),
-                _buildCheckItem(
-                  'Sensitive Operation Audit Logging',
-                  'Maintenance toggles, password updates, and user modifications automatically append immutable records to public.audit_logs.',
-                  true,
-                ),
-                const Divider(color: DeveloperTheme.borderSubtle, height: 24),
-                _buildCheckItem(
-                  'Decoupled Admin & IT Domains',
-                  'Admin operates business domains (reservations, billing, orders). IT Developer focuses purely on technical health and maintenance.',
-                  true,
-                ),
-              ],
-            ),
           ),
 
           const SizedBox(height: 28),
@@ -415,40 +388,6 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCheckItem(String title, String description, bool isPassed) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          isPassed ? Icons.check_circle_rounded : Icons.cancel_rounded,
-          color: isPassed ? DeveloperTheme.accentEmerald : DeveloperTheme.accentRose,
-          size: 20,
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: DeveloperTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description,
-                style: DeveloperTheme.bodySmall(),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/app_settings_service.dart';
+import '../../services/audit_log_service.dart';
 import 'developer_theme.dart';
 import 'backup_restore_page.dart';
 import 'system_health_page.dart';
@@ -138,6 +139,15 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     );
 
     if (confirm == true) {
+      try {
+        await AuditLogService.logActivity(
+          action: 'LOGOUT',
+          module: 'Auth',
+          description: 'Developer signed out: $_developerEmail',
+          customUserEmail: _developerEmail,
+          customUserRole: 'DEVELOPER',
+        );
+      } catch (_) {}
       await Supabase.instance.client.auth.signOut();
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/developer/login');

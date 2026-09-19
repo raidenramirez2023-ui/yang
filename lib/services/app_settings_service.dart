@@ -230,6 +230,29 @@ class AppSettingsService {
   bool isMaintenanceModeEnabled() =>
       getSetting<bool>('maintenance_mode_enabled', defaultValue: false) ?? false;
 
+  /// Always fetches the maintenance mode status LIVE from the database.
+  /// This bypasses the in-memory cache so that changes made by a Developer
+  /// on another device/browser are immediately reflected everywhere.
+  /// Also updates the local cache as a side-effect.
+  static Future<bool> checkMaintenanceModeFromDB() async {
+    try {
+      final result = await _supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'maintenance_mode_enabled')
+          .maybeSingle();
+      final isActive =
+          result != null && result['setting_value']?.toString().toLowerCase() == 'true';
+      // Keep local cache in sync
+      _cachedSettings['maintenance_mode_enabled'] = isActive;
+      return isActive;
+    } catch (e) {
+      debugPrint('⚠️ checkMaintenanceModeFromDB: DB query failed, using cache: $e');
+      // Fall back to stale cache only if DB is unreachable
+      return _cachedSettings['maintenance_mode_enabled'] == true;
+    }
+  }
+
   String getMaintenanceReason() =>
       getSetting<String>('maintenance_reason', defaultValue: 'Scheduled System Maintenance') ??
       'Scheduled System Maintenance';

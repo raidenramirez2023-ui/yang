@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/global_messenger.dart';
 import '../../services/app_settings_service.dart';
+import '../../services/audit_log_service.dart';
 
 class StaffLoginPage extends StatefulWidget {
   const StaffLoginPage({super.key});
@@ -115,16 +116,11 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   Future<void> _redirectByUserRole(String email, String userRole, [String displayName = '']) async {
     if (!mounted) return;
 
-    // Check Maintenance Mode — always fetch fresh from DB, not from stale cache
-    if (userRole != 'developer' && userRole != 'admin') {
+    // Check Maintenance Mode — always fetch fresh from DB, not from stale cache.
+    // Block all roles EXCEPT developer (admin is also blocked per requirements).
+    if (userRole != 'developer') {
       try {
-        final result = await Supabase.instance.client
-            .from('app_settings')
-            .select('setting_value')
-            .eq('setting_key', 'maintenance_mode_enabled')
-            .maybeSingle();
-        final isMaintenance =
-            result != null && result['setting_value']?.toString().toLowerCase() == 'true';
+        final isMaintenance = await AppSettingsService.checkMaintenanceModeFromDB();
         if (isMaintenance) {
           if (mounted) {
             Navigator.pushReplacementNamed(
@@ -152,6 +148,25 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     }
 
     if (!mounted) return;
+
+    // Audit log privileged login for security tracking
+    if (userRole != 'customer') {
+      try {
+        AuditLogService.logActivity(
+          action: 'LOGIN',
+          module: 'Auth',
+          description: 'Staff logged in ($userRole): $email',
+          customUserEmail: email,
+          customUserName: displayName.isNotEmpty ? displayName : email.split('@').first,
+          customUserRole: userRole.toUpperCase(),
+          metadata: {
+            'role': userRole,
+            'portal': 'staff_portal',
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        );
+      } catch (_) {}
+    }
 
     // Only show welcome message if not blocked by maintenance
     if (displayName.isNotEmpty) {

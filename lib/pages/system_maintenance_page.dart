@@ -29,7 +29,9 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
   late Animation<double> _fadeAnimation;
 
   Timer? _countdownTimer;
+  Timer? _autoPollTimer;
   Duration _remaining = Duration.zero;
+  bool _isAutoChecking = false;
 
   @override
   void initState() {
@@ -74,10 +76,76 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
       if (_endTime == null) return;
       final now = DateTime.now();
       final diff = _endTime!.toLocal().difference(now);
+      if (diff.isNegative || diff == Duration.zero) {
+        _countdownTimer?.cancel();
+        if (mounted) {
+          setState(() {
+            _remaining = Duration.zero;
+          });
+          _onCountdownCompleted();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _remaining = diff;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _onCountdownCompleted() async {
+    if (!mounted || _isAutoChecking) return;
+    setState(() => _isAutoChecking = true);
+
+    final isStillActive = await AppSettingsService.checkMaintenanceModeFromDB();
+
+    if (!mounted) return;
+
+    if (!isStillActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF065F46),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Color(0xFF10B981)),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF34D399), size: 18),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  'Maintenance completed! Returning to login...',
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 600));
       if (mounted) {
-        setState(() {
-          _remaining = diff.isNegative ? Duration.zero : diff;
-        });
+        Navigator.of(context).pushReplacementNamed(_returnRoute);
+      }
+      return;
+    }
+
+    setState(() => _isAutoChecking = false);
+    _startAutoPolling();
+  }
+
+  void _startAutoPolling() {
+    _autoPollTimer?.cancel();
+    _autoPollTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      if (!mounted) return;
+      final isStillActive = await AppSettingsService.checkMaintenanceModeFromDB();
+      if (!mounted) return;
+      if (!isStillActive) {
+        _autoPollTimer?.cancel();
+        Navigator.of(context).pushReplacementNamed(_returnRoute);
       }
     });
   }
@@ -87,7 +155,7 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
     if (mounted) {
       final isStillActive = _settings.isMaintenanceModeEnabled();
       if (!isStillActive) {
-        Navigator.of(context).pushReplacementNamed('/');
+        Navigator.of(context).pushReplacementNamed(_returnRoute);
         return;
       }
 
@@ -100,10 +168,20 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
         if (_endTime != null) {
           final now = DateTime.now();
           final diff = _endTime!.toLocal().difference(now);
-          _remaining = diff.isNegative ? Duration.zero : diff;
+          if (diff.isNegative || diff == Duration.zero) {
+            _remaining = Duration.zero;
+          } else {
+            _remaining = diff;
+          }
         }
       });
-      if (_endTime != null) _startCountdown();
+      if (_endTime != null) {
+        if (_remaining == Duration.zero) {
+          _onCountdownCompleted();
+        } else {
+          _startCountdown();
+        }
+      }
     }
   }
 
@@ -150,6 +228,7 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
     _progressController.dispose();
     _fadeController.dispose();
     _countdownTimer?.cancel();
+    _autoPollTimer?.cancel();
     super.dispose();
   }
 
@@ -158,7 +237,8 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
   @override
   Widget build(BuildContext context) {
     final hasCountdown = _endTime != null && _remaining > Duration.zero;
-    final hours = _twoDigits(_remaining.inHours);
+    final days = _remaining.inDays;
+    final hours = _twoDigits(days > 0 ? _remaining.inHours.remainder(24) : _remaining.inHours);
     final minutes = _twoDigits(_remaining.inMinutes.remainder(60));
     final seconds = _twoDigits(_remaining.inSeconds.remainder(60));
 
@@ -367,34 +447,104 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0A1628),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF1E3A5F), width: 1),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF0F172A),
+                                Color(0xFF0B1322),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 25,
+                                offset: const Offset(0, 10),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.05),
+                                blurRadius: 30,
+                                spreadRadius: 2,
+                              ),
+                            ],
                           ),
                           child: Column(
                             children: [
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.all(6),
+                                    padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
                                     ),
-                                    child: const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF38BDF8)),
+                                    child: const Icon(Icons.alarm_on_rounded, size: 18, color: Color(0xFFF59E0B)),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Flexible(
+                                  const SizedBox(width: 12),
+                                  Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Estimated Completion',
-                                            style: GoogleFonts.inter(
-                                                fontSize: 10, color: const Color(0xFF475569), letterSpacing: 0.5)),
+                                        Text(
+                                          'ESTIMATED COMPLETION',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF94A3B8),
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
                                         Text(
                                           DateFormat('EEE, MMM d • h:mm a').format(_endTime!.toLocal()),
                                           style: GoogleFonts.inter(
-                                              fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFCBD5E1)),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: -0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Color(0xFFF59E0B),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          'TARGET',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFFFBBF24),
+                                            letterSpacing: 0.8,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -403,20 +553,68 @@ class _SystemMaintenancePageState extends State<SystemMaintenancePage>
                               ),
                               if (hasCountdown) ...[
                                 const SizedBox(height: 16),
-                                const Divider(color: Color(0xFF1E293B), height: 1),
-                                const SizedBox(height: 16),
-                                LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return Row(
-                                      children: [
-                                        Expanded(child: _CountdownUnit(value: hours, label: 'HRS')),
-                                        _CountdownSep(),
-                                        Expanded(child: _CountdownUnit(value: minutes, label: 'MIN')),
-                                        _CountdownSep(),
-                                        Expanded(child: _CountdownUnit(value: seconds, label: 'SEC')),
+                                Container(
+                                  height: 1,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.transparent,
+                                        const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                                        Colors.transparent,
                                       ],
-                                    );
-                                  },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    if (days > 0) ...[
+                                      Expanded(child: _CountdownUnit(value: _twoDigits(days), label: 'DAYS')),
+                                      _CountdownSep(),
+                                    ],
+                                    Expanded(child: _CountdownUnit(value: hours, label: 'HRS')),
+                                    _CountdownSep(),
+                                    Expanded(child: _CountdownUnit(value: minutes, label: 'MIN')),
+                                    _CountdownSep(),
+                                    Expanded(child: _CountdownUnit(value: seconds, label: 'SEC')),
+                                  ],
+                                ),
+                              ] else ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF131D2F).withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Color(0xFFF59E0B),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Text(
+                                          'Estimated time reached. Checking if system is ready…',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFFFBBF24),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ],
@@ -495,36 +693,128 @@ class _CountdownUnit extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final fontSize = screenWidth < 360 ? 20.0 : 26.0;
+    final fontSize = screenWidth < 360 ? 19.0 : 25.0;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF1E3A5F)),
+            borderRadius: BorderRadius.circular(12),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF131D2F),
+                Color(0xFF090E17),
+              ],
+            ),
+            border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
           ),
-          child: Text(
-            value,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF38BDF8),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(11),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Upper half subtle sheen
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 25,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.06),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Center split crease line
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 1,
+                    color: Colors.black.withValues(alpha: 0.7),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: null,
+                  bottom: null,
+                  child: Container(
+                    height: 0.5,
+                    color: const Color(0xFF334155).withValues(alpha: 0.5),
+                  ),
+                ),
+                // Number Text
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFFBBF24),
+                        letterSpacing: 1.2,
+                        shadows: [
+                          Shadow(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 9,
-            color: const Color(0xFF475569),
-            letterSpacing: 1.5,
-            fontWeight: FontWeight.w600,
+        const SizedBox(height: 7),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B).withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                color: const Color(0xFF94A3B8),
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
       ],
@@ -536,15 +826,21 @@ class _CountdownSep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final hPad = screenWidth < 360 ? 4.0 : 8.0;
+    final hPad = screenWidth < 360 ? 3.0 : 6.0;
     return Padding(
-      padding: EdgeInsets.only(bottom: 20, left: hPad, right: hPad),
+      padding: EdgeInsets.only(bottom: 24, left: hPad, right: hPad),
       child: Text(
         ':',
-        style: GoogleFonts.inter(
+        style: GoogleFonts.jetBrainsMono(
           fontSize: 22,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFF1E3A5F),
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.75),
+          shadows: [
+            Shadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+              blurRadius: 6,
+            ),
+          ],
         ),
       ),
     );

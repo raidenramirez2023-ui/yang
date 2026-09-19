@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/audit_log_service.dart';
 import 'developer_theme.dart';
 
 class DeveloperLoginPage extends StatefulWidget {
@@ -112,6 +113,15 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
       final role = userRecord?['role']?.toString().toLowerCase() ?? '';
 
       if (role != 'developer') {
+        // Log unauthorized attempt to Security audit
+        AuditLogService.logActivity(
+          action: 'AUTH_DENIED',
+          module: 'Security',
+          description: 'Unauthorized access attempt to Developer Console by $email (Role: $role)',
+          customUserEmail: email,
+          customUserRole: role.toUpperCase(),
+        );
+
         // Sign them out immediately to block non-developer accounts
         await supabase.auth.signOut();
         if (mounted) {
@@ -134,6 +144,19 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
         await prefs.remove('dev_saved_email');
         await prefs.remove('dev_saved_pass');
       }
+
+      // Log successful developer login
+      AuditLogService.logActivity(
+        action: 'LOGIN',
+        module: 'Auth',
+        description: 'Developer authenticated: $email',
+        customUserEmail: email,
+        customUserRole: 'DEVELOPER',
+        metadata: {
+          'portal': 'developer_console',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
 
       // 4. Redirect to Developer Dashboard
       if (mounted) {
