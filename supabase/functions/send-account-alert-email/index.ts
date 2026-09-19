@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 interface AlertEmailRequest {
-  type: 'account_warning' | 'account_restriction' | 'account_unrestricted' | 'custom_alert'
+  type: 'account_warning' | 'account_restriction' | 'account_unrestricted' | 'it_support_request' | 'it_session_completed' | 'custom_alert'
   recipientEmail: string
   customerName?: string
   warningNumber?: number
@@ -16,6 +16,11 @@ interface AlertEmailRequest {
   reason?: string
   expiresAt?: string
   adminName?: string
+  // IT Support Request fields
+  issueDescription?: string
+  accessScope?: string
+  durationHours?: number
+  adminEmail?: string
 }
 
 serve(async (req) => {
@@ -34,6 +39,12 @@ serve(async (req) => {
       restrictionType = 'Temporary Restriction',
       reason = 'Booking policy compliance notice.',
       expiresAt,
+      // IT Support Request fields
+      adminName = 'Administrator',
+      issueDescription = '',
+      accessScope = 'General Access',
+      durationHours = 2,
+      adminEmail = '',
     } = body
 
     if (!recipientEmail) {
@@ -88,6 +99,12 @@ serve(async (req) => {
     } else if (type === 'account_unrestricted') {
       subject = `✅ Good News: Account Restriction Has Been Lifted - Yang Chow Restaurant`
       htmlContent = buildUnrestrictedHtml(customerName, reason)
+    } else if (type === 'it_support_request') {
+      subject = `🔧 New IT Support Request from ${adminName} - Yang Chow Restaurant`
+      htmlContent = buildItSupportRequestHtml(adminName, adminEmail, issueDescription, accessScope, durationHours)
+    } else if (type === 'it_session_completed') {
+      subject = `✅ IT Support Session Completed - Yang Chow Restaurant`
+      htmlContent = buildItSessionCompletedHtml(adminName, issueDescription, accessScope, durationHours, reason)
     } else {
       subject = `Notice Regarding Your Account - Yang Chow Restaurant`
       htmlContent = buildWarningHtml(customerName, 1, reason)
@@ -309,6 +326,229 @@ function buildUnrestrictedHtml(customerName: string, reason: string): string {
 
       <p style="color: #475569; line-height: 1.6; font-size: 13.5px; margin: 20px 0 0 0;">
         Thank you for your cooperation and for choosing Yang Chow!
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #F8FAFC; padding: 20px 28px; border-top: 1px solid #E2E8F0; text-align: center;">
+      <p style="color: #0F172A; font-weight: 700; font-size: 14px; margin: 0 0 4px 0;">Yang Chow Pagsanjan</p>
+      <p style="color: #94A3B8; font-size: 12px; margin: 0;">Pagsanjan, Laguna • Contact: bsit-ycprms@yc-pagsanjan.site</p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim()
+}
+
+function buildItSupportRequestHtml(
+  adminName: string,
+  adminEmail: string,
+  issueDescription: string,
+  accessScope: string,
+  durationHours: number
+): string {
+  const now = new Date()
+  const formattedDate = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Manila',
+  })
+  const formattedTime = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Manila',
+  })
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Support Access Request</title>
+</head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
+    
+    <!-- Header Banner -->
+    <div style="background: linear-gradient(135deg, #1E40AF 0%, #1E3A8A 100%); padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">Yang Chow Pagsanjan</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">IT Support Access Request</p>
+    </div>
+
+    <!-- Main Content -->
+    <div style="padding: 32px 28px;">
+      <div style="display: inline-block; background-color: #DBEAFE; border: 1px solid #93C5FD; color: #1E40AF; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 16px;">
+        🔧 New Support Request
+      </div>
+
+      <h2 style="color: #0F172A; margin: 0 0 12px 0; font-size: 20px;">Hello IT Developer,</h2>
+      <p style="color: #475569; line-height: 1.6; font-size: 14.5px; margin: 0 0 20px 0;">
+        A new IT Support Access request has been submitted by the restaurant administrator. Please review the details below and take action through the developer dashboard.
+      </p>
+
+      <!-- Request Details Card -->
+      <div style="background: #EFF6FF; border-left: 4px solid #1E40AF; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <h3 style="color: #1E3A8A; margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Request Details</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; width: 130px; font-weight: 600; vertical-align: top;">Requested By:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px; font-weight: 700;">${adminName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; font-weight: 600; vertical-align: top;">Admin Email:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px;">${adminEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; font-weight: 600; vertical-align: top;">Access Scope:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px; font-weight: 600;">${accessScope}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; font-weight: 600; vertical-align: top;">Duration:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px; font-weight: 600;">${durationHours} hour(s)</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; font-weight: 600; vertical-align: top;">Submitted:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px;">${formattedDate} at ${formattedTime}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Issue Description Card -->
+      <div style="background: #FFFBEB; border-left: 4px solid #D97706; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <h3 style="color: #92400E; margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Issue Description</h3>
+        <p style="color: #78350F; margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500;">
+          "${issueDescription}"
+        </p>
+      </div>
+
+      <!-- Action Required -->
+      <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+        <h4 style="color: #166534; margin: 0 0 10px 0; font-size: 13px;">✅ Action Required</h4>
+        <ul style="color: #15803D; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 20px;">
+          <li>Log in to the Developer Dashboard to review this request.</li>
+          <li>Accept or decline the access request based on the issue described.</li>
+          <li>If accepted, elevated access will auto-expire after <strong>${durationHours} hour(s)</strong>.</li>
+          <li>All actions taken during the session will be logged for audit purposes.</li>
+        </ul>
+      </div>
+
+      <p style="color: #475569; line-height: 1.6; font-size: 13.5px; margin: 20px 0 0 0;">
+        This is an automated notification from the Yang Chow Restaurant Management System. Please respond promptly to assist the administrator.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #F8FAFC; padding: 20px 28px; border-top: 1px solid #E2E8F0; text-align: center;">
+      <p style="color: #0F172A; font-weight: 700; font-size: 14px; margin: 0 0 4px 0;">Yang Chow Pagsanjan</p>
+      <p style="color: #94A3B8; font-size: 12px; margin: 0;">Pagsanjan, Laguna • Contact: bsit-ycprms@yc-pagsanjan.site</p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim()
+}
+
+function buildItSessionCompletedHtml(
+  adminName: string,
+  issueDescription: string,
+  accessScope: string,
+  durationHours: number,
+  developerNotes: string
+): string {
+  const now = new Date()
+  const formattedDate = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Manila',
+  })
+  const formattedTime = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Manila',
+  })
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Support Session Completed</title>
+</head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
+    
+    <!-- Header Banner -->
+    <div style="background: linear-gradient(135deg, #16A34A 0%, #15803D 100%); padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">Yang Chow Pagsanjan</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">IT Support Session Completed</p>
+    </div>
+
+    <!-- Main Content -->
+    <div style="padding: 32px 28px;">
+      <div style="display: inline-block; background-color: #DCFCE7; border: 1px solid #86EFAC; color: #15803D; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 16px;">
+        ✅ Session Resolved
+      </div>
+
+      <h2 style="color: #0F172A; margin: 0 0 12px 0; font-size: 20px;">Hello ${adminName},</h2>
+      <p style="color: #475569; line-height: 1.6; font-size: 14.5px; margin: 0 0 20px 0;">
+        The IT Developer has completed and resolved your IT Support Access request. The elevated access session has been ended and all actions have been logged.
+      </p>
+
+      <!-- Original Request Details -->
+      <div style="background: #EFF6FF; border-left: 4px solid #1E40AF; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <h3 style="color: #1E3A8A; margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Original Request Details</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; width: 130px; font-weight: 600; vertical-align: top;">Access Scope:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px; font-weight: 600;">${accessScope}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; font-weight: 600; vertical-align: top;">Duration:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px;">${durationHours} hour(s)</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #1E40AF; font-size: 13px; font-weight: 600; vertical-align: top;">Resolved At:</td>
+            <td style="padding: 6px 0; color: #1E3A8A; font-size: 13px;">${formattedDate} at ${formattedTime}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Issue Description -->
+      <div style="background: #FFFBEB; border-left: 4px solid #D97706; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <h3 style="color: #92400E; margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Issue Description</h3>
+        <p style="color: #78350F; margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500;">
+          "${issueDescription}"
+        </p>
+      </div>
+
+      <!-- Developer Notes -->
+      <div style="background: #F0FDF4; border-left: 4px solid #16A34A; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <h3 style="color: #166534; margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Session Summary</h3>
+        <p style="color: #14532D; margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500;">
+          ${developerNotes}
+        </p>
+      </div>
+
+      <!-- Status Info -->
+      <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+        <h4 style="color: #166534; margin: 0 0 10px 0; font-size: 13px;">🛡️ Security Update</h4>
+        <ul style="color: #15803D; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 20px;">
+          <li>The IT Developer's elevated access has been <strong>revoked</strong>.</li>
+          <li>All actions performed during the session have been recorded in the audit log.</li>
+          <li>Normal admin operations have been restored.</li>
+        </ul>
+      </div>
+
+      <p style="color: #475569; line-height: 1.6; font-size: 13.5px; margin: 20px 0 0 0;">
+        If you have any questions about the changes made during this session, please contact the IT Developer.
       </p>
     </div>
 

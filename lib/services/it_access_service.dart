@@ -51,6 +51,26 @@ class ItAccessService {
         },
       );
 
+      // Send email notification to IT Developer
+      try {
+        await _supabase.functions.invoke(
+          'send-account-alert-email',
+          body: {
+            'type': 'it_support_request',
+            'recipientEmail': _developerEmail,
+            'adminName': adminName,
+            'adminEmail': adminEmail,
+            'issueDescription': issueDescription,
+            'accessScope': accessScope,
+            'durationHours': durationHours,
+          },
+        );
+        debugPrint('[ItAccessService] Email notification sent to $_developerEmail');
+      } catch (emailError) {
+        // Non-blocking: don't fail the request if email fails
+        debugPrint('[ItAccessService] Email notification failed (non-blocking): $emailError');
+      }
+
       return response;
     } catch (e) {
       debugPrint('[ItAccessService] Error sending access request: $e');
@@ -66,7 +86,15 @@ class ItAccessService {
   }
 
   /// Mark an active session as completed / resolved.
-  static Future<bool> completeSession(String requestId, {String? notes}) async {
+  static Future<bool> completeSession(
+    String requestId, {
+    String? notes,
+    String? adminEmail,
+    String? adminName,
+    String? issueDescription,
+    String? accessScope,
+    int? durationHours,
+  }) async {
     try {
       final now = DateTime.now().toUtc().toIso8601String();
       await _supabase.from(_tableName).update({
@@ -83,6 +111,28 @@ class ItAccessService {
         customUserRole: 'DEVELOPER',
         metadata: {'request_id': requestId},
       );
+
+      // Send email notification to Admin that session is completed
+      if (adminEmail != null && adminEmail.isNotEmpty) {
+        try {
+          await _supabase.functions.invoke(
+            'send-account-alert-email',
+            body: {
+              'type': 'it_session_completed',
+              'recipientEmail': adminEmail,
+              'adminName': adminName ?? 'Administrator',
+              'issueDescription': issueDescription ?? '',
+              'accessScope': accessScope ?? 'General Access',
+              'durationHours': durationHours ?? 2,
+              'reason': notes ?? 'Session completed by developer',
+            },
+          );
+          debugPrint('[ItAccessService] Session completed email sent to $adminEmail');
+        } catch (emailError) {
+          debugPrint('[ItAccessService] Session completed email failed (non-blocking): $emailError');
+        }
+      }
+
       return true;
     } catch (e) {
       debugPrint('[ItAccessService] Error completing session: $e');

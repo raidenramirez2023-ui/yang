@@ -1514,6 +1514,11 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
           notes: shouldPurgeTestData
               ? 'Session ended. Auto-purged $purgedCount test records.'
               : 'Session ended without purging test data.',
+          adminEmail: request['requested_by_email']?.toString(),
+          adminName: request['requested_by_name']?.toString(),
+          issueDescription: request['issue_description']?.toString(),
+          accessScope: request['access_scope']?.toString(),
+          durationHours: request['duration_hours'] as int?,
         );
 
         if (mounted) {
