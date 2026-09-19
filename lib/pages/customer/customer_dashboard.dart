@@ -7915,8 +7915,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           if (mounted) setState(() {});
                         },
                       ),
-                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
-                      if (currentUser?.appMetadata['provider'] == 'email') ...[
+                      if (_hasSetPassword) ...[
                         _buildSettingsTile(
                           icon: Icons.lock_reset_rounded,
                           iconBgColor: const Color(0xFFFFFBEB),
@@ -7924,6 +7923,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           title: 'Change Password',
                           subtitle: 'Manage your password credentials',
                           onTap: _showChangePasswordDialog,
+                        ),
+                        const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                      ] else ...[
+                        _buildSettingsTile(
+                          icon: Icons.lock_outline_rounded,
+                          iconBgColor: const Color(0xFFFFFBEB),
+                          iconColor: const Color(0xFFD97706),
+                          title: 'Set Password',
+                          subtitle: 'Manage your password credentials',
+                          onTap: _showSetPasswordDialog,
                         ),
                         const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
                       ],
@@ -8205,6 +8214,484 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  bool get _hasSetPassword {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return false;
+
+    // 1. If registered with email/password
+    if (user.appMetadata['provider'] == 'email') return true;
+
+    // 2. If user metadata indicates password has been set
+    if (user.userMetadata?['has_set_password'] == true ||
+        user.userMetadata?['has_set_password'] == 'true') {
+      return true;
+    }
+
+    // 3. If appMetadata providers contains email
+    final providers = user.appMetadata['providers'];
+    if (providers is List && providers.contains('email')) {
+      return true;
+    }
+
+    // 4. If identities list contains email provider
+    if (user.identities != null) {
+      for (final identity in user.identities!) {
+        if (identity.provider == 'email') return true;
+      }
+    }
+
+    return false;
+  }
+
+  void _showSetPasswordDialog() {
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    final TextEditingController newPasswordController = TextEditingController();
+    final TextEditingController confirmPasswordController = TextEditingController();
+    bool isPasswordVisible = false;
+    bool isConfirmVisible = false;
+    bool isUpdating = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isUpdating,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Modern Emerald Banner Header ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF14332E), Color(0xFF1A453E)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Set Password',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          if (!isUpdating)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                              onPressed: () => Navigator.pop(context),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              splashRadius: 18,
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Form Content ──
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+                        child: Form(
+                          key: formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ── Info Callout ──
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'You signed in with Google. Setting a password allows you to log in directly using your email and password.',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: const Color(0xFF1E40AF),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // ── New Password ──
+                              Text(
+                                'New Password',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: const Color(0xFF334155),
+                                ),
+                              ),
+                              const SizedBox(height: 7),
+                              TextFormField(
+                                controller: newPasswordController,
+                                obscureText: !isPasswordVisible,
+                                enabled: !isUpdating,
+                                onChanged: (_) => setDialogState(() {}),
+                                style: GoogleFonts.inter(fontSize: 14, color: AppTheme.darkGrey),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter new password',
+                                  hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      isPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                      size: 19,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                    onPressed: () => setDialogState(() => isPasswordVisible = !isPasswordVisible),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.6),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFFDC2626)),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your Password';
+                                  }
+                                  final hasUppercase = value.contains(RegExp(r'[A-Z]'));
+                                  final hasLowercase = value.contains(RegExp(r'[a-z]'));
+                                  final hasDigits = value.contains(RegExp(r'[0-9]'));
+                                  final hasSpecialCharacters = value.contains(
+                                    RegExp(r'[!@#\$%^&*(),.?":{}|<>]'),
+                                  );
+
+                                  if (value.length < 8 ||
+                                      !hasUppercase ||
+                                      !hasLowercase ||
+                                      !hasDigits ||
+                                      !hasSpecialCharacters) {
+                                    return 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and special character';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              // Real-time Requirements Checklist
+                              Builder(
+                                builder: (_) {
+                                  final newPassText = newPasswordController.text;
+                                  final hasMinLength = newPassText.length >= 8;
+                                  final hasUppercase = newPassText.contains(RegExp(r'[A-Z]'));
+                                  final hasLowercase = newPassText.contains(RegExp(r'[a-z]'));
+                                  final hasDigits = newPassText.contains(RegExp(r'[0-9]'));
+                                  final hasSpecialCharacters = newPassText.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+                                  final isAllMet = hasMinLength && hasUppercase && hasLowercase && hasDigits && hasSpecialCharacters;
+
+                                  Widget buildChip(String label, bool isMet) {
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                          size: 13,
+                                          color: isMet ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          label,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: isMet ? FontWeight.w600 : FontWeight.w500,
+                                            color: isMet ? const Color(0xFF0F766E) : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(top: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                                    decoration: BoxDecoration(
+                                      color: isAllMet
+                                          ? const Color(0xFFECFDF5)
+                                          : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isAllMet
+                                            ? const Color(0xFFA7F3D0)
+                                            : const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              isAllMet ? Icons.verified_rounded : Icons.shield_outlined,
+                                              size: 14,
+                                              color: isAllMet ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              isAllMet ? 'Strong Password' : 'Password Requirements:',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isAllMet ? const Color(0xFF059669) : const Color(0xFF334155),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 5,
+                                          children: [
+                                            buildChip('8+ Characters', hasMinLength),
+                                            buildChip('Uppercase (A-Z)', hasUppercase),
+                                            buildChip('Lowercase (a-z)', hasLowercase),
+                                            buildChip('Number (0-9)', hasDigits),
+                                            buildChip('Special Char (!@#\$...)', hasSpecialCharacters),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // ── Confirm New Password ──
+                              Text(
+                                'Confirm New Password',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: const Color(0xFF334155),
+                                ),
+                              ),
+                              const SizedBox(height: 7),
+                              TextFormField(
+                                controller: confirmPasswordController,
+                                obscureText: !isConfirmVisible,
+                                enabled: !isUpdating,
+                                onChanged: (_) => setDialogState(() {}),
+                                style: GoogleFonts.inter(fontSize: 14, color: AppTheme.darkGrey),
+                                decoration: InputDecoration(
+                                  hintText: 'Re-enter new password',
+                                  hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  prefixIcon: const Icon(Icons.verified_user_outlined, size: 18, color: Color(0xFF64748B)),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      isConfirmVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                      size: 19,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                    onPressed: () => setDialogState(() => isConfirmVisible = !isConfirmVisible),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.6),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(color: Color(0xFFDC2626)),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please confirm your Password';
+                                  }
+                                  if (newPasswordController.text.isNotEmpty &&
+                                      value != newPasswordController.text) {
+                                    return 'Confirm password does not match the password you entered';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              const SizedBox(height: 22),
+
+                              // ── Action Buttons ──
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 1,
+                                    child: OutlinedButton(
+                                      onPressed: isUpdating ? null : () => Navigator.pop(context),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Text(
+                                        'Cancel',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF64748B),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 2,
+                                    child: ElevatedButton(
+                                      onPressed: isUpdating
+                                          ? null
+                                          : () async {
+                                              if (formKey.currentState!.validate()) {
+                                                setDialogState(() => isUpdating = true);
+                                                try {
+                                                  final user = Supabase.instance.client.auth.currentUser;
+                                                  if (user == null) {
+                                                    throw Exception('Session expired. Please log in again.');
+                                                  }
+
+                                                  await Supabase.instance.client.auth.updateUser(
+                                                    UserAttributes(
+                                                      password: newPasswordController.text.trim(),
+                                                      data: {'has_set_password': true},
+                                                    ),
+                                                  );
+
+                                                  await Supabase.instance.client.auth.refreshSession();
+
+                                                  if (context.mounted) {
+                                                    Navigator.pop(context);
+                                                    if (mounted) setState(() {});
+                                                    _showSnackBar(
+                                                      'Password set successfully! You can now also log in using your password.',
+                                                      AppTheme.successGreen,
+                                                    );
+                                                  }
+                                                } on AuthException catch (e) {
+                                                  setDialogState(() => isUpdating = false);
+                                                  if (context.mounted) {
+                                                    _showSnackBar(
+                                                      e.message,
+                                                      AppTheme.errorRed,
+                                                    );
+                                                  }
+                                                } catch (e) {
+                                                  setDialogState(() => isUpdating = false);
+                                                  if (context.mounted) {
+                                                    _showSnackBar(
+                                                      'Error setting password: $e',
+                                                      AppTheme.errorRed,
+                                                    );
+                                                  }
+                                                }
+                                              }
+                                            },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF14332E),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      ),
+                                      child: isUpdating
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                            )
+                                          : Text(
+                                              'Set Password',
+                                              style: GoogleFonts.inter(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -8632,11 +9119,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                                   // 2. Update to new password
                                                   await Supabase.instance.client.auth.updateUser(
-                                                    UserAttributes(password: newPasswordController.text.trim()),
+                                                    UserAttributes(
+                                                      password: newPasswordController.text.trim(),
+                                                      data: {'has_set_password': true},
+                                                    ),
                                                   );
+
+                                                  await Supabase.instance.client.auth.refreshSession();
 
                                                   if (context.mounted) {
                                                     Navigator.pop(context);
+                                                    if (mounted) setState(() {});
                                                     _showSnackBar(
                                                       'Password updated successfully!',
                                                       AppTheme.successGreen,
