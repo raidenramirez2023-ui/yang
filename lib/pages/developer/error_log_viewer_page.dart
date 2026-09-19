@@ -515,15 +515,19 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
               label: const Text('Clear Logs'),
             ),
             const SizedBox(width: 12),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: DeveloperTheme.accentEmerald,
-                side: const BorderSide(color: DeveloperTheme.accentEmerald),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            Tooltip(
+              message: 'TEST / DEV TOOL: Nagpapadala ng fake error entry para ma-verify\nkung gumagana ang pipeline mula app papuntang Supabase at viewer.',
+              preferBelow: true,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: DeveloperTheme.accentEmerald,
+                  side: const BorderSide(color: DeveloperTheme.accentEmerald),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                onPressed: _showSimulateDialog,
+                icon: const Icon(Icons.science_rounded, size: 18),
+                label: const Text('Simulate Log (Dev Test)'),
               ),
-              onPressed: _showSimulateDialog,
-              icon: const Icon(Icons.bug_report_rounded, size: 18),
-              label: const Text('Simulate Log'),
             ),
             const SizedBox(width: 12),
             ElevatedButton.icon(
@@ -544,60 +548,216 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
   }
 
   void _showSimulateDialog() {
+    ErrorSeverity? _selected;
+
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DeveloperTheme.bgCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: DeveloperTheme.borderSubtle),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: DeveloperTheme.bgCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: DeveloperTheme.borderSubtle),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // DEV TOOL badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.accentEmerald.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: DeveloperTheme.accentEmerald.withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.science_rounded, size: 13, color: DeveloperTheme.accentEmerald),
+                    const SizedBox(width: 6),
+                    Text(
+                      'DEV / TESTING TOOL ONLY',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: DeveloperTheme.accentEmerald,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text('Simulate Test Log', style: DeveloperTheme.headingMedium()),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Purpose explanation
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.bgDark,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: DeveloperTheme.borderSubtle),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Para saan ito?',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: DeveloperTheme.textPrimary,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Nagpapadala ng FAKE error entry para ma-verify na gumagana ang buong logging pipeline:',
+                      style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 8),
+                    _PipelineStep(icon: Icons.phone_android_rounded, label: 'App (Flutter)', color: DeveloperTheme.accentIndigo),
+                    _PipelineStep(icon: Icons.arrow_downward_rounded, label: '', color: DeveloperTheme.textMuted, isArrow: true),
+                    _PipelineStep(icon: Icons.storage_rounded, label: 'Supabase DB (error_logs table)', color: DeveloperTheme.accentEmerald),
+                    _PipelineStep(icon: Icons.arrow_downward_rounded, label: '', color: DeveloperTheme.textMuted, isArrow: true),
+                    _PipelineStep(icon: Icons.monitor_rounded, label: 'Real-time stream → Log Viewer', color: DeveloperTheme.accentAmber),
+                    const SizedBox(height: 8),
+                    Text(
+                      '⚠️ Hindi ito tunay na error. Para lang sa testing at verification ng pipeline.',
+                      style: DeveloperTheme.bodySmall(color: DeveloperTheme.accentAmber),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Piliin ang severity ng test log:',
+                style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+              ),
+              const SizedBox(height: 10),
+              // Severity selector
+              Row(
+                children: [
+                  _SeverityChip(
+                    label: 'Warning',
+                    color: DeveloperTheme.accentAmber,
+                    selected: _selected == ErrorSeverity.warning,
+                    onTap: () => setDialogState(() => _selected = ErrorSeverity.warning),
+                  ),
+                  const SizedBox(width: 8),
+                  _SeverityChip(
+                    label: 'Error',
+                    color: const Color(0xFFFC8181),
+                    selected: _selected == ErrorSeverity.error,
+                    onTap: () => setDialogState(() => _selected = ErrorSeverity.error),
+                  ),
+                  const SizedBox(width: 8),
+                  _SeverityChip(
+                    label: 'Critical',
+                    color: DeveloperTheme.accentRose,
+                    selected: _selected == ErrorSeverity.critical,
+                    onTap: () => setDialogState(() => _selected = ErrorSeverity.critical),
+                  ),
+                ],
+              ),
+              if (_selected != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: DeveloperTheme.accentRose.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: DeveloperTheme.accentRose.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 14, color: DeveloperTheme.accentAmber),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Ito ay magdadagdag ng FAKE log entry sa database. Press "Confirm & Send" para ituloy.',
+                          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: TextStyle(color: DeveloperTheme.textMuted)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _selected == null
+                    ? DeveloperTheme.borderSubtle
+                    : DeveloperTheme.accentEmerald,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: _selected == null
+                  ? null
+                  : () {
+                      Navigator.pop(ctx);
+                      switch (_selected!) {
+                        case ErrorSeverity.warning:
+                          AppLogger.warning(
+                            module: 'SIMULATOR',
+                            message: 'Test Warning: Inventory stock threshold reached for ingredient.',
+                          );
+                          break;
+                        case ErrorSeverity.error:
+                          AppLogger.error(
+                            module: 'SIMULATOR',
+                            message: 'Test Error: Payment gateway response timed out (HTTP 504).',
+                            error: 'TimeoutException: Request exceeded 10000ms',
+                          );
+                          break;
+                        case ErrorSeverity.critical:
+                          AppLogger.critical(
+                            module: 'SIMULATOR',
+                            message: 'Test Critical: Database lock detected during settlement.',
+                            error: 'PostgresException: deadlock detected on transaction table',
+                          );
+                          break;
+                        default:
+                          break;
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: DeveloperTheme.bgCard,
+                            behavior: SnackBarBehavior.floating,
+                            content: Row(
+                              children: [
+                                Icon(Icons.science_rounded, size: 16, color: DeveloperTheme.accentEmerald),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Test log dispatched: ${_selected!.name.toUpperCase()} (Testing pipeline only)',
+                                    style: TextStyle(color: DeveloperTheme.textPrimary, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('Confirm & Send'),
+            ),
+          ],
         ),
-        title: Text('Simulate Test Log', style: DeveloperTheme.headingMedium()),
-        content: Text(
-          'Choose a severity to simulate a live error log. This tests the persistent pipeline to Supabase and the real-time stream.',
-          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: DeveloperTheme.accentAmber, foregroundColor: Colors.black),
-            onPressed: () {
-              Navigator.pop(ctx);
-              AppLogger.warning(
-                module: 'SIMULATOR',
-                message: 'Test Warning: Inventory stock threshold reached for ingredient.',
-              );
-            },
-            child: const Text('Warning'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFC8181), foregroundColor: Colors.black),
-            onPressed: () {
-              Navigator.pop(ctx);
-              AppLogger.error(
-                module: 'SIMULATOR',
-                message: 'Test Error: Payment gateway response timed out (HTTP 504).',
-                error: 'TimeoutException: Request exceeded 10000ms',
-              );
-            },
-            child: const Text('Error'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: DeveloperTheme.accentRose, foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(ctx);
-              AppLogger.critical(
-                module: 'SIMULATOR',
-                message: 'Test Critical: Database lock detected during settlement.',
-                error: 'PostgresException: deadlock detected on transaction table',
-              );
-            },
-            child: const Text('Critical'),
-          ),
-        ],
       ),
     );
   }
@@ -1295,6 +1455,86 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+// ─── Helper widgets for the Simulate Log dialog ───────────────────────────────
+
+class _PipelineStep extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isArrow;
+
+  const _PipelineStep({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.isArrow = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isArrow) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Icon(icon, size: 14, color: color),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SeverityChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SeverityChip({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? color : color.withValues(alpha: 0.35),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? color : color.withValues(alpha: 0.7),
+          ),
+        ),
       ),
     );
   }

@@ -303,8 +303,9 @@ class _LoginPageState extends State<LoginPage> {
 
         debugPrint('Customer user verified, allowing access');
 
-        // Check Maintenance Mode
-        if (AppSettingsService().isMaintenanceModeEnabled()) {
+        // Check Maintenance Mode — always query DB live, never use stale cache
+        final isMaintenanceActive = await AppSettingsService.checkMaintenanceModeFromDB();
+        if (isMaintenanceActive) {
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/maintenance');
           }
@@ -655,12 +656,16 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
-        if (mounted) {
-          // Check Maintenance Mode
-          if (AppSettingsService().isMaintenanceModeEnabled()) {
+        // Check Maintenance Mode — always query DB live, never use stale cache
+        final isMaintenanceActive = await AppSettingsService.checkMaintenanceModeFromDB();
+        if (isMaintenanceActive) {
+          if (mounted) {
             Navigator.pushReplacementNamed(context, '/maintenance');
-            return;
           }
+          return;
+        }
+
+        if (mounted) {
 
           _showSnackBar(
             "Welcome back, ${session.user.email!.split('@')[0]}!",

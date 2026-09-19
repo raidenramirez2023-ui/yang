@@ -64,9 +64,11 @@ class _AuthGuardState extends State<AuthGuard> {
       }
       final userRole = userResponse['role']?.toString().toLowerCase() ?? '';
 
-      // Check Maintenance Mode: Block customer, staff, chef, etc. if maintenance mode is enabled
-      if (userRole != 'developer' && userRole != 'admin') {
-        final isMaintenance = AppSettingsService().isMaintenanceModeEnabled();
+      // Check Maintenance Mode: Block all non-developer roles when maintenance is active.
+      // Uses a LIVE database query (not the stale in-memory cache) so changes from any
+      // device/browser are immediately reflected here.
+      if (userRole != 'developer') {
+        final isMaintenance = await AppSettingsService.checkMaintenanceModeFromDB();
         if (isMaintenance) {
           debugPrint('🚧 AuthGuard: Maintenance mode active, redirecting $userRole to /maintenance');
           _redirectToMaintenance();
