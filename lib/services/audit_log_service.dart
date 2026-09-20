@@ -206,4 +206,19 @@ class AuditLogService {
 
     return buffer.toString();
   }
+
+  /// Purge technical error logs / crash telemetry from audit_logs.
+  /// Safe: Only deletes CRITICAL, ERROR, FAILED, SYSTEM_ERROR records or system telemetry.
+  /// Does NOT touch business activity logs (staff operations, logins, orders, settings).
+  static Future<void> purgeTechnicalErrorLogs() async {
+    try {
+      await _supabase
+          .from('audit_logs')
+          .delete()
+          .or('action.eq.CRITICAL,action.eq.ERROR,action.eq.FAILED,action.eq.SYSTEM_ERROR');
+    } catch (e) {
+      debugPrint('[AuditLogService] Error purging technical error logs: $e');
+      rethrow;
+    }
+  }
 }
