@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,6 +49,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   Timer? _latencyTimer;
   Timer? _itAccessPollTimer;
   String _developerEmail = 'Developer';
+  String _appName = 'Yang Chow Pagsanjan Restaurant Management System (YCPRMS)';
   String _appVersion = '1.0.0+20';
   List<Map<String, dynamic>> _pendingItRequests = [];
   Map<String, dynamic>? _activeItRequest;
@@ -70,11 +73,16 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
       final info = await PackageInfo.fromPlatform();
       final ver = info.version;
       final build = info.buildNumber;
-      if (ver.isNotEmpty) {
-        final full = build.isNotEmpty ? '$ver+$build' : ver;
-        if (mounted) {
-          setState(() => _appVersion = full);
-        }
+      final name = info.appName.trim();
+      if (mounted) {
+        setState(() {
+          if (ver.isNotEmpty) {
+            _appVersion = build.isNotEmpty ? '$ver+$build' : ver;
+          }
+          if (name.isNotEmpty) {
+            _appName = 'Yang Chow Pagsanjan Restaurant Management System ($name)';
+          }
+        });
       }
     } catch (e) {
       debugPrint('[DeveloperDashboard] Error loading package version: $e');
@@ -1052,6 +1060,34 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
 
 
   Widget _buildSystemInfoTab() {
+    String storageInfo = 'Firebase Storage Bucket (Polyglot image storage)';
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final bucket = Firebase.app().options.storageBucket;
+        if (bucket != null && bucket.isNotEmpty) {
+          storageInfo = 'Firebase Storage ($bucket)';
+        }
+      }
+    } catch (_) {}
+
+    final clientPlatform = kIsWeb
+        ? 'Web (${defaultTargetPlatform.name.toUpperCase()} Client)'
+        : '${defaultTargetPlatform.name.toUpperCase()} (Native Engine)';
+
+    final buildMode = kReleaseMode
+        ? 'Production (AOT)'
+        : kProfileMode
+            ? 'Profile'
+            : 'Development (Debug JIT)';
+
+    final dbStatus = _latencyMs >= 0
+        ? 'Supabase PostgreSQL 15.x (${_latencyMs}ms latency • Online)'
+        : 'Supabase PostgreSQL 15.x (Online)';
+
+    final authInfo = _developerEmail.isNotEmpty
+        ? 'Supabase GoTrue JWT (Active Session: $_developerEmail)'
+        : 'Supabase GoTrue JWT & Role Authorization Guard';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -1067,14 +1103,15 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             decoration: DeveloperTheme.cardDecoration(),
             child: Column(
               children: [
-                _buildInfoRow('Application Name', 'Yang Chow Pagsanjan Restaurant Management System (YCPRMS)'),
-                _buildInfoRow('Software Release Version', '$_appVersion (Production)'),
-                _buildInfoRow('Framework & SDK', 'Flutter 3.x / Dart 3.x'),
-                _buildInfoRow('Relational Database', 'Supabase PostgreSQL 15.x with Row Level Security (RLS)'),
-                _buildInfoRow('Object Storage', 'Firebase Storage Bucket (Polyglot image storage)'),
-                _buildInfoRow('Authentication Scheme', 'Supabase GoTrue JWT & Role Authorization Guard'),
-                _buildInfoRow('Design System', 'Tailored Cyber/Dark Slate IT Architecture Theme'),
-                _buildInfoRow('Operating System Target', 'Web, Windows, Android, iOS'),
+                _buildInfoRow('Application Name', _appName),
+                _buildInfoRow('Software Release Version', '$_appVersion ($buildMode)'),
+                _buildInfoRow('Framework & SDK', 'Flutter 3.x / Dart 3.x (${kIsWeb ? "Web Engine" : "Native Engine"})'),
+                _buildInfoRow('Relational Database', dbStatus),
+                _buildInfoRow('Object Storage', storageInfo),
+                _buildInfoRow('Authentication Scheme', authInfo),
+                _buildInfoRow('Design System', 'Flutter Material 3 (Yang Chow Brand Palette & Dark Slate IT Console)'),
+                _buildInfoRow('Host Operating System', clientPlatform),
+                _buildInfoRow('Operating System Target', 'Web, Windows, Android, iOS (Cross-Platform)'),
               ],
             ),
           ),

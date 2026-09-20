@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'developer_theme.dart';
 import '../../services/app_logger.dart';
+import '../../services/audit_log_service.dart';
+import '../../utils/file_download.dart';
 
 // ---------------------------------------------------------------------------
 // Error Log Model
@@ -223,6 +227,9 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
   bool _loadingDbErrors = false;
   RealtimeChannel? _realtimeSub;
 
+  /// Set when user clicks "Clear All" — filters out DB logs older than this
+  DateTime? _clearedAt;
+
   int _runtimePage = 1;
   int _dbPage = 1;
   static const int _pageSize = 50;
@@ -232,6 +239,7 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
     super.initState();
     _allLogs = _store.logs.toList();
     _applyFilters();
+    _loadClearedAtAndFetch();
 
     _streamSub = _store.stream.listen((logs) {
       if (mounted) {
@@ -243,8 +251,6 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
         });
       }
     });
-
-    _fetchDbErrors();
 
     // Subscribe to realtime database error insertions
     try {
@@ -267,6 +273,22 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
         (_) => _fetchDbErrors(),
       );
     }
+  }
+
+  Future<void> _loadClearedAtAndFetch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('dev_error_logs_cleared_at');
+      if (str != null) {
+        final parsed = DateTime.tryParse(str);
+        if (parsed != null && mounted) {
+          setState(() {
+            _clearedAt = parsed.toUtc();
+          });
+        }
+      }
+    } catch (_) {}
+    _fetchDbErrors();
   }
 
   @override
@@ -294,14 +316,26 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
         dbLogs.add(AppErrorLog.fromAuditLog(Map<String, dynamic>.from(row)));
       }
 
-      // Merge persistent database errors with any local session logs
-      final existingIds = dbLogs.map((l) => l.id).toSet();
+      // Merge persistent database errors with any local session logs.
+      // If user cleared, only show logs that arrived AFTER the clear time.
+      final filtered = _clearedAt == null
+          ? dbLogs
+          : dbLogs.where((l) => l.timestamp.toUtc().isAfter(_clearedAt!.toUtc())).toList();
+
+      final existingIds = filtered.map((l) => l.id).toSet();
       final memoryOnly = _store.logs.where((l) => !existingIds.contains(l.id));
+
+      final rawDbFiltered = _clearedAt == null
+          ? List<Map<String, dynamic>>.from(response)
+          : (response as List).where((row) {
+              final dt = DateTime.tryParse(row['created_at']?.toString() ?? '');
+              return dt != null && dt.toUtc().isAfter(_clearedAt!.toUtc());
+            }).map((r) => Map<String, dynamic>.from(r)).toList();
 
       if (mounted) {
         setState(() {
-          _allLogs = [...memoryOnly, ...dbLogs];
-          _dbErrors = List<Map<String, dynamic>>.from(response);
+          _allLogs = [...memoryOnly, ...filtered];
+          _dbErrors = rawDbFiltered;
           _loadingDbErrors = false;
           _applyFilters();
           final totalDbPages = (_dbErrors.length / _pageSize).ceil().clamp(1, 99999);
@@ -356,45 +390,281 @@ class _ErrorLogViewerPageState extends State<ErrorLogViewerPage> {
     return counts;
   }
 
+  // ---------------------------------------------------------------------------
+  // Export Logs as CSV — real file download on web, clipboard on other platforms
+  // ---------------------------------------------------------------------------
+
+  void _exportLogs({List<AppErrorLog>? logs}) {
+    final target = logs ?? _allLogs;
+    if (target.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: DeveloperTheme.bgCard,
+          content: Text(
+            'No logs to export.',
+            style: GoogleFonts.inter(color: DeveloperTheme.textMuted),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Build CSV rows
+    final rows = <List<dynamic>>[
+      ['ID', 'Timestamp', 'Severity', 'Source', 'Message', 'Stack Trace', 'Context'],
+    ];
+    for (final log in target) {
+      rows.add([
+        log.id,
+        log.timestamp.toLocal().toString(),
+        log.severityLabel,
+        log.source,
+        log.message,
+        log.stackTrace ?? '',
+        log.context.entries.map((e) => '${e.key}=${e.value}').join('; '),
+      ]);
+    }
+    final csvString = const CsvEncoder().convert(rows);
+    final filename =
+        'error_logs_${DateTime.now().millisecondsSinceEpoch}.csv';
+
+    // Try real browser download first (web only)
+    final downloaded = downloadTextFile(csvString, filename);
+
+    if (downloaded) {
+      // Web: file was downloaded via browser
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: DeveloperTheme.accentEmerald,
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.download_done_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${target.length} logs downloaded as "$filename"',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      // Non-web: copy CSV to clipboard as fallback
+      Clipboard.setData(ClipboardData(text: csvString));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: DeveloperTheme.accentEmerald,
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.copy_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${target.length} logs copied to clipboard as CSV.',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clear All (with optional export-first)
+  // ---------------------------------------------------------------------------
+
   void _clearAll() {
-    showDialog<bool>(
+    bool deleteFromDb = true;
+
+    showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DeveloperTheme.bgCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: DeveloperTheme.borderSubtle),
-        ),
-        title: Text('Clear All Logs?', style: DeveloperTheme.headingMedium()),
-        content: Text(
-          'This will remove all ${_allLogs.length} in-memory error logs. This cannot be undone.',
-          style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          backgroundColor: DeveloperTheme.bgCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: DeveloperTheme.borderSubtle),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DeveloperTheme.accentRose,
-              foregroundColor: Colors.white,
+          title: Text('Clear All Error Logs?', style: DeveloperTheme.headingMedium()),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will clear all ${_allLogs.length} error logs currently displayed.',
+                style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              // Option to permanently delete from Supabase
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.bgDark,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: deleteFromDb
+                        ? DeveloperTheme.accentRose.withValues(alpha: 0.5)
+                        : DeveloperTheme.borderSubtle,
+                  ),
+                ),
+                child: CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  activeColor: DeveloperTheme.accentRose,
+                  title: Text(
+                    'Permanently delete from Supabase Database',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: DeveloperTheme.textPrimary,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Buburahin sa cloud database ang mga error/crash logs para hindi na bumalik kahit patayin ang laptop. (Hindi madadamay ang business audit trails tulad ng logins at orders).',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: DeveloperTheme.textMuted,
+                    ),
+                  ),
+                  value: deleteFromDb,
+                  onChanged: (val) {
+                    setDlgState(() {
+                      deleteFromDb = val ?? false;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.accentAmber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: DeveloperTheme.accentAmber.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 15, color: DeveloperTheme.accentAmber),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'IT Best Practice: Piliin ang "Export & Clear" bago magbura para may offline backup CSV copy ka ng logs.',
+                        style: DeveloperTheme.bodySmall(color: DeveloperTheme.accentAmber),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: Text('Cancel', style: TextStyle(color: DeveloperTheme.textMuted)),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear All'),
-          ),
-        ],
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: DeveloperTheme.accentEmerald,
+                side: const BorderSide(color: DeveloperTheme.accentEmerald),
+              ),
+              onPressed: () => Navigator.pop(ctx, 'export_clear'),
+              icon: const Icon(Icons.download_rounded, size: 16),
+              label: const Text('Export & Clear'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DeveloperTheme.accentRose,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, 'clear'),
+              icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+              label: Text(deleteFromDb ? 'Purge & Clear' : 'Clear View'),
+            ),
+          ],
+        ),
       ),
-    ).then((confirmed) {
-      if (confirmed == true) {
-        _store.clear();
+    ).then((action) async {
+      if (action == null || action == 'cancel') return;
+
+      if (action == 'export_clear') {
+        _exportLogs(logs: List.from(_allLogs));
+      }
+
+      bool dbPurgeFailed = false;
+      String? dbErrorMsg;
+
+      if (deleteFromDb) {
+        try {
+          await AuditLogService.purgeTechnicalErrorLogs();
+        } catch (e) {
+          dbPurgeFailed = true;
+          dbErrorMsg = e.toString();
+          debugPrint('[ErrorLogViewer] Failed to purge from Supabase: $e');
+        }
+      }
+
+      _store.clear();
+      final now = DateTime.now().toUtc();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('dev_error_logs_cleared_at', now.toIso8601String());
+      } catch (_) {}
+
+      if (mounted) {
         setState(() {
+          _clearedAt = now;
           _allLogs = [];
           _filteredLogs = [];
+          _dbErrors = [];
           _selectedLog = null;
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: dbPurgeFailed ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
+            content: Text(
+              deleteFromDb
+                  ? (dbPurgeFailed
+                      ? 'Cleared locally. (Cloud delete note: $dbErrorMsg)'
+                      : 'Error logs successfully cleared and purged from Supabase.')
+                  : 'Session error logs cleared.',
+              style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     });
+  }
+
+  Future<void> _restoreLogHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('dev_error_logs_cleared_at');
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _clearedAt = null;
+      });
+      _fetchDbErrors();
+    }
   }
 
   void _copyLogToClipboard(AppErrorLog log) {
@@ -429,12 +699,57 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
           _buildHeader(),
           const SizedBox(height: 20),
           _buildSeverityBar(),
+          if (_clearedAt != null) ...[
+            const SizedBox(height: 12),
+            _buildClearedNoticeBanner(),
+          ],
           const SizedBox(height: 20),
           _buildFiltersRow(),
           const SizedBox(height: 16),
           _buildMainContent(),
           const SizedBox(height: 28),
           _buildDbErrorsSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClearedNoticeBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: DeveloperTheme.accentCyan.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: DeveloperTheme.accentCyan.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sensors_rounded, size: 16, color: DeveloperTheme.accentCyan),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Session logs cleared. Live monitoring is active for incoming runtime events.',
+              style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+            ),
+          ),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: DeveloperTheme.accentCyan,
+              side: const BorderSide(color: DeveloperTheme.accentCyan),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: _restoreLogHistory,
+            icon: const Icon(Icons.history_rounded, size: 14),
+            label: Text(
+              'View All Logs',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -503,43 +818,33 @@ ${log.stackTrace != null ? '\nStack Trace:\n${log.stackTrace}' : ''}
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            // Clear Logs button
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: DeveloperTheme.accentRose,
                 side: const BorderSide(color: DeveloperTheme.accentRose),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                textStyle: const TextStyle(fontSize: 12),
               ),
               onPressed: _allLogs.isEmpty ? null : _clearAll,
-              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+              icon: const Icon(Icons.delete_sweep_rounded, size: 15),
               label: const Text('Clear Logs'),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 6),
             Tooltip(
               message: 'TEST / DEV TOOL: Nagpapadala ng fake error entry para ma-verify\nkung gumagana ang pipeline mula app papuntang Supabase at viewer.',
               preferBelow: true,
-              child: OutlinedButton.icon(
+              child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: DeveloperTheme.accentEmerald,
                   side: const BorderSide(color: DeveloperTheme.accentEmerald),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  minimumSize: Size.zero,
                 ),
                 onPressed: _showSimulateDialog,
-                icon: const Icon(Icons.science_rounded, size: 18),
-                label: const Text('Simulate Log (Dev Test)'),
+                child: const Icon(Icons.science_rounded, size: 15),
               ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DeveloperTheme.accentIndigo,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: _fetchDbErrors,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Refresh'),
             ),
           ],
         ),
