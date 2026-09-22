@@ -36,6 +36,7 @@ import 'package:yang_chow/models/menu_item.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
+import 'package:yang_chow/widgets/customer/availability_preview_widget.dart';
 import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -1395,28 +1396,34 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         ),
       ),
       centerTitle: true,
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.lora(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-              letterSpacing: -0.3,
+      titleSpacing: 0,
+      title: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.lora(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 19,
+                letterSpacing: -0.3,
+              ),
+              maxLines: 1,
             ),
-          ),
-          const SizedBox(width: 5),
-          Container(
-            width: 4,
-            height: 4,
-            decoration: const BoxDecoration(
-              color: AppTheme.warmGold,
-              shape: BoxShape.circle,
+            const SizedBox(width: 5),
+            Container(
+              width: 4,
+              height: 4,
+              decoration: const BoxDecoration(
+                color: AppTheme.warmGold,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         _buildCartIcon(),
@@ -3709,86 +3716,95 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   Widget _buildMobileNavItem(int index, IconData icon, String label, {int badgeCount = 0}) {
     final isSelected = _selectedIndex == index;
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        _onSelectTab(index);
-      },
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 : 10,
-          vertical: 7,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.warmGold : Colors.transparent, // #E8B84B warm gold when active
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppTheme.warmGold.withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+    return Flexible(
+      flex: isSelected ? 3 : 2,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _onSelectTab(index);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(
+            horizontal: isSelected ? 10 : 6,
+            vertical: 7,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.warmGold : Colors.transparent, // #E8B84B warm gold when active
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.warmGold.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedScale(
+                    scale: isSelected ? 1.08 : 1.0,
+                    duration: const Duration(milliseconds: 250),
+                    child: Icon(
+                      icon,
+                      color: isSelected ? AppTheme.darkBrownText : AppTheme.sidebarInactiveIcon, // #412402 on gold / #9DB5AB inactive
+                      size: 20,
+                    ),
                   ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AnimatedScale(
-                  scale: isSelected ? 1.1 : 1.0,
-                  duration: const Duration(milliseconds: 250),
-                  child: Icon(
-                    icon,
-                    color: isSelected ? AppTheme.darkBrownText : AppTheme.sidebarInactiveIcon, // #412402 on gold / #9DB5AB inactive
-                    size: 21,
-                  ),
-                ),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -4,
-                    right: -5,
-                    child: Container(
-                      padding: const EdgeInsets.all(3.5),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
-                      child: Center(
-                        child: Text(
-                          '$badgeCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w900,
-                            height: 1,
+                  if (badgeCount > 0)
+                    Positioned(
+                      top: -4,
+                      right: -5,
+                      child: Container(
+                        padding: const EdgeInsets.all(3.5),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                        child: Center(
+                          child: Text(
+                            '$badgeCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: AppTheme.darkBrownText, // #412402 Dark brown text
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12.5,
-                  letterSpacing: 0.1,
-                ),
+                ],
               ),
+              if (isSelected) ...[
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: AppTheme.darkBrownText, // #412402 Dark brown text
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11.5,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -6315,7 +6331,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         const SizedBox(height: 8),
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final stackVertically = constraints.maxWidth < 310;
+                            final stackVertically = constraints.maxWidth < 460;
 
                             final dateTile = AnimatedTapScale(
                               onTap: () async {
@@ -6435,10 +6451,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               ),
                             );
 
+                            final effectiveEndHour = _reservationType == 'Advance Order'
+                                ? 19
+                                : (_operatingHoursEnd < 20
+                                    ? AppConstants.defaultOperatingHoursEnd
+                                    : _operatingHoursEnd);
+
                             final timeTile = AnimatedTapScale(
                               onTap: () async {
                                 final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
-                                final endHour = _reservationType == 'Advance Order' ? 19 : _operatingHoursEnd;
+                                final endHour = effectiveEndHour;
 
                                 final TimeOfDay? pickedTime = await showTimePicker(
                                   context: context,
@@ -6530,6 +6552,47 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           },
                         ),
                         const SizedBox(height: 18),
+
+                        // Availability Preview (Shows real-time booked vs available slots for selected date)
+                        if (_reservationType == 'Event Place') ...[
+                          Builder(
+                            builder: (context) {
+                              final effectiveEndHour = _operatingHoursEnd < 20
+                                  ? AppConstants.defaultOperatingHoursEnd
+                                  : _operatingHoursEnd;
+
+                              return AvailabilityPreviewWidget(
+                                selectedDateText: _dateController.text,
+                                selectedStartTime: _startTimeController.text.isNotEmpty ? _startTimeController.text : null,
+                                durationHours: double.tryParse(_durationController.text) ?? 2.0,
+                                operatingHoursStart: _operatingHoursStart,
+                                operatingHoursEnd: effectiveEndHour,
+                                onTimeSelected: (selectedTime) {
+                                  final timeParts = selectedTime.trim().split(RegExp(r'[\s:]+'));
+                                  int hour = int.tryParse(timeParts[0]) ?? 10;
+                                  int minute = timeParts.length > 1 ? (int.tryParse(timeParts[1]) ?? 0) : 0;
+                                  final isPM = selectedTime.toUpperCase().contains('PM');
+                                  final isAM = selectedTime.toUpperCase().contains('AM');
+                                  if (isPM && hour < 12) hour += 12;
+                                  if (isAM && hour == 12) hour = 0;
+
+                                  final pickedTime = TimeOfDay(hour: hour, minute: minute);
+                                  _handleTimeSelection(pickedTime, _operatingHoursStart, effectiveEndHour);
+                                },
+                                onPickCustomTime: () async {
+                                  final TimeOfDay? pickedTime = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay(hour: _operatingHoursStart, minute: 0),
+                                  );
+                                  if (pickedTime != null) {
+                                    _handleTimeSelection(pickedTime, _operatingHoursStart, effectiveEndHour);
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                        ],
 
                         // Duration (Event Place Only)
                         if (_reservationType == 'Event Place') ...[
