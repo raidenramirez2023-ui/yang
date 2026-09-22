@@ -2471,6 +2471,24 @@ class ReservationService {
     }
   }
 
+  /// Read-only helper to fetch active (non-cancelled, non-expired) reservations for a given date
+  /// Used for UI preview. Does not alter any booking or validation logic.
+  Future<List<Map<String, dynamic>>> getBookingsForDate(String eventDate) async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('id, start_time, duration_hours, status, event_type')
+          .eq('event_date', eventDate);
+
+      return List<Map<String, dynamic>>.from(response)
+          .where((r) => r['status'] != 'cancelled' && r['status'] != 'expired')
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting bookings for date $eventDate: $e');
+      return [];
+    }
+  }
+
   /// Get dates that are fully booked for Event Place reservations
   Future<Set<String>> getFullyBookedEventDates() async {
     try {
@@ -2521,60 +2539,48 @@ class ReservationService {
 
 
 
-  /// Helper to parse time strings like "10:00 AM" or "2:30 PM"
-
+  /// Helper to parse time strings like "10:00 AM", "2:30 PM", or "16:00:00"
   DateTime _parseTime(String timeStr) {
+    final cleanStr = timeStr.trim().replaceAll('\u202F', ' ').replaceAll('\u00A0', ' ');
+    final now = DateTime.now();
 
-    try {
-
-      final DateFormat timeFormat = DateFormat.jm(); // Matches "10:00 AM"
-
-      final DateTime parsed = timeFormat.parse(timeStr);
-
-      final DateTime now = DateTime.now();
-
-      return DateTime(now.year, now.month, now.day, parsed.hour, parsed.minute);
-
-    } catch (e) {
-
-      debugPrint('Error parsing time string "$timeStr": $e');
-
-      // Fallback: try manual parsing if DateFormat fails
-
-      final parts = timeStr.split(' ');
-
-      if (parts.length >= 1) {
-
-        final timeParts = parts[0].split(':');
-
-        int hour = int.tryParse(timeParts[0]) ?? 0;
-
-        int minute = timeParts.length > 1 ? (int.tryParse(timeParts[1]) ?? 0) : 0;
-
-        
-
-        if (parts.length > 1 && parts[1].toUpperCase() == 'PM' && hour < 12) {
-
-          hour += 12;
-
-        } else if (parts.length > 1 && parts[1].toUpperCase() == 'AM' && hour == 12) {
-
-          hour = 0;
-
-        }
-
-        
-
-        final now = DateTime.now();
-
-        return DateTime(now.year, now.month, now.day, hour, minute);
-
-      }
-
-      return DateTime.now();
-
+    // Check for 24-hour SQL format (e.g. "16:00:00", "16:00", "09:30")
+    final match24 = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(cleanStr);
+    if (match24 != null) {
+      final hour = int.tryParse(match24.group(1)!) ?? 0;
+      final minute = int.tryParse(match24.group(2)!) ?? 0;
+      return DateTime(now.year, now.month, now.day, hour, minute);
     }
 
+    // Check for 12-hour AM/PM format (e.g. "1:00 PM", "10:30 AM")
+    final match12 = RegExp(r'^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$', caseSensitive: false).firstMatch(cleanStr);
+    if (match12 != null) {
+      int hour = int.tryParse(match12.group(1)!) ?? 0;
+      final minute = int.tryParse(match12.group(2)!) ?? 0;
+      final period = match12.group(3)?.toUpperCase();
+      if (period == 'PM' && hour < 12) hour += 12;
+      if (period == 'AM' && hour == 12) hour = 0;
+      return DateTime(now.year, now.month, now.day, hour, minute);
+    }
+
+    try {
+      final DateFormat timeFormat = DateFormat.jm();
+      final DateTime parsed = timeFormat.parse(cleanStr);
+      return DateTime(now.year, now.month, now.day, parsed.hour, parsed.minute);
+    } catch (_) {
+      // Fallback
+      final parts = cleanStr.split(RegExp(r'[\s:]+'));
+      if (parts.isNotEmpty) {
+        int hour = int.tryParse(parts[0]) ?? 0;
+        int minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+        final isPM = cleanStr.toUpperCase().contains('PM');
+        final isAM = cleanStr.toUpperCase().contains('AM');
+        if (isPM && hour < 12) hour += 12;
+        if (isAM && hour == 12) hour = 0;
+        return DateTime(now.year, now.month, now.day, hour, minute);
+      }
+      return DateTime.now();
+    }
   }
 
 
