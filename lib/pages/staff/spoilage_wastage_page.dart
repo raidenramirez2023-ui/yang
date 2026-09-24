@@ -31,7 +31,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
   String _selectedReasonFilter = 'All';
   String _selectedTimeFilter = 'This Month'; // 'This Week', 'This Month', 'All Time'
   int _currentPage = 1;
-  static const int _rowsPerPage = 15;
+  static const int _rowsPerPage = 12;
+  bool _preferCardView = false;
 
   @override
   void initState() {
@@ -111,7 +112,6 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         final rawDate = item['created_at']?.toString() ?? '';
         final dt = DateTime.tryParse(rawDate)?.toUtc();
         
-        // Normalize time to a 5-minute bucket in UTC to eliminate DB vs Local timezone offset discrepancies
         final minuteBucket = dt != null ? (dt.minute ~/ 5) : 0;
         final dateKey = dt != null
             ? '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}_${dt.hour.toString().padLeft(2, '0')}:$minuteBucket'
@@ -125,7 +125,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         uniqueMap[fp] = l;
       }
 
-      // Local entries only if not already matched, and merge notes into existing DB entry
+      // Local entries only if not already matched
       for (var l in localLogs) {
         final fp = getFingerprint(l);
         if (uniqueMap.containsKey(fp)) {
@@ -184,8 +184,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       final loggedBy = (log['logged_by'] ?? '').toString().toLowerCase();
       final q = _searchQuery.toLowerCase();
 
-      final matchesSearch = q.isEmpty || name.contains(q) || loggedBy.contains(q) || reason.toLowerCase().contains(q);
-      final matchesReason = _selectedReasonFilter == 'All' || reason.toLowerCase().contains(_selectedReasonFilter.toLowerCase());
+      final matchesSearch = q.isEmpty ||
+          name.contains(q) ||
+          loggedBy.contains(q) ||
+          reason.toLowerCase().contains(q) ||
+          (log['notes'] ?? '').toString().toLowerCase().contains(q);
+
+      final matchesReason = _selectedReasonFilter == 'All' ||
+          reason.toLowerCase().contains(_selectedReasonFilter.toLowerCase());
 
       bool matchesTime = true;
       if (_selectedTimeFilter != 'All Time') {
@@ -213,6 +219,15 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     });
   }
 
+  int get _uniqueImpactedItemsCount {
+    final Set<String> items = {};
+    for (var l in _filteredLogs) {
+      final n = (l['item_name'] ?? '').toString().trim();
+      if (n.isNotEmpty) items.add(n);
+    }
+    return items.length;
+  }
+
   String get _mostCommonReason {
     if (_filteredLogs.isEmpty) return 'None';
     final Map<String, int> counts = {};
@@ -227,9 +242,23 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     return top.key;
   }
 
+  int _countForReason(String reasonKey) {
+    if (reasonKey == 'All') return _wastageLogs.length;
+    return _wastageLogs.where((l) {
+      final r = (l['reason'] ?? '').toString().toLowerCase();
+      return r.contains(reasonKey.toLowerCase());
+    }).length;
+  }
+
+  int _qtyDecimals(double val) => val.truncateToDouble() == val ? 0 : 2;
+
+  // ---------------------------------------------------------------------------
+  // MAIN BUILD
+  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
     final filtered = _filteredLogs;
 
     final totalItems = filtered.length;
@@ -251,91 +280,66 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF14332E)))
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF14332E),
+                strokeWidth: 2.5,
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _loadData,
               color: const Color(0xFF14332E),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(isMobile ? 14 : 20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 24,
+                  vertical: isMobile ? 14 : 20,
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Header Banner ──────────────────────────────────
-                    _buildHeaderBanner(isMobile),
+                    // 1. Executive Top Header Bar
+                    _buildExecutiveHeader(isMobile),
                     const SizedBox(height: 16),
 
-                    // ── Analytics Summary Cards ─────────────────────────
-                    _buildStatsRow(isMobile),
-                    const SizedBox(height: 20),
+                    // 2. Telemetry KPI Metric Cards
+                    _buildTelemetryCards(isMobile, isTablet),
+                    const SizedBox(height: 18),
 
-                    // ── Search & Filter Controls ───────────────────────
-                    _buildSearchAndFilters(isMobile),
+                    // 3. Filter Toolbar & Search Bar
+                    _buildFilterToolbar(isMobile),
                     const SizedBox(height: 16),
 
-                    // ── Logs Section Header ────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Spoilage & Wastage History',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: isMobile ? 17 : 19,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0F172A),
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            Text(
-                              '$totalItems recorded waste log${totalItems == 1 ? '' : 's'}',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                color: const Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _showLogWastageModal,
-                          icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.white),
-                          label: Text(
-                            isMobile ? 'Log Waste' : 'Log Spoilage / Waste',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                              color: Colors.white,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDC2626),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isMobile ? 12 : 16,
-                              vertical: 10,
-                            ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
+                    // 4. Section Subheader with View Switcher
+                    _buildSectionHeader(totalItems, isMobile),
+                    const SizedBox(height: 12),
 
-                    // ── Table of Wastage Logs ──────────────────────────
+                    // 5. Data Records (Adaptive Table or Mobile Incident Cards)
                     if (filtered.isEmpty)
                       _buildEmptyState()
+                    else if (isMobile || _preferCardView)
+                      _buildMobileIncidentCards(paginatedLogs)
                     else
-                      _buildWastageTable(
+                      _buildDesktopDataTable(
                         logs: paginatedLogs,
                         totalItems: totalItems,
                         totalPages: totalPages,
                         startIndex: startIndex,
                         endIndex: endIndex,
-                        isMobile: isMobile,
                       ),
+
+                    // 6. Pagination Controls for Card View / Mobile
+                    if (filtered.isNotEmpty && (isMobile || _preferCardView)) ...[
+                      const SizedBox(height: 14),
+                      _buildPaginationBar(
+                        currentPage: _currentPage,
+                        totalItems: totalItems,
+                        totalPages: totalPages,
+                        startIndex: startIndex,
+                        endIndex: endIndex,
+                        onPageChanged: (p) => setState(() => _currentPage = p),
+                      ),
+                    ],
 
                     const SizedBox(height: 60),
                   ],
@@ -345,51 +349,72 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     );
   }
 
-  // ── Header Banner ──────────────────────────────────────────────────────────
-  Widget _buildHeaderBanner(bool isMobile) {
+  // ---------------------------------------------------------------------------
+  // 1. EXECUTIVE TOP HEADER
+  // ---------------------------------------------------------------------------
+  Widget _buildExecutiveHeader(bool isMobile) {
     return Container(
-      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 20,
+        vertical: isMobile ? 14 : 18,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Left Icon Accent Container
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: const Icon(Icons.delete_sweep_rounded, color: Colors.white, size: 26),
+            child: const Icon(
+              Icons.delete_sweep_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
+
+          // Title & Description
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
                     Flexible(
                       child: Text(
-                        'Kitchen Spoilage & Wastage Tracker',
+                        'Spoilage & Wastage Control',
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: isMobile ? 16 : 19,
+                          fontSize: isMobile ? 16 : 18,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF0F172A),
-                          letterSpacing: -0.4,
+                          letterSpacing: -0.3,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -399,16 +424,17 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.25)),
+                        border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.2)),
                       ),
                       child: Text(
                         'AUDIT LOG',
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 9,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFFDC2626),
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
@@ -416,87 +442,155 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Record spoiled, expired, or prep-damaged ingredients to automatically sync stock and track kitchen wastage.',
+                  isMobile
+                      ? 'Real-time kitchen loss write-offs & stock synchronization.'
+                      : 'Record spoiled, expired, or prep-damaged ingredients to automatically synchronize stock and maintain food waste audits.',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: const Color(0xFF64748B),
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: isMobile ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
+
+          if (!isMobile) const SizedBox(width: 16),
+
+          // Primary Action Button (Desktop/Tablet)
+          if (!isMobile)
+            ElevatedButton.icon(
+              onPressed: _showLogWastageModal,
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.white),
+              label: Text(
+                'Log Spoilage / Waste',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 1,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsRow(bool isMobile) {
+  // ---------------------------------------------------------------------------
+  // 2. TELEMETRY / KPI METRIC CARDS
+  // ---------------------------------------------------------------------------
+  Widget _buildTelemetryCards(bool isMobile, bool isTablet) {
     final cards = [
-      _statCard(
-        label: 'Total Quantity Lost',
-        value: '${_totalQuantityWasted.toStringAsFixed(qtyDecimals(_totalQuantityWasted))} units',
-        icon: Icons.inventory_2_outlined,
+      _buildSingleMetricCard(
+        label: 'TOTAL UNITS LOST',
+        value: '${_totalQuantityWasted.toStringAsFixed(_qtyDecimals(_totalQuantityWasted))} units',
+        subtitle: 'Cumulative loss in this filter',
+        icon: Icons.remove_shopping_cart_rounded,
+        iconTint: const Color(0xFFDC2626),
         bgTint: const Color(0xFFFEF2F2),
-        iconColor: const Color(0xFFDC2626),
+        borderTint: const Color(0xFFFCA5A5),
       ),
-      _statCard(
-        label: 'Wastage Incidents',
+      _buildSingleMetricCard(
+        label: 'WASTE INCIDENTS',
         value: '${_filteredLogs.length} events',
-        icon: Icons.event_busy_rounded,
+        subtitle: 'Recorded write-off events',
+        icon: Icons.assignment_late_outlined,
+        iconTint: const Color(0xFFD97706),
         bgTint: const Color(0xFFFFFBEB),
-        iconColor: const Color(0xFFD97706),
+        borderTint: const Color(0xFFFDE68A),
       ),
-      _statCard(
-        label: 'Top Wastage Reason',
+      _buildSingleMetricCard(
+        label: 'PRIMARY ROOT CAUSE',
         value: _mostCommonReason,
+        subtitle: 'Highest occurrence factor',
         icon: Icons.pie_chart_outline_rounded,
-        bgTint: const Color(0xFFF1F5F9),
-        iconColor: const Color(0xFF475569),
+        iconTint: const Color(0xFF7C3AED),
+        bgTint: const Color(0xFFF5F3FF),
+        borderTint: const Color(0xFFDDD6FE),
+      ),
+      _buildSingleMetricCard(
+        label: 'IMPACTED SKUS',
+        value: '$_uniqueImpactedItemsCount items',
+        subtitle: 'Distinct items affected',
+        icon: Icons.inventory_2_outlined,
+        iconTint: const Color(0xFF0284C7),
+        bgTint: const Color(0xFFF0F9FF),
+        borderTint: const Color(0xFFBAE6FD),
       ),
     ];
 
     if (isMobile) {
       return SizedBox(
-        height: 72,
-        child: ListView(
+        height: 86,
+        child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          clipBehavior: Clip.none,
-          children: cards
-              .map((c) => Container(
-                    width: 195,
-                    margin: const EdgeInsets.only(right: 10),
-                    child: c,
-                  ))
-              .toList(),
+          itemCount: cards.length,
+          separatorBuilder: (ctx, i) => const SizedBox(width: 10),
+          itemBuilder: (ctx, i) => SizedBox(
+            width: 220,
+            child: cards[i],
+          ),
         ),
       );
     }
 
+    if (isTablet) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[1]),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: cards[2]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[3]),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // Desktop: 4 Columns
     return Row(
-      children: cards
-          .map((card) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: card,
-                ),
-              ))
-          .toList(),
+      children: [
+        Expanded(child: cards[0]),
+        const SizedBox(width: 12),
+        Expanded(child: cards[1]),
+        const SizedBox(width: 12),
+        Expanded(child: cards[2]),
+        const SizedBox(width: 12),
+        Expanded(child: cards[3]),
+      ],
     );
   }
 
-  int qtyDecimals(double val) => val.truncateToDouble() == val ? 0 : 1;
-
-  Widget _statCard({
+  Widget _buildSingleMetricCard({
     required String label,
     required String value,
+    required String subtitle,
     required IconData icon,
+    required Color iconTint,
     required Color bgTint,
-    required Color iconColor,
+    required Color borderTint,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -504,41 +598,57 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: bgTint,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderTint.withValues(alpha: 0.4)),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
+            child: Icon(icon, color: iconTint, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                Text(
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF64748B),
+                    letterSpacing: 0.6,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: const Color(0xFF0F172A),
+                    letterSpacing: -0.3,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  label,
+                  subtitle,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: const Color(0xFF64748B),
+                    fontSize: 10,
+                    color: const Color(0xFF94A3B8),
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -552,150 +662,362 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     );
   }
 
-  // ── Search & Filter Row ────────────────────────────────────────────────────
-  Widget _buildSearchAndFilters(bool isMobile) {
-    final reasons = ['All', 'Spoilage', 'Expired', 'Prep Spill', 'Storage Failure'];
+  // ---------------------------------------------------------------------------
+  // 3. UNIFIED FILTER TOOLBAR
+  // ---------------------------------------------------------------------------
+  Widget _buildFilterToolbar(bool isMobile) {
+    final reasons = [
+      'All',
+      'Spoilage / Rotten',
+      'Expired Shelf Life',
+      'Prep Spill / Damaged',
+      'Chiller / Storage Failure',
+      'Packaging / Handling Damage',
+      'Other Wastage',
+    ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() {
-                    _searchQuery = v;
-                    _currentPage = 1;
-                  }),
-                  decoration: InputDecoration(
-                    hintText: isMobile ? 'Search by item or reason...' : 'Search by item name, reason, or staff...',
-                    hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8)),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row 1: Search Input + Time Period Dropdown
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() {
+                      _searchQuery = v;
+                      _currentPage = 1;
+                    }),
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
+                    decoration: InputDecoration(
+                      hintText: isMobile
+                          ? 'Search ingredient or reason...'
+                          : 'Search by ingredient, category, staff on duty, or notes...',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 17, color: Color(0xFF64748B)),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? InkWell(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                  _currentPage = 1;
+                                });
+                              },
+                              child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(width: 10),
+
+              // Time Filter Dropdown
+              Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedTimeFilter,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                    items: ['This Week', 'This Month', 'All Time']
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.date_range_rounded, size: 14, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    t,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() {
+                          _selectedTimeFilter = v;
+                          _currentPage = 1;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Row 2: Horizontal Quick Filter Pills with Incident Badges
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: reasons.map((r) {
+                final isSelected = _selectedReasonFilter == r;
+                final count = _countForReason(r);
+                final displayName = r == 'Spoilage / Rotten'
+                    ? 'Spoilage'
+                    : (r == 'Expired Shelf Life'
+                        ? 'Expired'
+                        : (r == 'Prep Spill / Damaged'
+                            ? 'Prep Spill'
+                            : (r == 'Chiller / Storage Failure'
+                                ? 'Storage Fail'
+                                : (r == 'Packaging / Handling Damage'
+                                    ? 'Packaging'
+                                    : r))));
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => setState(() {
+                      _selectedReasonFilter = r;
+                      _currentPage = 1;
+                    }),
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            displayName,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? Colors.white : const Color(0xFF475569),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white.withValues(alpha: 0.25)
+                                  : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: isSelected ? Colors.white : const Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. SECTION HEADER (TITLE & CONTROLS)
+  // ---------------------------------------------------------------------------
+  Widget _buildSectionHeader(int totalItems, bool isMobile) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Wastage Audit Trail',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: isMobile ? 15 : 17,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.3,
+              ),
             ),
             const SizedBox(width: 8),
-            // Time filter dropdown
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedTimeFilter,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-                  items: ['This Week', 'This Month', 'All Time'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.w600)))).toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _selectedTimeFilter = v;
-                        _currentPage = 1;
-                      });
-                    }
-                  },
+              child: Text(
+                '$totalItems logs',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF475569),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
 
-        // Reason filter pills Carousel
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: reasons.map((r) {
-              final isSel = _selectedReasonFilter == r;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: InkWell(
-                  onTap: () => setState(() {
-                    _selectedReasonFilter = r;
-                    _currentPage = 1;
-                  }),
-                  borderRadius: BorderRadius.circular(10),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSel ? const Color(0xFFDC2626) : Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: isSel ? const Color(0xFFDC2626) : const Color(0xFFE2E8F0)),
-                    ),
-                    child: Text(
-                      r,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
-                        color: isSel ? Colors.white : const Color(0xFF475569),
+        Row(
+          children: [
+            // View Mode Toggle (Table vs Cards) for tablet/desktop
+            if (!isMobile)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Table Grid View',
+                      icon: Icon(
+                        Icons.table_rows_rounded,
+                        size: 16,
+                        color: !_preferCardView ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
                       ),
+                      onPressed: () => setState(() => _preferCardView = false),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(),
                     ),
+                    Container(width: 1, height: 16, color: const Color(0xFFE2E8F0)),
+                    IconButton(
+                      tooltip: 'Card View',
+                      icon: Icon(
+                        Icons.view_agenda_rounded,
+                        size: 16,
+                        color: _preferCardView ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
+                      ),
+                      onPressed: () => setState(() => _preferCardView = true),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (isMobile) ...[
+              ElevatedButton.icon(
+                onPressed: _showLogWastageModal,
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 14, color: Colors.white),
+                label: Text(
+                  'Log Loss',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11.5,
+                    color: Colors.white,
                   ),
                 ),
-              );
-            }).toList(),
-          ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 1,
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     );
   }
 
-  // ── Wastage Data Table ───────────────────────────────────────────────────
-  Widget _buildWastageTable({
+  // ---------------------------------------------------------------------------
+  // 5. DESKTOP DATA TABLE
+  // ---------------------------------------------------------------------------
+  Widget _buildDesktopDataTable({
     required List<Map<String, dynamic>> logs,
     required int totalItems,
     required int totalPages,
     required int startIndex,
     required int endIndex,
-    required bool isMobile,
   }) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             LayoutBuilder(
               builder: (context, constraints) {
-                final double tableWidth = constraints.maxWidth > 960 ? constraints.maxWidth : 960;
+                final double tableWidth = constraints.maxWidth > 980 ? constraints.maxWidth : 980;
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
                   child: SizedBox(
                     width: tableWidth,
                     child: DataTable(
-                      headingRowHeight: 46,
-                      dataRowMinHeight: 56,
-                      dataRowMaxHeight: 74,
-                      horizontalMargin: 20,
-                      columnSpacing: 24,
+                      headingRowHeight: 44,
+                      dataRowMinHeight: 58,
+                      dataRowMaxHeight: 72,
+                      horizontalMargin: 18,
+                      columnSpacing: 20,
                       headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                       dividerThickness: 1,
                       border: const TableBorder(
@@ -705,27 +1027,13 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                         ),
                       ),
                       columns: [
-                        DataColumn(
-                          label: _tableHeader('DATE & TIME'),
-                        ),
-                        DataColumn(
-                          label: _tableHeader('ITEM & CATEGORY'),
-                        ),
-                        DataColumn(
-                          label: _tableHeader('QTY LOST'),
-                        ),
-                        DataColumn(
-                          label: _tableHeader('REASON / TYPE'),
-                        ),
-                        DataColumn(
-                          label: _tableHeader('LOGGED BY'),
-                        ),
-                        DataColumn(
-                          label: _tableHeader('NOTES / DETAILS'),
-                        ),
-                        DataColumn(
-                          label: _tableHeader('ACTIONS'),
-                        ),
+                        DataColumn(label: _tableHeader('TIMESTAMP')),
+                        DataColumn(label: _tableHeader('INGREDIENT & SKU')),
+                        DataColumn(label: _tableHeader('LOSS QUANTITY')),
+                        DataColumn(label: _tableHeader('REASON / TYPE')),
+                        DataColumn(label: _tableHeader('LOGGED BY')),
+                        DataColumn(label: _tableHeader('NOTES / CAUSE')),
+                        DataColumn(label: _tableHeader('ACTIONS')),
                       ],
                       rows: logs.map((log) {
                         final name = (log['item_name'] ?? 'Unnamed Item').toString();
@@ -737,7 +1045,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                         final notes = (log['notes'] ?? '').toString();
                         final createdAt = log['created_at']?.toString();
 
-                        String datePart = '';
+                        String datePart = '—';
                         String timePart = '';
                         if (createdAt != null) {
                           final dt = DateTime.tryParse(createdAt)?.toLocal();
@@ -747,35 +1055,31 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           }
                         }
 
-                        Color reasonColor = const Color(0xFFDC2626);
-                        IconData reasonIcon = Icons.delete_outline_rounded;
-                        if (reason.contains('Expired')) {
-                          reasonColor = const Color(0xFFD97706);
-                          reasonIcon = Icons.timer_off_outlined;
-                        } else if (reason.contains('Prep')) {
-                          reasonColor = const Color(0xFF0284C7);
-                          reasonIcon = Icons.soup_kitchen_outlined;
-                        } else if (reason.contains('Storage')) {
-                          reasonColor = const Color(0xFF7C3AED);
-                          reasonIcon = Icons.ac_unit_rounded;
-                        }
+                        final reasonColor = _getReasonColor(reason);
+                        final reasonIcon = _getReasonIcon(reason);
 
                         return DataRow(
                           cells: [
-                            // Date & Time
+                            // 1. Timestamp
                             DataCell(
                               Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    datePart.isNotEmpty ? datePart : '—',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF0F172A),
-                                    ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.event_outlined, size: 12, color: Color(0xFF64748B)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        datePart,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   if (timePart.isNotEmpty) ...[
                                     const SizedBox(height: 2),
@@ -792,7 +1096,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ),
                             ),
 
-                            // Item & Category
+                            // 2. Ingredient & Category
                             DataCell(
                               Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -803,7 +1107,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                       color: reasonColor.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Icon(reasonIcon, size: 16, color: reasonColor),
+                                    child: Icon(reasonIcon, size: 15, color: reasonColor),
                                   ),
                                   const SizedBox(width: 10),
                                   Column(
@@ -821,17 +1125,18 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                       ),
                                       const SizedBox(height: 2),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF1F5F9),
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          category,
+                                          category.toUpperCase(),
                                           style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 10,
+                                            fontSize: 9.5,
                                             color: const Color(0xFF475569),
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.3,
                                           ),
                                         ),
                                       ),
@@ -841,30 +1146,37 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ),
                             ),
 
-                            // Qty Lost
+                            // 3. Loss Quantity
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFEF2F2),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(color: const Color(0xFFFCA5A5)),
                                 ),
-                                child: Text(
-                                  '-${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFFDC2626),
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.arrow_downward_rounded, size: 12, color: Color(0xFFDC2626)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${qty.toStringAsFixed(_qtyDecimals(qty))} $unit',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
 
-                            // Reason / Type
+                            // 4. Reason / Type
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                 decoration: BoxDecoration(
                                   color: reasonColor.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
@@ -895,24 +1207,24 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ),
                             ),
 
-                            // Logged By
+                            // 5. Logged By
                             DataCell(
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFF1F5F9),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.person_outline_rounded,
-                                      size: 13,
-                                      color: Color(0xFF475569),
+                                  CircleAvatar(
+                                    radius: 11,
+                                    backgroundColor: const Color(0xFFF1F5F9),
+                                    child: Text(
+                                      loggedBy.isNotEmpty ? loggedBy[0].toUpperCase() : 'S',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF475569),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 7),
                                   Text(
                                     loggedBy,
                                     style: GoogleFonts.plusJakartaSans(
@@ -925,15 +1237,15 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ),
                             ),
 
-                            // Notes / Details
+                            // 6. Notes
                             DataCell(
                               ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 200),
+                                constraints: const BoxConstraints(maxWidth: 180),
                                 child: Text(
                                   notes.isNotEmpty ? notes : '—',
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11.5,
-                                    color: notes.isNotEmpty ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                    fontSize: 11,
+                                    color: notes.isNotEmpty ? const Color(0xFF64748B) : const Color(0xFFCBD5E1),
                                     fontStyle: notes.isNotEmpty ? FontStyle.italic : FontStyle.normal,
                                   ),
                                   maxLines: 2,
@@ -942,15 +1254,30 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ),
                             ),
 
-                            // Actions
+                            // 7. Actions
                             DataCell(
-                              IconButton(
-                                onPressed: () => _confirmDeleteLog(log),
-                                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                                color: const Color(0xFF94A3B8),
-                                hoverColor: const Color(0xFFFEF2F2),
-                                highlightColor: Colors.transparent,
-                                tooltip: 'Delete log',
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Inspect Details',
+                                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                                    color: const Color(0xFF64748B),
+                                    onPressed: () => _showInspectionDialog(log),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    tooltip: 'Delete Log',
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                                    color: const Color(0xFF94A3B8),
+                                    hoverColor: const Color(0xFFFEF2F2),
+                                    onPressed: () => _confirmDeleteLog(log),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -963,7 +1290,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
             ),
 
             // Pagination Controls attached to bottom of table
-            _buildTablePaginationControls(
+            _buildPaginationBar(
               currentPage: _currentPage,
               totalItems: totalItems,
               totalPages: totalPages,
@@ -977,8 +1304,402 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     );
   }
 
-  // ── Pagination Controls ───────────────────────────────────────────────────
-  Widget _buildTablePaginationControls({
+  // ---------------------------------------------------------------------------
+  // 6. ADAPTIVE MOBILE INCIDENT CARDS
+  // ---------------------------------------------------------------------------
+  Widget _buildMobileIncidentCards(List<Map<String, dynamic>> logs) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: logs.length,
+      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+      itemBuilder: (ctx, i) {
+        final log = logs[i];
+        final name = (log['item_name'] ?? 'Unnamed Item').toString();
+        final category = (log['category'] ?? 'General').toString();
+        final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
+        final unit = (log['unit'] ?? 'units').toString();
+        final reason = (log['reason'] ?? 'Spoilage').toString();
+        final loggedBy = (log['logged_by'] ?? 'Staff').toString();
+        final notes = (log['notes'] ?? '').toString();
+        final createdAt = log['created_at']?.toString();
+
+        String datePart = '—';
+        String timePart = '';
+        if (createdAt != null) {
+          final dt = DateTime.tryParse(createdAt)?.toLocal();
+          if (dt != null) {
+            datePart = DateFormat('MMM dd, yyyy').format(dt);
+            timePart = DateFormat('hh:mm a').format(dt);
+          }
+        }
+
+        final reasonColor = _getReasonColor(reason);
+        final reasonIcon = _getReasonIcon(reason);
+
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Row: Date/Time + Reason Tag
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.event_outlined, size: 12, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        datePart,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                      if (timePart.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '• $timePart',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            color: const Color(0xFF94A3B8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: reasonColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: reasonColor.withValues(alpha: 0.25)),
+                    ),
+                    child: Text(
+                      reason,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: reasonColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Middle Row: Ingredient Avatar + Name/Category on Left, Qty on Right
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: reasonColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(reasonIcon, size: 18, color: reasonColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          category,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: const Color(0xFF64748B),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Text(
+                      '-${qty.toStringAsFixed(_qtyDecimals(qty))} $unit',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFFDC2626),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              if (notes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                  ),
+                  child: Text(
+                    'Notes: $notes',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+
+              // Bottom Row: Logged by + Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 10,
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        child: Text(
+                          loggedBy.isNotEmpty ? loggedBy[0].toUpperCase() : 'S',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        loggedBy,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _showInspectionDialog(log),
+                        icon: const Icon(Icons.visibility_outlined, size: 14),
+                        label: const Text('Inspect'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF0F172A),
+                          textStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Delete Log',
+                        icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                        color: const Color(0xFF94A3B8),
+                        onPressed: () => _confirmDeleteLog(log),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 7. INSPECTION MODAL (FULL DETAILS AUDIT)
+  // ---------------------------------------------------------------------------
+  void _showInspectionDialog(Map<String, dynamic> log) {
+    final name = (log['item_name'] ?? 'Unnamed Item').toString();
+    final category = (log['category'] ?? 'General').toString();
+    final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
+    final unit = (log['unit'] ?? 'units').toString();
+    final reason = (log['reason'] ?? 'Spoilage').toString();
+    final loggedBy = (log['logged_by'] ?? 'Staff').toString();
+    final notes = (log['notes'] ?? '').toString();
+    final id = (log['id'] ?? '—').toString();
+    final createdAt = log['created_at']?.toString();
+
+    String formattedDate = '—';
+    if (createdAt != null) {
+      final dt = DateTime.tryParse(createdAt)?.toLocal();
+      if (dt != null) {
+        formattedDate = DateFormat('MMMM dd, yyyy • hh:mm:ss a').format(dt);
+      }
+    }
+
+    final reasonColor = _getReasonColor(reason);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: reasonColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(_getReasonIcon(reason), size: 20, color: reasonColor),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Incident Audit Record',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
+                  ),
+                  Text(
+                    'ID: $id',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      color: const Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInspectionRow('Ingredient / Item', name),
+            _buildInspectionRow('Category', category),
+            _buildInspectionRow('Loss Written Off', '-${qty.toStringAsFixed(_qtyDecimals(qty))} $unit', valueColor: const Color(0xFFDC2626)),
+            _buildInspectionRow('Classification', reason, valueColor: reasonColor),
+            _buildInspectionRow('Recorded Timestamp', formattedDate),
+            _buildInspectionRow('Logged By Staff', loggedBy),
+            if (notes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Root Cause & Notes:',
+                style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF475569)),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Text(
+                  notes,
+                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF1E293B)),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Close',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: const Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmDeleteLog(log);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Delete Log'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInspectionRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: valueColor ?? const Color(0xFF0F172A),
+              ),
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8. PAGINATION CONTROLS
+  // ---------------------------------------------------------------------------
+  Widget _buildPaginationBar({
     required int currentPage,
     required int totalItems,
     required int totalPages,
@@ -989,12 +1710,12 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     final TextEditingController pageInputController = TextEditingController(text: '$currentPage');
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(18),
-          bottomRight: Radius.circular(18),
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
         ),
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
@@ -1006,7 +1727,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 ? 'No waste logs found'
                 : 'Showing ${startIndex + 1}–$endIndex of $totalItems logs',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF64748B),
             ),
@@ -1014,7 +1735,6 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Previous button
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded, size: 20),
                 onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
@@ -1022,35 +1742,34 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 disabledColor: const Color(0xFFCBD5E1),
                 splashRadius: 18,
                 tooltip: 'Previous Page',
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               Text(
                 'Page',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF475569),
                 ),
               ),
               const SizedBox(width: 6),
-              // Numeric Page Input Field
               SizedBox(
-                width: 48,
-                height: 32,
+                width: 44,
+                height: 28,
                 child: TextField(
                   controller: pageInputController,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   textAlign: TextAlign.center,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF0F172A),
                   ),
                   decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
                     isDense: true,
                     filled: true,
                     fillColor: Colors.white,
@@ -1081,13 +1800,12 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
               Text(
                 'of $totalPages',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF475569),
                 ),
               ),
-              const SizedBox(width: 4),
-              // Next button
+              const SizedBox(width: 6),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded, size: 20),
                 onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
@@ -1095,6 +1813,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 disabledColor: const Color(0xFFCBD5E1),
                 splashRadius: 18,
                 tooltip: 'Next Page',
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
@@ -1103,143 +1823,9 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     );
   }
 
-  Widget _tableHeader(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.plusJakartaSans(
-        fontSize: 10.5,
-        fontWeight: FontWeight.w800,
-        color: const Color(0xFF475569),
-        letterSpacing: 0.8,
-      ),
-    );
-  }
-
-  // ── Confirm Delete Wastage Log ─────────────────────────────────────────────
-  void _confirmDeleteLog(Map<String, dynamic> log) {
-    final itemName = log['item_name'] ?? 'Item';
-    final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
-    final unit = log['unit'] ?? '';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Delete Spoilage Log',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
-        ),
-        content: Text(
-          'Are you sure you want to delete this wastage log for $itemName ($qty $unit)?',
-          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              setState(() {
-                _wastageLogs.removeWhere((l) => l['id'] == log['id']);
-              });
-              await _saveWastageLogs();
-
-              final currentAuthEmail = _supabase.auth.currentUser?.email ?? 'pagsanjaninv@gmail.com';
-              final currentAuthName = currentAuthEmail.split('@').first;
-
-              AuditLogService.logActivity(
-                action: 'DELETE',
-                module: 'Spoilage',
-                description: 'Deleted kitchen wastage log for "$itemName" ($qty $unit) - Originally logged by ${log['logged_by'] ?? 'Staff'}',
-                entityId: log['id']?.toString(),
-                customUserName: currentAuthName,
-                customUserEmail: currentAuthEmail,
-                customUserRole: 'STAFF',
-                metadata: {
-                  'item_name': itemName,
-                  'quantity': qty,
-                  'unit': unit,
-                  'reason': log['reason'],
-                  'logged_by': log['logged_by'],
-                },
-              );
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Deleted wastage log for $itemName.'),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text(
-              'Delete',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Empty State ────────────────────────────────────────────────────────────
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.verified_outlined, size: 48, color: Color(0xFF10B981)),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'No Spoilage / Wastage Recorded',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'No wasted items recorded for this filter. All inventory items are clean.',
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _showLogWastageModal,
-              icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
-              label: Text('Log Spoilage Incident', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Log Wastage Modal (Pure Quantity & Unit Focus with Real-time Stock Deduction) ──
+  // ---------------------------------------------------------------------------
+  // 9. LOG WASTAGE MODAL DIALOG
+  // ---------------------------------------------------------------------------
   void _showLogWastageModal() {
     Map<String, dynamic>? selectedItem = _inventoryItems.isNotEmpty ? _inventoryItems.first : null;
     final qtyController = TextEditingController();
@@ -1247,7 +1833,6 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     final itemSearchCtrl = TextEditingController();
     String itemSearchQuery = '';
 
-    // Dynamically pick staff from actual staff directory
     String selectedStaffName = _staffList.isNotEmpty
         ? (_staffList.first['name'] ?? 'Staff')
         : (_supabase.auth.currentUser?.email ?? 'Kitchen Staff');
@@ -1274,6 +1859,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
           final double remainingQty = (availableQty - currentQty).clamp(0.0, double.infinity);
 
           return Dialog(
+            backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: Container(
@@ -1330,7 +1916,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           // 1. Select Ingredient with Mini Search Bar
                           _modalInputLabel('Select Ingredient from Inventory *'),
                           if (_inventoryItems.isEmpty)
-                            Text('No inventory items found.', style: GoogleFonts.plusJakartaSans(color: const Color(0xFFDC2626)))
+                            Text(
+                              'No inventory items found.',
+                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFFDC2626)),
+                            )
                           else ...[
                             // Mini Search Bar
                             Container(
@@ -1467,7 +2056,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                             onChanged: (v) => setDialogState(() {}),
                             decoration: _modalInputDecoration('e.g. 2', Icons.numbers_rounded),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
 
                           // Live Stock Deduction Preview Banner
                           Container(
@@ -1497,8 +2086,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                 Expanded(
                                   child: Text(
                                     currentQty > 0
-                                        ? 'Deducts $currentQty $unit of $itemName • Remaining: ${remainingQty.toStringAsFixed(remainingQty.truncateToDouble() == remainingQty ? 0 : 2)} $unit'
-                                        : 'Current available stock: ${availableQty.toStringAsFixed(availableQty.truncateToDouble() == availableQty ? 0 : 2)} $unit',
+                                        ? 'Deducts $currentQty $unit of $itemName • Remaining Stock: ${remainingQty.toStringAsFixed(remainingQty.truncateToDouble() == remainingQty ? 0 : 2)} $unit'
+                                        : 'Available in Inventory: ${availableQty.toStringAsFixed(availableQty.truncateToDouble() == availableQty ? 0 : 2)} $unit',
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 11.5,
                                       fontWeight: currentQty > 0 ? FontWeight.w700 : FontWeight.w500,
@@ -1524,7 +2113,18 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               child: DropdownButton<String>(
                                 value: selectedReason,
                                 isExpanded: true,
-                                items: reasonOptions.map((r) => DropdownMenuItem(value: r, child: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 13)))).toList(),
+                                items: reasonOptions
+                                    .map((r) => DropdownMenuItem(
+                                          value: r,
+                                          child: Row(
+                                            children: [
+                                              Icon(_getReasonIcon(r), size: 16, color: _getReasonColor(r)),
+                                              const SizedBox(width: 8),
+                                              Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 12.5)),
+                                            ],
+                                          ),
+                                        ))
+                                    .toList(),
                                 onChanged: (val) {
                                   if (val != null) setDialogState(() => selectedReason = val);
                                 },
@@ -1533,7 +2133,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           ),
                           const SizedBox(height: 14),
 
-                          // 4. Logged By (From Staff Directory)
+                          // 4. Logged By (Staff Directory)
                           _modalInputLabel('Logged By (Staff / Cook on Duty)'),
                           if (_staffList.isNotEmpty)
                             Container(
@@ -1556,7 +2156,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                       value: sName,
                                       child: Text(
                                         '$sName ${sRole.isNotEmpty ? "($sRole)" : ""}',
-                                        style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     );
@@ -1597,9 +2197,13 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                             onPressed: () => Navigator.pop(ctx),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
                             ),
-                            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: const Color(0xFF64748B))),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: const Color(0xFF64748B)),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1728,12 +2332,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              elevation: 0,
                             ),
                             child: Text(
                               'Confirm & Deduct Stock',
-                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white),
+                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: Colors.white),
                             ),
                           ),
                         ),
@@ -1745,6 +2351,164 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 10. DELETE CONFIRMATION
+  // ---------------------------------------------------------------------------
+  void _confirmDeleteLog(Map<String, dynamic> log) {
+    final itemName = log['item_name'] ?? 'Item';
+    final qty = (log['quantity'] as num?)?.toDouble() ?? 0.0;
+    final unit = log['unit'] ?? '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Spoilage Log',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        content: Text(
+          'Are you sure you want to delete this wastage log for $itemName ($qty $unit)?',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() {
+                _wastageLogs.removeWhere((l) => l['id'] == log['id']);
+              });
+              await _saveWastageLogs();
+
+              final currentAuthEmail = _supabase.auth.currentUser?.email ?? 'pagsanjaninv@gmail.com';
+              final currentAuthName = currentAuthEmail.split('@').first;
+
+              AuditLogService.logActivity(
+                action: 'DELETE',
+                module: 'Spoilage',
+                description: 'Deleted kitchen wastage log for "$itemName" ($qty $unit) - Originally logged by ${log['logged_by'] ?? 'Staff'}',
+                entityId: log['id']?.toString(),
+                customUserName: currentAuthName,
+                customUserEmail: currentAuthEmail,
+                customUserRole: 'STAFF',
+                metadata: {
+                  'item_name': itemName,
+                  'quantity': qty,
+                  'unit': unit,
+                  'reason': log['reason'],
+                  'logged_by': log['logged_by'],
+                },
+              );
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Deleted wastage log for $itemName.'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 11. EMPTY STATE
+  // ---------------------------------------------------------------------------
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified_outlined, size: 42, color: Color(0xFF10B981)),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'No Spoilage / Wastage Recorded',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No wasted items recorded under this filter. All inventory items are clean.',
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B)),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _showLogWastageModal,
+              icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+              label: Text(
+                'Log Spoilage Incident',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 12, color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 12. HELPER UTILITIES
+  // ---------------------------------------------------------------------------
+  Widget _tableHeader(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.plusJakartaSans(
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF475569),
+        letterSpacing: 0.8,
       ),
     );
   }
@@ -1767,9 +2531,35 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5)),
     );
+  }
+
+  Color _getReasonColor(String reason) {
+    if (reason.contains('Expired')) {
+      return const Color(0xFFD97706); // Amber
+    } else if (reason.contains('Prep')) {
+      return const Color(0xFF0284C7); // Sky Blue
+    } else if (reason.contains('Chiller') || reason.contains('Storage')) {
+      return const Color(0xFF7C3AED); // Purple
+    } else if (reason.contains('Packaging')) {
+      return const Color(0xFF0D9488); // Teal
+    }
+    return const Color(0xFFDC2626); // Red for Spoilage / Rotten
+  }
+
+  IconData _getReasonIcon(String reason) {
+    if (reason.contains('Expired')) {
+      return Icons.timer_off_outlined;
+    } else if (reason.contains('Prep')) {
+      return Icons.soup_kitchen_outlined;
+    } else if (reason.contains('Chiller') || reason.contains('Storage')) {
+      return Icons.ac_unit_rounded;
+    } else if (reason.contains('Packaging')) {
+      return Icons.inventory_2_outlined;
+    }
+    return Icons.delete_outline_rounded;
   }
 }

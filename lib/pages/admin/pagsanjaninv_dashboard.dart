@@ -64,7 +64,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   List<Map<String, dynamic>> _topRequestedItems = [];
   Map<String, Map<String, int>> _inventoryHealthByCategory = {};
-  List<Map<String, dynamic>> _recentActivity = [];
   List<Map<String, dynamic>> _criticalItems = [];
   Set<String> _previouslyAlertedCriticalIds = {};
   bool _isLineChartForRequests = false;
@@ -102,6 +101,31 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       return DateFormat('MMM d, hh:mm a').format(dateTime.toLocal());
     } catch (e) {
       return dateTimeStr;
+    }
+  }
+
+  String _formatElapsedTime(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return '';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      final difference = DateTime.now().difference(dateTime);
+      if (difference.inSeconds < 60) return 'Just now';
+      if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+      if (difference.inHours < 24) return '${difference.inHours}h ago';
+      if (difference.inDays < 7) return '${difference.inDays}d ago';
+      return DateFormat('MMM d').format(dateTime);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  bool _isRequestOverdue(String? dateTimeStr, String status) {
+    if (status != 'Pending' || dateTimeStr == null) return false;
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateTime.now().difference(dateTime).inMinutes >= 30;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -326,12 +350,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           }
         }
 
-        final activityResponse = await _supabase
-            .from('stock_transactions')
-            .select()
-            .order('created_at', ascending: false)
-            .limit(5);
-
         final lastDayOfMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
         int startDay = (_selectedWeek - 1) * 7 + 1;
         int endDay = _selectedWeek * 7;
@@ -372,7 +390,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             _outOfStockItems = outOfStock;
             _inventoryHealthByCategory = healthByCategory;
             _criticalItems = critical;
-            _recentActivity = List<Map<String, dynamic>>.from(activityResponse);
             _topRequestedItems = sortedTopItems.take(5).map((e) => {'name': e.key, 'value': e.value}).toList();
             _isLoading = false;
           });
@@ -653,27 +670,60 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             children: [
               if (isNarrow) ...[
                 const Text(
-                  'Inventory Overview',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: 0.5),
+                  'INVENTORY OVERVIEW',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.6,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _buildFlatStatsRow(isNarrow: true),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 const Divider(color: Color(0xFFF1F5F9), height: 1),
-                const SizedBox(height: 16),
-                const Text(
-                  'Quick Navigation',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: 0.5),
-                ),
                 const SizedBox(height: 12),
+                const Text(
+                  'QUICK ACTIONS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 _buildFlatActionsRow(isNarrow: true),
               ] else ...[
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(child: _buildFlatStatsRow(isNarrow: false)),
-                    const SizedBox(width: 20),
-                    _buildFlatActionsRow(isNarrow: false),
+                    Container(
+                      height: 52,
+                      width: 1,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      color: const Color(0xFFF1F5F9),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6, right: 2),
+                          child: Text(
+                            'QUICK ACTIONS',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.grey[400],
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        _buildFlatActionsRow(isNarrow: false),
+                      ],
+                    ),
                   ],
                 ),
               ],
@@ -686,70 +736,128 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildFlatStatsRow({required bool isNarrow}) {
     final items = [
-      _buildStatTile('Total Items', _totalInventoryItems.toString(), const Color(0xFF14332E), Icons.inventory_2_rounded),
-      _buildStatTile('Low Stock', _lowStockItems.toString(), const Color(0xFFF59E0B), Icons.warning_amber_rounded),
-      _buildStatTile('Out of Stock', _outOfStockItems.toString(), const Color(0xFFEF4444), Icons.cancel_rounded),
+      _buildStatTile(
+        'Total Items',
+        _totalInventoryItems.toString(),
+        const Color(0xFF14332E),
+        Icons.inventory_2_rounded,
+        hint: 'Active in catalog',
+      ),
+      _buildStatTile(
+        'Low Stock',
+        _lowStockItems.toString(),
+        const Color(0xFFD97706),
+        Icons.warning_amber_rounded,
+        hint: 'Threshold alert',
+      ),
+      _buildStatTile(
+        'Out of Stock',
+        _outOfStockItems.toString(),
+        const Color(0xFFDC2626),
+        Icons.cancel_rounded,
+        hint: 'Immediate restock',
+      ),
     ];
 
     if (isNarrow) {
       return SizedBox(
-        height: 64,
+        height: 74,
         child: ListView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          children: items.map((e) => Container(width: 140, margin: const EdgeInsets.only(right: 8), child: e)).toList(),
+          children: items
+              .map((e) => Container(
+                    width: 165,
+                    margin: const EdgeInsets.only(right: 10),
+                    child: e,
+                  ))
+              .toList(),
         ),
       );
     }
 
     return Row(
-      children: items.map((e) => Expanded(child: e)).toList(),
+      children: items
+          .map((e) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: e,
+                ),
+              ))
+          .toList(),
     );
   }
 
-  Widget _buildStatTile(String label, String value, Color color, IconData icon) {
+  Widget _buildStatTile(
+    String label,
+    String value,
+    Color color,
+    IconData icon, {
+    String? hint,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(icon, size: 16, color: color),
+            child: Icon(icon, size: 17, color: color),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: color,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Text(
-                  label,
+                  label.toUpperCase(),
                   style: const TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF64748B),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF94A3B8),
+                    letterSpacing: 0.6,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                ),
+                if (hint != null)
+                  Text(
+                    hint,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -760,9 +868,24 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildFlatActionsRow({required bool isNarrow}) {
     final actions = [
-      _buildFlatActionButton('Requests', Icons.shopping_bag_outlined, const Color(0xFF14332E), () => _onItemTapped(1)),
-      _buildFlatActionButton('Inventory', Icons.edit_note_rounded, const Color(0xFF0284C7), () => _onItemTapped(2)),
-      _buildFlatActionButton('Storage', Icons.warehouse_rounded, const Color(0xFFD97706), () => _onItemTapped(3)),
+      _buildFlatActionButton(
+        'Requests',
+        Icons.shopping_bag_outlined,
+        const Color(0xFF14332E),
+        () => _onItemTapped(1),
+      ),
+      _buildFlatActionButton(
+        'Inventory',
+        Icons.edit_note_rounded,
+        const Color(0xFF0284C7),
+        () => _onItemTapped(2),
+      ),
+      _buildFlatActionButton(
+        'Storage',
+        Icons.warehouse_rounded,
+        const Color(0xFFD97706),
+        () => _onItemTapped(3),
+      ),
     ];
 
     if (isNarrow) {
@@ -770,14 +893,24 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         child: Row(
-          children: actions.map((e) => Padding(padding: const EdgeInsets.only(right: 8), child: e)).toList(),
+          children: actions
+              .map((e) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: e,
+                  ))
+              .toList(),
         ),
       );
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: actions.map((e) => Padding(padding: const EdgeInsets.only(left: 8), child: e)).toList(),
+      children: actions
+          .map((e) => Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: e,
+              ))
+          .toList(),
     );
   }
 
@@ -787,27 +920,45 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 15, color: color),
-              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(icon, size: 14, color: color),
+              ),
+              const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: color,
+                  letterSpacing: 0.1,
                 ),
               ),
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right_rounded, size: 14, color: color.withValues(alpha: 0.5)),
             ],
           ),
         ),
@@ -820,15 +971,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFCA5A5)),
+        border: Border.all(color: const Color(0xFFFCA5A5).withValues(alpha: 0.6)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.05),
-            blurRadius: 10,
+            color: const Color(0xFFEF4444).withValues(alpha: 0.06),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
@@ -836,114 +986,161 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 18),
+          // ── Enterprise Alert Header Bar ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(15),
+                topRight: Radius.circular(15),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: const Text(
-                  'Critical Stock Attention Required',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF991B1B),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFFECACA), width: 1),
               ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: _showAllCriticalItemsModal,
-                icon: const Icon(Icons.open_in_new_rounded, size: 13, color: Color(0xFFDC2626)),
-                label: Text(
-                  'View All (${_criticalItems.length})',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFDC2626),
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: const BorderSide(color: Color(0xFFFCA5A5)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _criticalItems.length,
-              itemBuilder: (context, index) {
-                final item = _criticalItems[index];
-                final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                final isOut = qty == 0;
-                final tagColor = isOut ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
-
-                return Container(
-                  width: 170,
-                  margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.all(10),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 3.5,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: tagColor.withValues(alpha: 0.3)),
+                    color: const Color(0xFFDC2626),
+                    borderRadius: BorderRadius.circular(2),
                   ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        item['name'] ?? 'Unknown',
+                        'Critical Stock Attention Required',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF991B1B),
+                          letterSpacing: -0.2,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                          color: Color(0xFF0F172A),
-                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: tagColor,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isOut ? 'OUT OF STOCK' : 'Only $qty left',
-                            style: TextStyle(
-                              color: tagColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Live alerts triggered by automatic threshold triggers',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFFB91C1C),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: _showAllCriticalItemsModal,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 12, color: Color(0xFFDC2626)),
+                  label: Text(
+                    'View All (${_criticalItems.length})',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFDC2626),
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // ── Critical Item Cards ──
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: SizedBox(
+              height: 80,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _criticalItems.length,
+                itemBuilder: (context, index) {
+                  final item = _criticalItems[index];
+                  final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                  final isOut = qty == 0;
+                  final tagColor = isOut ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+
+                  return Container(
+                    width: 190,
+                    margin: const EdgeInsets.only(right: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: tagColor.withValues(alpha: 0.35), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: tagColor.withValues(alpha: 0.06),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          item['name'] ?? 'Unknown',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.5,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: tagColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: tagColor.withValues(alpha: 0.35), width: 0.8),
+                          ),
+                          child: Text(
+                            isOut ? '✕  OUT OF STOCK' : '⚠  Only $qty left',
+                            style: TextStyle(
+                              color: tagColor,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -951,28 +1148,41 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     );
   }
 
+
   Widget _buildInventoryInsights() {
     final isMobile = ResponsiveUtils.isMobile(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Section eyebrow label
+        const Text(
+          'ANALYTICS & INSIGHTS',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF94A3B8),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(7),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF14332E).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(9),
+                      color: const Color(0xFF14332E),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.analytics_rounded, color: Color(0xFF14332E), size: 20),
+                    child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 18),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,11 +1198,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
+                        const Text(
                           'Department health metrics & kitchen consumption velocity',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[600],
+                            color: Color(0xFF64748B),
                             fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
@@ -1005,32 +1215,33 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               ),
             ),
             const SizedBox(width: 8),
+            // Pulsing LIVE SYNC badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.25)),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
+                    width: 7,
+                    height: 7,
                     decoration: const BoxDecoration(
                       color: Color(0xFF10B981),
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: 6),
                   const Text(
                     'LIVE SYNC',
                     style: TextStyle(
                       fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                       color: Color(0xFF059669),
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ],
@@ -1038,6 +1249,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
         const SizedBox(height: 14),
         if (isMobile) ...[
           _buildInventoryHealthChart(),
@@ -1146,21 +1359,30 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     onToggle: (val) => setState(() => _isLineChartForHealth = val),
                   ),
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Text(
-                      '$healthRate% Optimal',
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
+                  Builder(
+                    builder: (_) {
+                      final Color badgeColor = healthRate >= 80
+                          ? const Color(0xFF10B981)
+                          : healthRate >= 50
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFFEF4444);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          '$healthRate% Optimal',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: badgeColor,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -2330,12 +2552,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   value: _txDateFilter,
                                   icon: const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF475569)),
                                   style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
-                                  items: const [
-                                    DropdownMenuItem(value: 0, child: Text('Today')),
-                                    DropdownMenuItem(value: 1, child: Text('This Week')),
-                                    DropdownMenuItem(value: 2, child: Text('This Month')),
-                                    DropdownMenuItem(value: 3, child: Text('All Time')),
-                                  ],
+                                  items: _txDateFilterLabels.asMap().entries.map((e) {
+                                    return DropdownMenuItem<int>(
+                                      value: e.key,
+                                      child: Text(e.value),
+                                    );
+                                  }).toList(),
                                   onChanged: (val) {
                                     if (val != null) {
                                       setState(() {
@@ -3823,14 +4045,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 filteredRequests = List.from(requests);
             }
 
-            // Search filter by Item Name, Requester, or Unit
+            // Search filter by Item Name, Requester, Unit, or Chef Note
             final searchQuery = _kitchenSearchQuery.trim().toLowerCase();
             if (searchQuery.isNotEmpty) {
               filteredRequests = filteredRequests.where((r) {
                 final name = (r['item_name']?.toString() ?? '').toLowerCase();
                 final by = (r['requested_by']?.toString() ?? '').toLowerCase();
                 final unit = (r['unit']?.toString() ?? '').toLowerCase();
-                return name.contains(searchQuery) || by.contains(searchQuery) || unit.contains(searchQuery);
+                final note = (r['note']?.toString() ?? '').toLowerCase();
+                return name.contains(searchQuery) ||
+                    by.contains(searchQuery) ||
+                    unit.contains(searchQuery) ||
+                    note.contains(searchQuery);
               }).toList();
             }
 
@@ -3850,6 +4076,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             final pendingCount = requests.where((r) => r['status'] == 'Pending').length;
             final approvedCount = requests.where((r) => r['status'] == 'Approved').length;
             final rejectedCount = requests.where((r) => r['status'] == 'Rejected').length;
+            final urgentCount = requests.where((r) =>
+                r['status'] == 'Pending' &&
+                (r['priority']?.toString().toLowerCase() == 'urgent' ||
+                    r['priority']?.toString().toLowerCase() == 'high')).length;
 
             final totalPages = (filteredRequests.isEmpty ? 1 : (filteredRequests.length / _itemsPerPage).ceil());
             if (_currentPage > totalPages) {
@@ -3868,9 +4098,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── SLEEK ENTERPRISE KDS COMMAND RIBBON (ZERO WASTED VERTICAL SPACE) ──
+                _buildSleekKdsCommandBar(
+                  totalRequests: requests.length,
+                  pendingCount: pendingCount,
+                  approvedCount: approvedCount,
+                  rejectedCount: rejectedCount,
+                  urgentCount: urgentCount,
+                ),
+                const SizedBox(height: 12),
+
                 // ── COMPACT UNIFIED ACTION & FILTER TOOLBAR ──
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
@@ -3878,7 +4118,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                        blurRadius: 10,
+                        blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -3897,21 +4137,23 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 children: List.generate(_requestFilterLabels.length, (index) {
                                   final isSelected = _requestFilter == index;
                                   int count;
+                                  Color tabColor;
                                   switch (index) {
-                                    case 0:
-                                      count = requests.length;
-                                      break;
                                     case 1:
                                       count = pendingCount;
+                                      tabColor = const Color(0xFFD97706);
                                       break;
                                     case 2:
                                       count = approvedCount;
+                                      tabColor = const Color(0xFF059669);
                                       break;
                                     case 3:
                                       count = rejectedCount;
+                                      tabColor = const Color(0xFFDC2626);
                                       break;
                                     default:
-                                      count = 0;
+                                      count = requests.length;
+                                      tabColor = const Color(0xFF14332E);
                                   }
 
                                   return Padding(
@@ -3926,12 +4168,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       borderRadius: BorderRadius.circular(9),
                                       child: AnimatedContainer(
                                         duration: const Duration(milliseconds: 180),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? const Color(0xFF14332E) : const Color(0xFFF8FAFC),
+                                          color: isSelected ? tabColor : const Color(0xFFF8FAFC),
                                           borderRadius: BorderRadius.circular(9),
                                           border: Border.all(
-                                            color: isSelected ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                                            color: isSelected ? tabColor : const Color(0xFFE2E8F0),
                                           ),
                                         ),
                                         child: Row(
@@ -3942,24 +4184,24 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               style: TextStyle(
                                                 color: isSelected ? Colors.white : const Color(0xFF475569),
                                                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                                fontSize: 12,
+                                                fontSize: 11.5,
                                               ),
                                             ),
                                             const SizedBox(width: 6),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                               decoration: BoxDecoration(
                                                 color: isSelected
-                                                    ? const Color(0xFFE6C374)
+                                                    ? Colors.white.withValues(alpha: 0.25)
                                                     : const Color(0xFFE2E8F0),
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius: BorderRadius.circular(7),
                                               ),
                                               child: Text(
                                                 '$count',
                                                 style: TextStyle(
-                                                  color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                                                  color: isSelected ? Colors.white : const Color(0xFF334155),
                                                   fontWeight: FontWeight.w900,
-                                                  fontSize: 11,
+                                                  fontSize: 10.5,
                                                 ),
                                               ),
                                             ),
@@ -3973,71 +4215,99 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             ),
                           ),
 
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
 
-                          // View Switcher (Table vs Grid)
+                          // View Switcher (KDS Grid vs Data Table)
                           Container(
-                            padding: const EdgeInsets.all(3),
+                            padding: const EdgeInsets.all(2.5),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(9),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Tooltip(
-                                  message: 'Table View',
+                                  message: 'KDS Ticket Grid',
                                   child: InkWell(
-                                    onTap: () => setState(() => _isKitchenTableView = true),
-                                    borderRadius: BorderRadius.circular(7),
+                                    onTap: () => setState(() => _isKitchenTableView = false),
+                                    borderRadius: BorderRadius.circular(6),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: isTableView ? Colors.white : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(7),
-                                        boxShadow: isTableView
+                                        color: !isTableView ? Colors.white : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                        boxShadow: !isTableView
                                             ? [
                                                 BoxShadow(
                                                   color: Colors.black.withValues(alpha: 0.06),
-                                                  blurRadius: 4,
+                                                  blurRadius: 3,
                                                   offset: const Offset(0, 1),
                                                 ),
                                               ]
                                             : null,
                                       ),
-                                      child: Icon(
-                                        Icons.table_rows_rounded,
-                                        size: 16,
-                                        color: isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.dashboard_customize_rounded,
+                                            size: 14,
+                                            color: !isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'KDS Grid',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: !isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ),
                                 Tooltip(
-                                  message: 'Card Grid View',
+                                  message: 'Data Table',
                                   child: InkWell(
-                                    onTap: () => setState(() => _isKitchenTableView = false),
-                                    borderRadius: BorderRadius.circular(7),
+                                    onTap: () => setState(() => _isKitchenTableView = true),
+                                    borderRadius: BorderRadius.circular(6),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: !isTableView ? Colors.white : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(7),
-                                        boxShadow: !isTableView
+                                        color: isTableView ? Colors.white : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                        boxShadow: isTableView
                                             ? [
                                                 BoxShadow(
                                                   color: Colors.black.withValues(alpha: 0.06),
-                                                  blurRadius: 4,
+                                                  blurRadius: 3,
                                                   offset: const Offset(0, 1),
                                                 ),
                                               ]
                                             : null,
                                       ),
-                                      child: Icon(
-                                        Icons.grid_view_rounded,
-                                        size: 16,
-                                        color: !isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.table_rows_rounded,
+                                            size: 14,
+                                            color: isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Table',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -4046,38 +4316,38 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             ),
                           ),
 
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
 
                           // Bulk Actions (Approve All & Reject All)
                           ElevatedButton.icon(
                             onPressed: (_isLoading || pendingCount == 0) ? null : _approveAllRequests,
-                            icon: const Icon(Icons.done_all_rounded, size: 14),
+                            icon: const Icon(Icons.done_all_rounded, size: 13),
                             label: Text(
                               pendingCount > 0 ? 'Approve All ($pendingCount)' : 'Approve All',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF10B981),
                               foregroundColor: Colors.white,
                               disabledBackgroundColor: const Color(0xFFE2E8F0),
                               disabledForegroundColor: const Color(0xFF94A3B8),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               elevation: 0,
                             ),
                           ),
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
                             onPressed: (_isLoading || pendingCount == 0) ? null : _rejectAllRequests,
-                            icon: const Icon(Icons.cancel_outlined, size: 14),
-                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5)),
+                            icon: const Icon(Icons.cancel_outlined, size: 13),
+                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFEF4444),
                               side: BorderSide(
                                 color: pendingCount > 0 ? const Color(0xFFEF4444) : const Color(0xFFE2E8F0),
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
                         ],
@@ -4090,7 +4360,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         children: [
                           Expanded(
                             child: SizedBox(
-                              height: 38,
+                              height: 36,
                               child: TextField(
                                 controller: _kitchenSearchCtrl,
                                 onChanged: (value) {
@@ -4099,14 +4369,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     _currentPage = 1;
                                   });
                                 },
-                                style: const TextStyle(fontSize: 12.5, color: Color(0xFF0F172A)),
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
                                 decoration: InputDecoration(
-                                  hintText: 'Search stock requests by item name, requester, or unit...',
-                                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                                  hintText: 'Search by ingredient, recipe note, chef, or unit...',
+                                  hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                                  prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
                                   suffixIcon: _kitchenSearchQuery.isNotEmpty
                                       ? IconButton(
-                                          icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFF64748B)),
+                                          icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF64748B)),
                                           onPressed: () {
                                             _kitchenSearchCtrl.clear();
                                             setState(() {
@@ -4118,7 +4388,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       : null,
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -4135,15 +4405,23 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Text(
-                            filteredRequests.isEmpty
-                                ? '0 items'
-                                : 'Showing ${startIndex + 1}–$endIndex of ${filteredRequests.length}',
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Text(
+                              filteredRequests.isEmpty
+                                  ? '0 items'
+                                  : 'Showing ${startIndex + 1}–$endIndex of ${filteredRequests.length}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF475569),
+                              ),
                             ),
                           ),
                         ],
@@ -4154,61 +4432,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 const SizedBox(height: 14),
 
-                // ── DATA CONTENT: TABLE VIEW OR COMPACT GRID ──
+                // ── DATA CONTENT: KDS TICKET GRID OR DATA TABLE ──
                 if (filteredRequests.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 48),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF8FAFC),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.inbox_rounded, size: 40, color: Color(0xFF94A3B8)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _kitchenSearchQuery.isNotEmpty
-                              ? 'No results for "$_kitchenSearchQuery"'
-                              : 'No ${_requestFilterLabels[_requestFilter]} stock requests',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _kitchenSearchQuery.isNotEmpty
-                              ? 'Try searching with different keywords'
-                              : 'Requests from the kitchen and staff will appear here',
-                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
-                        ),
-                        if (_kitchenSearchQuery.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          TextButton.icon(
-                            onPressed: () {
-                              _kitchenSearchCtrl.clear();
-                              setState(() {
-                                _kitchenSearchQuery = '';
-                                _currentPage = 1;
-                              });
-                            },
-                            icon: const Icon(Icons.clear_all_rounded, size: 16),
-                            label: const Text('Clear Search Filter', style: TextStyle(fontSize: 12)),
-                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF14332E)),
-                          ),
-                        ],
-                      ],
-                    ),
-                  )
+                  _buildKdsEmptyState(requests.length)
                 else ...[
-                  // Render Table or Compact Grid based on _isKitchenTableView
                   if (isTableView)
                     _buildKitchenRequestsTable(paginatedRequests)
                   else
@@ -4223,13 +4450,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Showing ${startIndex + 1} to $endIndex of ${filteredRequests.length} requests',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                            'Showing ${startIndex + 1} to $endIndex of ${filteredRequests.length} requisitions',
+                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -4238,23 +4472,30 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
                                 icon: const Icon(Icons.chevron_left_rounded),
                                 color: const Color(0xFF14332E),
-                                iconSize: 20,
+                                iconSize: 18,
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Page $_currentPage of $totalPages',
-                                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 12),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Text(
+                                  'Page $_currentPage of $totalPages',
+                                  style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF14332E), fontSize: 11.5),
+                                ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               IconButton(
                                 onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
                                 icon: const Icon(Icons.chevron_right_rounded),
                                 color: const Color(0xFF14332E),
-                                iconSize: 20,
+                                iconSize: 18,
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                               ),
                             ],
                           ),
@@ -4271,19 +4512,293 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     );
   }
 
+  // ── INTEGRATED KDS COMMAND BAR (EFFICIENT HIGH-DENSITY ENTERPRISE BAR) ──
+  Widget _buildSleekKdsCommandBar({
+    required int totalRequests,
+    required int pendingCount,
+    required int approvedCount,
+    required int rejectedCount,
+    required int urgentCount,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0F2C27),
+            Color(0xFF14332E),
+            Color(0xFF1E4A42),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF28564D), width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F2C27).withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 800;
+
+          final stationTitle = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.35)),
+                ),
+                child: const Icon(Icons.soup_kitchen_rounded, color: Color(0xFFE6C374), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'KDS OPERATIONS HUB',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.45)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.wifi_tethering_rounded, size: 9, color: Color(0xFF34D399)),
+                            SizedBox(width: 3),
+                            Text(
+                              'LIVE',
+                              style: TextStyle(
+                                color: Color(0xFF34D399),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'Real-time kitchen order fulfillment • $totalRequests total requisitions',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFFD1E0DC),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+
+          final kpiBadges = Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildCommandChip(
+                label: 'Pending',
+                count: pendingCount,
+                color: const Color(0xFFF59E0B),
+                icon: Icons.hourglass_top_rounded,
+              ),
+              _buildCommandChip(
+                label: 'Approved',
+                count: approvedCount,
+                color: const Color(0xFF10B981),
+                icon: Icons.check_circle_rounded,
+              ),
+              _buildCommandChip(
+                label: 'Declined',
+                count: rejectedCount,
+                color: const Color(0xFFEF4444),
+                icon: Icons.cancel_rounded,
+              ),
+              if (urgentCount > 0)
+                _buildCommandChip(
+                  label: 'Urgent',
+                  count: urgentCount,
+                  color: const Color(0xFFEF4444),
+                  icon: Icons.local_fire_department_rounded,
+                  isHighEmphasis: true,
+                ),
+            ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                stationTitle,
+                const SizedBox(height: 10),
+                kpiBadges,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              stationTitle,
+              kpiBadges,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCommandChip({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+    bool isHighEmphasis = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isHighEmphasis
+            ? color.withValues(alpha: 0.25)
+            : Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isHighEmphasis ? color.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.15),
+          width: isHighEmphasis ? 1.2 : 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                color: isHighEmphasis ? Colors.white : color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKdsEmptyState(int totalCount) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF14332E).withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.soup_kitchen_outlined, size: 40, color: Color(0xFF14332E)),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _kitchenSearchQuery.isNotEmpty
+                ? 'No requisitions matching "$_kitchenSearchQuery"'
+                : 'Kitchen Station In Sync',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _kitchenSearchQuery.isNotEmpty
+                ? 'Try searching with different keywords or clearing the search bar.'
+                : 'All kitchen ingredient requisitions have been fulfilled and dispatched.',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            textAlign: TextAlign.center,
+          ),
+          if (_kitchenSearchQuery.isNotEmpty || _requestFilter != 0) ...[
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () {
+                _kitchenSearchCtrl.clear();
+                setState(() {
+                  _kitchenSearchQuery = '';
+                  _requestFilter = 0;
+                  _currentPage = 1;
+                });
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 14),
+              label: const Text('Show All Requisitions', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF14332E),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   // -------------------------------------------------------------
-  // DATA TABLE VIEW (CLEAN, DENSE & PROFESSIONAL)
+  // DATA TABLE VIEW (CLEAN, DENSE & PROFESSIONAL KDS DATA TABLE)
   // -------------------------------------------------------------
   Widget _buildKitchenRequestsTable(List<Map<String, dynamic>> requests) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final tableWidth = constraints.maxWidth < 950 ? 950.0 : constraints.maxWidth;
+        final tableWidth = constraints.maxWidth < 1000 ? 1000.0 : constraints.maxWidth;
 
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
@@ -4294,7 +4809,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -4302,7 +4817,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 width: tableWidth,
                 child: Column(
                   children: [
-                    // Table Header Row (100% Proportional Width Distribution)
+                    // Table Header Row
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       decoration: const BoxDecoration(
@@ -4316,50 +4831,50 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           Expanded(
                             flex: 28,
                             child: Text(
-                              'ITEM SPECIFICATION',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              'INGREDIENT & CHEF NOTE',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 12,
                             child: Text(
-                              'QUANTITY',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              'QTY NEEDED',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 11,
                             child: Text(
-                              'PRIORITY',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              'URGENCY',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
-                            flex: 21,
+                            flex: 19,
                             child: Text(
-                              'REQUESTED BY',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              'STATION / CHEF',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 14,
                             child: Text(
-                              'REQUEST DATE',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              'ORDER TIME',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 12,
                             child: Text(
                               'STATUS',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
-                            flex: 16,
+                            flex: 18,
                             child: Text(
-                              'ACTIONS & AUDIT',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.3),
+                              'ACTIONS & FULFILLMENT',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
                         ],
@@ -4379,9 +4894,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         final itemName = request['item_name']?.toString() ?? 'Unknown';
                         final quantity = request['quantity_needed']?.toString() ?? '0';
                         final unit = (request['unit']?.toString() ?? 'pcs').toUpperCase();
+                        final note = request['note']?.toString().trim() ?? '';
                         final requestedBy = request['requested_by']?.toString() ?? 'Staff';
                         final createdAt = request['created_at']?.toString();
                         final updatedAt = request['updated_at']?.toString();
+                        final isOverdue = _isRequestOverdue(createdAt, status);
 
                         Color statusColor;
                         IconData statusIcon;
@@ -4399,67 +4916,107 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             statusIcon = Icons.hourglass_top_rounded;
                         }
 
-                        Color priorityColor;
-                        switch (priority) {
-                          case 'Urgent':
-                            priorityColor = const Color(0xFFEF4444);
-                            break;
-                          case 'High':
-                            priorityColor = const Color(0xFFF59E0B);
-                            break;
-                          case 'Low':
-                            priorityColor = const Color(0xFF0284C7);
-                            break;
-                          default:
-                            priorityColor = const Color(0xFF64748B);
+                        final chefHandle = requestedBy.contains('@') ? requestedBy.split('@')[0] : requestedBy;
+                        String displayChef;
+                        if (chefHandle.toLowerCase().startsWith('chef')) {
+                          final suffix = chefHandle.substring(4);
+                          displayChef = 'Chef ${suffix.isEmpty ? '' : suffix.toUpperCase()}';
+                        } else if (chefHandle.isNotEmpty) {
+                          displayChef = chefHandle[0].toUpperCase() + chefHandle.substring(1);
+                        } else {
+                          displayChef = 'Kitchen Staff';
                         }
+                        final initial = displayChef.isNotEmpty ? displayChef[0].toUpperCase() : 'K';
 
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                          color: index.isEven ? Colors.white : const Color(0xFFFCFDFE),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                          color: index.isEven ? Colors.white : const Color(0xFFFBFDFE),
                           child: Row(
                             children: [
-                              // Item Spec
+                              // Item Spec & Note
                               Expanded(
                                 flex: 28,
                                 child: Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.all(6),
+                                      padding: const EdgeInsets.all(7),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF14332E).withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: const Icon(Icons.restaurant_rounded, size: 14, color: Color(0xFF14332E)),
+                                      child: const Icon(Icons.restaurant_rounded, size: 15, color: Color(0xFF14332E)),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
-                                      child: Text(
-                                        itemName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13,
-                                          color: Color(0xFF0F172A),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            itemName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (note.isNotEmpty) ...[
+                                            const SizedBox(height: 3),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF1F5F9),
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.sticky_note_2_outlined, size: 10.5, color: Color(0xFFD97706)),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      note,
+                                                      style: const TextStyle(
+                                                        fontSize: 10,
+                                                        fontStyle: FontStyle.italic,
+                                                        color: Color(0xFF475569),
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
 
-                              // Quantity & Unit
+                              // Quantity & Unit (High-Visibility Operational Metric Chip)
                               Expanded(
                                 flex: 12,
                                 child: Align(
                                   alignment: Alignment.centerLeft,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF14332E).withValues(alpha: 0.06),
+                                      color: const Color(0xFF14332E),
                                       borderRadius: BorderRadius.circular(7),
-                                      border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.12)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF14332E).withValues(alpha: 0.15),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
                                     ),
                                     child: RichText(
                                       text: TextSpan(
@@ -4469,15 +5026,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: const TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w900,
-                                              color: Color(0xFF0F172A),
+                                              color: Color(0xFFE6C374),
                                             ),
                                           ),
                                           TextSpan(
                                             text: unit,
                                             style: const TextStyle(
-                                              fontSize: 10,
+                                              fontSize: 9.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF14332E),
+                                              color: Colors.white,
+                                              letterSpacing: 0.2,
                                             ),
                                           ),
                                         ],
@@ -4487,69 +5045,187 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 ),
                               ),
 
-                              // Priority
+                              // Urgency / Priority (Quiet Defaults, Loud Exceptions)
                               Expanded(
                                 flex: 11,
                                 child: Align(
                                   alignment: Alignment.centerLeft,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: priorityColor.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
-                                    ),
-                                    child: Text(
-                                      priority.toUpperCase(),
-                                      style: TextStyle(
-                                        color: priorityColor,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
+                                  child: priority == 'Urgent'
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4), width: 0.9),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.local_fire_department_rounded, size: 11, color: Color(0xFFEF4444)),
+                                              SizedBox(width: 3),
+                                              Text(
+                                                'URGENT',
+                                                style: TextStyle(
+                                                  color: Color(0xFFDC2626),
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : (priority == 'High'
+                                          ? Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                                              ),
+                                              child: const Text(
+                                                'HIGH',
+                                                style: TextStyle(
+                                                  color: Color(0xFFD97706),
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            )
+                                          : Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: const BoxDecoration(
+                                                    color: Color(0xFF94A3B8),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 5),
+                                                Text(
+                                                  priority,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF64748B),
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            )),
                                 ),
                               ),
 
-                              // Requested By
+                              // Requested By (Chef Display Card)
                               Expanded(
-                                flex: 21,
+                                flex: 19,
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.person_outline_rounded, size: 13, color: Color(0xFF64748B)),
-                                    const SizedBox(width: 5),
-                                    Expanded(
+                                    CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: const Color(0xFF14332E),
                                       child: Text(
-                                        requestedBy,
-                                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        initial,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFE6C374),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            displayChef,
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            requestedBy.contains('@') ? requestedBy : 'Kitchen Station',
+                                            style: const TextStyle(
+                                              fontSize: 9.5,
+                                              color: Color(0xFF94A3B8),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
 
-                              // Request Date
+                              // Request Date / Elapsed (Soft Overdue Chip)
                               Expanded(
                                 flex: 14,
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF94A3B8)),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        _formatDateTime(createdAt),
-                                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                    if (isOverdue)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 0.8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.alarm_rounded, size: 10.5, color: Color(0xFFDC2626)),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              _formatElapsedTime(createdAt),
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFFDC2626),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    else
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF64748B)),
+                                          const SizedBox(width: 3.5),
+                                          Text(
+                                            _formatElapsedTime(createdAt),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                    const SizedBox(height: 2.5),
+                                    Text(
+                                      _formatDateTime(createdAt),
+                                      style: const TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
                               ),
 
-                              // Status
+                              // Status Pill
                               Expanded(
                                 flex: 12,
                                 child: Align(
@@ -4557,15 +5233,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withValues(alpha: 0.1),
+                                      color: statusColor.withValues(alpha: 0.09),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                      border: Border.all(color: statusColor.withValues(alpha: 0.28)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(statusIcon, size: 11, color: statusColor),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 4.5),
                                         Text(
                                           status,
                                           style: TextStyle(
@@ -4580,41 +5256,43 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 ),
                               ),
 
-                              // Actions / Audit
+                              // Actions / Fulfillment (Ergonomic Fitts's Law 31px Touch Targets)
                               Expanded(
-                                flex: 16,
+                                flex: 18,
                                 child: Align(
                                   alignment: Alignment.centerLeft,
                                   child: status == 'Pending'
                                       ? Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            ElevatedButton.icon(
-                                              onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                                              icon: const Icon(Icons.check_rounded, size: 13),
-                                              label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFF10B981),
-                                                foregroundColor: Colors.white,
-                                                elevation: 0,
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-                                                minimumSize: Size.zero,
-                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            SizedBox(
+                                              height: 31,
+                                              child: ElevatedButton.icon(
+                                                onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
+                                                icon: const Icon(Icons.check_rounded, size: 13),
+                                                label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF10B981),
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                                ),
                                               ),
                                             ),
                                             const SizedBox(width: 6),
-                                            OutlinedButton.icon(
-                                              onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                                              icon: const Icon(Icons.close_rounded, size: 13),
-                                              label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: const Color(0xFFEF4444),
-                                                side: const BorderSide(color: Color(0xFFEF4444)),
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-                                                minimumSize: Size.zero,
-                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            SizedBox(
+                                              height: 31,
+                                              child: OutlinedButton.icon(
+                                                onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
+                                                icon: const Icon(Icons.close_rounded, size: 12),
+                                                label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: const Color(0xFFEF4444),
+                                                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.1),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -4622,19 +5300,28 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       : Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
+                                            color: statusColor.withValues(alpha: 0.08),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            border: Border.all(color: statusColor.withValues(alpha: 0.22)),
                                           ),
-                                          child: Text(
-                                            'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: statusColor,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(statusIcon, size: 11, color: statusColor),
+                                              const SizedBox(width: 4),
+                                              Flexible(
+                                                child: Text(
+                                                  'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: statusColor,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                 ),
@@ -4655,30 +5342,44 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   // -------------------------------------------------------------
-  // COMPACT CARD GRID VIEW (ZERO DEAD SPACE)
+  // ENTERPRISE KDS TICKET GRID VIEW (OPTIMIZED FOR ZERO WASTED SPACE)
+  // -------------------------------------------------------------
+  // ENTERPRISE KDS TICKET GRID VIEW (BALANCED COMFORTABLE DENSITY)
   // -------------------------------------------------------------
   Widget _buildKitchenRequestsGrid(List<Map<String, dynamic>> requests) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth >= 1350
-            ? 4
-            : (constraints.maxWidth >= 950
-                ? 3
-                : (constraints.maxWidth >= 600 ? 2 : 1));
+        final availableWidth = constraints.maxWidth;
 
-        double childAspectRatio = crossAxisCount == 1
-            ? 2.6
-            : (crossAxisCount == 4
-                ? 1.95
-                : (crossAxisCount == 3 ? 2.1 : 2.25));
+        // Balanced enterprise columns with comfortable card widths:
+        // ≥ 1500px: 4 cols | 980px - 1499px: 3 cols | 620px - 979px: 2 cols | < 620px: 1 col
+        int crossAxisCount;
+        if (availableWidth >= 1500) {
+          crossAxisCount = 4;
+        } else if (availableWidth >= 980) {
+          crossAxisCount = 3;
+        } else if (availableWidth >= 620) {
+          crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        // Generous card spacing so tickets breathe naturally and don't feel squashed
+        const double spacing = 16.0;
+        final double totalSpacing = spacing * (crossAxisCount - 1);
+        final double cardWidth = (availableWidth - totalSpacing) / crossAxisCount;
+
+        // Comfortable, balanced docket ticket height with natural breathing room
+        final double targetHeight = crossAxisCount == 1 ? 200.0 : 202.0;
+        final double childAspectRatio = cardWidth / targetHeight;
 
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
             childAspectRatio: childAspectRatio,
           ),
           itemCount: requests.length,
@@ -4696,12 +5397,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     final itemName = request['item_name']?.toString() ?? 'Unknown';
     final quantity = request['quantity_needed']?.toString() ?? '0';
     final unit = (request['unit']?.toString() ?? 'pcs').toUpperCase();
+    final note = request['note']?.toString().trim() ?? '';
     final requestedBy = request['requested_by']?.toString() ?? 'Staff';
     final createdAt = request['created_at']?.toString();
     final updatedAt = request['updated_at']?.toString();
+    final rawId = (request['id'] ?? '').toString();
+    final ticketCode = rawId.length >= 6 ? rawId.substring(0, 6).toUpperCase() : rawId.toUpperCase();
+    final isOverdue = _isRequestOverdue(createdAt, status);
 
     Color statusColor;
     IconData statusIcon;
+
     switch (status) {
       case 'Approved':
         statusColor = const Color(0xFF10B981);
@@ -4715,6 +5421,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.hourglass_top_rounded;
     }
+
+    const headerBg = Color(0xFF14332E);
+    const headerFg = Color(0xFFE6C374);
 
     Color priorityColor;
     switch (priority) {
@@ -4731,230 +5440,361 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         priorityColor = const Color(0xFF64748B);
     }
 
+    final chefHandle = requestedBy.contains('@') ? requestedBy.split('@')[0] : requestedBy;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: statusColor.withValues(alpha: 0.22), width: 1.1),
+        border: Border.all(
+          color: isOverdue
+              ? const Color(0xFFFCA5A5).withValues(alpha: 0.7)
+              : (status == 'Pending'
+                  ? const Color(0xFFE2E8F0)
+                  : statusColor.withValues(alpha: 0.3)),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Top: Item Name + Status Pill + Priority
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    itemName,
+            // ── KDS DOCKET HEADER BAR (34px, comfortable typography) ──
+            Container(
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: const BoxDecoration(
+                color: headerBg,
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    '#KDS-$ticketCode',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13.5,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.2,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: priorityColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: priorityColor.withValues(alpha: 0.25)),
-                  ),
-                  child: Text(
-                    priority.toUpperCase(),
-                    style: TextStyle(
-                      color: priorityColor,
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: headerFg,
+                      letterSpacing: 0.6,
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.25)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 9.5, color: statusColor),
-                      const SizedBox(width: 3),
-                      Text(
-                        status,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Middle: Quantity Callout + Requested By + Time
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF14332E).withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.12)),
-                  ),
-                  child: RichText(
-                    text: TextSpan(
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: priorityColor.withValues(alpha: 0.6), width: 0.9),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextSpan(
-                          text: '$quantity ',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.2,
+                        if (priority == 'Urgent')
+                          const Padding(
+                            padding: EdgeInsets.only(right: 3),
+                            child: Icon(Icons.local_fire_department_rounded, size: 10, color: Color(0xFFFCA5A5)),
                           ),
-                        ),
-                        TextSpan(
-                          text: unit,
+                        Text(
+                          priority.toUpperCase(),
                           style: const TextStyle(
-                            fontSize: 9.5,
+                            color: Colors.white,
+                            fontSize: 9,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF14332E),
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
+                  const Spacer(),
+                  if (isOverdue)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.5),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.person_outline_rounded, size: 11.5, color: Color(0xFF64748B)),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              requestedBy,
-                              style: const TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          const Icon(Icons.alarm_rounded, size: 10.5, color: Color(0xFFFCA5A5)),
+                          const SizedBox(width: 3.5),
+                          Text(
+                            'OVERDUE • ${_formatElapsedTime(createdAt)}',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFFEE2E2),
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 2),
+                    )
+                  else
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.schedule_rounded, size: 11, color: Colors.white.withValues(alpha: 0.7)),
+                        const SizedBox(width: 3.5),
+                        Text(
+                          _formatElapsedTime(createdAt),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+
+            // ── COMPACT BODY (SNUG FIT, ZERO DEAD SPACE) ──
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: Item Name, Requester & Large Hero Dispatch Quantity Badge
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: const Icon(Icons.restaurant_rounded, size: 15, color: Color(0xFF14332E)),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                itemName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13.5,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 1.5),
+                              Text(
+                                'By: $chefHandle • ${_formatDateTime(createdAt)}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Hero Dispatch Quantity Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF14332E),
+                            borderRadius: BorderRadius.circular(7),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF14332E).withValues(alpha: 0.18),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '$quantity ',
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFFE6C374),
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: unit,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Row 2: Chef Note or Station Requisition Purpose
+                    if (note.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.sticky_note_2_outlined, size: 12, color: Color(0xFFD97706)),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                note,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontStyle: FontStyle.italic,
+                                  color: Color(0xFF475569),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 11, color: Color(0xFF94A3B8)),
+                            SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                'Direct kitchen stock requisition',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const Spacer(),
+
+                    // Row 3: Action Buttons or Processed Status Pill (Comfortable 33px height)
+                    if (status == 'Pending')
                       Row(
                         children: [
-                          const Icon(Icons.schedule_rounded, size: 10.5, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 3),
-                          Text(
-                            _formatDateTime(createdAt),
-                            style: const TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8)),
+                          Expanded(
+                            flex: 3,
+                            child: SizedBox(
+                              height: 33,
+                              child: ElevatedButton.icon(
+                                onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
+                                icon: const Icon(Icons.check_rounded, size: 14),
+                                label: const Text('APPROVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: SizedBox(
+                              height: 33,
+                              child: OutlinedButton.icon(
+                                onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
+                                icon: const Icon(Icons.close_rounded, size: 13),
+                                label: const Text('REJECT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFEF4444),
+                                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.1),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Bottom: Action Buttons or Audit Badge
-            if (status == 'Pending')
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                      icon: const Icon(Icons.check_rounded, size: 13),
-                      label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                      icon: const Icon(Icons.close_rounded, size: 13),
-                      label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFEF4444),
-                        side: const BorderSide(color: Color(0xFFEF4444)),
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(statusIcon, size: 11, color: statusColor),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          color: statusColor,
-                          fontWeight: FontWeight.w700,
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(color: statusColor.withValues(alpha: 0.25)),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(statusIcon, size: 13, color: statusColor),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$status • ${_formatDateTime(updatedAt ?? createdAt)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: statusColor,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _handleRequestAction(String requestId, String newStatus) async {
     setState(() => _isLoading = true);
@@ -5460,73 +6300,148 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       body: Row(
         children: [
           Container(
-            width: 220,
+            width: 240,
             decoration: const BoxDecoration(
               color: Color(0xFF14332E),
               boxShadow: [
                 BoxShadow(
                   color: Color(0x33000000),
-                  blurRadius: 10,
-                  offset: Offset(2, 0),
+                  blurRadius: 16,
+                  offset: Offset(3, 0),
                 ),
               ],
             ),
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                  ),
+                  child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1E4A42), Color(0xFF0F2C27)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                          border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.35)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.inventory_2_rounded,
                           color: Color(0xFFE6C374),
-                          size: 26,
+                          size: 22,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Pagsanjan Inventory',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _userName,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFFC7D6D3),
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'PAGSANJAN',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const Text(
+                              'Inventory System',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFFD9A441),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    _userName,
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: Color(0xFFC7D6D3),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
                     children: [
-                      _buildCompactSidebarItem(icon: Icons.dashboard_rounded, title: 'Dashboard', index: 0),
-                      _buildCompactSidebarItem(icon: Icons.shopping_bag_rounded, title: 'Kitchen Requests', index: 1),
-                      _buildCompactSidebarItem(icon: Icons.inventory_2_rounded, title: 'Manage Inventory', index: 2),
-                      _buildCompactSidebarItem(icon: Icons.warehouse_rounded, title: 'Storage Room', index: 3),
-                      _buildCompactSidebarItem(icon: Icons.account_balance_wallet_rounded, title: 'Petty Cash', index: 4),
-                      _buildCompactSidebarItem(icon: Icons.delete_sweep_rounded, title: 'Spoilage & Waste', index: 5),
+                      _buildNavGroupLabel('CORE MODULES'),
+                      _buildCompactSidebarItem(
+                        icon: Icons.dashboard_rounded,
+                        title: 'Dashboard',
+                        index: 0,
+                        hasLiveBadge: true,
+                      ),
+                      _buildCompactSidebarItem(
+                        icon: Icons.shopping_bag_rounded,
+                        title: 'Kitchen Requests',
+                        index: 1,
+                      ),
+                      _buildCompactSidebarItem(
+                        icon: Icons.inventory_2_rounded,
+                        title: 'Manage Inventory',
+                        index: 2,
+                      ),
+                      _buildCompactSidebarItem(
+                        icon: Icons.warehouse_rounded,
+                        title: 'Storage Room',
+                        index: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildNavGroupLabel('FINANCE & LOGS'),
+                      _buildCompactSidebarItem(
+                        icon: Icons.account_balance_wallet_rounded,
+                        title: 'Petty Cash',
+                        index: 4,
+                      ),
+                      _buildCompactSidebarItem(
+                        icon: Icons.delete_sweep_rounded,
+                        title: 'Spoilage & Waste',
+                        index: 5,
+                      ),
                     ],
                   ),
                 ),
-                Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+                Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
                 _buildCompactSidebarLogoutItem(),
               ],
             ),
@@ -5535,53 +6450,259 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             child: Column(
               children: [
                 Container(
-                  height: 60,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x08000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      Text(
-                        _selectedIndex == 0
-                            ? 'Dashboard Overview'
-                            : _selectedIndex == 1
-                                ? 'Kitchen Stock Requests'
-                                : _selectedIndex == 2
-                                    ? 'Inventory Management'
-                                    : _selectedIndex == 3
-                                        ? 'Storage Rooms'
-                                        : _selectedIndex == 4
-                                            ? 'Petty Cash Expense'
-                                            : 'Spoilage & Wastage Tracker',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
-                          letterSpacing: -0.3,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF14332E).withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.warehouse_rounded,
+                              size: 16,
+                              color: Color(0xFF14332E),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Pagsanjan',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6),
+                            child: Text(
+                              '/',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF94A3B8),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _selectedIndex == 0
+                                ? 'Dashboard Overview'
+                                : _selectedIndex == 1
+                                    ? 'Kitchen Stock Requests'
+                                    : _selectedIndex == 2
+                                        ? 'Inventory Management'
+                                        : _selectedIndex == 3
+                                            ? 'Storage Rooms'
+                                            : _selectedIndex == 4
+                                                ? 'Petty Cash Expense'
+                                                : 'Spoilage & Wastage Tracker',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
                       ),
                       const Spacer(),
-                      if (_selectedIndex == 0)
-                        IconButton(
-                          icon: const Icon(Icons.refresh_rounded, color: Color(0xFF14332E), size: 20),
-                          onPressed: _loadDashboardData,
-                          tooltip: 'Refresh Data',
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                      _buildNotificationIcon(const Color(0xFF14332E)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today_rounded, size: 12, color: Color(0xFF64748B)),
+                            const SizedBox(width: 6),
+                            Text(
+                              DateFormat('EEE, MMM d, yyyy').format(DateTime.now()),
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      if (_selectedIndex == 0)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF14332E), size: 18),
+                            onPressed: _loadDashboardData,
+                            tooltip: 'Refresh Data',
+                            splashRadius: 18,
+                            padding: const EdgeInsets.all(7),
+                            constraints: const BoxConstraints(),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: _buildNotificationIcon(const Color(0xFF14332E)),
+                      ),
+                      const SizedBox(width: 14),
+                      Container(
+                        height: 28,
+                        width: 1,
+                        color: const Color(0xFFE2E8F0),
+                      ),
+                      const SizedBox(width: 14),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 17,
+                            backgroundColor: const Color(0xFF14332E),
+                            child: Text(
+                              _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
+                              style: const TextStyle(
+                                color: Color(0xFFE6C374),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 9),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _userName,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Admin',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF14332E),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
                 Expanded(
                   child: _isLoading && _selectedIndex == 0
-                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF14332E)))
+                      ? _buildBrandedLoader()
                       : _getPages()[_selectedIndex],
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBrandedLoader() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF14332E)),
+                  ),
+                ),
+                Icon(
+                  Icons.inventory_2_rounded,
+                  color: Color(0xFFD9A441),
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Synchronizing Inventory Stream...',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF475569),
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavGroupLabel(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, top: 12, bottom: 6),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF7A9E96),
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -5595,46 +6716,72 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                child: Column(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                ),
+                child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.3)),
                       ),
-                      child: const Icon(Icons.inventory_2_rounded, color: Color(0xFFE6C374), size: 32),
+                      child: const Icon(Icons.inventory_2_rounded, color: Color(0xFFE6C374), size: 26),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Pagsanjan Inventory',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pagsanjan Inventory',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _userName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFC7D6D3),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    Text(_userName, style: const TextStyle(fontSize: 12, color: Color(0xFFC7D6D3))),
                   ],
                 ),
               ),
-              Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                   children: [
+                    _buildNavGroupLabel('CORE MODULES'),
                     _buildSidebarItem(icon: Icons.dashboard_rounded, title: 'Dashboard', index: 0),
                     _buildSidebarItem(icon: Icons.shopping_bag_rounded, title: 'Kitchen Requests', index: 1),
                     _buildSidebarItem(icon: Icons.inventory_2_rounded, title: 'Manage Inventory', index: 2),
                     _buildSidebarItem(icon: Icons.warehouse_rounded, title: 'Storage Room', index: 3),
+                    const SizedBox(height: 10),
+                    _buildNavGroupLabel('FINANCE & LOGS'),
                     _buildSidebarItem(icon: Icons.account_balance_wallet_rounded, title: 'Petty Cash', index: 4),
                     _buildSidebarItem(icon: Icons.delete_sweep_rounded, title: 'Spoilage & Waste', index: 5),
                   ],
                 ),
               ),
-              Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+              Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
               Material(
                 color: Colors.transparent,
                 child: ListTile(
-                  leading: const Icon(Icons.logout_rounded, color: Colors.white70),
-                  title: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  leading: const Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 20),
+                  title: const Text('Logout', style: TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.w700, fontSize: 14)),
                   onTap: _signOut,
                 ),
               ),
@@ -5646,6 +6793,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF14332E),
         foregroundColor: Colors.white,
+        elevation: 0,
         title: Text(
           _selectedIndex == 0
               ? 'Dashboard'
@@ -5665,24 +6813,31 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadDashboardData,
+            tooltip: 'Refresh',
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             onPressed: _signOut,
+            tooltip: 'Logout',
           ),
         ],
       ),
       body: _isLoading && _selectedIndex == 0
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF14332E)))
+          ? _buildBrandedLoader()
           : _getPages()[_selectedIndex],
     );
   }
 
-  Widget _buildCompactSidebarItem({required IconData icon, required String title, required int index}) {
+  Widget _buildCompactSidebarItem({
+    required IconData icon,
+    required String title,
+    required int index,
+    bool hasLiveBadge = false,
+  }) {
     final isSelected = _selectedIndex == index;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -5690,14 +6845,28 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           borderRadius: BorderRadius.circular(10),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             decoration: BoxDecoration(
               color: isSelected ? const Color(0xFF1E4A42) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
-              border: isSelected ? Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.5), width: 1) : null,
+              border: isSelected
+                  ? Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4), width: 1)
+                  : null,
             ),
             child: Row(
               children: [
+                if (isSelected)
+                  Container(
+                    width: 3.5,
+                    height: 16,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD9A441),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 4),
                 Icon(
                   icon,
                   color: isSelected ? const Color(0xFFD9A441) : Colors.white70,
@@ -5708,13 +6877,36 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   child: Text(
                     title,
                     style: TextStyle(
-                      color: isSelected ? const Color(0xFFD9A441) : Colors.white,
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                      color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 12.5,
                     ),
                   ),
                 ),
-                if (isSelected)
+                if (hasLiveBadge)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'LIVE',
+                          style: TextStyle(
+                            color: Color(0xFF34D399),
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (isSelected)
                   Container(
                     width: 5,
                     height: 5,
@@ -5739,13 +6931,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         child: InkWell(
           onTap: _signOut,
           borderRadius: BorderRadius.circular(10),
+          hoverColor: Colors.red.withValues(alpha: 0.1),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: const Row(
               children: [
                 Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 18),
                 SizedBox(width: 10),
-                Text('Logout', style: TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.w600, fontSize: 13)),
+                Text('Logout', style: TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.w700, fontSize: 13)),
               ],
             ),
           ),
@@ -5768,20 +6961,35 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           },
           borderRadius: BorderRadius.circular(10),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected ? const Color(0xFF1E4A42) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
+              border: isSelected
+                  ? Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4), width: 1)
+                  : null,
             ),
             child: Row(
               children: [
+                if (isSelected)
+                  Container(
+                    width: 3.5,
+                    height: 18,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD9A441),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 4),
                 Icon(icon, color: isSelected ? const Color(0xFFD9A441) : Colors.white70, size: 20),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
-                      color: isSelected ? const Color(0xFFD9A441) : Colors.white,
+                      color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
                       fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                       fontSize: 13.5,
                     ),

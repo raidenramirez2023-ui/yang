@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../models/petty_cash_model.dart';
@@ -61,6 +62,52 @@ class PettyCashService {
     }
   }
 
+  // Directly set/override petty cash fund amount and ceiling
+  Future<bool> setPettyCashFundAmount({
+    required double targetBalance,
+    double? targetCeiling,
+    double? lowBalanceThreshold,
+  }) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return false;
+
+      final existingFund = await getPettyCashFund();
+      final now = DateTime.now().toUtc().toIso8601String();
+      final ceiling = targetCeiling ?? targetBalance;
+
+      final updateData = <String, dynamic>{
+        'current_balance': targetBalance,
+        'initial_balance': ceiling,
+        'last_replenished_at': now,
+        'updated_at': now,
+      };
+
+      if (lowBalanceThreshold != null && lowBalanceThreshold > 0) {
+        updateData['low_balance_threshold'] = lowBalanceThreshold;
+      }
+
+      if (existingFund != null) {
+        await _supabase
+            .from('petty_cash_fund')
+            .update(updateData)
+            .eq('id', existingFund.id!);
+      } else {
+        await _supabase.from('petty_cash_fund').insert({
+          'fund_name': 'Main Petty Cash',
+          'current_balance': targetBalance,
+          'initial_balance': ceiling,
+          'last_replenished_at': now,
+          if (lowBalanceThreshold != null) 'low_balance_threshold': lowBalanceThreshold,
+        });
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error setting petty cash fund amount: $e');
+      return false;
+    }
+  }
+
   // Replenish petty cash fund
   Future<bool> replenishPettyCashFund(double amount) async {
     try {
@@ -112,9 +159,7 @@ class PettyCashService {
       await _supabase.from('petty_cash_expenses').insert(expense.toJson());
       debugPrint('Expense inserted successfully');
 
-      // Auto add to stock_transactions
-      await _addExpenseToStockTransactionsIfApplicable(expense.toJson(), expense.purchasedBy);
-
+      // Note: Items will ONLY enter stock_transactions when approved by Admin!
       return true;
     } catch (e) {
       debugPrint('Error creating expense: $e');
@@ -181,25 +226,37 @@ class PettyCashService {
           .from('petty_cash_expenses')
           .select()
           .eq('id', expenseId)
-          .single();
+          .maybeSingle();
 
       if (expense == null) return false;
 
-      // Deduct the amount from petty cash fund
-      final fund = await getPettyCashFund();
-      if (fund == null) {
-        debugPrint('Petty cash fund not initialized');
-        return false;
-      }
+      final notes = (expense['notes'] ?? '').toString().toUpperCase();
+      final desc = (expense['description'] ?? '').toString().toUpperCase();
+      final isAbono = notes.contains('ABONO') || desc.contains('ABONO');
 
-      final newBalance = fund.currentBalance - (expense['amount'] as num);
-      await _supabase
-          .from('petty_cash_fund')
-          .update({
-            'current_balance': newBalance,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', fund.id!);
+      // Deduct the amount from petty cash fund ONLY if it is NOT an Abono expense
+      // (For Abono expenses, cash is only deducted when actually reimbursed to staff)
+      if (!isAbono) {
+        final fund = await getPettyCashFund();
+        if (fund == null) {
+          debugPrint('Petty cash fund not initialized');
+          return false;
+        }
+
+        if (fund.currentBalance < (expense['amount'] as num)) {
+          debugPrint('Insufficient petty cash fund balance to approve this expense');
+          return false;
+        }
+
+        final newBalance = fund.currentBalance - (expense['amount'] as num);
+        await _supabase
+            .from('petty_cash_fund')
+            .update({
+              'current_balance': newBalance,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', fund.id!);
+      }
 
       // Update expense status
       await _supabase
@@ -215,8 +272,10 @@ class PettyCashService {
       // Update category budget
       await updateCategorySpent(expense['category'], expense['amount']);
 
-      // Ensure item is in stock_transactions
-      await _addExpenseToStockTransactionsIfApplicable(expense, user.email ?? 'admin');
+      // Ensure item is in stock_transactions ONLY UPON ADMIN APPROVAL!
+      final approvedExpense = Map<String, dynamic>.from(expense);
+      approvedExpense['status'] = 'approved';
+      await _addExpenseToStockTransactionsIfApplicable(approvedExpense, user.email ?? 'admin');
 
       return true;
     } catch (e) {
@@ -259,6 +318,32 @@ class PettyCashService {
           .eq('id', expenseId)
           .maybeSingle();
 
+      if (expenseRes == null) return false;
+
+      // Prevent duplicate reimbursement processing
+      if (expenseRes['status'] == 'reimbursed') {
+        return true;
+      }
+
+      final notes = (expenseRes['notes'] ?? '').toString().toUpperCase();
+      final desc = (expenseRes['description'] ?? '').toString().toUpperCase();
+      final isAbono = notes.contains('ABONO') || desc.contains('ABONO');
+
+      // If this was an Abono expense, now is the time to deduct from the petty cash fund as cash is handed to staff
+      if (isAbono) {
+        final fund = await getPettyCashFund();
+        if (fund != null) {
+          final newBalance = fund.currentBalance - (expenseRes['amount'] as num);
+          await _supabase
+              .from('petty_cash_fund')
+              .update({
+                'current_balance': newBalance,
+                'updated_at': DateTime.now().toUtc().toIso8601String(),
+              })
+              .eq('id', fund.id!);
+        }
+      }
+
       await _supabase
           .from('petty_cash_expenses')
           .update({
@@ -267,9 +352,7 @@ class PettyCashService {
           })
           .eq('id', expenseId);
 
-      if (expenseRes != null) {
-        await _addExpenseToStockTransactionsIfApplicable(expenseRes, user?.email ?? 'admin');
-      }
+      await _addExpenseToStockTransactionsIfApplicable(expenseRes, user?.email ?? 'admin');
 
       return true;
     } catch (e) {
@@ -280,6 +363,13 @@ class PettyCashService {
 
   Future<void> _addExpenseToStockTransactionsIfApplicable(Map<String, dynamic> expense, String userEmail) async {
     try {
+      final status = (expense['status'] ?? '').toString().toLowerCase().trim();
+      // CRITICAL: Must be approved by Admin first!
+      if (status != 'approved' && status != 'reimbursed') {
+        debugPrint('Skipping stock transaction: expense status is "$status", must be "approved" by admin');
+        return;
+      }
+
       final category = (expense['category'] ?? '').toString().toLowerCase().trim();
       // Only inventory_purchase expenses should create stock transactions / enter petty cash inventory tab
       if (category != 'inventory_purchase') {
@@ -290,38 +380,42 @@ class PettyCashService {
       final supplier = (expense['supplier'] as String?)?.trim().isNotEmpty == true
           ? (expense['supplier'] as String).trim()
           : 'Market';
-      const processedBy = 'pagsanjaninv@gmail.com';
+      final processedBy = (expense['purchased_by'] as String?)?.trim().isNotEmpty == true
+          ? (expense['purchased_by'] as String).trim()
+          : (userEmail.isNotEmpty ? userEmail : 'pagsanjaninv@gmail.com');
 
-      // 1. Multi-items format
-      if (expense['inventory_items'] != null && expense['inventory_items'] is List) {
-        final items = expense['inventory_items'] as List;
-        for (var item in items) {
+      // 1. Multi-items format from "Link Inventory Items"
+      dynamic rawItems = expense['inventory_items'];
+      if (rawItems is String && rawItems.trim().isNotEmpty) {
+        try {
+          rawItems = jsonDecode(rawItems);
+        } catch (_) {}
+      }
+
+      bool itemsAdded = false;
+      if (rawItems != null && rawItems is List && rawItems.isNotEmpty) {
+        for (var item in rawItems) {
           final name = (item['item_name'] ?? item['name'] ?? '').toString().trim();
           final qty = (item['quantity'] as num?)?.toInt() ?? 1;
           final unit = (item['unit'] as String?) ?? 'pcs';
           if (name.isNotEmpty) {
-            final exists = await _checkIfStockTransactionExists(name);
-            if (!exists) {
-              await addInventoryToStockTransactions(name, qty, unit, supplier, processedBy);
-            }
+            await addInventoryToStockTransactions(name, qty, unit, supplier, processedBy);
+            itemsAdded = true;
           }
         }
       }
-      // 2. Single item field format
-      else if (expense['inventory_item_name'] != null && expense['inventory_item_name'].toString().trim().isNotEmpty) {
-        final name = expense['inventory_item_name'].toString().trim();
-        final qty = (expense['quantity_purchased'] as num?)?.toInt() ?? 1;
-        final unit = (expense['unit'] as String?) ?? 'pcs';
-        final exists = await _checkIfStockTransactionExists(name);
-        if (!exists) {
+
+      // 2. Single item field format (fallback)
+      if (!itemsAdded) {
+        if (expense['inventory_item_name'] != null && expense['inventory_item_name'].toString().trim().isNotEmpty) {
+          final name = expense['inventory_item_name'].toString().trim();
+          final qty = (expense['quantity_purchased'] as num?)?.toInt() ?? 1;
+          final unit = (expense['unit'] as String?) ?? 'pcs';
           await addInventoryToStockTransactions(name, qty, unit, supplier, processedBy);
         }
-      }
-      // 3. Item from description (e.g. COOK POT, YOUNG CORN, etc.)
-      else if (expense['description'] != null && expense['description'].toString().trim().isNotEmpty) {
-        final desc = expense['description'].toString().trim();
-        final exists = await _checkIfStockTransactionExists(desc);
-        if (!exists) {
+        // 3. Item from description (fallback)
+        else if (expense['description'] != null && expense['description'].toString().trim().isNotEmpty) {
+          final desc = expense['description'].toString().trim();
           await addInventoryToStockTransactions(desc, 1, 'pcs', supplier, processedBy);
         }
       }
@@ -330,203 +424,74 @@ class PettyCashService {
     }
   }
 
-  Future<bool> _checkIfStockTransactionExists(String itemName) async {
-    try {
-      final res = await _supabase
-          .from('stock_transactions')
-          .select('id, purpose')
-          .eq('item_name', itemName)
-          .eq('transaction_type', 'incoming')
-          .limit(10);
-
-      if (res.isEmpty) return false;
-      return res.any((r) {
-        final p = (r['purpose'] ?? '').toString();
-        return p == 'Petty Cash Purchase' || p == 'Transferred to Storage';
-      });
-    } catch (_) {
-      return false;
-    }
-  }
-
   Future<void> syncMissingPettyCashToStockTransactions() async {
     try {
-      // 1. Fetch valid inventory_purchase expenses
+      // 1. Fetch all approved/reimbursed inventory_purchase expenses
       final inventoryExpenses = await _supabase
           .from('petty_cash_expenses')
           .select()
-          .eq('category', 'inventory_purchase');
+          .eq('category', 'inventory_purchase')
+          .inFilter('status', ['approved', 'reimbursed']);
 
-      // Also include all items from the main inventory table
-      final registeredInventory = await _supabase
-          .from('inventory')
-          .select('name');
-
-      final Set<String> validInventoryItemNames = {};
-      for (var inv in registeredInventory) {
-        final n = (inv['name'] ?? '').toString().toLowerCase().trim();
-        if (n.isNotEmpty) validInventoryItemNames.add(n);
-      }
-
-      for (var exp in inventoryExpenses) {
-        if (exp['inventory_items'] != null && exp['inventory_items'] is List) {
-          for (var item in (exp['inventory_items'] as List)) {
-            final n = (item['item_name'] ?? item['name'] ?? '').toString().toLowerCase().trim();
-            if (n.isNotEmpty) validInventoryItemNames.add(n);
-          }
-        }
-        final single = (exp['inventory_item_name'] ?? '').toString().toLowerCase().trim();
-        if (single.isNotEmpty) validInventoryItemNames.add(single);
-      }
-
-      // 2. Fetch all non-inventory expenses to remove any orphaned entries
-      final nonInventoryExpenses = await _supabase
-          .from('petty_cash_expenses')
-          .select()
-          .neq('category', 'inventory_purchase');
-
-      final Set<String> nonInventoryItemNames = {};
-      for (var exp in nonInventoryExpenses) {
-        final desc = (exp['description'] ?? '').toString().trim();
-        if (desc.isNotEmpty && !validInventoryItemNames.contains(desc.toLowerCase())) {
-          nonInventoryItemNames.add(desc);
-        }
-        final single = (exp['inventory_item_name'] ?? '').toString().trim();
-        if (single.isNotEmpty && !validInventoryItemNames.contains(single.toLowerCase())) {
-          nonInventoryItemNames.add(single);
-        }
-      }
-
-      // 3. Clean up non-inventory transactions from stock_transactions
-      if (nonInventoryItemNames.isNotEmpty) {
-        for (var invalidName in nonInventoryItemNames) {
-          try {
-            await _supabase
-                .from('stock_transactions')
-                .delete()
-                .eq('purpose', 'Petty Cash Purchase')
-                .eq('item_name', invalidName);
-          } catch (_) {}
-          try {
-            await _supabase
-                .from('stock_transactions')
-                .update({'purpose': 'Petty Cash Non-Inventory', 'transaction_type': 'archived'})
-                .eq('purpose', 'Petty Cash Purchase')
-                .eq('item_name', invalidName);
-          } catch (_) {}
-        }
-      }
-
-      // Also clean up any stock_transaction with purpose 'Petty Cash Purchase' that doesn't match any valid inventory purchase
-      final currentPettyCashStock = await _supabase
+      // 2. Fetch all existing incoming stock transactions
+      final existingTx = await _supabase
           .from('stock_transactions')
-          .select('id, item_name, purpose, created_at')
+          .select('id, item_name, purpose')
           .eq('transaction_type', 'incoming');
 
-      final Set<String> transferredItemNames = {};
-      final Map<String, List<Map<String, dynamic>>> pendingPettyByItem = {};
-
-      for (var tx in currentPettyCashStock) {
+      final Set<String> existingStockItemNames = {};
+      for (var tx in existingTx) {
         final name = (tx['item_name'] ?? '').toString().toLowerCase().trim();
         final purpose = (tx['purpose'] ?? '').toString();
+        if (purpose == 'Petty Cash Purchase' ||
+            purpose == 'Petty Cash Purchase (Transferred)' ||
+            purpose == 'Transferred to Storage') {
+          if (name.isNotEmpty) existingStockItemNames.add(name);
+        }
+      }
 
-        if (purpose == 'Transferred to Storage') {
-          transferredItemNames.add(name);
-        } else if (purpose == 'Petty Cash Purchase') {
-          if (!validInventoryItemNames.contains(name)) {
-            final id = tx['id'];
-            if (id != null) {
-              try {
-                await _supabase.from('stock_transactions').delete().eq('id', id);
-              } catch (_) {}
-              try {
-                await _supabase
-                    .from('stock_transactions')
-                    .update({'purpose': 'Petty Cash Non-Inventory', 'transaction_type': 'archived'})
-                    .eq('id', id);
-              } catch (_) {}
+      // 3. For any approved inventory_purchase expense whose items are missing from stock_transactions, insert them!
+      for (var exp in inventoryExpenses) {
+        final supplier = (exp['supplier'] as String?)?.trim().isNotEmpty == true
+            ? (exp['supplier'] as String).trim()
+            : 'Market';
+        final processedBy = (exp['purchased_by'] as String?)?.trim().isNotEmpty == true
+            ? (exp['purchased_by'] as String).trim()
+            : 'pagsanjaninv@gmail.com';
+
+        dynamic rawItems = exp['inventory_items'];
+        if (rawItems is String && rawItems.trim().isNotEmpty) {
+          try {
+            rawItems = jsonDecode(rawItems);
+          } catch (_) {}
+        }
+
+        bool itemsProcessed = false;
+        if (rawItems != null && rawItems is List && rawItems.isNotEmpty) {
+          for (var item in rawItems) {
+            final name = (item['item_name'] ?? item['name'] ?? '').toString().trim();
+            final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+            final unit = (item['unit'] as String?) ?? 'pcs';
+            if (name.isNotEmpty && !existingStockItemNames.contains(name.toLowerCase())) {
+              await addInventoryToStockTransactions(name, qty, unit, supplier, processedBy);
+              existingStockItemNames.add(name.toLowerCase());
             }
-          } else {
-            pendingPettyByItem.putIfAbsent(name, () => []).add(tx);
+            itemsProcessed = true;
+          }
+        }
+
+        if (!itemsProcessed) {
+          final singleName = (exp['inventory_item_name'] ?? '').toString().trim();
+          if (singleName.isNotEmpty && !existingStockItemNames.contains(singleName.toLowerCase())) {
+            final qty = (exp['quantity_purchased'] as num?)?.toInt() ?? 1;
+            final unit = (exp['unit'] as String?) ?? 'pcs';
+            await addInventoryToStockTransactions(singleName, qty, unit, supplier, processedBy);
+            existingStockItemNames.add(singleName.toLowerCase());
           }
         }
       }
-
-      // If an item has already been Transferred to Storage, any pending 'Petty Cash Purchase' for it should be archived!
-      for (var transferredName in transferredItemNames) {
-        if (pendingPettyByItem.containsKey(transferredName)) {
-          final pendingList = pendingPettyByItem[transferredName]!;
-          for (var item in pendingList) {
-            final id = item['id'];
-            if (id != null) {
-              try {
-                await _supabase
-                    .from('stock_transactions')
-                    .update({'purpose': 'Transferred to Storage', 'processed_by': 'pagsanjaninv@gmail.com'})
-                    .eq('id', id);
-              } catch (_) {}
-            }
-          }
-          pendingPettyByItem.remove(transferredName);
-        }
-      }
-
-      // Clean up duplicate pending items: keep only 1 per item
-      for (var entry in pendingPettyByItem.entries) {
-        final list = entry.value;
-        if (list.length > 1) {
-          list.sort((a, b) => (b['created_at']?.toString() ?? '').compareTo(a['created_at']?.toString() ?? ''));
-          for (int i = 1; i < list.length; i++) {
-            final dupId = list[i]['id'];
-            if (dupId != null) {
-              try {
-                await _supabase.from('stock_transactions').delete().eq('id', dupId);
-              } catch (_) {}
-              try {
-                await _supabase
-                    .from('stock_transactions')
-                    .update({'purpose': 'Petty Cash Duplicate Archived', 'transaction_type': 'archived'})
-                    .eq('id', dupId);
-              } catch (_) {}
-            }
-          }
-        }
-      }
-
-      // Clean up duplicate 'Transferred to Storage' transactions
-      final Map<String, List<Map<String, dynamic>>> transferredByItem = {};
-      for (var tx in currentPettyCashStock) {
-        final name = (tx['item_name'] ?? '').toString().toLowerCase().trim();
-        final purpose = (tx['purpose'] ?? '').toString();
-        if (purpose == 'Transferred to Storage') {
-          transferredByItem.putIfAbsent(name, () => []).add(tx);
-        }
-      }
-
-      for (var entry in transferredByItem.entries) {
-        final list = entry.value;
-        if (list.length > 1) {
-          list.sort((a, b) => (b['created_at']?.toString() ?? '').compareTo(a['created_at']?.toString() ?? ''));
-          for (int i = 1; i < list.length; i++) {
-            final dupId = list[i]['id'];
-            if (dupId != null) {
-              try {
-                await _supabase.from('stock_transactions').delete().eq('id', dupId);
-              } catch (_) {}
-              try {
-                await _supabase
-                    .from('stock_transactions')
-                    .update({'purpose': 'Petty Cash Duplicate Transferred', 'transaction_type': 'archived'})
-                    .eq('id', dupId);
-              } catch (_) {}
-            }
-          }
-        }
-      }
-
-      // 4. Cleanup complete - do NOT re-insert old expenses automatically in background loops!
     } catch (e) {
-      debugPrint('Error syncing/cleaning petty cash to stock transactions: $e');
+      debugPrint('Error syncing missing petty cash to stock transactions: $e');
     }
   }
 
@@ -555,12 +520,22 @@ class PettyCashService {
           .from('petty_cash_expenses')
           .select()
           .eq('id', expenseId)
-          .single();
+          .maybeSingle();
 
       if (expense == null) return false;
 
-      // Only refund if expense was not already reimbursed
-      if (expense['status'] != 'reimbursed') {
+      // Only refund to petty cash fund if this expense actually deducted money:
+      // - Standard expense (not abono) deducted when approved or reimbursed
+      // - Abono expense deducted only when reimbursed
+      final status = (expense['status'] ?? '').toString().toLowerCase();
+      final notes = (expense['notes'] ?? '').toString().toUpperCase();
+      final desc = (expense['description'] ?? '').toString().toUpperCase();
+      final isAbono = notes.contains('ABONO') || desc.contains('ABONO');
+
+      final wasDeducted = (!isAbono && (status == 'approved' || status == 'reimbursed')) ||
+                          (isAbono && status == 'reimbursed');
+
+      if (wasDeducted) {
         final fund = await getPettyCashFund();
         if (fund != null) {
           final newBalance = fund.currentBalance + (expense['amount'] as num);
@@ -580,6 +555,50 @@ class PettyCashService {
       return true;
     } catch (e) {
       debugPrint('Error deleting expense: $e');
+      return false;
+    }
+  }
+
+  // Archive or unarchive an expense
+  Future<bool> archiveExpense(String expenseId, {bool archive = true}) async {
+    try {
+      final res = await _supabase
+          .from('petty_cash_expenses')
+          .select('notes')
+          .eq('id', expenseId)
+          .maybeSingle();
+
+      String currentNotes = (res?['notes'] ?? '').toString();
+      String newNotes;
+      if (archive) {
+        if (!currentNotes.contains('[ARCHIVED]')) {
+          newNotes = '$currentNotes [ARCHIVED]'.trim();
+        } else {
+          newNotes = currentNotes;
+        }
+      } else {
+        newNotes = currentNotes.replaceAll('[ARCHIVED]', '').trim();
+      }
+
+      final updateData = <String, dynamic>{
+        'notes': newNotes.isEmpty ? null : newNotes,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      try {
+        await _supabase
+            .from('petty_cash_expenses')
+            .update({...updateData, 'is_archived': archive})
+            .eq('id', expenseId);
+      } catch (_) {
+        await _supabase
+            .from('petty_cash_expenses')
+            .update(updateData)
+            .eq('id', expenseId);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error archiving expense: $e');
       return false;
     }
   }
@@ -645,7 +664,7 @@ class PettyCashService {
     return _supabase
         .from('petty_cash_expenses')
         .stream(primaryKey: ['id'])
-        .order('expense_date', ascending: false)
+        .order('created_at', ascending: false)
         .map((data) {
           var expenses = data.map((e) => PettyCashExpense.fromJson(e)).toList();
           
@@ -738,40 +757,41 @@ class PettyCashService {
   // Get or create category budget
   Future<PettyCashCategoryBudget?> getCategoryBudget(String category) async {
     try {
+      final catKey = category.toLowerCase().trim();
+      final response = await _supabase
+          .from('petty_cash_category_budgets')
+          .select()
+          .ilike('category', catKey)
+          .order('period_start', ascending: false)
+          .limit(1);
+
+      if (response.isNotEmpty) {
+        return PettyCashCategoryBudget.fromJson(response.first);
+      }
+
       final now = DateTime.now();
       final periodStart = DateTime(now.year, now.month, 1);
       final periodEnd = DateTime(now.year, now.month + 1, 1).subtract(const Duration(seconds: 1));
 
-      final response = await _supabase
-          .from('petty_cash_category_budgets')
-          .select()
-          .eq('category', category)
-          .gte('period_start', periodStart.toUtc().toIso8601String())
-          .lte('period_end', periodEnd.toUtc().toIso8601String())
-          .maybeSingle();
-
-      if (response != null) {
-        return PettyCashCategoryBudget.fromJson(response);
-      }
-
-      // Create new budget if none exists with default 0% allocation
-      await _supabase.from('petty_cash_category_budgets').insert({
-        'category': category,
+      // Create new budget if none exists
+      final insertData = {
+        'category': catKey,
         'percentage': 0.0,
         'current_spent': 0.0,
         'period_start': periodStart.toUtc().toIso8601String(),
         'period_end': periodEnd.toUtc().toIso8601String(),
-      });
+      };
 
-      final newResponse = await _supabase
+      final inserted = await _supabase
           .from('petty_cash_category_budgets')
+          .insert(insertData)
           .select()
-          .eq('category', category)
-          .gte('period_start', periodStart.toUtc().toIso8601String())
-          .lte('period_end', periodEnd.toUtc().toIso8601String())
-          .single();
+          .maybeSingle();
 
-      return PettyCashCategoryBudget.fromJson(newResponse);
+      if (inserted != null) {
+        return PettyCashCategoryBudget.fromJson(inserted);
+      }
+      return null;
     } catch (e) {
       debugPrint('Error getting category budget: $e');
       return null;
@@ -781,19 +801,91 @@ class PettyCashService {
   // Update category budget percentage
   Future<bool> updateCategoryBudgetPercentage(String category, double percentage) async {
     try {
-      final budget = await getCategoryBudget(category);
-      if (budget == null) return false;
+      final catKey = category.toLowerCase().trim();
+      final now = DateTime.now();
 
-      await _supabase
+      // Check if any record exists for this category
+      final existing = await _supabase
           .from('petty_cash_category_budgets')
-          .update({
-            'percentage': percentage,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', budget.id!);
+          .select()
+          .ilike('category', catKey)
+          .order('period_start', ascending: false)
+          .limit(1);
+
+      if (existing.isNotEmpty) {
+        final id = existing.first['id'];
+        await _supabase
+            .from('petty_cash_category_budgets')
+            .update({
+              'percentage': percentage,
+              'updated_at': now.toUtc().toIso8601String(),
+            })
+            .eq('id', id);
+        return true;
+      }
+
+      // If no row exists, insert one
+      final periodStart = DateTime(now.year, now.month, 1);
+      final periodEnd = DateTime(now.year, now.month + 1, 1).subtract(const Duration(seconds: 1));
+      await _supabase.from('petty_cash_category_budgets').insert({
+        'category': catKey,
+        'percentage': percentage,
+        'current_spent': 0.0,
+        'period_start': periodStart.toUtc().toIso8601String(),
+        'period_end': periodEnd.toUtc().toIso8601String(),
+        'created_at': now.toUtc().toIso8601String(),
+        'updated_at': now.toUtc().toIso8601String(),
+      });
       return true;
     } catch (e) {
       debugPrint('Error updating category budget percentage: $e');
+      // Fallback attempt directly by category ilike match
+      try {
+        await _supabase
+            .from('petty_cash_category_budgets')
+            .update({
+              'percentage': percentage,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .ilike('category', category.toLowerCase().trim());
+        return true;
+      } catch (fallbackError) {
+        debugPrint('Fallback budget update failed: $fallbackError');
+        return false;
+      }
+    }
+  }
+
+  // Reset category spent amount to zero or recalculate
+  Future<bool> resetCategorySpent(String category) async {
+    try {
+      await _supabase
+          .from('petty_cash_category_budgets')
+          .update({
+            'current_spent': 0.0,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .ilike('category', category.toLowerCase().trim());
+      return true;
+    } catch (e) {
+      debugPrint('Error resetting category spent: $e');
+      return false;
+    }
+  }
+
+  // Reset all category spent amounts to zero
+  Future<bool> resetAllCategorySpent() async {
+    try {
+      await _supabase
+          .from('petty_cash_category_budgets')
+          .update({
+            'current_spent': 0.0,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .neq('category', '');
+      return true;
+    } catch (e) {
+      debugPrint('Error resetting all category spent: $e');
       return false;
     }
   }
@@ -819,7 +911,7 @@ class PettyCashService {
   }
 
   // Add inventory items to stock_transactions when purchased via petty cash
-  // Items will appear in Incoming tab for staff to process before adding to Storage Room
+  // Items will appear in Incoming / Petty Cash tab for staff to process before adding to Storage Room
   Future<bool> addInventoryToStockTransactions(
     String itemName,
     int quantity,
@@ -828,25 +920,22 @@ class PettyCashService {
     String processedBy,
   ) async {
     try {
-      // Only add to stock_transactions for tracking (not directly to inventory table)
-      // Staff will process from Incoming tab to add to Storage Room
       final transactionData = {
         'item_name': itemName,
         'transaction_type': 'incoming',
         'quantity': quantity,
         'supplier': supplier,
-        'processed_by': 'pagsanjaninv@gmail.com',
+        'processed_by': processedBy.isNotEmpty ? processedBy : 'pagsanjaninv@gmail.com',
         'purpose': 'Petty Cash Purchase',
         'created_at': DateTime.now().toUtc().toIso8601String(),
       };
-      
-      // Only add unit if it's not empty
+
       if (unit.isNotEmpty) {
         transactionData['unit'] = unit;
       }
-      
+
       await _supabase.from('stock_transactions').insert(transactionData);
-      debugPrint('Successfully added $itemName ($quantity $unit) to stock_transactions (Incoming tab)');
+      debugPrint('Successfully added $itemName ($quantity $unit) to stock_transactions upon Admin Approval');
       return true;
     } catch (e) {
       debugPrint('Error adding inventory to stock_transactions: $e');
@@ -854,15 +943,93 @@ class PettyCashService {
     }
   }
 
-  // Get all category budgets
+  // Get all category budgets (deduplicated by category, scoped to current fund replenishment cycle)
   Future<List<PettyCashCategoryBudget>> getAllCategoryBudgets() async {
     try {
       final response = await _supabase
           .from('petty_cash_category_budgets')
           .select()
-          .order('category');
+          .order('period_start', ascending: false);
 
-      return response.map((e) => PettyCashCategoryBudget.fromJson(e)).toList();
+      final list = response.map((e) => PettyCashCategoryBudget.fromJson(e)).toList();
+
+      // Deduplicate: keep the latest record for each unique category
+      final Map<String, PettyCashCategoryBudget> uniqueBudgets = {};
+      for (final b in list) {
+        final key = b.category.toLowerCase().trim();
+        if (!uniqueBudgets.containsKey(key)) {
+          uniqueBudgets[key] = b;
+        }
+      }
+
+      // Compute actual current cycle spending from petty_cash_expenses
+      // (Only count expenses approved in the current active fund cycle)
+      final fund = await getPettyCashFund();
+      final cycleStart = fund?.lastReplenishedAt;
+      final monthlySpent = <String, double>{};
+
+      if (cycleStart != null) {
+        try {
+          final expenses = await getExpenses(
+            startDate: cycleStart,
+          );
+          for (final exp in expenses) {
+            if (exp.status == 'approved' || exp.status == 'reimbursed') {
+              final cat = exp.category.toLowerCase().trim();
+              monthlySpent[cat] = (monthlySpent[cat] ?? 0.0) + exp.amount;
+            }
+          }
+        } catch (e) {
+          debugPrint('Could not compute cycle spent: $e');
+        }
+      }
+
+      // Ensure standard default categories exist in list
+      const defaultCategories = [
+        'inventory_purchase',
+        'kitchen_supplies',
+        'transportation',
+        'supplies',
+        'other'
+      ];
+      final now = DateTime.now();
+      final periodStart = DateTime(now.year, now.month, 1);
+      final periodEnd = DateTime(now.year, now.month + 1, 1).subtract(const Duration(seconds: 1));
+
+      for (final cat in defaultCategories) {
+        final actualSpent = monthlySpent[cat] ?? 0.0;
+        if (!uniqueBudgets.containsKey(cat)) {
+          uniqueBudgets[cat] = PettyCashCategoryBudget(
+            category: cat,
+            percentage: 0.0,
+            currentSpent: actualSpent,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            createdAt: now,
+            updatedAt: now,
+          );
+        } else {
+          final existing = uniqueBudgets[cat]!;
+          // Use actual cycle spent so historical test data does not contaminate current fund balance
+          uniqueBudgets[cat] = PettyCashCategoryBudget(
+            id: existing.id,
+            category: existing.category,
+            percentage: existing.percentage,
+            currentSpent: actualSpent,
+            periodStart: existing.periodStart,
+            periodEnd: existing.periodEnd,
+            createdAt: existing.createdAt,
+            updatedAt: existing.updatedAt,
+          );
+        }
+      }
+
+      uniqueBudgets.remove('maintenance');
+      uniqueBudgets.remove('utilities');
+
+      final sortedList = uniqueBudgets.values.toList();
+      sortedList.sort((a, b) => a.category.compareTo(b.category));
+      return sortedList;
     } catch (e) {
       debugPrint('Error getting all category budgets: $e');
       return [];
@@ -895,6 +1062,9 @@ class PettyCashService {
       double totalSpent = 0;
 
       for (final expense in expenses) {
+        final cat = expense.category.toLowerCase().trim();
+        if (cat == 'maintenance' || cat == 'utilities') continue;
+
         spendingByCategory[expense.category] = 
             (spendingByCategory[expense.category] ?? 0) + expense.amount;
         
