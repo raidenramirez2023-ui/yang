@@ -187,9 +187,23 @@ class AppErrorHandler {
     };
 
     PlatformDispatcher.instance.onError = (error, stack) {
+      final errStr = error.toString();
+
+      // Don't treat transient socket reconnections / Supabase realtime interruptions as critical crashes
+      final isTransientSocketError = errStr.contains('WebSocketException') ||
+          errStr.contains('WebSocketChannelException') ||
+          errStr.contains('RealtimeSubscribeException') ||
+          errStr.contains('SocketException') ||
+          errStr.contains('ClientException');
+
+      if (isTransientSocketError) {
+        debugPrint('ℹ️ [Network/Realtime] Suppressed transient socket error: $errStr');
+        return true; // handled
+      }
+
       AppLogger.critical(
         module: 'PlatformDispatcher',
-        message: error.toString(),
+        message: errStr,
         stackTrace: stack,
       );
       return false;
