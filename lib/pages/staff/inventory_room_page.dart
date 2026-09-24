@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -79,10 +80,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   String _selectedStorageRoom = 'All';
   String _incomingSearchQuery = '';
   String _pettyCashSearchQuery = '';
+  String _lastPettyCashSearchQuery = '';
   bool _isPettyCashTableView = true;
-  TextEditingController? _pettyCashSearchCtrl;
-  TextEditingController get _pettyCashSearchController =>
-      _pettyCashSearchCtrl ??= TextEditingController(text: _pettyCashSearchQuery);
+  late final TextEditingController _pettyCashSearchController;
 
   int _incomingCurrentPage = 1;
   final int _incomingItemsPerPage = 15;
@@ -113,9 +113,30 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
   Set<String> _validInventoryPurchaseNames = {};
 
+  final ScrollController _incomingHorizontalScrollController = ScrollController();
+  final ScrollController _incomingVerticalScrollController = ScrollController();
+  final ScrollController _pettyCashHorizontalScrollController = ScrollController();
+  final ScrollController _pettyCashVerticalScrollController = ScrollController();
+
+  late final Stream<List<Map<String, dynamic>>> _pettyCashStockTransactionsStream;
+  late final Stream<List<Map<String, dynamic>>> _incomingStockTransactionsStream;
+
   @override
   void initState() {
     super.initState();
+    _pettyCashSearchController = TextEditingController(text: _pettyCashSearchQuery);
+
+    _pettyCashStockTransactionsStream = Supabase.instance.client
+        .from('stock_transactions')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+
+    _incomingStockTransactionsStream = Supabase.instance.client
+        .from('stock_transactions')
+        .stream(primaryKey: ['id'])
+        .eq('transaction_type', 'incoming')
+        .order('created_at', ascending: false);
+
     _tabController = TabController(
       length: 3,
       vsync: this,
@@ -147,8 +168,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           .select('inventory_items, inventory_item_name')
           .eq('category', 'inventory_purchase');
       for (var exp in expRes) {
-        if (exp['inventory_items'] != null && exp['inventory_items'] is List) {
-          for (var it in (exp['inventory_items'] as List)) {
+        dynamic rawItems = exp['inventory_items'];
+        if (rawItems is String && rawItems.trim().isNotEmpty) {
+          try {
+            rawItems = jsonDecode(rawItems);
+          } catch (_) {}
+        }
+        if (rawItems != null && rawItems is List) {
+          for (var it in rawItems) {
             final n = (it['item_name'] ?? it['name'] ?? '').toString().toLowerCase().trim();
             if (n.isNotEmpty) validNames.add(n);
           }
@@ -172,7 +199,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
   @override
   void dispose() {
-    _pettyCashSearchCtrl?.dispose();
+    _pettyCashSearchController.dispose();
+    _incomingHorizontalScrollController.dispose();
+    _incomingVerticalScrollController.dispose();
+    _pettyCashHorizontalScrollController.dispose();
+    _pettyCashVerticalScrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -4076,12 +4107,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
   Widget _buildPettyCashTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: Supabase.instance.client
-          .from('stock_transactions')
-          .stream(primaryKey: ['id'])
-          .order('created_at', ascending: false),
+      stream: _pettyCashStockTransactionsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: _emeraldMedium));
         }
 
@@ -4109,19 +4137,27 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           }
         }
 
-        final filteredTransactions = _pettyCashSearchQuery.trim().isEmpty
+        final currentQuery = _pettyCashSearchQuery.trim().toLowerCase();
+        if (currentQuery != _lastPettyCashSearchQuery) {
+          _lastPettyCashSearchQuery = currentQuery;
+          _pettyCashCurrentPage = 1;
+        }
+
+        final filteredTransactions = currentQuery.isEmpty
             ? pettyCashTransactions
             : pettyCashTransactions.where((t) {
-                final q = _pettyCashSearchQuery.toLowerCase();
-                return (t['item_name']?.toString() ?? '').toLowerCase().contains(q) ||
-                    (t['supplier']?.toString() ?? '').toLowerCase().contains(q) ||
-                    (t['processed_by']?.toString() ?? '').toLowerCase().contains(q);
+                final itemName = (t['item_name']?.toString() ?? '').toLowerCase();
+                final supplier = (t['supplier']?.toString() ?? '').toLowerCase();
+                final processedBy = (t['processed_by']?.toString() ?? '').toLowerCase();
+                return itemName.contains(currentQuery) ||
+                    supplier.contains(currentQuery) ||
+                    processedBy.contains(currentQuery);
               }).toList();
 
         final totalPettyCashItems = filteredTransactions.length;
         final totalPettyCashPages = (totalPettyCashItems / _pettyCashItemsPerPage).ceil().clamp(1, 999999);
-        if (_pettyCashCurrentPage > totalPettyCashPages) {
-          _pettyCashCurrentPage = totalPettyCashPages;
+        if (_pettyCashCurrentPage > totalPettyCashPages || (currentQuery.isNotEmpty && _pettyCashCurrentPage > totalPettyCashPages)) {
+          _pettyCashCurrentPage = 1;
         }
         if (_pettyCashCurrentPage < 1) {
           _pettyCashCurrentPage = 1;
@@ -4416,11 +4452,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: SingleChildScrollView(
+              controller: _pettyCashHorizontalScrollController,
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               child: SizedBox(
                 width: tableWidth,
                 child: SingleChildScrollView(
+                  controller: _pettyCashVerticalScrollController,
                   scrollDirection: Axis.vertical,
                   physics: const BouncingScrollPhysics(),
                   child: Column(
@@ -5069,13 +5107,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         // ── Delivery list ──
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: Supabase.instance.client
-                .from('stock_transactions')
-                .stream(primaryKey: ['id'])
-                .eq('transaction_type', 'incoming')
-                .order('created_at', ascending: false),
+            stream: _incomingStockTransactionsStream,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator(color: _emeraldMedium));
               }
 
@@ -5207,13 +5241,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           builder: (context, constraints) {
                             final double minTableWidth = constraints.maxWidth > 850 ? constraints.maxWidth : 850;
                             return Scrollbar(
+                              controller: _incomingHorizontalScrollController,
                               thumbVisibility: true,
                               child: SingleChildScrollView(
+                                controller: _incomingHorizontalScrollController,
                                 scrollDirection: Axis.horizontal,
                                 physics: const BouncingScrollPhysics(),
                                 child: ConstrainedBox(
                                   constraints: BoxConstraints(minWidth: minTableWidth),
                                   child: SingleChildScrollView(
+                                    controller: _incomingVerticalScrollController,
                                     scrollDirection: Axis.vertical,
                                     physics: const BouncingScrollPhysics(),
                                     child: DataTable(

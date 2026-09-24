@@ -111,6 +111,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   int _pendingRefundCount = 0;
   int _pendingDeletionCount = 0;
   bool _isMaintenanceActive = false;
+  Map<String, dynamic>? _activeItSession;
 
 
 
@@ -186,6 +187,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     _loadRemainingBalanceCount();
     _loadPendingRefundCount();
     _loadPendingDeletionCount();
+    _checkActiveItSession();
 
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
     _countRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
@@ -194,6 +196,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       _loadRemainingBalanceCount();
       _loadPendingRefundCount();
       _loadPendingDeletionCount();
+      _checkActiveItSession();
     });
 
     NotificationService.startStockMonitoring();
@@ -217,6 +220,19 @@ class _AdminMainPageState extends State<AdminMainPage> {
         }
       }
     });
+  }
+
+  Future<void> _checkActiveItSession() async {
+    try {
+      final active = await ItAccessService.getActiveRequest();
+      if (mounted) {
+        setState(() {
+          _activeItSession = active;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Admin] Error checking active IT session: $e');
+    }
   }
 
   Future<void> _loadMaintenanceStatus() async {
@@ -920,325 +936,233 @@ class _AdminMainPageState extends State<AdminMainPage> {
     );
   }
 
-  // ─── IT Access Request Dialog ────────────────────────────────────────────
+  // ─── Enterprise IT Support & Privileged Access Management ────────────────
 
-  Future<void> _showItAccessRequestDialog() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+  Widget _buildEnterpriseItSupportHeaderButton({bool isCompact = false}) {
+    final hasActiveSession = _activeItSession != null;
 
-    final issueController = TextEditingController();
-    String selectedScope = 'Payment Management + Sales Report';
-    int selectedDuration = 2;
-    bool autoPurgeTestData = true;
-
-    final scopeOptions = [
-      'Payment Management + Sales Report',
-      'Payment Approval Only',
-      'Sales Report Only',
-      'Reservations Management',
-      'Full Admin Access',
-    ];
-    final durationOptions = [1, 2, 4, 8];
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocalState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            width: 480,
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: Colors.white,
+    if (isCompact) {
+      return IconButton(
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              hasActiveSession ? Icons.shield_rounded : Icons.support_agent_rounded,
+              color: hasActiveSession ? const Color(0xFF059669) : AppTheme.adminSecondaryText,
+              size: 22,
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.support_agent_rounded, color: Color(0xFF1E40AF), size: 24),
+            if (hasActiveSession)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        tooltip: hasActiveSession ? 'Elevated IT Session Active' : 'Enterprise IT Service Desk',
+        onPressed: () => _showItAccessRequestDialog(initialTab: hasActiveSession ? 1 : 0),
+      );
+    }
+
+    if (hasActiveSession) {
+      return Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _showItAccessRequestDialog(initialTab: 1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.6), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF10B981),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.shield_rounded, color: Color(0xFF047857), size: 16),
+                const SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'IT SESSION ACTIVE',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: const Color(0xFF065F46),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Request IT Support Access',
-                              style: GoogleFonts.inter(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E293B),
-                              ),
+                    ),
+                    Text(
+                      ItAccessService.getRemainingTimeString(_activeItSession!),
+                      style: GoogleFonts.inter(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF059669),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: () => _showItAccessRequestDialog(initialTab: 0),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        backgroundColor: const Color(0xFFF8FAFC),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      icon: const Icon(Icons.support_agent_rounded, size: 16, color: Color(0xFF1E40AF)),
+      label: Text(
+        'IT Support Desk',
+        style: GoogleFonts.inter(
+          color: const Color(0xFF334155),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarItSupportTile({required bool isDrawer}) {
+    final hasActiveSession = _activeItSession != null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          hoverColor: hasActiveSession
+              ? const Color(0xFF10B981).withValues(alpha: 0.12)
+              : const Color(0xFF38BDF8).withValues(alpha: 0.08),
+          onTap: () {
+            if (isDrawer) Navigator.pop(context);
+            _showItAccessRequestDialog(initialTab: hasActiveSession ? 1 : 0);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: hasActiveSession
+                  ? const Color(0xFF065F46).withValues(alpha: 0.25)
+                  : Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: hasActiveSession
+                    ? const Color(0xFF10B981).withValues(alpha: 0.45)
+                    : Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  hasActiveSession ? Icons.shield_rounded : Icons.terminal_rounded,
+                  color: hasActiveSession ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            hasActiveSession ? 'IT SESSION ACTIVE' : 'IT Service Desk',
+                            style: TextStyle(
+                              color: hasActiveSession ? const Color(0xFF6EE7B7) : const Color(0xFFE2E8F0),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              letterSpacing: 0.4,
                             ),
-                            Text(
-                              'Send a formal request to the IT Developer',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: const Color(0xFF64748B),
+                          ),
+                          if (hasActiveSession) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF10B981),
+                                shape: BoxShape.circle,
                               ),
                             ),
                           ],
+                        ],
+                      ),
+                      Text(
+                        hasActiveSession
+                            ? ItAccessService.getRemainingTimeString(_activeItSession!)
+                            : 'Access & Incident Control',
+                        style: TextStyle(
+                          color: hasActiveSession ? const Color(0xFFA7F3D0) : const Color(0xFF64748B),
+                          fontSize: 10.5,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  const Divider(),
-                  const SizedBox(height: 16),
-
-                  // Issue Description
-                  Text(
-                    'Issue Description *',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: issueController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Payment not reflecting in Sales Report after customer pays via GCash',
-                      hintStyle: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF94A3B8)),
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFF1E40AF), width: 1.5),
-                      ),
-                    ),
-                    style: GoogleFonts.inter(fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Access Scope
-                  Text(
-                    'Access Scope Needed',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedScope,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                    items: scopeOptions.map((s) => DropdownMenuItem(
-                      value: s,
-                      child: Text(s, style: GoogleFonts.inter(fontSize: 13)),
-                    )).toList(),
-                    onChanged: (v) => setLocalState(() => selectedScope = v ?? selectedScope),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Duration
-                  Text(
-                    'Access Duration',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: durationOptions.map((h) {
-                      final selected = selectedDuration == h;
-                      return GestureDetector(
-                        onTap: () => setLocalState(() => selectedDuration = h),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: selected ? const Color(0xFF1E40AF) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: selected ? const Color(0xFF1E40AF) : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Text(
-                            '${h}h',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: selected ? Colors.white : const Color(0xFF475569),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Info box
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFBBF7D0)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFF16A34A), size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'The IT Developer will receive this request and must accept it. Access will auto-expire after $selectedDuration hour(s). All actions taken during this session will be logged.',
-                            style: GoogleFonts.inter(
-                              fontSize: 11.5,
-                              color: const Color(0xFF166534),
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Auto-purge test payments & orders Checkbox
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: autoPurgeTestData,
-                          activeColor: const Color(0xFFEF4444),
-                          checkColor: Colors.white,
-                          onChanged: (val) {
-                            setLocalState(() => autoPurgeTestData = val ?? true);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Auto-purge test payments & orders',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF1E293B),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Deletes orders, payments & test reservations created during this IT session so admin sales reports stay clean.',
-                                style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: Text('Cancel', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E40AF),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () => Navigator.pop(ctx, true),
-                        icon: const Icon(Icons.send_rounded, size: 16),
-                        label: Text('Send Request', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white.withValues(alpha: 0.3),
+                  size: 11,
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
+  }
 
-    if (confirmed == true) {
-      final issue = issueController.text.trim();
-      if (issue.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Please describe the issue before sending.'),
-            backgroundColor: Color(0xFFB45309),
-          ));
-        }
-        issueController.dispose();
-        return;
-      }
+  Future<void> _showItAccessRequestDialog({int initialTab = 0}) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
 
-      final adminName = user.userMetadata?['full_name']?.toString() ??
-          user.userMetadata?['name']?.toString() ??
-          user.email?.split('@').first ?? 'Admin';
-
-      final result = await ItAccessService.sendAccessRequest(
-        adminEmail: user.email!,
-        adminName: adminName,
-        issueDescription: issue,
-        accessScope: selectedScope,
-        durationHours: selectedDuration,
-        autoPurgeTestData: autoPurgeTestData,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-            result != null
-                ? '✅ IT Support request sent! The developer will be notified.'
-                : '❌ Failed to send request. Please try again.',
-          ),
-          backgroundColor: result != null ? const Color(0xFF16A34A) : const Color(0xFFB45309),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ));
-      }
-    }
-    issueController.dispose();
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => _EnterpriseItSupportDialog(
+        initialTab: initialTab,
+        activeItSession: _activeItSession,
+        user: user,
+        onSessionUpdated: _checkActiveItSession,
+      ),
+    );
   }
 
   static const List<String> _pageTitles = [
@@ -1672,48 +1596,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
           for (final index in group.indices)
             _buildNavTile(index: index, isDrawer: isDrawer),
         ],
-
-        // ── Scrollable IT Support Button ──
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              hoverColor: const Color(0xFF1E40AF).withValues(alpha: 0.15),
-              onTap: () {
-                if (isDrawer) Navigator.pop(context);
-                _showItAccessRequestDialog();
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E40AF).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF1E40AF).withValues(alpha: 0.25)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.support_agent_rounded, color: Color(0xFF60A5FA), size: 17),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Request IT Support',
-                        style: TextStyle(
-                          color: Color(0xFF93C5FD),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
         const SizedBox(height: 8),
       ],
     );
@@ -1984,6 +1866,15 @@ class _AdminMainPageState extends State<AdminMainPage> {
               color: Colors.white.withValues(alpha: 0.08),
             ),
 
+            // Pinned Enterprise IT Support Dock Tile
+            _buildSidebarItSupportTile(isDrawer: false),
+
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+
             // Sidebar Footer: Logout
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -2159,7 +2050,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
           ),
           const Spacer(),
           _buildStaffDelegationToggle(),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
+          _buildEnterpriseItSupportHeaderButton(),
+          const SizedBox(width: 12),
           _buildAdminNotificationIcon(),
           const SizedBox(width: 16),
           // User Profile Block
@@ -2319,6 +2212,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
         ),
       ),
       actions: [
+        _buildEnterpriseItSupportHeaderButton(isCompact: true),
         Padding(
           padding: const EdgeInsets.only(right: 8.0),
           child: _buildAdminNotificationIcon(),
@@ -2443,6 +2337,15 @@ class _AdminMainPageState extends State<AdminMainPage> {
             Expanded(
               child: _buildCategorizedNavList(isDrawer: true),
             ),
+
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+
+            // Pinned Enterprise IT Support Dock Tile
+            _buildSidebarItSupportTile(isDrawer: true),
 
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -3580,6 +3483,943 @@ class _AdminTopToastWidgetState extends State<_AdminTopToastWidget>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _EnterpriseItSupportDialog extends StatefulWidget {
+  final int initialTab;
+  final Map<String, dynamic>? activeItSession;
+  final User user;
+  final VoidCallback onSessionUpdated;
+
+  const _EnterpriseItSupportDialog({
+    required this.initialTab,
+    required this.activeItSession,
+    required this.user,
+    required this.onSessionUpdated,
+  });
+
+  @override
+  State<_EnterpriseItSupportDialog> createState() => _EnterpriseItSupportDialogState();
+}
+
+class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> {
+  late final TextEditingController _issueController;
+  late int _currentTab;
+  String _selectedSeverity = 'P2 - High';
+  String _selectedScope = 'Payment Management + Sales Report';
+  int _selectedDuration = 2;
+  bool _autoPurgeTestData = true;
+  bool _isSubmitting = false;
+  Map<String, dynamic>? _activeSession;
+
+  static const List<Map<String, dynamic>> _severityOptions = [
+    {'code': 'P1 - Critical', 'desc': 'System Down / Payment Blocker', 'color': Color(0xFFDC2626)},
+    {'code': 'P2 - High', 'desc': 'Feature Impaired / Sync Issue', 'color': Color(0xFFEA580C)},
+    {'code': 'P3 - Standard', 'desc': 'General Maintenance / Config', 'color': Color(0xFF2563EB)},
+  ];
+
+  static const List<String> _scopeOptions = [
+    'Payment Management + Sales Report',
+    'Payment Approval Only',
+    'Sales Report Only',
+    'Reservations Management',
+    'Full Admin Access',
+  ];
+
+  static const List<int> _durationOptions = [1, 2, 4, 8];
+
+  @override
+  void initState() {
+    super.initState();
+    _issueController = TextEditingController();
+    _currentTab = widget.initialTab;
+    _activeSession = widget.activeItSession;
+  }
+
+  @override
+  void dispose() {
+    _issueController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitRequest() async {
+    final issueText = _issueController.text.trim();
+    if (issueText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please describe the technical issue or reason.'),
+          backgroundColor: Color(0xFFB45309),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final adminName = widget.user.userMetadata?['full_name']?.toString() ??
+        widget.user.userMetadata?['name']?.toString() ??
+        widget.user.email?.split('@').first ?? 'Admin';
+
+    final fullDescription = '[$_selectedSeverity] $issueText';
+
+    final result = await ItAccessService.sendAccessRequest(
+      adminEmail: widget.user.email!,
+      adminName: adminName,
+      issueDescription: fullDescription,
+      accessScope: _selectedScope,
+      durationHours: _selectedDuration,
+      autoPurgeTestData: _autoPurgeTestData,
+    );
+
+    widget.onSessionUpdated();
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+    }
+
+    if (result != null) {
+      if (mounted) Navigator.pop(context);
+      Future.microtask(() {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ IT Support Request dispatched ($_selectedSeverity). Developer notified.'),
+              backgroundColor: const Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      });
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Failed to dispatch request. Please try again.'),
+            backgroundColor: Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: 620,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Enterprise Header ──
+              Container(
+                padding: const EdgeInsets.fromLTRB(22, 18, 16, 18),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0F172A),
+                  border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF334155)),
+                      ),
+                      child: const Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Enterprise IT Service Desk',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
+                                ),
+                                child: Text(
+                                  'ITSM / PAM',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.6,
+                                    color: const Color(0xFF38BDF8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Privileged Access Elevation & Infrastructure Incident Support',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Close',
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Tab Bar Navigation ──
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF8FAFC),
+                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () => setState(() => _currentTab = 0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _currentTab == 0 ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _currentTab == 0 ? const Color(0xFFCBD5E1) : Colors.transparent,
+                            ),
+                            boxShadow: _currentTab == 0
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.post_add_rounded,
+                                size: 16,
+                                color: _currentTab == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Request Elevation',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.5,
+                                  fontWeight: _currentTab == 0 ? FontWeight.w700 : FontWeight.w500,
+                                  color: _currentTab == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () => setState(() => _currentTab = 1),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _currentTab == 1 ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _currentTab == 1 ? const Color(0xFFCBD5E1) : Colors.transparent,
+                            ),
+                            boxShadow: _currentTab == 1
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.history_rounded,
+                                size: 16,
+                                color: _currentTab == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Active Session & Audit',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.5,
+                                  fontWeight: _currentTab == 1 ? FontWeight.w700 : FontWeight.w500,
+                                  color: _currentTab == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                ),
+                              ),
+                              if (_activeSession != null) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Tab Content ──
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(22),
+                  child: _currentTab == 0
+                      ? _buildElevationRequestTab()
+                      : _buildActiveSessionAndAuditTab(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildElevationRequestTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Incident Severity (ITIL)
+        Row(
+          children: [
+            Text(
+              'Incident Severity (ITIL)',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text('*', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _severityOptions.map((opt) {
+            final isSelected = _selectedSeverity == opt['code'];
+            final color = opt['color'] as Color;
+
+            return InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _selectedSeverity = opt['code'] as String),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? color.withValues(alpha: 0.1) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected ? color : const Color(0xFFE2E8F0),
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      opt['code'] as String,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? color : const Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+
+        // Issue Description
+        Row(
+          children: [
+            Text(
+              'Incident / Issue Description',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text('*', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _issueController,
+          maxLines: 3,
+          style: GoogleFonts.inter(fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'e.g. Payment not reconciling in sales report after GCash webhook failure',
+            hintStyle: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF94A3B8)),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF1E40AF), width: 1.5),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Access Scope Needed
+        Text(
+          'Target Access Scope (Least Privilege)',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _selectedScope,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+              items: _scopeOptions
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(s, style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B))),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _selectedScope = v);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Duration Chips
+        Text(
+          'Time-Bound Session Duration',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: _durationOptions.map((h) {
+            final selected = _selectedDuration == h;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedDuration = h),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: selected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Text(
+                  '${h}h window',
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : const Color(0xFF475569),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+
+        // Auto-purge safeguard
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFFECACA)),
+          ),
+          child: Row(
+            children: [
+              Checkbox(
+                value: _autoPurgeTestData,
+                activeColor: const Color(0xFFDC2626),
+                checkColor: Colors.white,
+                onChanged: (val) {
+                  setState(() => _autoPurgeTestData = val ?? true);
+                },
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Auto-purge test payments & orders upon completion',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF991B1B),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Prevents test orders and diagnostic payments from skewing production accounting & sales reports.',
+                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFB91C1C)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Compliance Info Box
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFBBF7D0)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.verified_user_rounded, color: Color(0xFF16A34A), size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Governance Protocol: Elevation requires developer confirmation. All actions during elevated sessions are logged to the immutable Audit Trail and auto-expire after $_selectedDuration hour(s).',
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    color: const Color(0xFF166534),
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Actions
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+              child: Text('Cancel', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F172A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _isSubmitting ? null : _submitRequest,
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send_rounded, size: 16),
+              label: Text(
+                _isSubmitting ? 'Dispatching...' : 'Dispatch IT Request',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveSessionAndAuditTab() {
+    final hasActive = _activeSession != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Active Session Card ──
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: hasActive ? const Color(0xFFECFDF5) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: hasActive ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+              width: hasActive ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    hasActive ? Icons.shield_rounded : Icons.check_circle_outline_rounded,
+                    color: hasActive ? const Color(0xFF059669) : const Color(0xFF64748B),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    hasActive ? 'ELEVATED SESSION IN PROGRESS' : 'Standard Role Isolation Active',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: hasActive ? const Color(0xFF065F46) : const Color(0xFF334155),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (hasActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF059669),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(width: 5, height: 5, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                          const SizedBox(width: 5),
+                          Text(
+                            ItAccessService.getRemainingTimeString(_activeSession!),
+                            style: GoogleFonts.inter(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                hasActive
+                    ? 'Developer yangchowit@gmail.com currently has temporary elevated administrative access under scope "${_activeSession!['access_scope'] ?? 'General'}".'
+                    : 'No external engineer currently possesses elevated access to Yang Chow systems.',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: hasActive ? const Color(0xFF047857) : const Color(0xFF64748B),
+                  height: 1.4,
+                ),
+              ),
+              if (hasActive) ...[
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFDC2626)),
+                    foregroundColor: const Color(0xFFDC2626),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 24),
+                            const SizedBox(width: 10),
+                            Text('Revoke IT Access?', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
+                          ],
+                        ),
+                        content: Text(
+                          'Are you sure you want to terminate the developer\'s elevated session immediately? Any pending diagnostic tasks will be stopped.',
+                          style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF475569)),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: Text('Cancel', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => Navigator.pop(c, true),
+                            child: Text('Revoke Immediately', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      final ok = await ItAccessService.revokeRequest(_activeSession!['id'], widget.user.email!);
+                      final updatedActive = await ItAccessService.getActiveRequest();
+                      widget.onSessionUpdated();
+                      if (mounted) {
+                        setState(() => _activeSession = updatedActive);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(ok ? '🔒 Elevated access revoked.' : 'Failed to revoke access.'),
+                            backgroundColor: ok ? const Color(0xFF0F172A) : const Color(0xFFDC2626),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.gpp_bad_rounded, size: 16),
+                  label: Text('Revoke Access Immediately (Kill Switch)', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // ── Recent Requests & Audit Trail ──
+        Text(
+          'Recent IT Elevation History',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 10),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: ItAccessService.getAdminRequests(widget.user.email!),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
+            }
+
+            final requests = snapshot.data ?? [];
+            if (requests.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Center(
+                  child: Text(
+                    'No recent IT access requests found.',
+                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: requests.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final r = requests[index];
+                final status = (r['status'] ?? 'pending').toString().toLowerCase();
+                final requestedAt = DateTime.tryParse(r['requested_at'] ?? '')?.toLocal();
+                final timeStr = requestedAt != null ? DateFormat('MMM d, h:mm a').format(requestedAt) : 'Recent';
+
+                Color statusColor;
+                Color statusBg;
+                String statusLabel;
+
+                switch (status) {
+                  case 'accepted':
+                    statusColor = const Color(0xFF059669);
+                    statusBg = const Color(0xFFECFDF5);
+                    statusLabel = 'Active Session';
+                    break;
+                  case 'resolved':
+                    statusColor = const Color(0xFF2563EB);
+                    statusBg = const Color(0xFFEFF6FF);
+                    statusLabel = 'Resolved';
+                    break;
+                  case 'revoked':
+                    statusColor = const Color(0xFF64748B);
+                    statusBg = const Color(0xFFF1F5F9);
+                    statusLabel = 'Revoked';
+                    break;
+                  case 'declined':
+                    statusColor = const Color(0xFFDC2626);
+                    statusBg = const Color(0xFFFEF2F2);
+                    statusLabel = 'Declined';
+                    break;
+                  case 'pending':
+                  default:
+                    statusColor = const Color(0xFFD97706);
+                    statusBg = const Color(0xFFFFFBEB);
+                    statusLabel = 'Pending Acceptance';
+                    break;
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: GoogleFonts.inter(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            timeStr,
+                            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${r['duration_hours'] ?? 2}h window',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                          ),
+                          if (status == 'pending') ...[
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () async {
+                                await ItAccessService.revokeRequest(r['id'], widget.user.email!);
+                                widget.onSessionUpdated();
+                                if (mounted) setState(() {});
+                              },
+                              child: Text(
+                                'Cancel',
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFDC2626)),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        r['issue_description'] ?? 'IT Elevation Request',
+                        style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Scope: ${r['access_scope'] ?? 'General'}',
+                        style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 }

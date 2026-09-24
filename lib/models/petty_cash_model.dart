@@ -224,17 +224,26 @@ class PettyCashExpense {
       case 'pending':
         return 'Pending';
       case 'approved':
-        return 'Approved';
+        return isAbono ? 'For Reimbursement' : 'Approved';
       case 'rejected':
         return 'Rejected';
       case 'reimbursed':
-        return 'Reimbursed';
+        return isAbono ? 'Reimbursed to Staff' : 'Reimbursed';
       default:
         return status;
     }
   }
 
   bool get isMultiItemExpense => inventoryItems != null && inventoryItems!.isNotEmpty;
+  bool get isAbono =>
+      (notes?.toUpperCase().contains('ABONO') ?? false) ||
+      (description.toUpperCase().contains('ABONO'));
+  bool get isNonOr =>
+      (notes?.toUpperCase().contains('NON-OR') ?? false) ||
+      (receiptNumber?.toUpperCase().contains('NON-OR') ?? false);
+  bool get isArchived =>
+      (notes?.toUpperCase().contains('[ARCHIVED]') ?? false) ||
+      status.toLowerCase() == 'archived';
 }
 
 class PettyCashReconciliation {
