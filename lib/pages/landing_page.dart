@@ -4584,24 +4584,83 @@ class _LandingPageState extends State<LandingPage>
               _buildOverallRating(),
               const SizedBox(height: 24),
 
-              // Auto-scrolling Review Carousel
-              SizedBox(
-                height: isMobile ? 190 : 250,
-                child: ListView.builder(
-                  controller: _reviewsScrollController,
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: displayReviews.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: EdgeInsets.only(
-                          right: isMobile ? 12 : 20,
-                          top: isMobile ? 4 : 8,
-                          bottom: isMobile ? 4 : 8),
-                      child: _LandingReviewCard(review: displayReviews[index]),
+              // Responsive Review Cards Layout (Desktop 4-col, Tablet 2-col, Mobile swipeable)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+
+                  // ── DESKTOP & WIDE SCREENS (PC / Laptop: width >= 1024) ──
+                  // Display 4 cards side-by-side filling 100% of container width with zero clipping!
+                  if (availableWidth >= 1024) {
+                    final cardCount = displayReviews.length.clamp(1, 4);
+                    const double spacing = 16.0;
+                    final totalSpacing = spacing * (cardCount - 1);
+                    final cardWidth = (availableWidth - totalSpacing) / cardCount;
+
+                    return SizedBox(
+                      height: 235,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: List.generate(cardCount, (index) {
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              right: index == cardCount - 1 ? 0 : spacing,
+                            ),
+                            child: SizedBox(
+                              width: cardWidth,
+                              child: _LandingReviewCard(review: displayReviews[index]),
+                            ),
+                          );
+                        }),
+                      ),
                     );
-                  },
-                ),
+                  }
+
+                  // ── TABLET & MEDIUM SCREENS (600 <= width < 1024) ──
+                  // 2 columns x 2 rows (2x2 grid) so all cards are completely visible without cut-off!
+                  if (availableWidth >= 600) {
+                    const double spacing = 14.0;
+                    final cardWidth = (availableWidth - spacing) / 2;
+                    final showCount = displayReviews.length.clamp(1, 4);
+
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: List.generate(showCount, (index) {
+                        return SizedBox(
+                          width: cardWidth,
+                          height: 220,
+                          child: _LandingReviewCard(review: displayReviews[index]),
+                        );
+                      }),
+                    );
+                  }
+
+                  // ── MOBILE SCREENS (width < 600) ──
+                  // Horizontal auto-scrolling carousel with properly proportioned cards
+                  return SizedBox(
+                    height: 195,
+                    child: ListView.builder(
+                      controller: _reviewsScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: displayReviews.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            right: 12,
+                            top: 4,
+                            bottom: 4,
+                          ),
+                          child: SizedBox(
+                            width: (availableWidth * 0.82).clamp(250.0, 290.0),
+                            child: _LandingReviewCard(review: displayReviews[index]),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 20),
@@ -8151,9 +8210,8 @@ class _LandingReviewCardState extends State<_LandingReviewCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
-        width: isMobile ? 260 : 350,
         transform: Matrix4.translationValues(0.0, _isHovered ? -6.0 : 0.0, 0.0),
-        padding: EdgeInsets.all(isMobile ? 12 : 22),
+        padding: EdgeInsets.all(isMobile ? 12 : 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),

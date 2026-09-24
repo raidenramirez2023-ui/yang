@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:google_fonts/google_fonts.dart';
@@ -81,6 +82,8 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage>
     }
   }
 
+  String? _receiptImageName;
+
   Future<void> _pickReceiptImage() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -88,50 +91,28 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage>
         imageQuality: 80,
       );
       if (image != null) {
+        final extension = image.name.split('.').last.toLowerCase();
+        final allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'heic', 'heif', 'jfif'];
+        if (!allowedExtensions.contains(extension)) {
+          _showErrorDialog('Please select a valid image file (${allowedExtensions.join(', ')}).');
+          return;
+        }
+
         final bytes = await image.readAsBytes();
         setState(() {
           _receiptBytes = bytes;
-          _isUploading = true;
+          _receiptImageName = image.name;
         });
-        await _uploadReceiptToSupabase(image.name, bytes);
       }
     } catch (e) {
-      setState(() => _isUploading = false);
       _showErrorDialog('Failed to pick image: $e');
-    }
-  }
-
-  Future<void> _uploadReceiptToSupabase(
-      String originalName, Uint8List bytes) async {
-    try {
-      final extension = originalName.split('.').last;
-      final fileName =
-          'paymongo_receipt_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final filePath = 'receipts/$fileName';
-
-      await Supabase.instance.client.storage
-          .from('avatars')
-          .uploadBinary(filePath, bytes,
-              fileOptions: const FileOptions(upsert: true));
-
-      final imageUrl = Supabase.instance.client.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-
-      setState(() {
-        _receiptImageUrl = imageUrl;
-        _isUploading = false;
-      });
-    } catch (e) {
-      setState(() => _isUploading = false);
-      _showErrorDialog('Failed to upload receipt: $e');
     }
   }
 
   void _handleManualPaymentSubmission() async {
     if (_paymentCompleted) return;
 
-    if (_receiptImageUrl == null) {
+    if (_receiptBytes == null) {
       _showErrorDialog('Please upload your payment receipt first.');
       return;
     }
@@ -139,6 +120,25 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage>
     setState(() => _isLoading = true);
 
     try {
+      // 1. Deferred Upload: Upload receipt to storage upon submission
+      final rawExt = (_receiptImageName?.split('.').last ?? 'jpg').toLowerCase();
+      final safeExt = (rawExt == 'png' || rawExt == 'webp') ? rawExt : 'jpg';
+      final contentType = safeExt == 'png' ? 'image/png' : 'image/jpeg';
+      final fileName = 'paymongo_receipt_${widget.reservationId}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
+
+      final uploadedUrl = await ImageStorageService.uploadReceipt(
+        bytes: _receiptBytes!,
+        fileName: fileName,
+        contentType: contentType,
+      );
+
+      if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        throw Exception('Failed to upload receipt image. Please check your connection and try again.');
+      }
+
+      _receiptImageUrl = uploadedUrl;
+
+      // 2. Update payment status in database
       const String paymentStatus = 'pending_verification';
 
       final success = await _reservationService.updatePaymentStatus(
@@ -158,7 +158,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage>
         throw Exception('Failed to update status');
       }
     } catch (e) {
-      _showErrorDialog('Update failed: $e');
+      _showErrorDialog('Payment submission failed: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -319,7 +319,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage>
 
   @override
   Widget build(BuildContext context) {
-    final bool receiptReady = _receiptImageUrl != null && !_isUploading;
+    final bool receiptReady = _receiptBytes != null && !_isUploading;
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isSmallScreen = screenWidth < 360;
 
@@ -544,7 +544,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage>
                                     color: Color(0xFFD9A441), size: 14),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'Receipt attached & uploaded',
+                                  'Receipt attached',
                                   style: GoogleFonts.inter(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,

@@ -3466,6 +3466,126 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
+  Future<String?> _fetchProofOfPayment(Map<String, dynamic> refund) async {
+    final direct = refund['receipt_url'] ?? refund['proof_url'] ?? refund['proof_image_url'];
+    if (direct != null && direct.toString().trim().isNotEmpty) {
+      return direct.toString().trim();
+    }
+    final sourceId = (refund['source_id'] ?? '').toString().trim();
+    final sourceTable = (refund['source_table'] ?? '').toString().trim().toLowerCase();
+    if (sourceId.isEmpty) return null;
+
+    try {
+      if (sourceTable == 'reservations' || sourceTable.isEmpty) {
+        final res = await Supabase.instance.client
+            .from('reservations')
+            .select('receipt_url')
+            .eq('id', sourceId)
+            .maybeSingle();
+        final url = res?['receipt_url']?.toString();
+        if (url != null && url.trim().isNotEmpty) return url.trim();
+      }
+      if (sourceTable == 'advance_orders' || sourceTable.isEmpty) {
+        final adv = await Supabase.instance.client
+            .from('advance_orders')
+            .select('receipt_url')
+            .eq('id', sourceId)
+            .maybeSingle();
+        final url = adv?['receipt_url']?.toString();
+        if (url != null && url.trim().isNotEmpty) return url.trim();
+      }
+      if (sourceTable == 'orders') {
+        final ord = await Supabase.instance.client
+            .from('orders')
+            .select('receipt_url')
+            .eq('id', sourceId)
+            .maybeSingle();
+        final url = ord?['receipt_url']?.toString();
+        if (url != null && url.trim().isNotEmpty) return url.trim();
+      }
+    } catch (e) {
+      debugPrint('Error fetching proof of payment: $e');
+    }
+    return null;
+  }
+
+  void _showReceiptImagePreview(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black54,
+                    blurRadius: 30,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.8,
+                  maxScale: 4.0,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(color: AppTheme.warmGold),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.broken_image_rounded, size: 48, color: Colors.white60),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Unable to load proof of payment image.',
+                              style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.black87,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                  tooltip: 'Close',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showRefundDetailsDialog(Map<String, dynamic> refund) {
     final status = (refund['status'] ?? 'pending').toString().toLowerCase();
     final sourceTable = (refund['source_table'] ?? '').toString();
@@ -3809,6 +3929,184 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           ),
                         ),
                       ],
+
+                      // 3.5. Proof of Payment
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long_rounded, size: 15, color: Color(0xFF0F766E)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Proof of Payment',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: _darkBg,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      FutureBuilder<String?>(
+                        future: _fetchProofOfPayment(refund),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F766E)),
+                                ),
+                              ),
+                            );
+                          }
+                          final proofUrl = snapshot.data;
+                          if (proofUrl != null && proofUrl.isNotEmpty) {
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  InkWell(
+                                    onTap: () => _showReceiptImagePreview(proofUrl),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      height: 160,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                                      ),
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(
+                                              proofUrl,
+                                              width: double.infinity,
+                                              height: 160,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) => Center(
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.broken_image_rounded, color: Colors.grey, size: 28),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      'Failed to load image',
+                                                      style: GoogleFonts.plusJakartaSans(fontSize: 11, color: Colors.grey),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: 8,
+                                            right: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black87,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.zoom_in_rounded, size: 13, color: Colors.white),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Tap to enlarge',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF15803D)),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Proof of Payment Attached',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF15803D),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: () => _showReceiptImagePreview(proofUrl),
+                                        icon: const Icon(Icons.fullscreen_rounded, size: 15),
+                                        label: const Text('View Full Image', style: TextStyle(fontSize: 11.5)),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(0xFF0F766E),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.image_not_supported_outlined, size: 18, color: Color(0xFF94A3B8)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'No proof of payment uploaded for this request.',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: const Color(0xFF64748B),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
 
                       // 4. Admin Notes
                       if (adminNotes != null && adminNotes.trim().isNotEmpty) ...[

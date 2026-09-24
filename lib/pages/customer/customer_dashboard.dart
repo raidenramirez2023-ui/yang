@@ -400,11 +400,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   // Payment option: 'half' for deposit, 'full' for full payment
-
-  String _paymentOption = 'half';
+  String? _paymentOption;
 
   // Payment method: 'paymongo', 'gcash', 'cash'
-  String _selectedPaymentMethod = 'paymongo';
+  String? _selectedPaymentMethod;
 
 
 
@@ -6160,7 +6159,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 children: [
                   Expanded(
                     child: AnimatedTapScale(
-                      onTap: () => setState(() => _reservationType = 'Event Place'),
+                      onTap: () {
+                        if (_reservationType != 'Event Place') {
+                          setState(() {
+                            _reservationType = 'Event Place';
+                            _resetBookingForm();
+                          });
+                        }
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -6205,7 +6211,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   ),
                   Expanded(
                     child: AnimatedTapScale(
-                      onTap: () => setState(() => _reservationType = 'Advance Order'),
+                      onTap: () {
+                        if (_reservationType != 'Advance Order') {
+                          setState(() {
+                            _reservationType = 'Advance Order';
+                            _resetBookingForm();
+                          });
+                        }
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -6459,12 +6472,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                             final timeTile = AnimatedTapScale(
                               onTap: () async {
-                                final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
+                                final startHour = 10;
                                 final endHour = effectiveEndHour;
 
                                 final TimeOfDay? pickedTime = await showTimePicker(
                                   context: context,
-                                  initialTime: TimeOfDay(hour: startHour, minute: 0),
+                                  initialTime: const TimeOfDay(hour: 10, minute: 0),
                                 );
 
                                 if (pickedTime != null) {
@@ -6582,7 +6595,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 onPickCustomTime: () async {
                                   final TimeOfDay? pickedTime = await showTimePicker(
                                     context: context,
-                                    initialTime: TimeOfDay(hour: _operatingHoursStart, minute: 0),
+                                    initialTime: const TimeOfDay(hour: 10, minute: 0),
                                   );
                                   if (pickedTime != null) {
                                     _handleTimeSelection(pickedTime, _operatingHoursStart, effectiveEndHour);
@@ -6621,7 +6634,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           _buildStyledTextField(
                             controller: _guestsController,
                             hint: _reservationType == 'Event Place'
-                                ? 'Enter guest count ($_minGuestCount–100)'
+                                ? 'Enter guest count (30–100)'
                                 : 'Enter guest count (1–20)',
                             icon: Icons.people_alt_rounded,
                             keyboardType: TextInputType.number,
@@ -6640,7 +6653,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               }),
                             ],
                             helperText: _reservationType == 'Event Place'
-                                ? 'Allowed: $_minGuestCount–100 guests (Numbers only)'
+                                ? 'Allowed: 30–100 guests (Numbers only)'
                                 : 'Allowed: 1–20 guests (Numbers only)',
                           ),
                           const SizedBox(height: 18),
@@ -6793,71 +6806,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           ),
                         ),
                         const SizedBox(height: 18),
-
-                        // Extra Time (Event Place Only)
-                        if (_reservationType == 'Event Place') ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppTheme.cardBorder),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.history_toggle_off_rounded, size: 18, color: AppTheme.primaryColor),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Extra Time Extension',
-                                          style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: isSmallScreen ? 12 : 13,
-                                            color: AppTheme.darkGrey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Switch(
-                                      value: _addExtraTime,
-                                      activeThumbColor: AppTheme.primaryColor,
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _addExtraTime = val;
-                                          if (!_addExtraTime) {
-                                            _selectedExtraTime = null;
-                                          }
-                                          _updateDurationText();
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                if (_addExtraTime) ...[
-                                  const SizedBox(height: 8),
-                                  _buildStyledDropdown<String>(
-                                    value: _selectedExtraTime,
-                                    hint: 'Select extra hours',
-                                    icon: Icons.add_alarm_rounded,
-                                    items: _extraTimeOptions,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _selectedExtraTime = val;
-                                        _updateDurationText();
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(height: 6),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                        ],
 
                         // Payment Option Selection (Event Place Only)
                         if (_reservationType == 'Event Place') ...[
@@ -7354,13 +7302,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     });
   }
 
-
+  /// Resets all booking form controllers, menu selection, and options cleanly
+  void _resetBookingForm() {
+    _dateController.clear();
+    _startTimeController.clear();
+    _guestsController.clear();
+    _durationController.text = '2';
+    _specialRequestsController.clear();
+    _selectedEventType = null;
+    _eventController.clear();
+    _selectedBaseDuration = null;
+    _addExtraTime = false;
+    _selectedExtraTime = null;
+    _paymentOption = null;
+    _selectedPaymentMethod = null;
+    _selectedIdImage = null;
+    for (final key in _selectedMenuItems.keys) {
+      _preOrderCart.remove(key);
+    }
+    _selectedMenuItems.clear();
+    _saveCartToPrefs();
+  }
 
   // ── Reservation Form Helpers ──────────────────────────────────────
-
-
-
-
 
   Widget _buildFormLabel(String label) {
     return Row(
@@ -11932,65 +11896,33 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       if (!mounted) return;
 
+      // Calculate payment amount before resetting form
+      final bool hasSelectedDishes = _selectedMenuItems.isNotEmpty;
+      final double totalMenuPrice = hasSelectedDishes
+          ? _menuReservationService.calculateMenuTotalPrice(_selectedMenuItems)
+          : 0.0;
+      final double paymentAmount = hasSelectedDishes
+          ? (_paymentOption == 'full' && _reservationType == 'Event Place'
+              ? totalMenuPrice
+              : _menuReservationService.calculateMenuDepositAmount(totalMenuPrice, reservationType: _reservationType))
+          : 0.0;
 
+      if (_uploadedIdUrl != null && _uploadedIdUrl!.isNotEmpty) {
+        _savedAccountValidIdUrl = _uploadedIdUrl;
+        _hasSavedValidId = true;
+      }
 
-      // Clear menu and ID selection after successful reservation
-
-
-
+      // Reset the full booking form cleanly
       setState(() {
-        for (final key in _selectedMenuItems.keys) {
-          _preOrderCart.remove(key);
-        }
-        _selectedMenuItems.clear();
-
-        _selectedIdImage = null;
-
-        if (_uploadedIdUrl != null && _uploadedIdUrl!.isNotEmpty) {
-          _savedAccountValidIdUrl = _uploadedIdUrl;
-          _hasSavedValidId = true;
-        }
-
-        // Retain the saved ID URL on account so next booking does not need re-upload
+        _resetBookingForm();
         _uploadedIdUrl = _savedAccountValidIdUrl;
+        _selectedIndex = 0;
       });
-
-      _saveCartToPrefs();
-
-
 
       _loadCustomerReservations();
 
-
-
-      setState(() => _selectedIndex = 0);
-
-
-
       // Show success message with pricing details
-
-
-
-      if (_selectedMenuItems.isNotEmpty) {
-
-        final totalMenuPrice = _menuReservationService.calculateMenuTotalPrice(
-
-          _selectedMenuItems,
-
-        );
-
-
-
-        // Calculate payment amount based on selected payment option
-
-        final paymentAmount = _paymentOption == 'full' && _reservationType == 'Event Place'
-
-            ? totalMenuPrice
-
-            : _menuReservationService.calculateMenuDepositAmount(totalMenuPrice, reservationType: _reservationType);
-
-
-
+      if (hasSelectedDishes) {
         _showReservationQuotationSuccessDialog(
           totalMenuPrice: totalMenuPrice,
           depositAmount: paymentAmount,
@@ -13382,19 +13314,53 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       filteredByType = customerReservations;
     }
 
-    final activeBookings = filteredByType.where((r) {
-      final status = r['status']?.toString().toLowerCase() ?? '';
-      return status != 'cancelled' && status != 'done' && status != 'completed';
-    }).toList();
+    bool isEventActive(Map<String, dynamic> r) {
+      final s = (r['status'] ?? '').toString().toLowerCase().trim();
+      final ps = (r['payment_status'] ?? '').toString().toLowerCase().trim();
+      if (s == 'cancelled' || s == 'completed' || s == 'done' || s == 'expired') return false;
+      if (s == 'pending' || s == 'confirmed' || s == 'unpaid' || s == 'verifying') return true;
+      if (ps == 'unpaid' || ps == 'verifying' || ps == 'half_paid' || ps == 'paid') return true;
+      return true;
+    }
 
-    final confirmedBookings = filteredByType.where((r) => r['status'] == 'confirmed').toList();
+    bool isEventCompleted(Map<String, dynamic> r) {
+      final s = (r['status'] ?? '').toString().toLowerCase().trim();
+      return s == 'completed' || s == 'done';
+    }
+
+    bool isAdvanceOrderActive(Map<String, dynamic> r) {
+      final s = (r['status'] ?? '').toString().toLowerCase().trim();
+      final ps = (r['payment_status'] ?? '').toString().toLowerCase().trim();
+      if (s == 'cancelled' || s == 'ready' || s == 'served' || s == 'done' || s == 'completed') return false;
+      if (s == 'unpaid' || s == 'verifying' || s == 'pending' || s == 'preparing' || s == 'confirmed') return true;
+      if (ps == 'unpaid' || ps == 'verifying') return true;
+      return true;
+    }
+
+    bool isAdvanceOrderReady(Map<String, dynamic> r) {
+      final s = (r['status'] ?? '').toString().toLowerCase().trim();
+      return s == 'ready' || s == 'served' || s == 'done' || s == 'completed';
+    }
+
+    bool isItemActive(Map<String, dynamic> r) {
+      final isAdvance = r['_db_table'] == 'advance_orders' || r['_is_advance_order'] == true;
+      return isAdvance ? isAdvanceOrderActive(r) : isEventActive(r);
+    }
+
+    bool isItemSecondFilter(Map<String, dynamic> r) {
+      final isAdvance = r['_db_table'] == 'advance_orders' || r['_is_advance_order'] == true;
+      return isAdvance ? isAdvanceOrderReady(r) : isEventCompleted(r);
+    }
+
+    final activeBookings = filteredByType.where(isItemActive).toList();
+    final secondFilterBookings = filteredByType.where(isItemSecondFilter).toList();
 
     // Filter displayed list according to selected filter
     List<Map<String, dynamic>> displayedReservations;
     if (_activityFilter == 'in_progress') {
       displayedReservations = activeBookings;
     } else if (_activityFilter == 'confirmed') {
-      displayedReservations = confirmedBookings;
+      displayedReservations = secondFilterBookings;
     } else {
       displayedReservations = filteredByType;
     }
@@ -13422,15 +13388,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     if (_activityTypeFilter == 'event') {
       sectionTitle = _activityFilter == 'in_progress'
           ? 'In Progress Events'
-          : (_activityFilter == 'confirmed' ? 'Confirmed Events' : 'Event Reservations');
+          : (_activityFilter == 'confirmed' ? 'Completed Events' : 'Event Bookings');
     } else if (_activityTypeFilter == 'advance_order') {
       sectionTitle = _activityFilter == 'in_progress'
           ? 'In Progress Advance Orders'
-          : (_activityFilter == 'confirmed' ? 'Confirmed Advance Orders' : 'Advance Orders');
+          : (_activityFilter == 'confirmed' ? 'Ready / Served Advance Orders' : 'Advance Orders');
     } else {
       sectionTitle = _activityFilter == 'in_progress'
-          ? 'In Progress Orders'
-          : (_activityFilter == 'confirmed' ? 'Confirmed Bookings' : 'Active & Recent Bookings');
+          ? 'In Progress Bookings & Orders'
+          : (_activityFilter == 'confirmed' ? 'Completed & Ready Orders' : 'Active & Recent Bookings');
     }
 
     return SingleChildScrollView(
@@ -13680,7 +13646,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               child: Row(
                                 children: [
                                   Icon(
-                                    Icons.verified_rounded,
+                                    _activityTypeFilter == 'advance_order'
+                                        ? Icons.room_service_rounded
+                                        : (_activityTypeFilter == 'event'
+                                            ? Icons.task_alt_rounded
+                                            : Icons.verified_rounded),
                                     color: _activityFilter == 'confirmed' ? const Color(0xFF86EFAC) : const Color(0xFF34C759),
                                     size: 16,
                                   ),
@@ -13690,7 +13660,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Confirmed',
+                                          _activityTypeFilter == 'advance_order'
+                                              ? 'Ready/Served'
+                                              : (_activityTypeFilter == 'event'
+                                                  ? 'Completed'
+                                                  : 'Completed / Ready'),
                                           style: GoogleFonts.inter(
                                             color: _activityFilter == 'confirmed' ? Colors.white : const Color(0xFF94A3B8),
                                             fontSize: 10,
@@ -13698,7 +13672,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                           ),
                                         ),
                                         Text(
-                                          '${confirmedBookings.length} Approved',
+                                          _activityTypeFilter == 'advance_order'
+                                              ? '${secondFilterBookings.length} Ready'
+                                              : '${secondFilterBookings.length} Completed',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.inter(
@@ -14086,9 +14062,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           : (_activityFilter == 'in_progress'
                               ? 'No In-Progress Bookings'
                               : (_activityFilter == 'confirmed'
-                                  ? 'No Confirmed Bookings'
+                                  ? (_activityTypeFilter == 'advance_order'
+                                      ? 'No Ready / Served Orders'
+                                      : (_activityTypeFilter == 'event'
+                                          ? 'No Completed Events'
+                                          : 'No Completed / Ready Items'))
                                   : (_activityTypeFilter == 'event'
-                                      ? 'No Event Reservations'
+                                      ? 'No Event Bookings'
                                       : 'No Advance Orders'))),
                       style: GoogleFonts.inter(
                         fontSize: 18,
@@ -15341,15 +15321,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   void _showCancellationDialog(Map<String, dynamic> reservation) {
-
     final eventDate = reservation['event_date'] ?? reservation['order_date'] ?? '';
-
-
-
     final eventType = reservation['event_type'] ?? 'Reservation';
-
-
-
     final double paymentAmount = (reservation['payment_amount'] as num?)?.toDouble() ??
         (reservation['deposit_amount'] as num?)?.toDouble() ??
         (reservation['amount_paid'] as num?)?.toDouble() ??
@@ -15357,447 +15330,499 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         (reservation['total_amount'] as num?)?.toDouble() ??
         0.0;
 
-
-
     final refundAmount = RefundService().calculateRefundAmount(
-
       eventDate: eventDate,
-
       paymentAmount: paymentAmount,
-
     );
 
-
-
-    void cancelReservation() async {
-
-      if (!mounted) return;
-
-
-
-      Navigator.pop(context);
-
-
-
-      setState(() => _isLoading = true);
-
-
-
-      try {
-
-        final currentUser = Supabase.instance.client.auth.currentUser;
-
-
-
-        if (currentUser == null) throw Exception('User not authenticated');
-
-
-
-        // Show reason selection dialog
-
-
-
-        String? selectedReason;
-
-
-
-        await showDialog(
-
-          context: context,
-
-
-
-          builder: (context) => AlertDialog(
-
-            title: const Text('Cancellation Reason'),
-
-
-
-            content: Column(
-
-              mainAxisSize: MainAxisSize.min,
-
-
-
-              children: [
-
-                const Text('Please select a reason for cancellation:'),
-
-
-
-                const SizedBox(height: 16),
-
-
-
-                ...AppConstants.cancellationReasons.map(
-
-                  (reason) => ListTile(
-
-                    title: Text(reason),
-
-
-
-                    onTap: () {
-
-                      selectedReason = reason;
-
-
-
-                      Navigator.pop(context);
-
-                    },
-
-                  ),
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-        );
-
-
-
-        if (selectedReason == null) {
-
-          setState(() => _isLoading = false);
-
-
-
-          return;
-
-        }
-
-
-
-        // Cancel the record in the appropriate table
-
-        if (reservation['_db_table'] == 'advance_orders') {
-
-          await _reservationService.cancelAdvanceOrder(
-
-            orderId: reservation['id'],
-
-
-
-            customerEmail: currentUser.email!,
-
-
-
-            customerName: currentUser.userMetadata?['name'] ?? 'Customer',
-
-
-
-            orderType: reservation['order_type'] ?? 'Pick Up',
-
-
-
-            orderDate: reservation['order_date'] ?? eventDate,
-
-
-
-            cancellationReason: selectedReason!,
-
-          );
-
-        } else {
-
-          await _reservationService.cancelReservation(
-
-            reservationId: reservation['id'],
-
-
-
-            customerEmail: currentUser.email!,
-
-
-
-            customerName: currentUser.userMetadata?['name'] ?? 'Customer',
-
-
-
-            eventType: eventType,
-
-
-
-            eventDate: eventDate,
-
-
-
-            cancellationReason: selectedReason!,
-
-
-
-            isAdminCancel: false,
-
-          );
-
-        }
-
-
-
-        // Send in-app notification to customer
-
-
-
-        await NotificationService.sendNotification(
-
-          recipientEmail: currentUser.email,
-
-
-
-          actorName: 'System',
-
-
-
-          actionType: 'cancelled',
-
-
-
-          reservationId: reservation['id'],
-
-
-
-          eventType: eventType,
-
-
-
-          eventDate: eventDate,
-
-        );
-
-
-
-        // Send in-app notification to admins
-
-
-
-        await NotificationService.sendNotification(
-
-          isForAdmin: true,
-
-
-
-          actorName: currentUser.userMetadata?['name'] ?? 'Customer',
-
-
-
-          actionType: 'cancelled',
-
-
-
-          reservationId: reservation['id'],
-
-
-
-          eventType: eventType,
-
-
-
-          eventDate: eventDate,
-
-
-
-          customerEmail: currentUser.email,
-
-        );
-
-
-
-        _showSnackBar(
-
-          'Reservation cancelled successfully. Refund: ₱${refundAmount.toStringAsFixed(2)}',
-
-
-
-          Colors.green,
-
-        );
-
-
-
-        _loadCustomerReservations();
-
-      } catch (e) {
-
-        _showSnackBar('Error cancelling reservation: $e', Colors.red);
-
-      } finally {
-
-        if (mounted) {
-
-          setState(() => _isLoading = false);
-
-        }
-
-      }
-
-    }
-
-
+    Uint8List? pickedProofBytes;
+    String? pickedProofExt;
+
+    final String paymentMethodRaw = (reservation['payment_method'] ?? '').toString().trim();
+    final String paymentMethodLabel = paymentMethodRaw.isEmpty
+        ? 'PayMongo, GCash, or Cash on site'
+        : (paymentMethodRaw.toLowerCase() == 'cash'
+            ? 'Cash on site'
+            : (paymentMethodRaw.toLowerCase() == 'gcash'
+                ? 'GCash'
+                : (paymentMethodRaw.toLowerCase() == 'paymongo'
+                    ? 'PayMongo'
+                    : paymentMethodRaw)));
+
+    String? selectedReason;
+    final TextEditingController otherReasonController = TextEditingController();
+    bool isSubmitting = false;
 
     showDialog(
-
       context: context,
-
-
-
       barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Future<void> pickProofImage() async {
+            try {
+              final picker = ImagePicker();
+              final picked = await picker.pickImage(
+                source: ImageSource.gallery,
+                imageQuality: 85,
+              );
+              if (picked == null) return;
 
+              final bytes = await picked.readAsBytes();
+              final ext = picked.name.split('.').last.toLowerCase();
+              final safeExt = (ext == 'png' || ext == 'webp') ? ext : 'jpg';
 
+              setDialogState(() {
+                pickedProofBytes = bytes;
+                pickedProofExt = safeExt;
+              });
+            } catch (e) {
+              if (mounted) {
+                _showSnackBar('Error picking image: $e', Colors.red);
+              }
+            }
+          }
 
-      builder: (context) => AlertDialog(
+          Future<void> handleConfirmCancellation() async {
+            final finalReason = (selectedReason == 'Other' && otherReasonController.text.trim().isNotEmpty)
+                ? otherReasonController.text.trim()
+                : (selectedReason ?? 'Cancelled by customer');
 
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            setDialogState(() => isSubmitting = true);
 
+            try {
+              final currentUser = Supabase.instance.client.auth.currentUser;
+              if (currentUser == null) throw Exception('User not authenticated');
 
+              // Deferred Upload: Only upload to Firebase Storage when confirming cancellation
+              String? uploadedProofUrl;
+              if (pickedProofBytes != null && pickedProofBytes!.isNotEmpty) {
+                final safeExt = pickedProofExt ?? 'jpg';
+                final contentType = safeExt == 'png' ? 'image/png' : 'image/jpeg';
+                final fileName = 'refund_proof_${reservation['id'] ?? 'res'}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
 
-        title: const Row(
+                uploadedProofUrl = await ImageStorageService.uploadReceipt(
+                  bytes: pickedProofBytes!,
+                  fileName: fileName,
+                  contentType: contentType,
+                );
 
-          children: [
+                if (uploadedProofUrl == null || uploadedProofUrl.isEmpty) {
+                  throw Exception('Failed to upload proof of payment. Please check your connection and try again.');
+                }
+              }
 
-            Icon(Icons.cancel_outlined, color: Colors.red),
+              // Cancel the record in the appropriate table
+              if (reservation['_db_table'] == 'advance_orders') {
+                await _reservationService.cancelAdvanceOrder(
+                  orderId: reservation['id'],
+                  customerEmail: currentUser.email!,
+                  customerName: currentUser.userMetadata?['name'] ?? 'Customer',
+                  orderType: reservation['order_type'] ?? 'Pick Up',
+                  orderDate: reservation['order_date'] ?? eventDate,
+                  cancellationReason: finalReason,
+                  receiptUrl: uploadedProofUrl,
+                );
+              } else {
+                await _reservationService.cancelReservation(
+                  reservationId: reservation['id'],
+                  customerEmail: currentUser.email!,
+                  customerName: currentUser.userMetadata?['name'] ?? 'Customer',
+                  eventType: eventType,
+                  eventDate: eventDate,
+                  cancellationReason: finalReason,
+                  isAdminCancel: false,
+                  receiptUrl: uploadedProofUrl,
+                );
+              }
 
+              // Send in-app notification to customer
+              await NotificationService.sendNotification(
+                recipientEmail: currentUser.email,
+                actorName: 'System',
+                actionType: 'cancelled',
+                reservationId: reservation['id'],
+                eventType: eventType,
+                eventDate: eventDate,
+              );
 
+              // Send in-app notification to admins
+              await NotificationService.sendNotification(
+                isForAdmin: true,
+                actorName: currentUser.userMetadata?['name'] ?? 'Customer',
+                actionType: 'cancelled',
+                reservationId: reservation['id'],
+                eventType: eventType,
+                eventDate: eventDate,
+                customerEmail: currentUser.email,
+              );
 
-            SizedBox(width: 12),
+              if (dialogCtx.mounted) {
+                Navigator.pop(dialogCtx);
+              }
 
+              _showSnackBar(
+                refundAmount > 0
+                    ? 'Reservation cancelled successfully. Refund request submitted: ₱${refundAmount.toStringAsFixed(2)}'
+                    : 'Reservation cancelled successfully.',
+                Colors.green,
+              );
 
+              _loadCustomerReservations();
+            } catch (e) {
+              setDialogState(() => isSubmitting = false);
+              _showSnackBar('Error cancelling reservation: $e', Colors.red);
+            }
+          }
 
-            Text('Cancel Reservation'),
+          final bool requiresProof = refundAmount > 0 || paymentAmount > 0;
+          final bool hasValidReason = selectedReason != null &&
+              selectedReason!.isNotEmpty &&
+              (selectedReason != 'Other' || otherReasonController.text.trim().isNotEmpty);
+          final bool hasValidProof = !requiresProof || (pickedProofBytes != null && pickedProofBytes!.isNotEmpty);
+          final bool canSubmit = !isSubmitting && hasValidReason && hasValidProof;
 
-          ],
-
-        ),
-
-
-
-        content: Column(
-
-          mainAxisSize: MainAxisSize.min,
-
-
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
-          children: [
-
-            Text('Event: $eventType on $eventDate'),
-
-
-
-            const SizedBox(height: 12),
-
-
-
-            Container(
-
-              padding: const EdgeInsets.all(12),
-
-
-
-              decoration: BoxDecoration(
-
-                color: Colors.blue.withValues(alpha: 0.1),
-
-
-
-                borderRadius: BorderRadius.circular(8),
-
-              ),
-
-
-
-              child: Column(
-
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
-                children: [
-
-                  const Text(
-
-                    'Refund Information:',
-
-
-
-                    style: TextStyle(fontWeight: FontWeight.bold),
-
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-
-
-
-                  const SizedBox(height: 8),
-                  Text('Expected Refund: ₱${refundAmount.toStringAsFixed(2)}'),
-                  const SizedBox(height: 4),
-                  Text(
-                    refundAmount > 0
-                        ? 'Refund will be processed within 5-7 business days'
-                        : (paymentAmount > 0
-                            ? 'No refund (cancellation past policy window)'
-                            : 'No payment made for this booking (Unpaid)'),
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  child: const Icon(Icons.cancel_outlined, color: Colors.red, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Cancel Reservation',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
                   ),
-                ],
+                ),
+              ],
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Event: $eventType on $eventDate',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
+                    // Refund Banner
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: refundAmount > 0
+                            ? const Color(0xFFF0FDF4)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: refundAmount > 0
+                              ? const Color(0xFFBBF7D0)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                refundAmount > 0 ? Icons.currency_exchange_rounded : Icons.info_outline_rounded,
+                                size: 16,
+                                color: refundAmount > 0 ? const Color(0xFF166534) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Refund Information:',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: refundAmount > 0 ? const Color(0xFF166534) : const Color(0xFF334155),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Expected Refund: ₱${refundAmount.toStringAsFixed(2)}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: refundAmount > 0 ? const Color(0xFF15803D) : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            refundAmount > 0
+                                ? 'Refund will be processed within 5-7 business days upon Admin review.'
+                                : (paymentAmount > 0
+                                    ? 'No refund (cancellation past policy window)'
+                                    : 'No payment made for this booking (Unpaid)'),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Reason selection
+                    Row(
+                      children: [
+                        Text(
+                          'Cancellation Reason',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text(
+                          '*',
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedReason,
+                          hint: Text(
+                            'Select cancellation reason',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              color: const Color(0xFF94A3B8),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            color: const Color(0xFF0F172A),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          items: AppConstants.cancellationReasons.map((reason) {
+                            return DropdownMenuItem<String>(
+                              value: reason,
+                              child: Text(reason),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() => selectedReason = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+
+                    if (selectedReason == 'Other') ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: otherReasonController,
+                        onChanged: (_) => setDialogState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Please specify your reason...',
+                          hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
+                        maxLines: 2,
+                      ),
+                    ],
+
+                    // Proof of Payment Upload Section (Shown when refund is expected or payment was made)
+                    if (requiresProof) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long_rounded, size: 15, color: Color(0xFF0F766E)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Proof of Payment',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            '*',
+                            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      if (pickedProofBytes != null && pickedProofBytes!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.memory(
+                                  pickedProofBytes!,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: const Color(0xFFE2E8F0),
+                                    child: const Icon(Icons.image_not_supported_rounded, size: 20, color: Colors.grey),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Proof Attached',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF166534),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Payment receipt / transaction proof selected',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: isSubmitting ? null : pickProofImage,
+                                icon: const Icon(Icons.sync_rounded, size: 14),
+                                label: const Text('Replace', style: TextStyle(fontSize: 11.5)),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0F766E),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        InkWell(
+                          onTap: isSubmitting ? null : pickProofImage,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.add_photo_alternate_outlined, size: 20, color: Color(0xFF0F766E)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Upload Proof of Payment',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0F766E),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
               ),
-
             ),
-
-          ],
-
-        ),
-
-
-
-        actions: [
-
-          TextButton(
-
-            onPressed: () => Navigator.pop(context),
-
-
-
-            child: const Text('Keep Reservation'),
-
-          ),
-
-
-
-          ElevatedButton(
-
-            style: ElevatedButton.styleFrom(
-
-              backgroundColor: Colors.red,
-
-
-
-              foregroundColor: Colors.white,
-
-            ),
-
-
-
-            onPressed: cancelReservation,
-
-
-
-            child: const Text('Cancel Reservation'),
-
-          ),
-
-        ],
-
+            actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                child: Text(
+                  'Keep Reservation',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: canSubmit ? Colors.red : const Color(0xFFE2E8F0),
+                  foregroundColor: canSubmit ? Colors.white : const Color(0xFF94A3B8),
+                  disabledBackgroundColor: const Color(0xFFE2E8F0),
+                  disabledForegroundColor: const Color(0xFF94A3B8),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                onPressed: canSubmit ? handleConfirmCancellation : null,
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        'Cancel Reservation',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
-
     );
-
   }
 
 
@@ -17016,9 +17041,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         return;
       }
 
+      final int minGuests = _reservationType == 'Event Place' ? 30 : 1;
+      final int maxGuests = _reservationType == 'Event Place' ? 100 : 20;
       final int? guestCount = int.tryParse(guests);
-      if (guestCount == null || guestCount < _minGuestCount || guestCount > 100) {
-        _showSnackBar('Number of guests must be between $_minGuestCount and 100', Colors.red);
+      if (guestCount == null || guestCount < minGuests || guestCount > maxGuests) {
+        _showSnackBar('Number of guests must be between $minGuests and $maxGuests for Event Place', Colors.red);
         return;
       }
 
@@ -17027,7 +17054,36 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         return;
       }
 
-      // Valid ID is now optional — no blocking validation
+      // Validate 4-day advance rule for Event Place
+      try {
+        final parsedDate = DateFormat('MMMM d, yyyy').parse(date);
+        final now = DateTime.now();
+        final todayMidnight = DateTime(now.year, now.month, now.day);
+        final minDateMidnight = todayMidnight.add(const Duration(days: 4));
+        final selectedDateMidnight = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+
+        if (selectedDateMidnight.isBefore(minDateMidnight)) {
+          final earliestAllowed = DateFormat('MMMM d, yyyy').format(minDateMidnight);
+          _showSnackBar(
+            'Event reservations must be booked at least 4 days in advance. Earliest available date is $earliestAllowed.',
+            Colors.red,
+          );
+          return;
+        }
+      } catch (e) {
+        _showSnackBar('Invalid date format', Colors.red);
+        return;
+      }
+
+      if (_paymentOption == null) {
+        _showSnackBar('Please select a payment option (50% Deposit or Pay in Full)', Colors.red);
+        return;
+      }
+
+      if (_selectedPaymentMethod == null) {
+        _showSnackBar('Please select a payment method', Colors.red);
+        return;
+      }
     } else {
       if (date.isEmpty) hasRequiredFields = false;
       if (startTime.isEmpty) hasRequiredFields = false;
@@ -17045,6 +17101,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           _showSnackBar('Number of guests must be between 1 and 20', Colors.red);
           return;
         }
+      }
+
+      if (_selectedPaymentMethod == null) {
+        _showSnackBar('Please select a payment method', Colors.red);
+        return;
       }
     }
 
@@ -17457,31 +17518,54 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         _showSnackBar('Please wait for your Valid ID to finish uploading', Colors.orange);
         return;
       }
-      // Valid ID is now optional — no blocking validation
     }
-
-
 
     if (date.isEmpty) {
-
       _showSnackBar('Please select a date', Colors.red);
-
-
-
       return;
-
     }
 
-
-
     if (startTime.isEmpty) {
-
       _showSnackBar('Please select a start time', Colors.red);
-
-
-
       return;
+    }
 
+    // Safety-net: Validate 4-day lead time rule for Event Place
+    if (_reservationType == 'Event Place') {
+      try {
+        final parsedDate = DateFormat('MMMM d, yyyy').parse(date);
+        final now = DateTime.now();
+        final todayMidnight = DateTime(now.year, now.month, now.day);
+        final minDateMidnight = todayMidnight.add(const Duration(days: 4));
+        final selectedDateMidnight = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+
+        if (selectedDateMidnight.isBefore(minDateMidnight)) {
+          final earliestAllowed = DateFormat('MMMM d, yyyy').format(minDateMidnight);
+          _showSnackBar(
+            'Event reservations must be booked at least 4 days in advance. Earliest available date is $earliestAllowed.',
+            Colors.red,
+          );
+          return;
+        }
+      } catch (e) {
+        _showSnackBar('Invalid date format', Colors.red);
+        return;
+      }
+
+      if (_paymentOption == null) {
+        _showSnackBar('Please select a payment option (50% Deposit or Pay in Full)', Colors.red);
+        return;
+      }
+
+      if (_selectedPaymentMethod == null) {
+        _showSnackBar('Please select a payment method', Colors.red);
+        return;
+      }
+    } else {
+      if (_selectedPaymentMethod == null) {
+        _showSnackBar('Please select a payment method', Colors.red);
+        return;
+      }
     }
 
 
@@ -17566,8 +17650,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     if (needsGuests) {
 
-      int min = _reservationType == 'Event Place' ? _minGuestCount : 1;
-
+      int min = _reservationType == 'Event Place' ? 30 : 1;
       int max = _reservationType == 'Event Place' ? 100 : 20;
 
 
@@ -17884,13 +17967,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 onPaymentSuccess: () {
                   if (mounted) {
                     setState(() {
-                      for (final key in _selectedMenuItems.keys) {
-                        _preOrderCart.remove(key);
-                      }
-                      _selectedMenuItems.clear();
+                      _resetBookingForm();
                       _selectedIndex = 0;
                     });
-                    _saveCartToPrefs();
                     _loadCustomerReservations();
                     _showSuccessDialog(
                       'Advance Order Submitted via GCash QR!\n\n'
@@ -17906,13 +17985,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           // Cash on site flow - direct booking!
           if (mounted) {
             setState(() {
-              for (final key in _selectedMenuItems.keys) {
-                _preOrderCart.remove(key);
-              }
-              _selectedMenuItems.clear();
+              _resetBookingForm();
               _selectedIndex = 0;
             });
-            _saveCartToPrefs();
             _loadCustomerReservations();
             _showSuccessDialog(
               'Advance Order Successfully Placed!\n\n'
@@ -17955,13 +18030,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     onPaymentSuccess: () {
                       if (mounted) {
                         setState(() {
-                          for (final key in _selectedMenuItems.keys) {
-                            _preOrderCart.remove(key);
-                          }
-                          _selectedMenuItems.clear();
+                          _resetBookingForm();
                           _selectedIndex = 0;
                         });
-                        _saveCartToPrefs();
                         _loadCustomerReservations();
                         _showSuccessDialog(
                           'Advance Order Successfully Paid!\n\n'
@@ -20245,41 +20316,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   void _updateDurationText() {
-
     if (_selectedBaseDuration == null) {
-
       _durationController.text = '';
-
-
-
       return;
-
     }
 
-
-
-    double total = double.parse(_selectedBaseDuration!.split(' ')[0]);
-
-
-
-    if (_addExtraTime && _selectedExtraTime != null) {
-
-      if (_selectedExtraTime == '30 minutes') {
-
-        total += 0.5;
-
-      } else {
-
-        total += double.parse(_selectedExtraTime!.split(' ')[0]);
-
-      }
-
-    }
+    double total = double.tryParse(_selectedBaseDuration!.split(' ')[0]) ?? 2.0;
 
 
 
     _durationController.text = total.toString();
-
   }
 
 

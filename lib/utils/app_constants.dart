@@ -68,7 +68,7 @@ class AppConstants {
   // ==================== NEW: RESERVATION ENHANCEMENTS ====================
 
   // Reservation constraints (defaults - can be overridden from app_settings)
-  static const int defaultMinGuestCount = 2;
+  static const int defaultMinGuestCount = 30;
   static const int defaultMaxGuestCount = 500;
   static const int defaultMinReservationDaysAhead = 4;
   static const int defaultMaxReservationDaysAhead = 365;
@@ -76,6 +76,10 @@ class AppConstants {
   // Operating hours (24-hour format) - defaults
   static const int defaultOperatingHoursStart = 10; // 10 AM
   static const int defaultOperatingHoursEnd = 20; // 8 PM
+
+  // Event Reservation Rules
+  static const double defaultEventIntervalHours = 2.0; // 2-hour interval/turnaround buffer between events
+  static const int maxEventReservationsPerDay = 2; // Maximum 2 event reservations accommodated per day
 
   // Duration options
   static const List<String> defaultBaseDurations = ['2 Hours', '3 Hours'];

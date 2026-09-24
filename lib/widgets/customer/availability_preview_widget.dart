@@ -71,9 +71,15 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
   @override
   void didUpdateWidget(covariant AvailabilityPreviewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedDateText != oldWidget.selectedDateText &&
-        widget.selectedDateText.trim().isNotEmpty) {
-      _loadAvailability(widget.selectedDateText);
+    if (widget.selectedDateText != oldWidget.selectedDateText) {
+      if (widget.selectedDateText.trim().isNotEmpty) {
+        _loadAvailability(widget.selectedDateText);
+      } else {
+        setState(() {
+          _bookings = [];
+          _lastLoadedDate = null;
+        });
+      }
     }
   }
 
@@ -166,26 +172,39 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
   }
 
   List<_TimeRange> _getAvailableRanges(List<_TimeRange> bookedList) {
+    // If the venue has reached the maximum of 2 event reservations for this day,
+    // no more slots are available
+    if (bookedList.length >= AppConstants.maxEventReservationsPerDay) {
+      return [];
+    }
+
     final available = <_TimeRange>[];
     final dayStart = DateTime(2000, 1, 1, _effectiveStartHour, 0);
     final dayEnd = DateTime(2000, 1, 1, _effectiveEndHour, 0);
+    final intervalDuration = Duration(minutes: (AppConstants.defaultEventIntervalHours * 60).toInt());
 
     DateTime cursor = dayStart;
 
     for (final booked in bookedList) {
-      final bStart = booked.start.isBefore(dayStart) ? dayStart : booked.start;
-      final bEnd = booked.end.isAfter(dayEnd) ? dayEnd : booked.end;
+      // An event requires a 2-hour turnaround buffer before and after.
+      // An earlier slot must finish at or before (booked.start - 2 hours).
+      // A later slot can only start at or after (booked.end + 2 hours).
+      final bufferedStart = booked.start.subtract(intervalDuration);
+      final bufferedEnd = booked.end.add(intervalDuration);
 
-      if (bStart.isAfter(cursor)) {
+      final effectiveBlockedStart = bufferedStart.isBefore(dayStart) ? dayStart : bufferedStart;
+      final effectiveBlockedEnd = bufferedEnd.isAfter(dayEnd) ? dayEnd : bufferedEnd;
+
+      if (effectiveBlockedStart.isAfter(cursor)) {
         available.add(_TimeRange(
           start: cursor,
-          end: bStart,
+          end: effectiveBlockedStart,
           isBooked: false,
           label: 'Available Window',
         ));
       }
-      if (bEnd.isAfter(cursor)) {
-        cursor = bEnd;
+      if (effectiveBlockedEnd.isAfter(cursor)) {
+        cursor = effectiveBlockedEnd;
       }
     }
 
@@ -409,13 +428,15 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
       statusBg = const Color(0xFFFEE2E2);
       statusBorder = const Color(0xFFEF4444);
       statusTextColor = const Color(0xFFB91C1C);
-      statusLabel = 'Fully Booked';
+      statusLabel = bookingCount >= AppConstants.maxEventReservationsPerDay
+          ? 'Fully Booked (2/2 Events)'
+          : 'Fully Booked';
       statusIcon = Icons.lock_rounded;
     } else if (hasBookings) {
       statusBg = const Color(0xFFDCFCE7);
       statusBorder = const Color(0xFF22C55E);
       statusTextColor = const Color(0xFF15803D);
-      statusLabel = 'Open • $bookingCount Sched';
+      statusLabel = 'Open • $bookingCount of 2 Sched';
       statusIcon = Icons.event_available_rounded;
     } else {
       statusBg = const Color(0xFFDCFCE7);
@@ -858,6 +879,21 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
 
   /// Compact 3-Column Slot Chips Grid (Fits beautifully on mobile screens)
   Widget _buildSlotsGrid(List<_SlotCardData> slots) {
+    // Robust time equality check across any format differences (e.g. 10:00 AM vs 10:00 vs 10:00 AM)
+    bool isSlotSelected(String? userSelected, String slotTimeStr) {
+      if (userSelected == null || userSelected.trim().isEmpty) return false;
+      final cleanUser = userSelected.trim().replaceAll('\u202F', ' ').replaceAll('\u00A0', ' ').replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+      final cleanSlot = slotTimeStr.trim().replaceAll('\u202F', ' ').replaceAll('\u00A0', ' ').replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+      if (cleanUser == cleanSlot) return true;
+      try {
+        final tUser = _parseTime(cleanUser);
+        final tSlot = _parseTime(cleanSlot);
+        return tUser.hour == tSlot.hour && tUser.minute == tSlot.minute;
+      } catch (_) {
+        return false;
+      }
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth < 480
@@ -870,15 +906,13 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
           itemCount: slots.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 6,
-            crossAxisSpacing: 6,
-            childAspectRatio: constraints.maxWidth < 360 ? 1.9 : (constraints.maxWidth < 480 ? 2.1 : 2.4),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: constraints.maxWidth < 360 ? 1.85 : (constraints.maxWidth < 480 ? 2.05 : 2.35),
           ),
           itemBuilder: (context, index) {
             final slot = slots[index];
-            final isSelected = widget.selectedStartTime != null &&
-                widget.selectedStartTime!.trim().toLowerCase() ==
-                    slot.timeString.trim().toLowerCase();
+            final isSelected = isSlotSelected(widget.selectedStartTime, slot.timeString);
 
             return _buildEnterpriseSlotChip(slot, isSelected);
           },
@@ -887,38 +921,43 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
     );
   }
 
-  /// Enterprise Slot Chip
+  /// Enterprise Slot Chip with High-Contrast Selected State
   Widget _buildEnterpriseSlotChip(_SlotCardData slot, bool isSelected) {
     return AnimatedTapScale(
       onTap: () => widget.onTimeSelected(slot.timeString),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          gradient: isSelected ? AppTheme.goldGradient : null,
-          color: isSelected ? null : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? AppTheme.forestGreen : Colors.white,
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? AppTheme.warmGold : const Color(0xFFE2E8F0),
-            width: isSelected ? 1.4 : 0.9,
+            width: isSelected ? 2.2 : 1.0,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppTheme.warmGold.withValues(alpha: 0.35),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+                    color: AppTheme.forestGreen.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                  BoxShadow(
+                    color: AppTheme.warmGold.withValues(alpha: 0.4),
+                    blurRadius: 4,
+                    offset: const Offset(0, 0),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 2,
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 3,
                     offset: const Offset(0, 1),
                   ),
                 ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Column(
@@ -932,32 +971,45 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
                     if (isSelected) ...[
                       const Icon(
                         Icons.check_circle_rounded,
-                        size: 11,
-                        color: AppTheme.darkBrownText,
+                        size: 13,
+                        color: AppTheme.warmGold,
                       ),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 4),
                     ],
                     Text(
                       slot.timeString,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                        color: isSelected ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                        color: isSelected ? Colors.white : AppTheme.darkGrey,
+                        letterSpacing: isSelected ? 0.2 : 0,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  isSelected ? 'Selected ✓' : slot.periodTag,
-                  style: GoogleFonts.inter(
-                    fontSize: 8.5,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                    color: isSelected
-                        ? AppTheme.darkBrownText.withValues(alpha: 0.85)
-                        : AppTheme.mediumGrey,
+                const SizedBox(height: 2),
+                Container(
+                  padding: isSelected
+                      ? const EdgeInsets.symmetric(horizontal: 5, vertical: 1)
+                      : EdgeInsets.zero,
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          color: AppTheme.warmGold.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(4),
+                        )
+                      : null,
+                  child: Text(
+                    isSelected ? '✓ SELECTED' : slot.periodTag,
+                    style: GoogleFonts.inter(
+                      fontSize: 8.5,
+                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
+                      letterSpacing: isSelected ? 0.5 : 0,
+                      color: isSelected
+                          ? AppTheme.warmGold
+                          : AppTheme.mediumGrey,
+                    ),
+                    maxLines: 1,
                   ),
-                  maxLines: 1,
                 ),
               ],
             ),
@@ -1002,9 +1054,12 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 12, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: hasSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: hasSelected ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+          width: hasSelected ? 1.2 : 1.0,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1288,62 +1343,91 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: isFullyBooked
-                                  ? const Color(0xFFFEF2F2)
-                                  : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.lock_clock_rounded,
-                              size: 16,
-                              color: isFullyBooked
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF475569),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$startFormatted – $endFormatted',
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: isFullyBooked
+                                      ? const Color(0xFFFEF2F2)
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.lock_clock_rounded,
+                                  size: 16,
+                                  color: isFullyBooked
+                                      ? const Color(0xFFDC2626)
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$startFormatted – $endFormatted',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Reserved Event Window',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  durationLabel,
                                   style: GoogleFonts.inter(
-                                    fontSize: 13,
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF0F172A),
+                                    color: const Color(0xFF334155),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFFDE68A), width: 0.8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.hourglass_top_rounded, size: 11, color: Color(0xFFB45309)),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'Reserved Event Window',
+                                  '+2-Hr Interval: ${endFormatted} – ${_formatTime(b.end.add(const Duration(hours: 2)))} (Preparation)',
                                   style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF64748B),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF92400E),
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              durationLabel,
-                              style: GoogleFonts.inter(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF334155),
-                              ),
                             ),
                           ),
                         ],

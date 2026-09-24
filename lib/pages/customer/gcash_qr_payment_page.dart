@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:yang_chow/utils/qr_ph_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -31,8 +32,8 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
   bool _paymentConfirmed = false;
   bool _isLoading = false;
   bool _useDynamicQr = true;
-  // ignore: unused_field
-  File? _receiptImage;
+  Uint8List? _receiptBytes;
+  String? _receiptExt;
   String? _receiptImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
   final ReservationService _reservationService = ReservationService();
@@ -299,52 +300,40 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (_receiptImageUrl != null) ...[
+                    if (_receiptBytes != null) ...[
                       Container(
                         width: double.infinity,
-                        height: 150,
+                        height: 160,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.shade700),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade700, width: 1.5),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            _receiptImageUrl!,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.memory(
+                            _receiptBytes!,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.broken_image, color: Colors.grey),
-                                    SizedBox(height: 8),
-                                    Text('Failed to load image', style: TextStyle(color: Colors.grey)),
-                                  ],
-                                ),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                      : null,
-                                ),
-                              );
-                            },
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Row(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(Icons.check_circle, color: Colors.green, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Receipt uploaded successfully',
-                            style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
+                          const Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.green, size: 18),
+                              SizedBox(width: 6),
+                              Text(
+                                'Receipt attached',
+                                style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          TextButton.icon(
+                            onPressed: _isLoading ? null : _pickReceiptImage,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Change Receipt', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                       ),
@@ -376,7 +365,7 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Supported formats: PNG, JPG, JPEG',
+                        'Supported formats: PNG, JPG, JPEG, JFIF, WEBP',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
@@ -415,15 +404,25 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : () => _handleTestPayment(),
-                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        onPressed: (_isLoading || _receiptBytes == null) ? null : () => _handleTestPayment(),
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.check_circle_outline_rounded),
                         label: Text(
-                          'Submit Payment (₱${widget.depositAmount.toStringAsFixed(2)})',
+                          _isLoading
+                              ? 'Submitting...'
+                              : 'Submit Payment (₱${widget.depositAmount.toStringAsFixed(2)})',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.shade700,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledForegroundColor: Colors.grey.shade600,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -450,57 +449,21 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
       );
 
       if (image != null) {
-        // Check MIME type instead of file extension (more reliable)
-        final mimeType = await image.mimeType;
-        if (mimeType == null ||
-            !mimeType.startsWith('image/') ||
-            !['image/png', 'image/jpeg', 'image/jpg'].contains(mimeType.toLowerCase())) {
+        final extension = image.name.split('.').last.toLowerCase();
+        final allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'heic', 'heif', 'jfif'];
+        if (!allowedExtensions.contains(extension)) {
           _showErrorDialog('Please select a PNG, JPG, or JPEG image file.');
           return;
         }
 
+        final bytes = await image.readAsBytes();
         setState(() {
-          if (!kIsWeb) {
-            _receiptImage = File(image.path);
-          }
+          _receiptBytes = bytes;
+          _receiptExt = (extension == 'png' || extension == 'webp') ? extension : 'jpg';
         });
-
-        // Upload to Supabase storage
-        await _uploadReceiptToSupabase(image);
       }
     } catch (e) {
       _showErrorDialog('Failed to pick image: $e');
-    }
-  }
-
-  Future<void> _uploadReceiptToSupabase(XFile image) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final fileName = 'gcash_receipt_${DateTime.now().millisecondsSinceEpoch}.${image.path.split('.').last}';
-      final filePath = 'receipts/$fileName';
-
-      final fileBytes = await image.readAsBytes();
-
-      await Supabase.instance.client.storage
-          .from('avatars')
-          .uploadBinary(filePath, fileBytes);
-
-      final imageUrl = Supabase.instance.client.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-
-      setState(() {
-        _receiptImageUrl = imageUrl;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorDialog('Failed to upload receipt: $e');
     }
   }
 
@@ -508,17 +471,34 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
     if (_paymentConfirmed) return; // Prevent multiple calls
 
     // Validate receipt upload
-    if (_receiptImageUrl == null) {
+    if (_receiptBytes == null) {
       _showErrorDialog('Please upload your GCash receipt.');
       return;
     }
 
     setState(() {
-      _paymentConfirmed = true;
+      _isLoading = true;
     });
 
     try {
-      // Update payment status with receipt URL — always await admin verification
+      // 1. Deferred Upload: Upload receipt to Firebase Storage upon submission
+      final safeExt = _receiptExt ?? 'jpg';
+      final contentType = safeExt == 'png' ? 'image/png' : 'image/jpeg';
+      final fileName = 'gcash_qr_receipt_${widget.reservationId}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
+
+      final uploadedUrl = await ImageStorageService.uploadReceipt(
+        bytes: _receiptBytes!,
+        fileName: fileName,
+        contentType: contentType,
+      );
+
+      if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        throw Exception('Failed to upload receipt image. Please check your connection and try again.');
+      }
+
+      _receiptImageUrl = uploadedUrl;
+
+      // 2. Update payment status with receipt URL — always await admin verification
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
         paymentStatus: 'pending_verification',
@@ -535,6 +515,11 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
       // Send confirmation email
       await _sendPaymentConfirmationEmail();
 
+      setState(() {
+        _paymentConfirmed = true;
+        _isLoading = false;
+      });
+
       if (mounted) {
         // Show success dialog
         _showSuccessDialog();
@@ -543,9 +528,10 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
       debugPrint('Error updating payment status: $e');
       if (mounted) {
         setState(() {
+          _isLoading = false;
           _paymentConfirmed = false; // Reset state on error
         });
-        _showErrorDialog('Test payment failed. Please contact support.');
+        _showErrorDialog('Payment submission failed: $e');
       }
     }
   }

@@ -10,6 +10,7 @@ import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/refund_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
+import 'package:yang_chow/utils/app_constants.dart';
 
 
 
@@ -309,6 +310,8 @@ class ReservationService {
 
     required bool isAdminCancel,
 
+    String? receiptUrl,
+
   }) async {
 
     try {
@@ -347,25 +350,27 @@ class ReservationService {
 
 
 
+      final effectiveReceiptUrl = (receiptUrl != null && receiptUrl.isNotEmpty)
+          ? receiptUrl
+          : (reservation['receipt_url'] as String?);
+
       // Update reservation status
+      final resUpdate = <String, dynamic>{
+        'status': 'cancelled',
+        'cancelled_at': DateTime.now().toUtc().toIso8601String(),
+        'cancellation_reason': cancellationReason,
+        'refund_amount': refundAmount,
+        'refund_status': refundAmount > 0 ? 'pending' : 'none',
+      };
+      if (effectiveReceiptUrl != null && effectiveReceiptUrl.isNotEmpty) {
+        resUpdate['receipt_url'] = effectiveReceiptUrl;
+      }
 
       await _supabase
 
           .from('reservations')
 
-          .update({
-
-            'status': 'cancelled',
-
-            'cancelled_at': DateTime.now().toUtc().toIso8601String(),
-
-            'cancellation_reason': cancellationReason,
-
-            'refund_amount': refundAmount,
-
-            'refund_status': refundAmount > 0 ? 'pending' : 'none',
-
-          })
+          .update(resUpdate)
 
           .eq('id', reservationId);
 
@@ -394,6 +399,7 @@ class ReservationService {
           paymentAmount: paymentAmount,
 
           paymongoPaymentId: paymongoPaymentId,
+          receiptUrl: effectiveReceiptUrl,
 
         );
 
@@ -404,21 +410,23 @@ class ReservationService {
       // Log cancellation request for admin review if customer initiated
 
       if (!isAdminCancel) {
-
-        await _supabase.from('cancellation_requests').insert({
-
+        final cancelReqData = <String, dynamic>{
           'reservation_id': reservationId,
-
           'customer_email': customerEmail,
-
           'cancellation_reason': cancellationReason,
-
           'refund_amount': refundAmount,
-
           'status': 'pending',
+        };
+        if (effectiveReceiptUrl != null && effectiveReceiptUrl.isNotEmpty) {
+          cancelReqData['receipt_url'] = effectiveReceiptUrl;
+        }
 
-        });
-
+        try {
+          await _supabase.from('cancellation_requests').insert(cancelReqData);
+        } catch (_) {
+          cancelReqData.remove('receipt_url');
+          await _supabase.from('cancellation_requests').insert(cancelReqData);
+        }
       }
 
 
@@ -919,6 +927,7 @@ class ReservationService {
     required String orderType,
     required String orderDate,
     required String cancellationReason,
+    String? receiptUrl,
   }) async {
     try {
       // Fetch order details for refund calculation
@@ -940,13 +949,22 @@ class ReservationService {
         );
       }
 
+      final effectiveReceiptUrl = (receiptUrl != null && receiptUrl.isNotEmpty)
+          ? receiptUrl
+          : (order['receipt_url'] as String?);
+
+      final advUpdate = <String, dynamic>{
+        'status': 'cancelled',
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'refund_amount': refundAmount,
+      };
+      if (effectiveReceiptUrl != null && effectiveReceiptUrl.isNotEmpty) {
+        advUpdate['receipt_url'] = effectiveReceiptUrl;
+      }
+
       await _supabase
           .from('advance_orders')
-          .update({
-            'status': 'cancelled',
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-            'refund_amount': refundAmount,
-          })
+          .update(advUpdate)
           .eq('id', orderId);
 
       // Create refund record via RefundService if applicable
@@ -961,6 +979,7 @@ class ReservationService {
           cancellationReason: cancellationReason,
           paymentAmount: totalPrice,
           paymongoPaymentId: paymongoPaymentId,
+          receiptUrl: effectiveReceiptUrl,
         );
       }
 
@@ -2389,6 +2408,8 @@ class ReservationService {
 
     String? excludeReservationId,
 
+    double intervalHours = AppConstants.defaultEventIntervalHours,
+
   }) async {
 
     try {
@@ -2405,6 +2426,18 @@ class ReservationService {
               .toList();
 
 
+
+      // Check if max events per day (2 events) has already been reached
+      final otherReservations = existingReservations.where((res) {
+        if (excludeReservationId != null && res['id'].toString() == excludeReservationId) {
+          return false;
+        }
+        return true;
+      }).toList();
+
+      if (otherReservations.length >= AppConstants.maxEventReservationsPerDay) {
+        return true; // Already 2 events accommodated on this date
+      }
 
       // 2. Parse requested time slot
 
@@ -2452,12 +2485,15 @@ class ReservationService {
 
 
 
-        // Overlap condition: (StartA < EndB) && (EndA > StartB)
+        // Turnaround interval condition:
+        // After an event ends, a 2-hour interval is required before the next event starts.
+        // Effective buffered bounds: [existingStart - interval, existingEnd + interval]
+        final intervalDuration = Duration(minutes: (intervalHours * 60).toInt());
+        final DateTime bufferedStart = existingStart.subtract(intervalDuration);
+        final DateTime bufferedEnd = existingEnd.add(intervalDuration);
 
-        if (requestedStart.isBefore(existingEnd) && requestedEnd.isAfter(existingStart)) {
-
-          return true; // Overlap found
-
+        if (requestedStart.isBefore(bufferedEnd) && requestedEnd.isAfter(bufferedStart)) {
+          return true; // Overlap or interval conflict found
         }
 
       }
@@ -2516,6 +2552,12 @@ class ReservationService {
         final date = entry.key;
         final list = entry.value;
 
+        // If 2 or more event reservations are scheduled, date is fully booked
+        if (list.length >= AppConstants.maxEventReservationsPerDay) {
+          fullyBookedDates.add(date);
+          continue;
+        }
+
         // Calculate total booked hours on that date
         double totalBookedHours = 0;
         for (var res in list) {
@@ -2523,7 +2565,7 @@ class ReservationService {
           totalBookedHours += duration;
         }
 
-        // Operating hours range: 10:00 AM to 9:00 PM (11 hours total)
+        // Operating hours range: 10:00 AM to 8:00 PM
         // If booked hours >= 8 hours, mark date as fully booked
         if (totalBookedHours >= 8.0) {
           fullyBookedDates.add(date);
@@ -2660,15 +2702,14 @@ class ReservationService {
 
 
 
-  /// Get reservations pending admin approval
+  /// Get reservations pending admin approval (online payment verification + cash on site)
   Future<List<Map<String, dynamic>>> getReservationsPendingApproval() async {
     try {
       final response = await _supabase
           .from('reservations')
           .select('*')
-          .inFilter('status', ['pending_admin_approval', 'awaiting_verification'])
-          .inFilter('payment_status', ['deposit_paid', 'fully_paid', 'pending_verification'])
           .eq('is_archived', false)
+          .or('and(status.in.(pending_admin_approval,awaiting_verification),payment_status.in.(deposit_paid,fully_paid,pending_verification)),and(payment_method.eq.cash,status.eq.pending,payment_status.eq.unpaid)')
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response);
