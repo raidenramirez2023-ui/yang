@@ -1243,6 +1243,10 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
 
     if (!mounted) return;
 
+    Uint8List? pendingImageBytes;
+    String? pendingImageFilename;
+    String? pendingImageMimeType;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1275,7 +1279,6 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                   allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'svg', 'jfif'],
                 );
                 if (result != null) {
-                  setDialogState(() => isSaving = true);
                   final fileBytes = result.files.single.bytes;
                   final filename = result.files.single.name;
                   final mimeType = _getMimeType(filename);
@@ -1291,30 +1294,17 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                   }
 
                   if (uploadBytes != null) {
-                    final downloadUrl = await ImageStorageService.uploadMenuImage(
-                      bytes: uploadBytes,
-                      fileName: filename,
-                      contentType: mimeType,
-                    );
-
-                    if (downloadUrl != null) {
-                      setDialogState(() {
-                        selectedImagePath = downloadUrl;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Image uploaded to Firebase successfully!'), backgroundColor: AppTheme.successGreen),
-                      );
-                    } else {
-                      throw Exception('Firebase upload returned null');
-                    }
+                    setDialogState(() {
+                      pendingImageBytes = uploadBytes;
+                      pendingImageFilename = filename;
+                      pendingImageMimeType = mimeType;
+                    });
                   }
                 }
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Upload failed: $e'), backgroundColor: AppTheme.errorRed),
+                  SnackBar(content: Text('Failed to pick file: $e'), backgroundColor: AppTheme.errorRed),
                 );
-              } finally {
-                setDialogState(() => isSaving = false);
               }
             }
 
@@ -1323,6 +1313,9 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
               if (chosen != null) {
                 setDialogState(() {
                   selectedImagePath = chosen;
+                  pendingImageBytes = null;
+                  pendingImageFilename = null;
+                  pendingImageMimeType = null;
                 });
               }
             }
@@ -1471,11 +1464,17 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                 border: Border.all(color: Colors.grey.shade300),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: Image.network(
-                                AppConstants.imageUrl(selectedImagePath),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, e, s) => const Icon(Icons.restaurant, color: Colors.grey),
-                              ),
+                              child: pendingImageBytes != null
+                                  ? Image.memory(
+                                      pendingImageBytes!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, e, s) => const Icon(Icons.restaurant, color: Colors.grey),
+                                    )
+                                  : Image.network(
+                                      AppConstants.imageUrl(selectedImagePath),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, e, s) => const Icon(Icons.restaurant, color: Colors.grey),
+                                    ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -1483,7 +1482,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    selectedImagePath,
+                                    pendingImageFilename ?? selectedImagePath,
                                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -1494,7 +1493,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                       OutlinedButton.icon(
                                         onPressed: isSaving ? null : chooseFromGallery,
                                         icon: const Icon(Icons.photo_library, size: 14),
-                                        label: const Text('Choose File', style: TextStyle(fontSize: 12)),
+                                        label: const Text('Preset Gallery', style: TextStyle(fontSize: 12)),
                                         style: OutlinedButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                         ),
@@ -1502,8 +1501,8 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                       const SizedBox(width: 8),
                                       ElevatedButton.icon(
                                         onPressed: isSaving ? null : handleImageUpload,
-                                        icon: const Icon(Icons.upload, size: 14),
-                                        label: const Text('Upload Image', style: TextStyle(fontSize: 12)),
+                                        icon: const Icon(Icons.add_photo_alternate_rounded, size: 14),
+                                        label: Text(pendingImageBytes != null ? 'Change File' : 'Choose File', style: const TextStyle(fontSize: 12)),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: AppTheme.darkGrey,
                                           foregroundColor: Colors.white,
@@ -1798,13 +1797,27 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                 return;
                               }
 
+                              // Deferred Upload: Only upload custom image if new image was chosen
+                              String finalImagePath = selectedImagePath;
+                              if (pendingImageBytes != null && pendingImageFilename != null) {
+                                final downloadUrl = await ImageStorageService.uploadMenuImage(
+                                  bytes: pendingImageBytes!,
+                                  fileName: pendingImageFilename!,
+                                  contentType: pendingImageMimeType ?? 'image/jpeg',
+                                );
+                                if (downloadUrl == null) {
+                                  throw Exception('Failed to upload image to storage. Please try again.');
+                                }
+                                finalImagePath = downloadUrl;
+                              }
+
                               final newItem = MenuItem(
                                 id: item?.id,
                                 name: trimmedName,
                                 price: finalPrice,
                                 category: finalCategory,
-                                fallbackImagePath: AppConstants.imageUrl(selectedImagePath),
-                                customImagePath: selectedImagePath,
+                                fallbackImagePath: AppConstants.imageUrl(finalImagePath),
+                                customImagePath: finalImagePath,
                                 color: selectedColor,
                                 description: descController.text.trim().isNotEmpty
                                     ? descController.text.trim()

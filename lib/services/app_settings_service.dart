@@ -120,8 +120,10 @@ class AppSettingsService {
 
   // ==================== Convenience Getters ====================
 
-  int getMinGuestCount() =>
-      getSetting<int>('min_guest_count') ?? AppConstants.defaultMinGuestCount;
+  int getMinGuestCount() {
+    final val = getSetting<int>('min_guest_count') ?? AppConstants.defaultMinGuestCount;
+    return val < 30 ? 30 : val;
+  }
 
   int getMaxGuestCount() =>
       getSetting<int>('max_guest_count') ?? AppConstants.defaultMaxGuestCount;

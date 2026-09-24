@@ -310,6 +310,7 @@ class RefundService {
     required String cancellationReason,
     required double paymentAmount,
     String? paymongoPaymentId,
+    String? receiptUrl,
   }) async {
     try {
       final refundAmount = calculateRefundAmount(
@@ -336,30 +337,50 @@ class RefundService {
       final refundType = isFullRefund ? 'full' : 'partial';
 
       // Create refund record
-      final refundRecord = await _supabase
-          .from('refunds')
-          .insert({
-            'source_table': 'reservations',
-            'source_id': reservationId,
-            'customer_email': customerEmail,
-            'customer_name': customerName,
-            'refund_type': refundType,
-            'refund_method': refundMethod,
-            'refund_reason': cancellationReason,
-            'refund_amount': refundAmount,
-            'original_amount': paymentAmount,
-            'paymongo_payment_id': paymongoPaymentId,
-            'status': 'pending',
-            'requested_by': customerEmail,
-          })
-          .select()
-          .single();
+      final insertPayload = <String, dynamic>{
+        'source_table': 'reservations',
+        'source_id': reservationId,
+        'customer_email': customerEmail,
+        'customer_name': customerName,
+        'refund_type': refundType,
+        'refund_method': refundMethod,
+        'refund_reason': cancellationReason,
+        'refund_amount': refundAmount,
+        'original_amount': paymentAmount,
+        'paymongo_payment_id': paymongoPaymentId,
+        'status': 'pending',
+        'requested_by': customerEmail,
+      };
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        insertPayload['receipt_url'] = receiptUrl;
+      }
 
-      // Update the reservation with refund info
-      await _supabase.from('reservations').update({
+      dynamic refundRecord;
+      try {
+        refundRecord = await _supabase
+            .from('refunds')
+            .insert(insertPayload)
+            .select()
+            .single();
+      } catch (e) {
+        // Fallback in case refunds table schema does not yet have receipt_url column
+        insertPayload.remove('receipt_url');
+        refundRecord = await _supabase
+            .from('refunds')
+            .insert(insertPayload)
+            .select()
+            .single();
+      }
+
+      // Update the reservation with refund info and receipt_url if available
+      final resUpdate = <String, dynamic>{
         'refund_amount': refundAmount,
         'refund_status': 'pending',
-      }).eq('id', reservationId);
+      };
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        resUpdate['receipt_url'] = receiptUrl;
+      }
+      await _supabase.from('reservations').update(resUpdate).eq('id', reservationId);
 
       // Send admin notification
       await NotificationService.sendNotification(
@@ -396,6 +417,7 @@ class RefundService {
     required String cancellationReason,
     required double paymentAmount,
     String? paymongoPaymentId,
+    String? receiptUrl,
   }) async {
     try {
       final refundAmount = calculateRefundAmount(
@@ -420,29 +442,48 @@ class RefundService {
       final refundType = isFullRefund ? 'full' : 'partial';
 
       // Create refund record
-      final refundRecord = await _supabase
-          .from('refunds')
-          .insert({
-            'source_table': 'advance_orders',
-            'source_id': orderId,
-            'customer_email': customerEmail,
-            'customer_name': customerName,
-            'refund_type': refundType,
-            'refund_method': refundMethod,
-            'refund_reason': cancellationReason,
-            'refund_amount': refundAmount,
-            'original_amount': paymentAmount,
-            'paymongo_payment_id': paymongoPaymentId,
-            'status': 'pending',
-            'requested_by': customerEmail,
-          })
-          .select()
-          .single();
-
-      // Update the advance order with refund info
-      await _supabase.from('advance_orders').update({
+      final insertPayload = <String, dynamic>{
+        'source_table': 'advance_orders',
+        'source_id': orderId,
+        'customer_email': customerEmail,
+        'customer_name': customerName,
+        'refund_type': refundType,
+        'refund_method': refundMethod,
+        'refund_reason': cancellationReason,
         'refund_amount': refundAmount,
-      }).eq('id', orderId);
+        'original_amount': paymentAmount,
+        'paymongo_payment_id': paymongoPaymentId,
+        'status': 'pending',
+        'requested_by': customerEmail,
+      };
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        insertPayload['receipt_url'] = receiptUrl;
+      }
+
+      dynamic refundRecord;
+      try {
+        refundRecord = await _supabase
+            .from('refunds')
+            .insert(insertPayload)
+            .select()
+            .single();
+      } catch (e) {
+        insertPayload.remove('receipt_url');
+        refundRecord = await _supabase
+            .from('refunds')
+            .insert(insertPayload)
+            .select()
+            .single();
+      }
+
+      // Update the advance order with refund info and receipt_url if available
+      final advUpdate = <String, dynamic>{
+        'refund_amount': refundAmount,
+      };
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        advUpdate['receipt_url'] = receiptUrl;
+      }
+      await _supabase.from('advance_orders').update(advUpdate).eq('id', orderId);
 
       // Send admin notification
       await NotificationService.sendNotification(

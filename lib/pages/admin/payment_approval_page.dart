@@ -2609,6 +2609,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   Widget _buildReceiptActions(Map<String, dynamic> payment) {
     final bool isCash = (payment['payment_method'] ?? '').toString().toLowerCase() == 'cash';
     if (isCash) {
+      final bool isAdvanceOrder = (payment['_table'] ?? 'reservations') == 'advance_orders';
+      final String cashMessage = isAdvanceOrder
+          ? 'Cash on Site: Customer will pay at store counter. Collect payment then click "Confirm Cash Received" below to dispatch order to kitchen.'
+          : 'Cash on Site: Customer will pay at store counter. Collect payment then click "Confirm Cash Received" below to confirm the reservation.';
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -2617,14 +2621,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFBBF7D0)),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.storefront_rounded, size: 18, color: Color(0xFF15803D)),
-            SizedBox(width: 8),
+            const Icon(Icons.storefront_rounded, size: 18, color: Color(0xFF15803D)),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Cash on Site: Customer will pay at store counter. Collect payment then click "Confirm Cash Received" below to dispatch order to kitchen.',
-                style: TextStyle(fontSize: 11.5, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+                cashMessage,
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFF166534), fontWeight: FontWeight.w600),
               ),
             ),
           ],

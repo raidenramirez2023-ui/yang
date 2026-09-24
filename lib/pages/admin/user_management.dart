@@ -1353,6 +1353,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
     bool isUploadingPhoto = false;
     bool isSavingStaff = false;
+    Uint8List? pendingPhotoBytes;
+    String? pendingPhotoExt;
 
     showDialog(
       context: context,
@@ -1368,35 +1370,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 imageQuality: 75,
               );
               if (file != null) {
-                setDialogState(() {
-                  isUploadingPhoto = true;
-                });
                 final bytes = await file.readAsBytes();
-                final ext = file.name.contains('.') ? file.name.split('.').last : 'jpg';
-                final empId = idController.text.trim().isNotEmpty ? idController.text.trim() : 'temp_${DateTime.now().millisecondsSinceEpoch}';
-                
-                // Upload avatar to Firebase Cloud Storage
-                final downloadUrl = await ImageStorageService.uploadAvatar(
-                  bytes: bytes,
-                  userId: empId,
-                  extension: ext,
-                );
-
+                final ext = file.name.contains('.') ? file.name.split('.').last.toLowerCase() : 'jpg';
                 setDialogState(() {
-                  isUploadingPhoto = false;
-                  if (downloadUrl != null && downloadUrl.isNotEmpty) {
-                    currentPhoto = downloadUrl;
-                  } else {
-                    // Fallback to base64 if Firebase upload encounters an issue
-                    currentPhoto = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-                  }
+                  pendingPhotoBytes = bytes;
+                  pendingPhotoExt = ext;
                 });
               }
             } catch (e) {
               debugPrint('Error picking staff image: $e');
-              setDialogState(() {
-                isUploadingPhoto = false;
-              });
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -1490,7 +1472,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         pickPhoto(ImageSource.gallery);
                       },
                     ),
-                    if (currentPhoto != null && currentPhoto!.isNotEmpty) ...[
+                    if ((currentPhoto != null && currentPhoto!.isNotEmpty) || pendingPhotoBytes != null) ...[
                       const SizedBox(height: 8),
                       ListTile(
                         leading: Container(
@@ -1511,7 +1493,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         ),
                         onTap: () {
                           Navigator.pop(bCtx);
-                          setDialogState(() => currentPhoto = null);
+                          setDialogState(() {
+                            pendingPhotoBytes = null;
+                            pendingPhotoExt = null;
+                            currentPhoto = null;
+                          });
                         },
                       ),
                     ],
@@ -1598,12 +1584,23 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         child: Stack(
                                           alignment: Alignment.center,
                                           children: [
-                                            _buildStaffAvatar(
-                                              currentPhoto,
-                                              nameController.text.isEmpty ? 'New Staff' : nameController.text,
-                                              _emerald,
-                                              size: 84,
-                                            ),
+                                            if (pendingPhotoBytes != null)
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(22),
+                                                child: Image.memory(
+                                                  pendingPhotoBytes!,
+                                                  width: 84,
+                                                  height: 84,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              )
+                                            else
+                                              _buildStaffAvatar(
+                                                currentPhoto,
+                                                nameController.text.isEmpty ? 'New Staff' : nameController.text,
+                                                _emerald,
+                                                size: 84,
+                                              ),
                                             if (isUploadingPhoto)
                                               Container(
                                                 width: 84,
@@ -2265,6 +2262,30 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               if (selectedDept == 'Service') colorHex = 0xFF0891B2;
                               if (selectedDept == 'Operations') colorHex = 0xFF7C3AED;
 
+                              if (isSavingStaff) return;
+                              setDialogState(() {
+                                isSavingStaff = true;
+                              });
+
+                              // Deferred upload: upload pending photo bytes to Firebase Storage now
+                              if (pendingPhotoBytes != null) {
+                                try {
+                                  final downloadUrl = await ImageStorageService.uploadAvatar(
+                                    bytes: pendingPhotoBytes!,
+                                    userId: empId,
+                                    extension: pendingPhotoExt ?? 'jpg',
+                                  );
+                                  if (downloadUrl != null && downloadUrl.isNotEmpty) {
+                                    currentPhoto = downloadUrl;
+                                  } else {
+                                    currentPhoto = 'data:image/jpeg;base64,${base64Encode(pendingPhotoBytes!)}';
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error uploading staff avatar to storage: $e');
+                                  currentPhoto = 'data:image/jpeg;base64,${base64Encode(pendingPhotoBytes!)}';
+                                }
+                              }
+
                               final updatedData = {
                                 'name': name,
                                 'full_name': name,
@@ -2300,9 +2321,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   _staff.insert(0, updatedData);
                                 }
                               });
-                              setDialogState(() {
-                                 isSavingStaff = true;
-                               });
 
                                final messenger = ScaffoldMessenger.of(context);
 

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
@@ -38,6 +39,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
   final EmailNotificationService _emailService = EmailNotificationService();
 
   Uint8List? _receiptBytes;
+  String? _receiptImageName;
 
   Future<void> _pickReceiptImage() async {
     try {
@@ -48,7 +50,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
 
       if (image != null) {
         final extension = image.name.split('.').last.toLowerCase();
-        final allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'heic', 'heif'];
+        final allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'heic', 'heif', 'jfif'];
         if (!allowedExtensions.contains(extension)) {
           _showErrorDialog('Please select a valid image file (${allowedExtensions.join(', ')}).');
           return;
@@ -57,63 +59,48 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
         final bytes = await image.readAsBytes();
         setState(() {
           _receiptBytes = bytes;
-          _isLoading = true;
+          _receiptImageName = image.name;
         });
-
-        await _uploadReceiptToSupabase(image.name, bytes);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       _showErrorDialog('Failed to pick image: $e');
-    }
-  }
-
-  Future<void> _uploadReceiptToSupabase(String originalName, Uint8List bytes) async {
-    try {
-      final extension = originalName.split('.').last;
-      final fileName = 'gcash_receipt_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final filePath = 'receipts/$fileName';
-
-      await Supabase.instance.client.storage
-          .from('avatars')
-          .uploadBinary(
-            filePath,
-            bytes,
-            fileOptions: const FileOptions(upsert: true),
-          );
-
-      final imageUrl = Supabase.instance.client.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-
-      setState(() {
-        _receiptImageUrl = imageUrl;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorDialog('Failed to upload receipt: $e');
     }
   }
 
   void _handlePaymentSuccess() async {
     if (_paymentCompleted) return;
 
-    if (_receiptImageUrl == null) {
+    if (_receiptBytes == null) {
       _showErrorDialog('Please upload your GCash receipt.');
       return;
     }
 
     setState(() {
-      _paymentCompleted = true;
+      _isLoading = true;
     });
 
     try {
       final depositAmount = widget.depositAmount;
 
-      // Always send pending_verification — admin must verify receipt before confirming
+      // 1. Deferred Upload: Upload receipt bytes to storage upon confirmation
+      final rawExt = (_receiptImageName?.split('.').last ?? 'jpg').toLowerCase();
+      final safeExt = (rawExt == 'png' || rawExt == 'webp') ? rawExt : 'jpg';
+      final contentType = safeExt == 'png' ? 'image/png' : 'image/jpeg';
+      final fileName = 'gcash_receipt_${widget.reservationId}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
+
+      final uploadedUrl = await ImageStorageService.uploadReceipt(
+        bytes: _receiptBytes!,
+        fileName: fileName,
+        contentType: contentType,
+      );
+
+      if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        throw Exception('Failed to upload receipt image. Please check your connection and try again.');
+      }
+
+      _receiptImageUrl = uploadedUrl;
+
+      // 2. Always send pending_verification — admin must verify receipt before confirming
       final String paymentStatus = 'pending_verification';
 
       final success = await _reservationService.updatePaymentStatus(
@@ -131,12 +118,20 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
 
       await _sendPaymentConfirmationEmail(depositAmount);
 
+      setState(() {
+        _paymentCompleted = true;
+        _isLoading = false;
+      });
+
       if (mounted) {
         _showSuccessDialog();
       }
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       if (mounted) {
-        _showErrorDialog('Payment successful but update failed: $e');
+        _showErrorDialog('Payment submission failed: $e');
       }
     }
   }
@@ -352,29 +347,27 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
                         ),
                         const SizedBox(height: 12),
-                        if (_receiptBytes != null || _receiptImageUrl != null)
+                        if (_receiptBytes != null)
                           Column(
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
-                                child: _receiptBytes != null
-                                    ? Image.memory(_receiptBytes!, height: 180, fit: BoxFit.cover)
-                                    : Image.network(_receiptImageUrl!, height: 180, fit: BoxFit.cover),
+                                child: Image.memory(_receiptBytes!, height: 180, fit: BoxFit.cover),
                               ),
                               const SizedBox(height: 12),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                    _receiptImageUrl != null ? Icons.check_circle_rounded : Icons.sync_rounded,
-                                    color: _receiptImageUrl != null ? AppTheme.successGreen : AppTheme.warningOrange,
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: AppTheme.successGreen,
                                     size: 18,
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    _receiptImageUrl != null ? 'Receipt Uploaded' : 'Uploading to server...',
+                                    'Receipt Attached',
                                     style: GoogleFonts.inter(
-                                      color: _receiptImageUrl != null ? AppTheme.successGreen : AppTheme.warningOrange,
+                                      color: AppTheme.successGreen,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
                                     ),
@@ -432,19 +425,19 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                   const SizedBox(height: 20),
 
                   AnimatedTapScale(
-                    onTap: (_isConfirmed && _receiptImageUrl != null && !_isLoading) ? _handlePaymentSuccess : null,
+                    onTap: (_isConfirmed && _receiptBytes != null && !_isLoading) ? _handlePaymentSuccess : null,
                     child: Container(
                       width: double.infinity,
                       height: 54,
                       decoration: BoxDecoration(
-                        gradient: (_isConfirmed && _receiptImageUrl != null && !_isLoading)
+                        gradient: (_isConfirmed && _receiptBytes != null && !_isLoading)
                             ? AppTheme.primaryGradient
                             : null,
-                        color: (_isConfirmed && _receiptImageUrl != null && !_isLoading)
+                        color: (_isConfirmed && _receiptBytes != null && !_isLoading)
                             ? null
                             : Colors.grey.shade300,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: (_isConfirmed && _receiptImageUrl != null && !_isLoading)
+                        boxShadow: (_isConfirmed && _receiptBytes != null && !_isLoading)
                             ? [
                                 BoxShadow(
                                   color: AppTheme.primaryColor.withOpacity(0.3),

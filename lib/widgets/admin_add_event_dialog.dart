@@ -10,6 +10,7 @@ import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
+import 'package:yang_chow/widgets/customer/availability_preview_widget.dart';
 
 class AdminAddEventDialog extends StatefulWidget {
   final VoidCallback onEventCreated;
@@ -96,8 +97,6 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
 
   // Duration
   String? _selectedBaseDuration = '2 hours';
-  bool _addExtraTime = false;
-  String? _selectedExtraTime;
   double _totalDurationHours = 2.0;
 
   // Menu Selection
@@ -121,12 +120,6 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
   final List<String> _baseDurations = [
     '2 hours',
     '3 hours',
-  ];
-
-  final List<String> _extraTimeOptions = [
-    '30 minutes',
-    '1 hour',
-    '1 hour and 30 minutes',
   ];
 
   @override
@@ -217,21 +210,20 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
   }
 
   void _updateTotalDuration() {
-    double base = _selectedBaseDuration == '3 hours' ? 3.0 : 2.0;
-
-    double extra = 0.0;
-    if (_addExtraTime && _selectedExtraTime != null) {
-      if (_selectedExtraTime == '30 minutes') {
-        extra = 0.5;
-      } else if (_selectedExtraTime == '1 hour') {
-        extra = 1.0;
-      } else if (_selectedExtraTime == '1 hour and 30 minutes') {
-        extra = 1.5;
+    double base = 2.0;
+    if (_selectedBaseDuration != null) {
+      final baseStr = _selectedBaseDuration!.toLowerCase();
+      if (baseStr.contains('3')) {
+        base = 3.0;
+      } else if (baseStr.contains('2')) {
+        base = 2.0;
+      } else {
+        base = double.tryParse(baseStr.split(' ')[0]) ?? 2.0;
       }
     }
 
     setState(() {
-      _totalDurationHours = base + extra;
+      _totalDurationHours = base;
     });
   }
 
@@ -363,7 +355,7 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
         );
         if (overlap && mounted) {
           _showToast(
-            'This time slot ($formattedTime) is already booked on this date. Please choose a different time.',
+            'This time slot ($formattedTime) is unavailable. A 2-hour interval is required between events (max 2 events/day).',
             isError: true,
           );
           return;
@@ -376,6 +368,64 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
     setState(() {
       _startTimeController.text = formattedTime;
     });
+  }
+
+  /// Handles time slot selection from the Venue Availability Preview widget
+  void _handleAvailabilityTimeSelected(String selectedTime) async {
+    // Parse the selected time string (e.g., "10:00 AM", "6:00 PM")
+    final timeParts = selectedTime.trim().split(RegExp(r'[\s:]+'));
+    int hour = int.tryParse(timeParts[0]) ?? 10;
+    int minute = timeParts.length > 1 ? (int.tryParse(timeParts[1]) ?? 0) : 0;
+    final isPM = selectedTime.toUpperCase().contains('PM');
+    final isAM = selectedTime.toUpperCase().contains('AM');
+    if (isPM && hour < 12) hour += 12;
+    if (isAM && hour == 12) hour = 0;
+
+    const startHour = 10;
+    const endHour = 19;
+
+    // Validate operating hours
+    if (hour < startHour || hour > endHour || (hour == endHour && minute > 0)) {
+      _showToast(
+        'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
+        isError: true,
+      );
+      return;
+    }
+
+    // Format the time consistently
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final hourOfPeriod = hour % 12 == 0 ? 12 : hour % 12;
+    final minuteStr = minute.toString().padLeft(2, '0');
+    final formattedTime = '$hourOfPeriod:$minuteStr $period';
+
+    // Check overlap if date is already selected
+    if (_dateController.text.isNotEmpty) {
+      try {
+        final parsedDate = DateFormat('MMMM d, yyyy').parse(_dateController.text.trim());
+        final dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
+        final overlap = await _reservationService.isTimeSlotOverlapping(
+          eventDate: dateStr,
+          startTime: formattedTime,
+          durationHours: _totalDurationHours,
+        );
+        if (overlap && mounted) {
+          _showToast(
+            'This time slot ($formattedTime) is unavailable. A 2-hour interval is required between events (max 2 events/day).',
+            isError: true,
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error validating time overlap: $e');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _startTimeController.text = formattedTime;
+      });
+    }
   }
 
   void _navigateToMenuSelection() {
@@ -730,13 +780,26 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
                         ),
                         const SizedBox(height: 8),
                         _buildDateTimeRow(),
+                        // Venue Availability Preview (loads when date is selected)
+                        if (_dateController.text.trim().isNotEmpty)
+                          AvailabilityPreviewWidget(
+                            selectedDateText: _dateController.text,
+                            selectedStartTime: _startTimeController.text.isNotEmpty ? _startTimeController.text : null,
+                            durationHours: _totalDurationHours,
+                            operatingHoursStart: 10,
+                            operatingHoursEnd: 20,
+                            onTimeSelected: (selectedTime) {
+                              _handleAvailabilityTimeSelected(selectedTime);
+                            },
+                            onPickCustomTime: () => _pickTime(),
+                          ),
                         const SizedBox(height: 22),
 
                         // 4. Duration
                         _buildSectionHeader(
                           icon: Icons.timer_rounded,
                           title: 'DURATION',
-                          subtitle: 'Base hall reservation hours and optional extra time extension',
+                          subtitle: 'Base hall reservation hours for the event',
                           isRequired: true,
                         ),
                         const SizedBox(height: 8),
@@ -1490,64 +1553,7 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.history_toggle_off_rounded, size: 16, color: _emerald),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Add Extra Hours Extension',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: _darkBg),
-                  ),
-                ],
-              ),
-              Switch(
-                value: _addExtraTime,
-                activeTrackColor: _emerald,
-                activeThumbColor: _gold,
-                onChanged: (val) {
-                  setState(() {
-                    _addExtraTime = val;
-                    if (!_addExtraTime) _selectedExtraTime = null;
-                    _updateTotalDuration();
-                  });
-                },
-              ),
-            ],
-          ),
-          if (_addExtraTime) ...[
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _selectedExtraTime,
-              decoration: InputDecoration(
-                labelText: 'Extra Hours',
-                labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate),
-                prefixIcon: const Icon(Icons.add_alarm_rounded, size: 18, color: _emerald),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _slateLight)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _slateLight)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _emerald, width: 1.5)),
-              ),
-              hint: Text('Select extra duration...', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate)),
-              items: _extraTimeOptions.map((d) {
-                return DropdownMenuItem<String>(
-                  value: d,
-                  child: Text(d, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: _darkBg, fontWeight: FontWeight.w600)),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  _selectedExtraTime = val;
-                  _updateTotalDuration();
-                });
-              },
-            ),
-          ],
+
         ],
       ),
     );
