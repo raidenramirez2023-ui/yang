@@ -16,6 +16,9 @@ class SupabaseOptions {
   
   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2emJzdnFhaWtqa3hycXlrcmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MTIwNzQsImV4cCI6MjA4NzQ4ODA3NH0.5cE-OTWEgLTP2vgteqk6-8bfw-ZGahdc8dBJOaUtzrQ';
   
+  static const String supabaseServiceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2emJzdnFhaWtqa3hycXlrcmh3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTkxMjA3NCwiZXhwIjoyMDg3NDg4MDc0fQ.d4PM7ozurJNU9JQ8XAzGbbSGdpYiYnn-bSk0-atrM0o';
+
+  
   static Map<String, dynamic> get currentPlatform {
     if (kIsWeb) {
       return _webConfig();

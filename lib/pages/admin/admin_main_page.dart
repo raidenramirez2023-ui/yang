@@ -13,6 +13,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 
 
@@ -61,6 +64,7 @@ import 'package:yang_chow/pages/admin/admin_chat_page.dart';
 
 
 import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
+import 'package:yang_chow/pages/admin/sales_forecast_page.dart';
 
 
 
@@ -71,6 +75,7 @@ import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
 import 'package:yang_chow/pages/admin/audit_logs_page.dart';
 import 'package:yang_chow/pages/admin/account_deletion_requests_page.dart';
+import 'package:yang_chow/pages/admin/admin_continuity_page.dart';
 
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
@@ -646,6 +651,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     '/admin/petty-cash',
     '/admin/refunds-reschedules',
     '/admin/audit-logs',
+    '/admin/sales-forecast',
+    '/admin/continuity',
   ];
 
   void _syncUrl() {
@@ -669,6 +676,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     3,  // Inventory Forecast – read-only
     5,  // Reservations    – scan pass & view only (actions locked)
     14, // Audit Logs      – read-only audit trail
+    15, // Sales Forecast  – read-only forecasting & projections
+    16, // Admin Continuity – emergency governance & recovery
   };
 
   bool _isPageAllowedDuringMaintenance(int index) {
@@ -1181,6 +1190,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Petty Cash',
     'Refunds & Reschedules',
     'Audit Logs',
+    'Sales Forecasting',
+    'Admin Continuity',
   ];
 
   static const List<IconData> _pageIcons = [
@@ -1199,6 +1210,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.account_balance_wallet,
     Icons.receipt_long,
     Icons.shield_outlined,
+    Icons.auto_graph_rounded,
+    Icons.admin_panel_settings_rounded,
   ];
 
   late final List<Widget> _pages = [
@@ -1217,6 +1230,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const PettyCashPage(),
     const RefundManagementPage(),
     const AuditLogsPage(),
+    const SalesForecastPage(),
+    const AdminContinuityPage(),
   ];
 
 
@@ -1544,7 +1559,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     ),
     _AdminNavGroup(
       title: 'OPERATIONS',
-      indices: [5, 4, 2, 3], // Reservations, Menu Management, Inventory, Inventory Forecast
+      indices: [5, 4, 2], // Reservations, Menu Management, Inventory
     ),
     _AdminNavGroup(
       title: 'FINANCE & PAYMENTS',
@@ -1552,7 +1567,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
     ),
     _AdminNavGroup(
       title: 'ADMIN & SYSTEM',
-      indices: [7, 8, 9, 11, 10, 14], // Employee Management, Customers & Reviews, Deletion Requests, Customer Chat, Announcements, Audit Logs
+      indices: [7, 16, 8, 9, 11, 10, 14], // Employee Management, Admin Continuity, Customers & Reviews, Deletion Requests, Customer Chat, Announcements, Audit Logs
+    ),
+    _AdminNavGroup(
+      title: 'FORECASTING',
+      indices: [15, 3], // Sales Forecasting, Inventory Forecast
     ),
   ];
 
@@ -3507,26 +3526,68 @@ class _EnterpriseItSupportDialog extends StatefulWidget {
 class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> {
   late final TextEditingController _issueController;
   late int _currentTab;
-  String _selectedSeverity = 'P2 - High';
-  String _selectedScope = 'Payment Management + Sales Report';
+  String _selectedSeverity = 'High (Report / Data Issue)';
+  String _selectedScope = 'chefycp';
+  String _selectedFunction = '';
   int _selectedDuration = 2;
   bool _autoPurgeTestData = true;
   bool _isSubmitting = false;
   Map<String, dynamic>? _activeSession;
+  static bool _hasDismissedContactReminder = false;
+  bool _isDownloadingPdf = false;
 
   static const List<Map<String, dynamic>> _severityOptions = [
-    {'code': 'P1 - Critical', 'desc': 'System Down / Payment Blocker', 'color': Color(0xFFDC2626)},
-    {'code': 'P2 - High', 'desc': 'Feature Impaired / Sync Issue', 'color': Color(0xFFEA580C)},
-    {'code': 'P3 - Standard', 'desc': 'General Maintenance / Config', 'color': Color(0xFF2563EB)},
+    {'code': 'High (Report / Data Issue)', 'color': Color(0xFFEA580C)},
+    {'code': 'Normal (General Help)', 'color': Color(0xFF2563EB)},
   ];
 
-  static const List<String> _scopeOptions = [
-    'Payment Management + Sales Report',
-    'Payment Approval Only',
-    'Sales Report Only',
-    'Reservations Management',
-    'Full Admin Access',
+  // Module tabs: key, short label, icon
+  static const List<Map<String, dynamic>> _scopeOptions = [
+    {'key': 'chefycp',      'label': 'ChefYCP',          'icon': Icons.restaurant_menu_rounded,      'color': Color(0xFFD97706)},
+    {'key': 'pagsanjaninv', 'label': 'PagsanjanINV',     'icon': Icons.inventory_2_rounded,          'color': Color(0xFF059669)},
+    {'key': 'customer',     'label': 'Customer Side',    'icon': Icons.people_alt_rounded,           'color': Color(0xFF7C3AED)},
+    {'key': 'admin',        'label': 'Admin Panel',      'icon': Icons.admin_panel_settings_rounded, 'color': Color(0xFF2563EB)},
+    {'key': 'full',         'label': 'All Modules',      'icon': Icons.grid_view_rounded,            'color': Color(0xFFDC2626)},
   ];
+
+  // Functions per module
+  static const Map<String, List<String>> _moduleFunctions = {
+    'chefycp': [
+      'Kitchen Order Queue',
+      'Order Status Updates',
+      'Chef Assignment & Notifications',
+      'Order Fulfillment Tracking',
+      'Menu Item Availability',
+      'Full Access — ChefYCP',
+    ],
+    'pagsanjaninv': [
+      'Stock Level Monitoring',
+      'Low Stock Alerts',
+      'Inventory Forecasting',
+      'Purchase Records & Receiving',
+      'Ingredient Usage Tracking',
+      'Full Access — PagsanjanINV',
+    ],
+    'customer': [
+      'Online Menu Browsing',
+      'Add to Cart / Ordering',
+      'Reservation / Table Booking',
+      'Order Status Tracking',
+      'Customer Account / Login',
+      'Full Access — Customer Side',
+    ],
+    'admin': [
+      'Sales Reports & Analytics',
+      'Menu Management',
+      'Customer Order Approvals',
+      'Staff Access Control',
+      'Audit Logs & History',
+      'Full Access — Admin Panel',
+    ],
+    'full': [
+      'Full Access — All Modules (Entire System)',
+    ],
+  };
 
   static const List<int> _durationOptions = [1, 2, 4, 8];
 
@@ -3544,12 +3605,472 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
     super.dispose();
   }
 
+  Future<void> _downloadEmergencyContactPdf() async {
+    if (_isDownloadingPdf) return;
+    setState(() => _isDownloadingPdf = true);
+    try {
+      pw.ThemeData? theme;
+      try {
+        final fontReg = await PdfGoogleFonts.interRegular();
+        final fontBold = await PdfGoogleFonts.interBold();
+        theme = pw.ThemeData.withFont(base: fontReg, bold: fontBold);
+      } catch (_) {}
+
+      final pdf = pw.Document(theme: theme);
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+          build: (ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // ── Enterprise Brand & Document Header ──
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#0F172A'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Row(
+                          children: [
+                            pw.Container(
+                              width: 8,
+                              height: 8,
+                              decoration: pw.BoxDecoration(
+                                color: PdfColor.fromHex('#EF4444'),
+                                shape: pw.BoxShape.circle,
+                              ),
+                            ),
+                            pw.SizedBox(width: 8),
+                            pw.Text(
+                              'YANG CHOW RESTAURANT & EVENTS',
+                              style: pw.TextStyle(
+                                fontSize: 13,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Disaster Recovery & Developer Emergency Protocol',
+                          style: pw.TextStyle(
+                            fontSize: 9.5,
+                            color: PdfColor.fromHex('#94A3B8'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#1E293B'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#334155'), width: 1),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            'SEVERITY 1 • EMERGENCY',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#F87171'),
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'INTERNAL MANAGEMENT ONLY',
+                            style: pw.TextStyle(
+                              fontSize: 7,
+                              color: PdfColor.fromHex('#94A3B8'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 14),
+
+              // ── Incident Scope & Protocol Notice ──
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#FEF2F2'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: PdfColor.fromHex('#FECACA'), width: 1),
+                ),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Container(
+                      width: 4,
+                      height: 36,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#DC2626'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(2)),
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'CRITICAL SYSTEM DOWN — DIRECT ESCALATION CHANNEL',
+                            style: pw.TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#991B1B'),
+                            ),
+                          ),
+                          pw.SizedBox(height: 3),
+                          pw.Text(
+                            'This emergency document is to be used ONLY when the entire system is completely inaccessible, offline, or experiencing total server failure. For routine software help or bug fixes, submit a ticket via the web IT Service Desk.',
+                            style: pw.TextStyle(
+                              fontSize: 8.5,
+                              color: PdfColor.fromHex('#7F1D1D'),
+                              lineSpacing: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 16),
+
+              // ── On-Call Developer Contacts (2 Columns) ──
+              pw.Text(
+                'PRIMARY DEVELOPER & INFRASTRUCTURE CONTACTS',
+                style: pw.TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#475569'),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+
+              pw.Row(
+                children: [
+                  // Left Card: Voice Call / SMS
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(14),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#F0FDF4'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#BBF7D0'), width: 1),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text(
+                                'DIRECT EMERGENCY HOTLINE',
+                                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#166534')),
+                              ),
+                              pw.Container(
+                                padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColor.fromHex('#DCFCE7'),
+                                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                                ),
+                                child: pw.Text('24/7 ON-CALL', style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#15803D'))),
+                              ),
+                            ],
+                          ),
+                          pw.SizedBox(height: 6),
+                          pw.Text(
+                            '09068654796',
+                            style: pw.TextStyle(
+                              fontSize: 18,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#0F172A'),
+                            ),
+                          ),
+                          pw.SizedBox(height: 6),
+                          pw.Text(
+                            '• Voice Calls & Priority SMS Dispatch\n• Immediate escalation to lead system developer',
+                            style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#166534'), lineSpacing: 1.25),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 12),
+                  // Right Card: Email Escalation
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(14),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#EFF6FF'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#BFDBFE'), width: 1),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text(
+                                'ENGINEERING INCIDENT EMAIL',
+                                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E40AF')),
+                              ),
+                              pw.Container(
+                                padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColor.fromHex('#DBEAFE'),
+                                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                                ),
+                                child: pw.Text('SLA: < 30 MINS', style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1D4ED8'))),
+                              ),
+                            ],
+                          ),
+                          pw.SizedBox(height: 8),
+                          pw.Text(
+                            'yangchowit@gmail.com',
+                            style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#0F172A'),
+                            ),
+                          ),
+                          pw.SizedBox(height: 10),
+                          pw.Text(
+                            '• Monitored by database and backend engineering\n• Attach server error codes and screen captures',
+                            style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#1E40AF'), lineSpacing: 1.25),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              pw.SizedBox(height: 16),
+
+              // ── Incident Triage Checklist ──
+              pw.Text(
+                'INCIDENT TRIAGE CHECKLIST (PREPARE BEFORE CALLING)',
+                style: pw.TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#475569'),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.white,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+                ),
+                child: pw.Column(
+                  children: [
+                    _buildChecklistRow(
+                      number: '1',
+                      title: 'Branch & Affected Devices',
+                      details: 'Pagsanjan Main Branch — identify if cashier terminal, chef tablets, or all screens are affected.',
+                    ),
+                    _buildChecklistRow(
+                      number: '2',
+                      title: 'Exact Failure Symptoms',
+                      details: 'Check if showing 500 server error, database network timeout, or completely white blank screen.',
+                    ),
+                    _buildChecklistRow(
+                      number: '3',
+                      title: 'Affected System Modules',
+                      details: 'ChefYCP (Kitchen display), PagsanjanINV (Stock & Inventory), POS Billing, or Customer ordering.',
+                    ),
+                    _buildChecklistRow(
+                      number: '4',
+                      title: 'Operational Urgency',
+                      details: 'Advise if active customer dining orders are pending or if cashier billing is blocked.',
+                      isLast: true,
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 16),
+
+              // ── Business Continuity & Security Notice (2 Columns) ──
+              pw.Row(
+                children: [
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(12),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#F8FAFC'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'EMERGENCY IN-STORE CONTINGENCY',
+                            style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text(
+                            '• Switch cashier to manual paper receipts & offline cash box.\n• Route food orders verbally or via paper tickets to kitchen.\n• Record table bookings manually until connectivity resumes.',
+                            style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#475569'), lineSpacing: 1.25),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 12),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(12),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#F8FAFC'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'SECURITY & IDENTITY VERIFICATION',
+                            style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text(
+                            '• IT personnel will NEVER ask for passwords or PINs over the phone.\n• All emergency developer access is cryptographically logged.\n• Elevation sessions auto-expire after the authorized time window.',
+                            style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#475569'), lineSpacing: 1.25),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              pw.SizedBox(height: 18),
+
+              // ── Enterprise Document Control Footer ──
+              pw.Divider(color: PdfColor.fromHex('#CBD5E1'), thickness: 0.8),
+              pw.SizedBox(height: 6),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Yang Chow Restaurant Management System • IT Operations & Incident Response',
+                        style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                      ),
+                      pw.SizedBox(height: 1),
+                      pw.Text(
+                        'Authorized for Restaurant Operations & Administrative Staff • Ref: YCR-IT-S1-RUNBOOK',
+                        style: pw.TextStyle(fontSize: 7, color: PdfColor.fromHex('#94A3B8')),
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'CONFIDENTIAL',
+                        style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#DC2626')),
+                      ),
+                      pw.SizedBox(height: 1),
+                      pw.Text(
+                        'Page 1 of 1',
+                        style: pw.TextStyle(fontSize: 7, color: PdfColor.fromHex('#94A3B8')),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+      final bytes = await pdf.save();
+      await Printing.sharePdf(bytes: bytes, filename: 'Yang_Chow_Developer_Emergency_Contact.pdf');
+    } finally {
+      if (mounted) {
+        setState(() => _isDownloadingPdf = false);
+      }
+    }
+  }
+
+  static pw.Widget _buildChecklistRow({
+    required String number,
+    required String title,
+    required String details,
+    bool isLast = false,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: pw.BoxDecoration(
+        border: isLast ? null : pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('#F1F5F9'), width: 1)),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: 16,
+            height: 16,
+            alignment: pw.Alignment.center,
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#F1F5F9'),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            child: pw.Text(
+              number,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#334155')),
+            ),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(title, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                pw.SizedBox(height: 1.5),
+                pw.Text(details, style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#64748B'))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submitRequest() async {
     final issueText = _issueController.text.trim();
     if (issueText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please describe the technical issue or reason.'),
+          content: Text('Please describe the issue you are experiencing.'),
           backgroundColor: Color(0xFFB45309),
           behavior: SnackBarBehavior.floating,
         ),
@@ -3569,7 +4090,9 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
       adminEmail: widget.user.email!,
       adminName: adminName,
       issueDescription: fullDescription,
-      accessScope: _selectedScope,
+      accessScope: _selectedFunction.isNotEmpty
+          ? '$_selectedScope > $_selectedFunction'
+          : _selectedScope,
       durationHours: _selectedDuration,
       autoPurgeTestData: _autoPurgeTestData,
     );
@@ -3585,7 +4108,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ IT Support Request dispatched ($_selectedSeverity). Developer notified.'),
+              content: Text('✅ Technical support request sent ($_selectedSeverity). Developer notified via email.'),
               backgroundColor: const Color(0xFF16A34A),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 4),
@@ -3597,7 +4120,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ Failed to dispatch request. Please try again.'),
+            content: Text('❌ Failed to send request. Please try again.'),
             backgroundColor: Color(0xFFDC2626),
             behavior: SnackBarBehavior.floating,
           ),
@@ -3658,7 +4181,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                           Row(
                             children: [
                               Text(
-                                'Enterprise IT Service Desk',
+                                'Technical Support & Developer Help',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
@@ -3675,7 +4198,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                                   border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
                                 ),
                                 child: Text(
-                                  'ITSM / PAM',
+                                  'IT SUPPORT',
                                   style: GoogleFonts.inter(
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w700,
@@ -3688,7 +4211,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Privileged Access Elevation & Infrastructure Incident Support',
+                            'Request temporary technical assistance from the system developer',
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               color: const Color(0xFF94A3B8),
@@ -3741,13 +4264,13 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.post_add_rounded,
+                                Icons.support_agent_rounded,
                                 size: 16,
                                 color: _currentTab == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Request Elevation',
+                                'Request Support',
                                 style: GoogleFonts.inter(
                                   fontSize: 12.5,
                                   fontWeight: _currentTab == 0 ? FontWeight.w700 : FontWeight.w500,
@@ -3792,7 +4315,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Active Session & Audit',
+                                'Active Session & History',
                                 style: GoogleFonts.inter(
                                   fontSize: 12.5,
                                   fontWeight: _currentTab == 1 ? FontWeight.w700 : FontWeight.w500,
@@ -3839,11 +4362,134 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Incident Severity (ITIL)
+        // ── Emergency Contact Notice / Reminder Banner ──
+        if (!_hasDismissedContactReminder) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFD97706).withValues(alpha: 0.07),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.contact_phone_rounded, color: Color(0xFFD97706), size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Reminder: Download Developer Contact Card',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF92400E),
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => setState(() => _hasDismissedContactReminder = true),
+                            borderRadius: BorderRadius.circular(4),
+                            child: const Padding(
+                              padding: EdgeInsets.all(2.0),
+                              child: Icon(Icons.close_rounded, size: 16, color: Color(0xFFB45309)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Please download the developer emergency contact card if you haven\'t yet. If the system is completely down or inaccessible, you will not be able to open this IT Support desk, so keep an offline copy handy.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          color: const Color(0xFF78350F),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              textStyle: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700),
+                            ),
+                            icon: _isDownloadingPdf
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.download_rounded, size: 14),
+                            label: Text(_isDownloadingPdf ? 'Preparing PDF...' : 'Download Contact PDF'),
+                            onPressed: _isDownloadingPdf
+                                ? null
+                                : () async {
+                                    await _downloadEmergencyContactPdf();
+                                    if (mounted) {
+                                      setState(() => _hasDismissedContactReminder = true);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('✅ Developer emergency contact card downloaded as PDF!'),
+                                          backgroundColor: Color(0xFF16A34A),
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: Duration(seconds: 3),
+                                        ),
+                                      );
+                                    }
+                                  },
+                          ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF92400E),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              textStyle: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            ),
+                            onPressed: () => setState(() => _hasDismissedContactReminder = true),
+                            child: const Text('I already saved it'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Urgency Level
         Row(
           children: [
             Text(
-              'Incident Severity (ITIL)',
+              'Urgency Level',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -3901,11 +4547,84 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
         ),
         const SizedBox(height: 16),
 
-        // Issue Description
+        // 1. Module selector
+        Text(
+          'Which module needs help?',
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _selectedScope,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+              items: _scopeOptions.map((opt) {
+                return DropdownMenuItem<String>(
+                  value: opt['key'] as String,
+                  child: Text(
+                    opt['label'] as String,
+                    style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B)),
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _selectedScope = v;
+                    _selectedFunction = '';
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // 2. Specific function
+        Text(
+          'What specific function is affected?',
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _selectedFunction.isEmpty ? null : _selectedFunction,
+              hint: Text('Select affected function...', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8))),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+              items: (_moduleFunctions[_selectedScope] ?? []).map((fn) {
+                return DropdownMenuItem<String>(
+                  value: fn,
+                  child: Text(fn, style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B))),
+                );
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _selectedFunction = v);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 3. Issue description
         Row(
           children: [
             Text(
-              'Incident / Issue Description',
+              'What issue are you experiencing?',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -3922,7 +4641,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
           maxLines: 3,
           style: GoogleFonts.inter(fontSize: 13),
           decoration: InputDecoration(
-            hintText: 'e.g. Payment not reconciling in sales report after GCash webhook failure',
+            hintText: 'Describe the issue (e.g. Missing sales in today\'s report, payment didn\'t sync in order list, etc.)',
             hintStyle: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF94A3B8)),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
@@ -3940,47 +4659,39 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
             ),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Access Scope Needed
-        Text(
-          'Target Access Scope (Least Privilege)',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
         const SizedBox(height: 8),
+
+        // 4. Notices
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedScope,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
-              items: _scopeOptions
-                  .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s, style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B))),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _selectedScope = v);
-              },
-            ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF64748B)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Notice: For customer GCash or PayMongo deduction issues, please verify using the Payment Approval page or merchant portal. This developer request is for fixing system glitches and synchronizing data records.',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: const Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
 
         // Duration Chips
         Text(
-          'Time-Bound Session Duration',
+          'Allow Developer Access For:',
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -4004,7 +4715,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                   ),
                 ),
                 child: Text(
-                  '${h}h window',
+                  '$h Hour${h > 1 ? 's' : ''}',
                   style: GoogleFonts.inter(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
@@ -4041,7 +4752,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Auto-purge test payments & orders upon completion',
+                      'Automatically clear test data after fixing',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -4050,7 +4761,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Prevents test orders and diagnostic payments from skewing production accounting & sales reports.',
+                      'Prevents test orders and diagnostic data created by the developer from appearing in official sales reports.',
                       style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFB91C1C)),
                     ),
                   ],
@@ -4076,7 +4787,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Governance Protocol: Elevation requires developer confirmation. All actions during elevated sessions are logged to the immutable Audit Trail and auto-expire after $_selectedDuration hour(s).',
+                  'Security Protocol: The developer will receive an email alert. All actions are logged to Audit Logs for safety, and access will automatically expire after $_selectedDuration hour(s).',
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
                     color: const Color(0xFF166534),
@@ -4114,7 +4825,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                     )
                   : const Icon(Icons.send_rounded, size: 16),
               label: Text(
-                _isSubmitting ? 'Dispatching...' : 'Dispatch IT Request',
+                _isSubmitting ? 'Sending...' : 'Send Request to Developer',
                 style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
               ),
             ),

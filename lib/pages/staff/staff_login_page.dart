@@ -6,6 +6,7 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/global_messenger.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/audit_log_service.dart';
+import '../../services/admin_continuity_service.dart';
 
 class StaffLoginPage extends StatefulWidget {
   const StaffLoginPage({super.key});
@@ -27,6 +28,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   final List<String> _allowedRoles = [
     'developer',
     'admin',
+    'backup_admin',
     'inventory staff',
     'chef',
     'cashier',
@@ -71,28 +73,53 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       final userResponse = await Supabase.instance.client
           .from('users')
           .select('role, firstname, lastname')
-          .eq('email', session.user.email!)
+          .ilike('email', session.user.email!)
           .maybeSingle();
 
       if (userResponse != null) {
+        final email = session.user.email!.trim().toLowerCase();
+
+        // Security Check: Verify account has not been deactivated via emergency succession
+        final isDeactivated = await AdminContinuityService.isAccountDeactivated(email);
+        if (isDeactivated) {
+          debugPrint('Deactivated administrator account detected in initial session: $email');
+          await Supabase.instance.client.auth.signOut();
+          if (mounted) {
+            setState(() => _isSessionChecking = false);
+            GlobalMessenger.showError("This administrative account has been deactivated following an Administrative Succession. Access denied.");
+          }
+          return;
+        }
+
         String userRole = userResponse['role']?.toString().toLowerCase() ?? '';
         String firstName = userResponse['firstname']?.toString() ?? '';
         String lastName = userResponse['lastname']?.toString() ?? '';
 
+        // Create display name - use email if name is empty or "Customer"
+        String displayName = firstName.isNotEmpty && firstName != 'Customer'
+            ? firstName
+            : session.user.email!.split('@')[0];
+        if (firstName.isEmpty && lastName.isEmpty) {
+          displayName = session.user.email!.split('@')[0];
+        } else if (firstName.isNotEmpty &&
+            lastName.isNotEmpty &&
+            firstName != 'Customer') {
+          displayName = '$firstName $lastName';
+        }
+
+        // Security Check 2: Verify Backup Admin is not locked in Standby mode
+        final isStandbyLocked = await AdminContinuityService.isBackupAdminLockedInStandby(session.user.email!);
+        if (isStandbyLocked) {
+          debugPrint('Standby backup admin detected in initial session: ${session.user.email}');
+          if (mounted) {
+            setState(() => _isSessionChecking = false);
+            _showStandbyLockDialog(session.user.email!, displayName: displayName);
+          }
+          return;
+        }
+
         // Check if role is allowed for staff portal
         if (_allowedRoles.contains(userRole)) {
-          // Create display name - use email if name is empty or "Customer"
-          String displayName = firstName.isNotEmpty && firstName != 'Customer'
-              ? firstName
-              : session.user.email!.split('@')[0];
-          if (firstName.isEmpty && lastName.isEmpty) {
-            displayName = session.user.email!.split('@')[0];
-          } else if (firstName.isNotEmpty &&
-              lastName.isNotEmpty &&
-              firstName != 'Customer') {
-            displayName = '$firstName $lastName';
-          }
-
           debugPrint('Staff role verified: $userRole');
           debugPrint('Staff display name: "$displayName"');
 
@@ -181,7 +208,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       Navigator.pushReplacementNamed(context, '/chef/dashboard');
     } else if (userRole == 'developer') {
       Navigator.pushReplacementNamed(context, '/developer/dashboard');
-    } else if (userRole == 'admin') {
+    } else if (userRole == 'admin' || userRole == 'backup_admin') {
       Navigator.pushReplacementNamed(context, '/admin/dashboard');
     } else if (userRole == 'inventory staff' || userRole == 'pagsanjaninv') {
       Navigator.pushReplacementNamed(context, '/inventory/dashboard');
@@ -244,13 +271,64 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       final userResponse = await Supabase.instance.client
           .from('users')
           .select('role, firstname, lastname')
-          .eq('email', email)
+          .ilike('email', email)
           .maybeSingle();
+
+      // If emergency succession was executed locally, sync it to cloud Supabase now that user is authenticated
+      try {
+        final cfg = await AdminContinuityService.getConfig();
+        final prefs = await SharedPreferences.getInstance();
+        if (cfg.isSuccessionCompleted &&
+            prefs.getBool('yang_emergency_succession_completed') == true &&
+            prefs.getString('yang_active_primary_admin_email') == email.toLowerCase()) {
+          final formerEmail = prefs.getString('yang_former_deactivated_admin_email') ??
+              (cfg.formerAdminEmail != null && cfg.formerAdminEmail!.isNotEmpty
+                  ? cfg.formerAdminEmail!
+                  : 'admn.pagsanjan@gmail.com');
+          final updatedCloud = AdminContinuityConfig(
+            primaryAdminEmail: email,
+            primaryAdminName: userResponse != null
+                ? '${userResponse['firstname'] ?? ''} ${userResponse['lastname'] ?? ''}'.trim()
+                : 'Primary Administrator',
+            primaryAdminPhone: cfg.backupAdminPhone,
+            primaryAdminTitle: 'Primary System Administrator',
+            backupAdminEmail: '',
+            backupAdminName: '',
+            backupAdminPhone: '',
+            backupAdminTitle: 'Authorized Backup Administrator',
+            status: 'succession_completed',
+            formerAdminEmail: formerEmail,
+            formerAdminName: cfg.formerAdminName ?? 'Tony Stark',
+            securityVerificationKey: cfg.securityVerificationKey,
+            lastUpdated: DateTime.now(),
+          );
+          await AdminContinuityService.saveConfig(updatedCloud);
+          try {
+            await Supabase.instance.client.from('users').update({
+              'role': 'admin',
+            }).ilike('email', email);
+          } catch (_) {}
+        } else if (!cfg.isSuccessionCompleted) {
+          // Clean up stale local flags if cloud config is in normal active state
+          await prefs.remove('yang_emergency_succession_completed');
+          await prefs.remove('yang_former_deactivated_admin_email');
+          await prefs.remove('yang_active_primary_admin_email');
+        }
+      } catch (_) {}
 
       debugPrint('Staff user response: $userResponse');
 
       if (userResponse == null) {
         GlobalMessenger.showError("No staff account found with this email");
+        await Supabase.instance.client.auth.signOut();
+        return;
+      }
+
+      // Security Check: Verify account has not been deactivated via emergency succession
+      final isDeactivated = await AdminContinuityService.isAccountDeactivated(email);
+      if (isDeactivated) {
+        debugPrint('Blocked login attempt for deactivated admin: $email');
+        GlobalMessenger.showError("This administrative account has been deactivated following an Administrative Succession. Access denied.");
         await Supabase.instance.client.auth.signOut();
         return;
       }
@@ -280,6 +358,15 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           lastName.isNotEmpty &&
           firstName != 'Customer') {
         displayName = '$firstName $lastName';
+      }
+
+      // Security Check 2: Verify Backup Admin is not locked in Standby mode
+      final isStandbyLocked = await AdminContinuityService.isBackupAdminLockedInStandby(email);
+      if (isStandbyLocked) {
+        if (mounted) {
+          _showStandbyLockDialog(email, displayName: displayName);
+        }
+        return;
       }
 
       if (mounted) {
@@ -1109,7 +1196,519 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             ),
           ),
         ),
+        const SizedBox(height: 14),
+        Center(
+          child: TextButton.icon(
+            onPressed: _isLoading ? null : _handleDirectEmergencySuccessionTap,
+            icon: const Icon(Icons.shield_outlined, size: 14, color: _warmGold),
+            label: Text(
+              'Backup Admin? Emergency Succession Protocol',
+              style: GoogleFonts.inter(
+                fontSize: 11.5,
+                color: _warmGold.withValues(alpha: 0.85),
+                fontWeight: FontWeight.w500,
+                decoration: TextDecoration.underline,
+                decorationColor: _warmGold.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  void _handleDirectEmergencySuccessionTap() {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      GlobalMessenger.showInfo(
+        'Please enter your Backup Administrator Email and Password above to verify identity.',
+      );
+      return;
+    }
+
+    // Authenticate and launch
+    handleStaffLogin();
+  }
+
+  void _showStandbyLockDialog(String email, {String displayName = ''}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E0B0B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: _warmGold.withValues(alpha: 0.6), width: 1.5),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.shield_outlined, color: Colors.amber, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Administrative Standby Notice',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: const Color(0xFFFFFAEB),
+                    ),
+                  ),
+                  Text(
+                    'Business Continuity & Access Control',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  'STANDBY MODE — LOGIN LOCKED',
+                  style: GoogleFonts.inter(
+                    color: _warmGold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE2E8F0),
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                  children: [
+                    const TextSpan(text: 'Account '),
+                    TextSpan(
+                      text: email,
+                      style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                    ),
+                    const TextSpan(
+                      text: ' is designated as an ',
+                    ),
+                    const TextSpan(
+                      text: 'Authorized Backup Administrator',
+                      style: TextStyle(fontWeight: FontWeight.w700, color: Colors.amber),
+                    ),
+                    const TextSpan(
+                      text: ' in Standby Mode.\n\nPer restaurant enterprise security protocols (NIST SP 800-63 / ISO 27001):',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D1414),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _primaryGold.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.lock_clock_outlined, size: 16, color: Colors.amber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Normal Staff Login is locked while the Primary Administrator is active.',
+                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.verified_user_outlined, size: 16, color: Colors.amber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'For daily Co-Admin access, request the Primary Administrator to authorize this account inside the Admin Continuity dashboard.',
+                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'If the Primary Administrator is permanently unavailable (e.g. accident or death), tap "Initiate Emergency Succession" below with the authorized Security Key.',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFECACA),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await Supabase.instance.client.auth.signOut();
+            },
+            child: Text(
+              'Understood & Exit',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF94A3B8),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showEmergencySuccessionDialog(email, displayName: displayName);
+            },
+            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+            label: Text(
+              'Initiate Emergency Succession',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmergencySuccessionDialog(String email, {String displayName = ''}) async {
+    final config = await AdminContinuityService.getConfig();
+    if (!mounted) return;
+
+    final reasonController = TextEditingController(text: 'Permanent Medical Incapacitation / Deceased');
+    final referenceController = TextEditingController();
+    final keyController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool obscureKey = true;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E0B0B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Emergency Succession Protocol',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: const Color(0xFFFFFAEB),
+                      ),
+                    ),
+                    Text(
+                      'Business Continuity & Disaster Takeover',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 490,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF450A0A),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF991B1B)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.shield_outlined, color: Color(0xFFFCA5A5), size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'AUTHORITY TRANSFER NOTICE',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFFCA5A5),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'You are initiating formal Administrative Succession for Yang Chow Palace.\n\n'
+                            '• Successor Account: $email (${displayName.isNotEmpty ? displayName : 'Authorized Backup Admin'})\n'
+                            '• Former Administrator (${config.primaryAdminEmail}) will be DEACTIVATED.\n'
+                            '• Historical approvals, orders, and audits remain permanently intact.',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFECACA),
+                              fontSize: 12,
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Emergency Reason *',
+                      style: GoogleFonts.poppins(color: _warmGold, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: reasonController.text,
+                      dropdownColor: const Color(0xFF2D1414),
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFF2D1414),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Permanent Medical Incapacitation / Deceased',
+                          child: Text('Permanent Medical Incapacitation / Deceased'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Sudden Executive Departure / Incommunicado',
+                          child: Text('Sudden Executive Departure / Incommunicado'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Disaster Recovery / Unrecoverable Loss',
+                          child: Text('Disaster Recovery / Unrecoverable Loss'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Court / Legal / Governance Directive',
+                          child: Text('Court / Legal / Governance Directive'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) reasonController.text = val;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Official Reference Document Number *',
+                      style: GoogleFonts.poppins(color: _warmGold, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: referenceController,
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. HR-MEMO-2026-004, CERT-INCIDENT-882',
+                        hintStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF2D1414),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Reference document is required' : null,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Continuity Security Verification Key *',
+                      style: GoogleFonts.poppins(color: _warmGold, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: keyController,
+                      obscureText: obscureKey,
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Enter Emergency Security Passphrase',
+                        hintStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF2D1414),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureKey ? Icons.visibility_off : Icons.visibility, color: Colors.white70, size: 18),
+                          onPressed: () => setModalState(() => obscureKey = !obscureKey),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Security key is required' : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      await Supabase.instance.client.auth.signOut();
+                    },
+              child: Text(
+                'Cancel & Sign Out',
+                style: GoogleFonts.inter(
+                  color: Colors.white60,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setModalState(() => isSubmitting = true);
+
+                      final initiatedName = displayName.isNotEmpty ? displayName : 'Authorized Successor';
+
+                      final res = await AdminContinuityService.executeEmergencySuccession(
+                        emergencyReason: reasonController.text.trim(),
+                        referenceDocument: referenceController.text.trim(),
+                        verificationKeyInput: keyController.text.trim(),
+                        initiatedByEmail: email,
+                        initiatedByName: initiatedName,
+                      );
+
+                      if (mounted) {
+                        if (res['success'] == true) {
+                          Navigator.pop(ctx);
+                          GlobalMessenger.showSuccess(
+                            res['message'] ?? 'Emergency succession executed! You are now Primary Administrator.',
+                          );
+                          // Proceed directly to admin dashboard
+                          await _redirectByUserRole(email, 'admin', initiatedName);
+                        } else {
+                          setModalState(() => isSubmitting = false);
+                          GlobalMessenger.showError(res['message'] ?? 'Emergency succession failed.');
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text(
+                      'Authorize & Take Over as Primary Admin',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

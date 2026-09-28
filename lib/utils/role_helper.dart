@@ -20,7 +20,7 @@ class RoleHelper {
           .maybeSingle();
 
       final role = response?['role']?.toString().toLowerCase() ?? 'staff';
-      return role == 'admin' || role == 'developer';
+      return role == 'admin' || role == 'developer' || role == 'backup_admin';
     } catch (e) {
       debugPrint('Error checking admin role: $e');
       return false;
@@ -127,6 +127,7 @@ class RoleHelper {
       case 'developer':
         return '/developer/dashboard';
       case 'admin':
+      case 'backup_admin':
         return '/admin/dashboard';
       case 'chef':
         return '/chef/dashboard';

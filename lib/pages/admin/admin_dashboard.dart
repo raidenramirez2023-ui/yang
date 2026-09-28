@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'dart:async';
 
@@ -55,6 +55,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   int _pendingReservations = 0;
 
   List<double> _weeklyRevenue = List.filled(7, 0.0);
+  List<double> _weeklyRegularRevenue = [];
+  List<double> _weeklyAdvanceRevenue = [];
+  List<double> _weeklyReservationRevenue = [];
   List<Map<String, dynamic>> _lastOrders = [];
   List<Map<String, dynamic>> _lastAdvanceOrders = [];
   List<Map<String, dynamic>> _lastReservations = [];
@@ -152,10 +155,36 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   DateTime? _focusedMonth;
 
-  String _selectedPeriod = 'Weekly'; // New period selector state
+  String _selectedPeriod = 'Weekly'; // Period selector state
   final FocusNode _dashboardPeriodFocusNode = FocusNode(canRequestFocus: false);
 
   String _selectedYear = DateTime.now().year.toString(); // Dynamic year selector state
+  final List<String> _monthFilters = const [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  final List<String> _weekFilters = const ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
+
+  late String _selectedDailyMonth;
+  late String _selectedDailyDay;
+  late String _selectedWeeklyMonth;
+  late String _selectedWeeklyWeek;
+  late String _selectedMonthlyMonth;
+
+  final FocusNode _dashboardDailyMonthFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _dashboardDailyDayFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _dashboardWeeklyMonthFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _dashboardWeeklyWeekFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _dashboardMonthlyMonthFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _dashboardYearFocusNode = FocusNode(canRequestFocus: false);
+
+  // ── Pinned chart point (persistent tooltip overlay) ───────────────────────
+  _RevenueData? _pinnedChartPoint;
+  int _pinnedPointIndex = 0;
+  int _pinnedChartLength = 1;
+  double? _pinnedExactX;
+  int? _lastHoveredTooltipIndex;
+  double? _lastHoveredTooltipX;
 
   int _schedulePage = 0;
 
@@ -164,6 +193,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   @override
   void initState() {
     super.initState();
+
+    final now = DateTime.now();
+    _selectedDailyMonth = _monthFilters[now.month - 1];
+    _selectedDailyDay = now.day.toString();
+    _selectedWeeklyMonth = _monthFilters[now.month - 1];
+    final currentWeekNum = ((now.day - 1) ~/ 7) + 1;
+    _selectedWeeklyWeek = 'Week ${currentWeekNum.clamp(1, 5)}';
+    _selectedMonthlyMonth = _monthFilters[now.month - 1];
 
     // Initialize state variables
 
@@ -318,6 +355,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     _controller.dispose();
     _realtimeTimer?.cancel();
     _dashboardPeriodFocusNode.dispose();
+    _dashboardDailyMonthFocusNode.dispose();
+    _dashboardDailyDayFocusNode.dispose();
+    _dashboardWeeklyMonthFocusNode.dispose();
+    _dashboardWeeklyWeekFocusNode.dispose();
+    _dashboardMonthlyMonthFocusNode.dispose();
+    _dashboardYearFocusNode.dispose();
     super.dispose();
   }
 
@@ -541,8 +584,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     _pendingReservations = pendingReservations.length;
 
-    // Revenue Chart: Regular Orders only
-    _weeklyRevenue = _processChartData(allOrders);
+    // Revenue Chart: All Orders & Reservations
+    _weeklyRevenue = _processChartData(
+      allOrders,
+      advanceOrders: allAdvanceOrders,
+      reservations: allReservations,
+    );
 
     // Kitchen Status Counts (Real-time from today's orders)
 
@@ -1169,46 +1216,90 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
   }
 
+  int _getMonthIndex(String monthName) {
+    switch (monthName) {
+      case 'January': return 1;
+      case 'February': return 2;
+      case 'March': return 3;
+      case 'April': return 4;
+      case 'May': return 5;
+      case 'June': return 6;
+      case 'July': return 7;
+      case 'August': return 8;
+      case 'September': return 9;
+      case 'October': return 10;
+      case 'November': return 11;
+      case 'December': return 12;
+      default: return 1;
+    }
+  }
+
+  bool _isInSelectedWeekOfMonth(DateTime date, int weekNumber, int monthIndex, int year) {
+    if (date.year != year || date.month != monthIndex) return false;
+    final int startDay = (weekNumber - 1) * 7 + 1;
+    final int daysInMonth = DateTime(year, monthIndex + 1, 0).day;
+    if (startDay > daysInMonth) return false;
+    final int endDay = min(startDay + 6, daysInMonth);
+    return date.day >= startDay && date.day <= endDay;
+  }
+
+  /// Returns a short date range label for a given week key (e.g. "Week 1")
+  /// based on [_selectedWeeklyMonth] and [_selectedYear].
+  /// Example output: "Sep 1–7"
+  String _getWeekDateRangeLabel(String weekKey) {
+    try {
+      final year = int.tryParse(_selectedYear) ?? DateTime.now().year;
+      final monthIdx = _getMonthIndex(_selectedWeeklyMonth);
+      final weekNum = int.tryParse(weekKey.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+      final startDay = (weekNum - 1) * 7 + 1;
+      final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
+      if (startDay > daysInMonth) return '';
+      final endDay = min(startDay + 6, daysInMonth);
+      final monthAbbr = DateFormat('MMM').format(DateTime(year, monthIdx));
+      return '$monthAbbr $startDay–$endDay';
+    } catch (_) {
+      return '';
+    }
+  }
+
   List<String> getChartLabels() {
+    final now = DateTime.now();
+    final year = int.tryParse(_selectedYear) ?? now.year;
+
     if (_selectedPeriod == 'Daily') {
-      // Dynamic business hours from AppSettingsService
+      // Dynamic business hours from AppSettingsService (e.g. 10 AM to 8 PM)
       final startHour = AppSettingsService().getOperatingHoursStart();
       final endHour = AppSettingsService().getOperatingHoursEnd();
       return List.generate(
         endHour - startHour + 1,
-        (i) => '${(startHour + i).toString().padLeft(2, '0')}:00',
+        (i) {
+          final h = startHour + i;
+          final period = h >= 12 ? 'PM' : 'AM';
+          final displayH = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+          return '$displayH$period';
+        },
       );
     } else if (_selectedPeriod == 'Weekly') {
-      return [
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-        'Sunday',
-      ];
+      final monthIdx = _getMonthIndex(_selectedWeeklyMonth);
+      final weekNum = int.tryParse(_selectedWeeklyWeek.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+      final startDay = (weekNum - 1) * 7 + 1;
+      final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
+      final endDay = min(startDay + 6, daysInMonth);
+      final int numDays = (endDay - startDay + 1).clamp(1, 7);
+      return List.generate(numDays, (i) {
+        final d = DateTime(year, monthIdx, startDay + i);
+        return DateFormat('E d').format(d);
+      });
     } else if (_selectedPeriod == 'Monthly') {
-      return [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
+      final monthIdx = _getMonthIndex(_selectedMonthlyMonth);
+      final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
+      return List.generate(daysInMonth, (i) => '${i + 1}');
     } else {
-      // Annual - 2016 to current year
+      // Annual - 2020 to current year
       final currentYear = DateTime.now().year;
       return List.generate(
-        currentYear - 2016 + 1,
-        (index) => (2016 + index).toString(),
+        currentYear - 2020 + 1,
+        (index) => (2020 + index).toString(),
       );
     }
   }
@@ -1219,19 +1310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     List<Map<String, dynamic>>? reservations,
   }) {
     final now = DateTime.now();
-    Map<int, double> periodData = {};
+    final year = int.tryParse(_selectedYear) ?? now.year;
+    Map<int, double> regularData = {};
+    Map<int, double> advanceData = {};
+    Map<int, double> reservationData = {};
 
     // Helper to process a list of orders/reservations
     void processList(
       List<Map<String, dynamic>> list, {
       required bool isAdvance,
       required bool isReservation,
+      required Map<int, double> targetMap,
     }) {
       for (var item in list) {
         if (isReservation && item['is_archived'] == true) continue;
 
+        final status = (item['status']?.toString() ?? item['kitchen_status']?.toString() ?? '').toLowerCase();
+        final paymentStatus = (item['payment_status']?.toString() ?? '').toLowerCase();
+
+        // Standard IT rule: Exclude cancelled, voided, refunded transactions
+        if (status == 'cancelled' || status == 'voided' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+          continue;
+        }
+
         final dateStr = isReservation
-            ? (item['payment_date'] ?? item['event_date'] ?? item['created_at'])
+            ? (item['event_date'] ?? item['payment_date'] ?? item['created_at'])
             : (isAdvance ? (item['order_date'] ?? item['created_at']) : item['created_at']);
 
         // Convert UTC timestamp from Supabase to Local Device Time
@@ -1240,12 +1343,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         if (isAdvance) {
           final isPaid =
-              item['payment_status'] == 'paid' ||
-              item['payment_status'] == 'fully_paid';
-          if (!isPaid) continue;
+              paymentStatus == 'paid' ||
+              paymentStatus == 'fully_paid';
+          if (!isPaid && status != 'completed' && status != 'done' && status != 'ready') continue;
         } else if (isReservation) {
-          final paymentStatus = item['payment_status']?.toString().toLowerCase() ?? '';
-          final status = item['status']?.toString().toLowerCase() ?? '';
           final isPaid =
               paymentStatus == 'paid' ||
               paymentStatus == 'fully_paid' ||
@@ -1257,8 +1358,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         double amount = 0.0;
         if (isReservation) {
-          final paymentStatus = item['payment_status']?.toString().toLowerCase() ?? '';
-          if (paymentStatus == 'deposit_paid') {
+          final pStatus = item['payment_status']?.toString().toLowerCase() ?? '';
+          if (pStatus == 'deposit_paid') {
             amount = (item['deposit_amount'] as num?)?.toDouble() ??
                 ((item['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
           } else {
@@ -1267,7 +1368,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         } else {
           amount = isAdvance
               ? (item['total_price'] as num?)?.toDouble() ?? 0.0
-              : (item['total_amount'] as num?)?.toDouble() ?? 0.0;
+              : ((item['total_amount'] as num?)?.toDouble() ?? (item['total_price'] as num?)?.toDouble() ?? 0.0);
         }
 
         // Apply period-specific filtering
@@ -1275,38 +1376,39 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           case 'Daily':
             final startH = AppSettingsService().getOperatingHoursStart();
             final endH = AppSettingsService().getOperatingHoursEnd();
-            if (date.year == now.year &&
-                date.month == now.month &&
-                date.day == now.day &&
-                date.hour >= startH &&
-                date.hour <= endH) {
-              // Map hour to 0-based index within business hours
-              final key = date.hour - startH;
-              periodData[key] = (periodData[key] ?? 0) + amount;
+            final monthIdx = _getMonthIndex(_selectedDailyMonth);
+            final day = int.tryParse(_selectedDailyDay) ?? 1;
+            if (date.year == year &&
+                date.month == monthIdx &&
+                date.day == day) {
+              final clampedHour = date.hour.clamp(startH, endH);
+              final key = clampedHour - startH;
+              targetMap[key] = (targetMap[key] ?? 0) + amount;
             }
             break;
 
           case 'Weekly':
-            final dailyDiff = now.difference(date).inDays;
-            if (dailyDiff >= 0 &&
-                dailyDiff < 7 &&
-                date.year.toString() == _selectedYear) {
-              final key = date.weekday - 1;
-              periodData[key] = (periodData[key] ?? 0) + amount;
+            final monthIdx = _getMonthIndex(_selectedWeeklyMonth);
+            final weekNum = int.tryParse(_selectedWeeklyWeek.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+            final startDay = (weekNum - 1) * 7 + 1;
+            if (_isInSelectedWeekOfMonth(date, weekNum, monthIdx, year)) {
+              final key = date.day - startDay;
+              targetMap[key] = (targetMap[key] ?? 0) + amount;
             }
             break;
 
           case 'Monthly':
-            if (date.year.toString() == _selectedYear) {
-              final key = date.month - 1;
-              periodData[key] = (periodData[key] ?? 0) + amount;
+            final monthIdx = _getMonthIndex(_selectedMonthlyMonth);
+            if (date.year == year && date.month == monthIdx) {
+              final key = date.day - 1;
+              targetMap[key] = (targetMap[key] ?? 0) + amount;
             }
             break;
 
           case 'Annually':
-            if (date.year >= 2016 && date.year <= now.year) {
-              final key = date.year - 2016;
-              periodData[key] = (periodData[key] ?? 0) + amount;
+            if (date.year >= 2020 && date.year <= now.year) {
+              final key = date.year - 2020;
+              targetMap[key] = (targetMap[key] ?? 0) + amount;
             }
             break;
         }
@@ -1314,33 +1416,46 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
 
     // Process regular orders
-    processList(orders, isAdvance: false, isReservation: false);
+    processList(orders, isAdvance: false, isReservation: false, targetMap: regularData);
 
     // Also include paid advance orders if provided
     if (advanceOrders != null && advanceOrders.isNotEmpty) {
-      processList(advanceOrders, isAdvance: true, isReservation: false);
+      processList(advanceOrders, isAdvance: true, isReservation: false, targetMap: advanceData);
     }
 
     // Also include event reservations if provided
     if (reservations != null && reservations.isNotEmpty) {
-      processList(reservations, isAdvance: false, isReservation: true);
+      processList(reservations, isAdvance: false, isReservation: true, targetMap: reservationData);
     }
 
-    // Convert to list based on selected period
+    int count;
     if (_selectedPeriod == 'Daily') {
       final startH = AppSettingsService().getOperatingHoursStart();
       final endH = AppSettingsService().getOperatingHoursEnd();
-      final hourCount = endH - startH + 1;
-      return List.generate(hourCount, (i) => periodData[i] ?? 0.0);
+      count = endH - startH + 1;
     } else if (_selectedPeriod == 'Weekly') {
-      return List.generate(7, (i) => periodData[i] ?? 0.0);
+      final monthIdx = _getMonthIndex(_selectedWeeklyMonth);
+      final weekNum = int.tryParse(_selectedWeeklyWeek.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+      final startDay = (weekNum - 1) * 7 + 1;
+      final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
+      final endDay = min(startDay + 6, daysInMonth);
+      count = (endDay - startDay + 1).clamp(1, 7);
     } else if (_selectedPeriod == 'Monthly') {
-      return List.generate(12, (i) => periodData[i] ?? 0.0);
+      final monthIdx = _getMonthIndex(_selectedMonthlyMonth);
+      count = DateTime(year, monthIdx + 1, 0).day;
     } else {
       final currentYear = now.year;
-      final yearRange = currentYear - 2016 + 1;
-      return List.generate(yearRange, (i) => periodData[i] ?? 0.0);
+      count = currentYear - 2020 + 1;
     }
+
+    _weeklyRegularRevenue = List.generate(count, (i) => regularData[i] ?? 0.0);
+    _weeklyAdvanceRevenue = List.generate(count, (i) => advanceData[i] ?? 0.0);
+    _weeklyReservationRevenue = List.generate(count, (i) => reservationData[i] ?? 0.0);
+
+    return List.generate(
+      count,
+      (i) => (regularData[i] ?? 0.0) + (advanceData[i] ?? 0.0) + (reservationData[i] ?? 0.0),
+    );
   }
 
   void _updateActivity(
@@ -2156,34 +2271,57 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         .clamp(1000.0, 10000000.0)
         .toDouble();
 
-    final weeklyFull = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-    final weeklyShort = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    final dailyFull = [
-      '8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM',
-      '1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM',
-      '6:00 PM','7:00 PM','8:00 PM','9:00 PM','10:00 PM','11:00 PM'
-    ];
-    final dailyShort = [
-      '8AM','9AM','10AM','11AM','12PM',
-      '1PM','2PM','3PM','4PM','5PM',
-      '6PM','7PM','8PM','9PM','10PM','11PM'
-    ];
+    final startHour = AppSettingsService().getOperatingHoursStart();
+
+    String formatDailyHour(int h, {bool short = true}) {
+      final period = h >= 12 ? 'PM' : 'AM';
+      final displayH = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+      return short ? '$displayH$period' : '$displayH:00 $period';
+    }
 
     String bottomLabel(int i) {
-      if (_selectedPeriod == 'Weekly') return i < weeklyShort.length ? weeklyShort[i] : 'D${i+1}';
-      if (_selectedPeriod == 'Daily') return i < dailyShort.length ? dailyShort[i] : '${i+8}:00';
-      return i < dayLabels.length ? dayLabels[i] : 'M${i+1}';
+      if (i < dayLabels.length) return dayLabels[i];
+      if (_selectedPeriod == 'Daily') {
+        final h = startHour + i;
+        return formatDailyHour(h, short: true);
+      }
+      return 'D${i + 1}';
     }
 
     String tooltipLabel(int i) {
-      if (_selectedPeriod == 'Weekly') return i < weeklyFull.length ? weeklyFull[i] : 'Day ${i+1}';
-      if (_selectedPeriod == 'Daily') return i < dailyFull.length ? dailyFull[i] : '${i+8}:00';
-      return i < dayLabels.length ? dayLabels[i] : 'Month ${i+1}';
+      final year = int.tryParse(_selectedYear) ?? DateTime.now().year;
+      if (_selectedPeriod == 'Weekly') {
+        final monthIdx = _getMonthIndex(_selectedWeeklyMonth);
+        final weekNum = int.tryParse(_selectedWeeklyWeek.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+        final startDay = (weekNum - 1) * 7 + 1;
+        final d = DateTime(year, monthIdx, startDay + i);
+        return DateFormat('EEEE, MMMM d, yyyy').format(d);
+      }
+      if (_selectedPeriod == 'Daily') {
+        final h = startHour + i;
+        return '$_selectedDailyMonth $_selectedDailyDay • ${formatDailyHour(h, short: false)}';
+      }
+      if (_selectedPeriod == 'Monthly') {
+        final monthIdx = _getMonthIndex(_selectedMonthlyMonth);
+        final d = DateTime(year, monthIdx, i + 1);
+        return DateFormat('MMMM d, yyyy (EEEE)').format(d);
+      }
+      return i < dayLabels.length ? 'Year ${dayLabels[i]}' : 'Year ${2020 + i}';
     }
 
     final chartData = List.generate(chartLength, (i) {
       final val = i < _weeklyRevenue.length ? _weeklyRevenue[i] : 0.0;
-      return _RevenueData(bottomLabel(i), val);
+      final reg = i < _weeklyRegularRevenue.length ? _weeklyRegularRevenue[i] : 0.0;
+      final adv = i < _weeklyAdvanceRevenue.length ? _weeklyAdvanceRevenue[i] : 0.0;
+      final res = i < _weeklyReservationRevenue.length ? _weeklyReservationRevenue[i] : 0.0;
+      return _RevenueData(
+        bottomLabel(i),
+        val,
+        fullLabel: tooltipLabel(i),
+        regular: reg,
+        advance: adv,
+        reservation: res,
+      );
     });
 
     return Container(
@@ -2192,54 +2330,117 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 24,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.adminPrimaryAccent, AppTheme.adminChatButton],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+          LayoutBuilder(
+            builder: (context, boxConstraints) {
+              final isHeaderNarrow = boxConstraints.maxWidth < 800;
+              final headerTitleColumn = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        'Gross Analytics',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.darkGrey,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: const Color(0xFFA5D6A7)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.layers_rounded, size: 11, color: Color(0xFF2E7D32)),
+                            SizedBox(width: 4),
+                            Text(
+                              'All Channels Included',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2E7D32),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+                  const SizedBox(height: 3),
+                  Text(
+                    _selectedPeriod == 'Weekly'
+                        ? 'Consolidated weekly gross ($_selectedWeeklyWeek of $_selectedWeeklyMonth $_selectedYear)'
+                        : _selectedPeriod == 'Daily'
+                            ? 'Consolidated hourly gross ($_selectedDailyMonth $_selectedDailyDay, $_selectedYear)'
+                            : _selectedPeriod == 'Monthly'
+                                ? 'Consolidated monthly gross ($_selectedMonthlyMonth $_selectedYear)'
+                                : 'Consolidated annual gross (2020 - $_selectedYear)',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.mediumGrey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+
+              if (isHeaderNarrow) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Gross Analytics',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.darkGrey,
-                        fontSize: 18,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppTheme.adminPrimaryAccent, AppTheme.adminChatButton],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: headerTitleColumn),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _selectedPeriod == 'Weekly'
-                          ? 'This week\'s gross overview'
-                          : _selectedPeriod == 'Daily'
-                              ? 'Today\'s hourly gross overview'
-                              : _selectedPeriod == 'Monthly'
-                                  ? 'Monthly gross overview'
-                                  : 'Annual gross overview',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.mediumGrey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    const SizedBox(height: 12),
+                    _periodSelector(),
                   ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              _periodSelector(),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.adminPrimaryAccent, AppTheme.adminChatButton],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: headerTitleColumn),
+                  const SizedBox(width: 16),
+                  _periodSelector(),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 
@@ -2252,22 +2453,52 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           Container(height: 1, color: AppTheme.cardBorder),
           const SizedBox(height: 16),
 
-          // ── Main Chart ────────────────────────────────────────────────────
+          // ── Main Chart (with pinned tooltip overlay) ──────────────────────
           SizedBox(
             height: 270,
             child: chartData.every((d) => d.value == 0)
                 ? _buildChartEmptyState()
-                : MediaQuery.of(context).size.width < 1150
-                    ? SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: Container(
-                          padding: const EdgeInsets.only(right: 16),
-                          width: 650,
-                          child: _buildSfChart(chartData, maxY, tooltipLabel),
-                        ),
-                      )
-                    : _buildSfChart(chartData, maxY, tooltipLabel),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = MediaQuery.of(context).size.width < 1150;
+                      final effectiveWidth = isNarrow ? 650.0 : constraints.maxWidth;
+                      final chartWidget = _buildSfChart(chartData, maxY, tooltipLabel, effectiveWidth);
+                      final overlayWidget = _pinnedChartPoint != null
+                          ? _buildPinnedTooltipOverlay(
+                              _pinnedChartPoint!,
+                              _pinnedPointIndex,
+                              _pinnedChartLength,
+                              effectiveWidth,
+                            )
+                          : null;
+
+                      if (isNarrow) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Container(
+                            padding: const EdgeInsets.only(right: 16),
+                            width: 650,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                chartWidget,
+                                if (overlayWidget != null) overlayWidget,
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          chartWidget,
+                          if (overlayWidget != null) overlayWidget,
+                        ],
+                      );
+                    },
+                  ),
           ),
 
           const SizedBox(height: 12),
@@ -2292,7 +2523,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   ),
                   const SizedBox(width: 6),
                   const Text(
-                    'Total Revenue',
+                    'Consolidated Revenue',
                     style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -2314,9 +2545,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   ),
                 ],
               ),
-              const Text(
-                '• Regular Walk-in / POS Orders',
-                style: TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF14332E)),
+                    SizedBox(width: 5),
+                    Text(
+                      'Includes: POS Walk-in  •  Advance Orders  •  Event Reservations',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF14332E), fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -2328,11 +2574,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   Widget _buildChartSummaryRow(List<_RevenueData> chartData) {
     final total = chartData.fold<double>(0, (s, d) => s + d.value);
     final peak = chartData.isEmpty ? null : chartData.reduce((a, b) => a.value >= b.value ? a : b);
+    final avg = chartData.isEmpty ? 0.0 : total / chartData.length;
     final fmt = NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH');
     final fmtFull = NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2);
     final periodLabel = _selectedPeriod == 'Daily' ? 'Hour'
         : _selectedPeriod == 'Weekly' ? 'Day'
-        : _selectedPeriod == 'Monthly' ? 'Month' : 'Year';
+        : _selectedPeriod == 'Monthly' ? 'Day' : 'Year';
+
+    final startH = AppSettingsService().getOperatingHoursStart();
+    final endH = AppSettingsService().getOperatingHoursEnd();
+    final startFormat = DateFormat('h a').format(DateTime(2026, 1, 1, startH));
+    final endFormat = DateFormat('h a').format(DateTime(2026, 1, 1, endH));
+
+    final String avgTooltip = _selectedPeriod == 'Daily'
+        ? 'Average per operating hour:\nTotal for $_selectedDailyMonth $_selectedDailyDay ÷ ${chartData.length} business hours ($startFormat – $endFormat)'
+        : _selectedPeriod == 'Weekly'
+            ? 'Average per day:\nTotal Weekly Revenue ($_selectedWeeklyWeek · ${_getWeekDateRangeLabel(_selectedWeeklyWeek)}) ÷ ${chartData.length} days'
+            : _selectedPeriod == 'Monthly'
+                ? 'Average per day:\nTotal Monthly Revenue ($_selectedMonthlyMonth $_selectedYear) ÷ ${chartData.length} days'
+                : 'Average per year:\nTotal Gross ÷ ${chartData.length} recorded years';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -2348,16 +2608,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             icon: Icons.paid_rounded,
             color: const Color(0xFF14332E),
             label: 'Total Revenue',
+            subLabel: 'All Channels',
             value: fmtFull.format(total),
+            tooltipMessage: 'Consolidated gross revenue combining POS Walk-in, Advance Orders, and Event Bookings.',
           ),
-          Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 12)),
+          Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 8)),
+          _buildChartStat(
+            icon: Icons.bar_chart_rounded,
+            color: const Color(0xFF2B6CB0),
+            label: 'Average',
+            subLabel: '/ $periodLabel',
+            value: avg > 100000 ? fmt.format(avg) : fmtFull.format(avg),
+            tooltipMessage: avgTooltip,
+          ),
+          Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 8)),
           _buildChartStat(
             icon: Icons.trending_up_rounded,
             color: const Color(0xFFD9A441),
             label: 'Peak $periodLabel',
             value: (peak != null && peak.value > 0)
-                ? '${peak.label}  •  ${fmt.format(peak.value)}'
+                ? '${peak.label}  •  ${peak.value > 100000 ? fmt.format(peak.value) : fmtFull.format(peak.value)}'
                 : '—',
+            tooltipMessage: 'Highest revenue point recorded in the selected period.',
           ),
         ],
       ),
@@ -2368,7 +2640,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     required IconData icon,
     required Color color,
     required String label,
+    String? subLabel,
     required String value,
+    String? tooltipMessage,
   }) {
     return Expanded(
       child: Row(
@@ -2385,15 +2659,71 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    color: AppTheme.mediumGrey,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        color: AppTheme.mediumGrey,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    if (tooltipMessage != null) ...[
+                      const SizedBox(width: 3),
+                      Tooltip(
+                        message: tooltipMessage,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        textStyle: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                        waitDuration: Duration.zero,
+                        showDuration: const Duration(seconds: 4),
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          size: 11,
+                          color: AppTheme.mediumGrey.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                    if (subLabel != null) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          subLabel,
+                          style: const TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -2411,6 +2741,169 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
+
+
+
+  Widget _buildTooltipBreakdownRow(String label, double amount, Color dotColor) {
+    final fmt = NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH');
+    final fmtFull = NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9.5, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Text(
+          amount > 100000 ? fmt.format(amount) : fmtFull.format(amount),
+          style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+
+  // ── Pinned Breakdown Card ─────────────────────────────────────────────────
+  // ── Pinned tooltip overlay — same card as Syncfusion tooltip + ✕ close ─────
+  Widget _buildPinnedTooltipOverlay(
+    _RevenueData item,
+    int idx,
+    int n,
+    double chartWidth,
+  ) {
+    const double cardWidth  = 200.0;
+    const double yAxisWidth = 58.0;  // approximate y-axis label area
+    const double rightPad   = 8.0;
+
+    final double left;
+    if (_pinnedExactX != null) {
+      left = (_pinnedExactX! - cardWidth / 2).clamp(0.0, (chartWidth - cardWidth).clamp(0.0, double.infinity));
+    } else {
+      final double plotWidth = (chartWidth - yAxisWidth - rightPad).clamp(0.0, double.infinity);
+      final double fraction  = n <= 1 ? 0.5 : idx / (n - 1);
+      left = (yAxisWidth + fraction * plotWidth - cardWidth / 2).clamp(0.0, (chartWidth - cardWidth).clamp(0.0, double.infinity));
+    }
+
+    final fmt = NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2);
+
+    final label = item.fullLabel.isNotEmpty ? item.fullLabel : item.label;
+
+    return Positioned(
+      left: left,
+      top: 4,
+      width: cardWidth,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header row: dot + label + ✕ ──────────────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 6, height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD9A441),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // ✕ close button
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() {
+                      _pinnedChartPoint = null;
+                      _pinnedExactX = null;
+                    }),
+                    child: Container(
+                      width: 18, height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 11,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              // ── Total value ───────────────────────────────────────────────
+              Text(
+                fmt.format(item.value),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              if (item.value > 0) ...[
+                const SizedBox(height: 7),
+                Container(width: 175, height: 1, color: Colors.white.withValues(alpha: 0.12)),
+                const SizedBox(height: 6),
+                _buildTooltipBreakdownRow('Walk-in POS',    item.regular,     const Color(0xFF60A5FA)),
+                const SizedBox(height: 3.5),
+                _buildTooltipBreakdownRow('Advance Orders', item.advance,     const Color(0xFF4ADE80)),
+                const SizedBox(height: 3.5),
+                _buildTooltipBreakdownRow('Event Bookings', item.reservation, const Color(0xFFA78BFA)),
+              ],
+              if (item.value == 0)
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Text(
+                    'No transactions',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 9),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildChartEmptyState() {
     return Center(
@@ -2433,10 +2926,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           const SizedBox(height: 4),
           Text(
             _selectedPeriod == 'Daily'
-                ? 'No transactions recorded today'
+                ? 'No transactions recorded for $_selectedDailyMonth $_selectedDailyDay, $_selectedYear'
                 : _selectedPeriod == 'Weekly'
-                    ? 'No transactions in the past 7 days'
-                    : 'No data for the selected period',
+                    ? 'No transactions in $_selectedWeeklyWeek of $_selectedWeeklyMonth $_selectedYear'
+                    : _selectedPeriod == 'Monthly'
+                        ? 'No transactions in $_selectedMonthlyMonth $_selectedYear'
+                        : 'No data for the selected period',
             style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
           ),
         ],
@@ -2444,7 +2939,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildSfChart(List<_RevenueData> chartData, double maxY, String Function(int) tooltipLabel) {
+  Widget _buildSfChart(
+    List<_RevenueData> chartData,
+    double maxY,
+    String Function(int) tooltipLabel,
+    double chartWidth,
+  ) {
     double peakVal = 0;
     for (final d in chartData) {
       if (d.value > peakVal) peakVal = d.value;
@@ -2454,11 +2954,61 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       plotAreaBorderWidth: 0,
       plotAreaBackgroundColor: Colors.transparent,
       margin: const EdgeInsets.only(left: 0, right: 8, top: 8, bottom: 0),
+      onTooltipRender: (TooltipArgs args) {
+        final idx = args.pointIndex?.toInt();
+        if (idx != null && idx >= 0 && idx < chartData.length) {
+          _lastHoveredTooltipIndex = idx;
+          if (args.locationX != null) {
+            _lastHoveredTooltipX = args.locationX;
+          }
+        }
+      },
+      onAxisLabelTapped: (AxisLabelTapArgs args) {
+        final idx = args.value.toInt();
+        if (idx >= 0 && idx < chartData.length && mounted) {
+          setState(() {
+            _pinnedChartPoint = chartData[idx];
+            _pinnedPointIndex = idx;
+            _pinnedChartLength = chartData.length;
+            _pinnedExactX = null;
+          });
+        }
+      },
+      onChartTouchInteractionUp: (ChartTouchInteractionArgs args) {
+        final n = chartData.length;
+        if (n == 0 || !mounted) return;
+
+        const double yAxisWidth = 58.0;
+        final double plotWidth = (chartWidth - yAxisWidth - 8.0).clamp(1.0, double.infinity);
+        final double relX = (args.position.dx - yAxisWidth).clamp(0.0, plotWidth);
+        final int calcIdx = (n <= 1) ? 0 : ((relX / plotWidth) * (n - 1)).round().clamp(0, n - 1);
+
+        int targetIndex = calcIdx;
+        if (_lastHoveredTooltipIndex != null &&
+            _lastHoveredTooltipIndex! >= 0 &&
+            _lastHoveredTooltipIndex! < n &&
+            (_lastHoveredTooltipIndex! - calcIdx).abs() <= 1) {
+          targetIndex = _lastHoveredTooltipIndex!;
+        }
+
+        setState(() {
+          _pinnedChartPoint = chartData[targetIndex];
+          _pinnedPointIndex = targetIndex;
+          _pinnedChartLength = n;
+          if (_lastHoveredTooltipX != null && _lastHoveredTooltipIndex == targetIndex) {
+            _pinnedExactX = _lastHoveredTooltipX;
+          } else {
+            _pinnedExactX = null;
+          }
+        });
+      },
       tooltipBehavior: TooltipBehavior(
         enable: true,
         activationMode: ActivationMode.singleTap,
-        shouldAlwaysShow: false,
         builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+          if (_pinnedChartPoint != null && _pinnedPointIndex == pointIndex) {
+            return const SizedBox.shrink();
+          }
           final _RevenueData item = data;
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -2486,7 +3036,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      tooltipLabel(pointIndex),
+                      item.fullLabel.isNotEmpty ? item.fullLabel : item.label,
                       style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500),
                     ),
                   ],
@@ -2496,6 +3046,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2).format(item.value),
                   style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -0.3),
                 ),
+                if (item.value > 0) ...[
+                  const SizedBox(height: 7),
+                  Container(
+                    width: 175,
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                  const SizedBox(height: 6),
+                  _buildTooltipBreakdownRow('Walk-in POS', item.regular, const Color(0xFF60A5FA)),
+                  const SizedBox(height: 3.5),
+                  _buildTooltipBreakdownRow('Advance Orders', item.advance, const Color(0xFF4ADE80)),
+                  const SizedBox(height: 3.5),
+                  _buildTooltipBreakdownRow('Event Bookings', item.reservation, const Color(0xFFA78BFA)),
+                ],
                 if (item.value == 0)
                   const Padding(
                     padding: EdgeInsets.only(top: 2),
@@ -2511,6 +3075,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
         labelStyle: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.w600),
         labelRotation: _selectedPeriod == 'Daily' ? -35 : 0,
+        interval: _selectedPeriod == 'Monthly' ? 2 : 1,
         majorTickLines: const MajorTickLines(size: 0),
       ),
       primaryYAxis: NumericAxis(
@@ -2535,7 +3100,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           yValueMapper: (_RevenueData d, _) => d.value,
           name: 'Revenue Area',
           enableTooltip: false,
-          animationDuration: 900,
+          animationDuration: 0,
           splineType: SplineType.cardinal,
           cardinalSplineTension: 0.6,
           gradient: LinearGradient(
@@ -2558,7 +3123,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           yValueMapper: (_RevenueData d, _) => d.value,
           name: 'Revenue',
           enableTooltip: true,
-          animationDuration: 1000,
+          animationDuration: 0,
           splineType: SplineType.cardinal,
           cardinalSplineTension: 0.6,
           color: const Color(0xFF14332E),
@@ -2597,7 +3162,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     const Icon(Icons.arrow_upward_rounded, size: 9, color: Colors.white),
                     const SizedBox(width: 2),
                     Text(
-                      NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH').format(item.value),
+                      item.value > 100000
+                          ? NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH').format(item.value)
+                          : NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2).format(item.value),
                       style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
                     ),
                   ],
@@ -2873,6 +3440,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                 cornerStyle: CornerStyle.bothCurve,
                                 startAngle: 270,
                                 endAngle: 630,
+                                animationDuration: 0,
                               ),
                             ],
                           ),
@@ -6142,48 +6710,301 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ── Period Selector Widget ───────────────────────────────────────────────
 
   Widget _periodSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+    final year = int.tryParse(_selectedYear) ?? DateTime.now().year;
+    final currentYearInt = DateTime.now().year;
+    final availableYears = List.generate(
+      currentYearInt >= 2020 ? currentYearInt - 2020 + 1 : 1,
+      (i) => (2020 + i).toString(),
+    );
 
+    void onFilterChanged() {
+      _pinnedChartPoint = null; // clear pinned card on filter change
+      _pinnedExactX = null;
+      _lastHoveredTooltipIndex = null;
+      _lastHoveredTooltipX = null;
+      _weeklyRevenue = _processChartData(
+        _lastOrders,
+        advanceOrders: _lastAdvanceOrders,
+        reservations: _lastReservations,
+      );
+    }
+
+    final periodDropdown = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.white,
-
         borderRadius: BorderRadius.circular(8),
-
         border: Border.all(color: AppTheme.cardBorder),
       ),
-
-      child: DropdownButton<String>(
-        focusNode: _dashboardPeriodFocusNode,
-        value: _selectedPeriod,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-        items: ['Daily', 'Weekly', 'Monthly', 'Annually']
-            .map(
-              (e) => DropdownMenuItem(
-                value: e,
-                child: Text(e, style: const TextStyle(fontSize: 13)),
-              ),
-            )
-            .toList(),
-        onChanged: (v) {
-          _dashboardPeriodFocusNode.unfocus();
-          if (mounted && v != null) {
-            setState(() {
-              _selectedPeriod = v;
-              _weeklyRevenue = _processChartData(_lastOrders);
-            });
-          }
-        },
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          focusNode: _dashboardPeriodFocusNode,
+          value: _selectedPeriod,
+          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+          items: ['Daily', 'Weekly', 'Monthly', 'Annually']
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(e, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
+                ),
+              )
+              .toList(),
+          onChanged: (v) {
+            _dashboardPeriodFocusNode.unfocus();
+            if (mounted && v != null) {
+              setState(() {
+                _selectedPeriod = v;
+                onFilterChanged();
+              });
+            }
+          },
+        ),
       ),
+    );
+
+    Widget? subPeriodWidget;
+    if (_selectedPeriod == 'Daily') {
+      final monthIdx = _getMonthIndex(_selectedDailyMonth);
+      final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
+      final dayItems = List.generate(daysInMonth, (i) => (i + 1).toString());
+      if (int.tryParse(_selectedDailyDay) == null || int.parse(_selectedDailyDay) > daysInMonth) {
+        _selectedDailyDay = daysInMonth.toString();
+      }
+
+      subPeriodWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                focusNode: _dashboardDailyMonthFocusNode,
+                value: _selectedDailyMonth,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                items: _monthFilters
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                    .toList(),
+                onChanged: (v) {
+                  _dashboardDailyMonthFocusNode.unfocus();
+                  if (mounted && v != null) {
+                    setState(() {
+                      _selectedDailyMonth = v;
+                      onFilterChanged();
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                focusNode: _dashboardDailyDayFocusNode,
+                value: _selectedDailyDay,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                items: dayItems
+                    .map((d) => DropdownMenuItem(value: d, child: Text('Day $d', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                    .toList(),
+                onChanged: (v) {
+                  _dashboardDailyDayFocusNode.unfocus();
+                  if (mounted && v != null) {
+                    setState(() {
+                      _selectedDailyDay = v;
+                      onFilterChanged();
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (_selectedPeriod == 'Weekly') {
+      subPeriodWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                focusNode: _dashboardWeeklyMonthFocusNode,
+                value: _selectedWeeklyMonth,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                items: _monthFilters
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                    .toList(),
+                onChanged: (v) {
+                  _dashboardWeeklyMonthFocusNode.unfocus();
+                  if (mounted && v != null) {
+                    setState(() {
+                      _selectedWeeklyMonth = v;
+                      onFilterChanged();
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                focusNode: _dashboardWeeklyWeekFocusNode,
+                value: _selectedWeeklyWeek,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                items: _weekFilters.map((w) {
+                   final rangeLabel = _getWeekDateRangeLabel(w);
+                   return DropdownMenuItem<String>(
+                     value: w,
+                     child: Row(
+                       mainAxisSize: MainAxisSize.min,
+                       children: [
+                         Text(w, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
+                         if (rangeLabel.isNotEmpty) ...[
+                           const SizedBox(width: 6),
+                           Text(
+                             rangeLabel,
+                             style: const TextStyle(
+                               fontSize: 11,
+                               fontWeight: FontWeight.w400,
+                               color: AppTheme.adminSecondaryText,
+                             ),
+                           ),
+                         ],
+                       ],
+                     ),
+                   );
+                 }).toList(),
+                onChanged: (v) {
+                  _dashboardWeeklyWeekFocusNode.unfocus();
+                  if (mounted && v != null) {
+                    setState(() {
+                      _selectedWeeklyWeek = v;
+                      onFilterChanged();
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (_selectedPeriod == 'Monthly') {
+      subPeriodWidget = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            focusNode: _dashboardMonthlyMonthFocusNode,
+            value: _selectedMonthlyMonth,
+            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+            items: _monthFilters
+                .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                .toList(),
+            onChanged: (v) {
+              _dashboardMonthlyMonthFocusNode.unfocus();
+              if (mounted && v != null) {
+                setState(() {
+                  _selectedMonthlyMonth = v;
+                  onFilterChanged();
+                });
+              }
+            },
+          ),
+        ),
+      );
+    }
+
+    final yearDropdown = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.calendar_month_outlined, size: 14, color: AppTheme.mediumGrey),
+          const SizedBox(width: 4),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              focusNode: _dashboardYearFocusNode,
+              value: availableYears.contains(_selectedYear) ? _selectedYear : availableYears.last,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              items: availableYears
+                  .map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                  .toList(),
+              onChanged: (v) {
+                _dashboardYearFocusNode.unfocus();
+                if (mounted && v != null) {
+                  setState(() {
+                    _selectedYear = v;
+                    onFilterChanged();
+                  });
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        periodDropdown,
+        if (subPeriodWidget != null) subPeriodWidget,
+        if (_selectedPeriod != 'Annually') yearDropdown,
+      ],
     );
   }
 }
 
 class _RevenueData {
-  _RevenueData(this.label, this.value);
+  _RevenueData(
+    this.label,
+    this.value, {
+    this.fullLabel = '',
+    this.regular = 0.0,
+    this.advance = 0.0,
+    this.reservation = 0.0,
+  });
   final String label;
   final double value;
+  final String fullLabel;
+  final double regular;
+  final double advance;
+  final double reservation;
 }
 
 class _EventTrendData {

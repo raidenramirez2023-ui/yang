@@ -37,13 +37,21 @@ class LocationAnalyticsService {
       Map<String, Map<String, dynamic>> locationData = {};
 
       for (var order in filteredOrders) {
+
         // Use discount_address if available (for orders with discount), otherwise use customer_address
         final discountAddress = (order['discount_address'] as String?)?.trim();
         final customerAddress = (order['customer_address'] as String?)?.trim();
-        final location = (discountAddress?.isNotEmpty == true ? discountAddress : customerAddress) ?? 'Unknown';
+        var location = (discountAddress?.isNotEmpty == true ? discountAddress : customerAddress)?.trim() ?? '';
         
-        // Skip if location is still empty or unknown
-        if (location.isEmpty || location == 'Unknown') continue;
+        // Group orders without address (e.g. POS walk-in / unspecified) as 'Others'
+        if (location.isEmpty || 
+            location.toLowerCase() == 'unknown' || 
+            location.toLowerCase() == 'n/a' ||
+            location.toLowerCase() == 'none' ||
+            location.toLowerCase() == 'null' ||
+            location.toLowerCase() == 'others') {
+          location = 'Others';
+        }
         
         final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
 
@@ -135,13 +143,21 @@ class LocationAnalyticsService {
       Map<String, Map<String, Map<String, dynamic>>> trendData = {};
 
       for (var order in filteredOrders) {
+
         // Use discount_address if available (for orders with discount), otherwise use customer_address
         final discountAddress = (order['discount_address'] as String?)?.trim();
         final customerAddress = (order['customer_address'] as String?)?.trim();
-        final location = (discountAddress?.isNotEmpty == true ? discountAddress : customerAddress) ?? 'Unknown';
+        var location = (discountAddress?.isNotEmpty == true ? discountAddress : customerAddress)?.trim() ?? '';
         
-        // Skip if location is still empty or unknown
-        if (location.isEmpty || location == 'Unknown') continue;
+        // Group orders without address (e.g. POS walk-in / unspecified) as 'Others'
+        if (location.isEmpty || 
+            location.toLowerCase() == 'unknown' || 
+            location.toLowerCase() == 'n/a' ||
+            location.toLowerCase() == 'none' ||
+            location.toLowerCase() == 'null' ||
+            location.toLowerCase() == 'others') {
+          location = 'Others';
+        }
         
         final date = DateTime.tryParse(order['created_at'] ?? '');
         if (date == null) continue;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/app_settings_service.dart';
+import '../services/admin_continuity_service.dart';
 /// A widget that protects routes by checking for a valid Supabase session.
 ///
 /// If the user is not authenticated (no active session), they are redirected
@@ -58,7 +59,7 @@ class _AuthGuardState extends State<AuthGuard> {
       final userResponse = await Supabase.instance.client
           .from('users')
           .select('role')
-          .eq('email', user.email!)
+          .ilike('email', user.email!)
           .maybeSingle();
       if (userResponse == null) {
         debugPrint('🔒 AuthGuard: User not found in database, redirecting');
@@ -91,11 +92,20 @@ class _AuthGuardState extends State<AuthGuard> {
         return;
       }
 
+      // Security Check: Block deactivated accounts across all protected routes
+      final isDeactivated = await AdminContinuityService.isAccountDeactivated(user.email!);
+      if (isDeactivated) {
+        debugPrint('🔒 AuthGuard: User ${user.email} is deactivated. Signing out.');
+        await Supabase.instance.client.auth.signOut();
+        _redirectToLogin();
+        return;
+      }
+
       // Check Maintenance Mode: Block non-developer and non-admin roles when maintenance is active.
       // Admin has limited restricted access within the admin portal during maintenance.
       // Uses a LIVE database query (not the stale in-memory cache) so changes from any
       // device/browser are immediately reflected here.
-      if (userRole != 'admin') {
+      if (userRole != 'admin' && userRole != 'backup_admin') {
         final isMaintenance = await AppSettingsService.checkMaintenanceModeFromDB();
         if (isMaintenance) {
           debugPrint('🚧 AuthGuard: Maintenance mode active, redirecting $userRole to /maintenance');
@@ -104,7 +114,22 @@ class _AuthGuardState extends State<AuthGuard> {
         }
       }
 
-      if (widget.allowedRoles!.contains(userRole)) {
+      // Continuity Security Check: If route is restricted to admins, check if user is locked in standby
+      if (widget.allowedRoles != null &&
+          (widget.allowedRoles!.contains('admin') || widget.allowedRoles!.contains('backup_admin'))) {
+        final isStandbyLocked = await AdminContinuityService.isBackupAdminLockedInStandby(user.email!);
+        if (isStandbyLocked) {
+          debugPrint('🔒 AuthGuard: User ${user.email} is Backup Admin locked in STANDBY mode. Blocking admin route.');
+          await Supabase.instance.client.auth.signOut();
+          _redirectToLogin();
+          return;
+        }
+      }
+
+      final isAllowed = widget.allowedRoles!.contains(userRole) ||
+          (widget.allowedRoles!.contains('admin') && userRole == 'backup_admin');
+
+      if (isAllowed) {
         if (mounted) {
           setState(() {
             _isAuthorized = true;
