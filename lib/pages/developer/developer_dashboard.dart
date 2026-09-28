@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/audit_log_service.dart';
+import '../../services/admin_continuity_service.dart';
 import 'developer_theme.dart';
 import 'backup_restore_page.dart';
 import 'system_health_page.dart';
@@ -53,6 +55,8 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   String _appVersion = '1.0.0+20';
   List<Map<String, dynamic>> _pendingItRequests = [];
   Map<String, dynamic>? _activeItRequest;
+  AdminContinuityConfig? _continuityConfig;
+  bool _isContinuityKeyRevealed = false;
 
   @override
   void initState() {
@@ -62,10 +66,20 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     _loadAppVersion();
     _checkSystemPulse();
     _loadItAccessRequests();
+    _loadContinuityConfig();
     // Periodically update latency and maintenance status
     _latencyTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkSystemPulse());
     // Poll for IT access requests every 30 seconds
     _itAccessPollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadItAccessRequests());
+  }
+
+  Future<void> _loadContinuityConfig() async {
+    try {
+      final cfg = await AdminContinuityService.getConfig();
+      if (mounted) {
+        setState(() => _continuityConfig = cfg);
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadAppVersion() async {
@@ -824,6 +838,11 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             ],
           ),
 
+          const SizedBox(height: 28),
+
+          // ── Emergency Continuity & Succession Vault (Break-Glass Key) ──
+          _buildContinuityVaultCard(),
+
           const SizedBox(height: 32),
 
           // ─── Portal Access Launchpad ──────────────────────────────────────────
@@ -1134,6 +1153,325 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             child: SelectableText(
               value,
               style: DeveloperTheme.monoText(fontSize: 12, color: DeveloperTheme.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContinuityVaultCard() {
+    final cfg = _continuityConfig ?? AdminContinuityConfig.defaultInitial();
+    final isSuccessionDone = cfg.isSuccessionCompleted;
+    final primaryEmail = cfg.primaryAdminEmail;
+    final primaryName = cfg.primaryAdminName;
+    final backupEmail = cfg.backupAdminEmail;
+    final backupName = cfg.backupAdminName;
+    final key = cfg.securityVerificationKey;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: DeveloperTheme.bgCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSuccessionDone
+              ? DeveloperTheme.accentAmber.withValues(alpha: 0.6)
+              : DeveloperTheme.accentIndigo.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (isSuccessionDone ? DeveloperTheme.accentAmber : DeveloperTheme.accentIndigo)
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (isSuccessionDone ? DeveloperTheme.accentAmber : DeveloperTheme.accentIndigo)
+                        .withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Icon(
+                  isSuccessionDone ? Icons.warning_amber_rounded : Icons.lock_clock_rounded,
+                  color: isSuccessionDone ? DeveloperTheme.accentAmber : DeveloperTheme.accentIndigo,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Business Continuity & Emergency Succession Vault',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: DeveloperTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: (isSuccessionDone
+                                    ? DeveloperTheme.accentAmber
+                                    : DeveloperTheme.accentEmerald)
+                                .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: (isSuccessionDone
+                                      ? DeveloperTheme.accentAmber
+                                      : DeveloperTheme.accentEmerald)
+                                  .withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Text(
+                            isSuccessionDone ? 'SUCCESSION EXECUTED' : 'ESCROW ACTIVE',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: isSuccessionDone
+                                  ? DeveloperTheme.accentAmber
+                                  : DeveloperTheme.accentEmerald,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'IT Custodianship & Disaster Recovery Secret Escrow • ISO 22301 Aligned',
+                      style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _loadContinuityConfig,
+                icon: const Icon(Icons.refresh_rounded, size: 18, color: DeveloperTheme.textMuted),
+                tooltip: 'Refresh Vault Telemetry',
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+          const Divider(color: DeveloperTheme.borderSubtle, height: 1),
+          const SizedBox(height: 20),
+
+          // Details Layout
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 850;
+              final leftSide = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GOVERNANCE REGISTRY',
+                    style: DeveloperTheme.monoText(
+                      fontSize: 11,
+                      color: DeveloperTheme.accentCyan,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildVaultInfoRow('Primary Administrator', '$primaryName ($primaryEmail)'),
+                  _buildVaultInfoRow('Designated Successor', '$backupName ($backupEmail)'),
+                  _buildVaultInfoRow(
+                    'Successor Mode',
+                    cfg.authorityMode == 'co_admin'
+                        ? 'Active Co-Admin (Authorized Daily Login)'
+                        : 'Standby Mode (Emergency Takeover Only)',
+                  ),
+                ],
+              );
+
+              final rightSide = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'BREAK-GLASS EMERGENCY VERIFICATION KEY',
+                    style: DeveloperTheme.monoText(
+                      fontSize: 11,
+                      color: DeveloperTheme.accentAmber,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: DeveloperTheme.bgDark,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: DeveloperTheme.borderSubtle),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.vpn_key_rounded, size: 16, color: DeveloperTheme.accentAmber),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: SelectableText(
+                            _isContinuityKeyRevealed ? key : '••••••••••••••••••••••••••••••••',
+                            style: DeveloperTheme.monoText(
+                              fontSize: 12.5,
+                              color: _isContinuityKeyRevealed
+                                  ? DeveloperTheme.accentEmerald
+                                  : DeveloperTheme.textMuted,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _isContinuityKeyRevealed ? Icons.visibility_off : Icons.visibility,
+                            size: 18,
+                            color: DeveloperTheme.textSecondary,
+                          ),
+                          onPressed: () => setState(() => _isContinuityKeyRevealed = !_isContinuityKeyRevealed),
+                          tooltip: _isContinuityKeyRevealed ? 'Hide Passphrase' : 'Show Passphrase',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: key));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: DeveloperTheme.accentEmerald,
+                                content: Text(
+                                  'Continuity Verification Key copied to clipboard.',
+                                  style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
+                                ),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                          tooltip: 'Copy Key',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    'OFFICIAL REFERENCE DIRECTIVE TEMPLATE (AUDIT RECORD)',
+                    style: DeveloperTheme.monoText(
+                      fontSize: 11,
+                      color: DeveloperTheme.accentCyan,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: DeveloperTheme.bgDark,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: DeveloperTheme.borderSubtle),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.description_outlined, size: 16, color: DeveloperTheme.accentCyan),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: SelectableText(
+                            'HR-MEMO-2026-004',
+                            style: DeveloperTheme.monoText(
+                              fontSize: 12.5,
+                              color: DeveloperTheme.accentCyan,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
+                          onPressed: () {
+                            Clipboard.setData(const ClipboardData(text: 'HR-MEMO-2026-004'));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: DeveloperTheme.accentEmerald,
+                                content: Text(
+                                  'Official Reference Document Number (HR-MEMO-2026-004) copied to clipboard.',
+                                  style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
+                                ),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                          tooltip: 'Copy Reference Number',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '⚠ Required legal audit identifier. In production, this matches the physical HR Memorandum or Incident Certificate.',
+                    style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                  ),
+                ],
+              );
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 5, child: leftSide),
+                    const SizedBox(width: 32),
+                    Expanded(flex: 6, child: rightSide),
+                  ],
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    leftSide,
+                    const SizedBox(height: 20),
+                    const Divider(color: DeveloperTheme.borderSubtle, height: 1),
+                    const SizedBox(height: 20),
+                    rightSide,
+                  ],
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVaultInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 170,
+            child: Text(
+              label,
+              style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: DeveloperTheme.textPrimary,
+              ),
             ),
           ),
         ],

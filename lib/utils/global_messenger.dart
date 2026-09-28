@@ -42,6 +42,16 @@ class GlobalMessenger {
     );
   }
 
+  static void showInfo(String message) {
+    _showToast(
+      message: message,
+      icon: Icons.info_outline_rounded,
+      backgroundColor: const Color(0xFF14332E), // Forest green
+      borderColor: const Color(0xFF34D399),
+      textColor: Colors.white,
+    );
+  }
+
   static void _showToast({
     required String message,
     required IconData icon,

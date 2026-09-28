@@ -4,3 +4,9 @@
 bool downloadTextFile(String content, String filename) {
   return false; // Not supported on this platform
 }
+
+/// Stub for binary downloads on non-web platforms.
+bool downloadBinaryFile(List<int> bytes, String filename, [String mimeType = 'application/octet-stream']) {
+  return false;
+}
+

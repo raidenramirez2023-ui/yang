@@ -132,9 +132,13 @@ class AppSettingsService {
       getSetting<int>('operating_hours_start') ??
       AppConstants.defaultOperatingHoursStart;
 
-  int getOperatingHoursEnd() =>
-      getSetting<int>('operating_hours_end') ??
-      AppConstants.defaultOperatingHoursEnd;
+  int getOperatingHoursEnd() {
+    final val = getSetting<int>('operating_hours_end');
+    if (val != null && val >= 18) {
+      return val;
+    }
+    return AppConstants.defaultOperatingHoursEnd;
+  }
 
   List<String> getBaseDurations() {
     final setting = getSetting<dynamic>('base_durations');

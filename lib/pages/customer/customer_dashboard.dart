@@ -56,6 +56,37 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   void Function()? _cancelPopState;
 
   bool _isValidAvatar(String? url) => ImageStorageService.isValidImageUrl(url);
+  String? _cachedDbAvatarUrl;
+  StreamSubscription<AuthState>? _customerAuthSubscription;
+
+  Future<void> _loadDbAvatarUrl() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      final res = await Supabase.instance.client
+          .from('users')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+      final url = res?['avatar_url'] as String?;
+      if (_isValidAvatar(url) && mounted) {
+        setState(() {
+          _cachedDbAvatarUrl = url;
+        });
+      }
+    } catch (e) {
+      debugPrint('[CustomerDashboard] Error loading db avatar: $e');
+    }
+  }
+
+  String? _getEffectiveAvatarUrl() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return null;
+    final metadataUrl = (user.userMetadata?['avatar_url'] ?? user.userMetadata?['picture']) as String?;
+    if (_isValidAvatar(metadataUrl)) return metadataUrl;
+    if (_isValidAvatar(_cachedDbAvatarUrl)) return _cachedDbAvatarUrl;
+    return null;
+  }
 
   static const List<String> _tabUrls = [
     '/customer/dashboard',
@@ -445,6 +476,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   void initState() {
     super.initState();
     _loadAppVersion();
+    _loadDbAvatarUrl();
+    _customerAuthSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      if (mounted) {
+        _loadDbAvatarUrl();
+        setState(() {});
+      }
+    });
     _selectedIndex = widget.initialIndex;
     _syncUrl();
     _loadActiveDeletionRequest();
@@ -1031,6 +1069,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   @override
   void dispose() {
+    _customerAuthSubscription?.cancel();
     _cancelPopState?.call();
     _categoryScrollController.dispose();
     _rescheduleRequestsSubscription?.cancel();
@@ -1362,6 +1401,118 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  Widget _buildAvatarAppBarButton({double size = 40, double iconSize = 20}) {
+    final avatarUrl = _getEffectiveAvatarUrl();
+    final hasAvatar = _isValidAvatar(avatarUrl);
+    const gold = AppTheme.warmGold;
+    final badgeSize = (size * 0.44).clamp(16.0, 19.0);
+    final badgeIconSize = (badgeSize * 0.68).clamp(11.0, 13.0);
+    bool isHovered = false;
+
+    return StatefulBuilder(
+      builder: (context, setHoverState) {
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setHoverState(() => isHovered = true),
+          onExit: (_) => setHoverState(() => isHovered = false),
+          child: AnimatedTapScale(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              _onSelectTab(4);
+            },
+            child: Tooltip(
+              message: 'Account & Log Out',
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: isHovered
+                          ? const Color(0xFFDC2626).withValues(alpha: 0.45)
+                          : gold.withValues(alpha: 0.25),
+                      blurRadius: isHovered ? 10 : 5,
+                      spreadRadius: isHovered ? 1.5 : 0.5,
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Main Avatar Circle with Gold Border
+                    Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isHovered ? Colors.white : gold,
+                          width: isHovered ? 2.0 : 1.6,
+                        ),
+                        image: hasAvatar
+                            ? DecorationImage(
+                                image: NetworkImage(avatarUrl!),
+                                fit: BoxFit.cover,
+                                onError: (_, __) {},
+                              )
+                            : null,
+                      ),
+                      child: !hasAvatar
+                          ? Center(
+                              child: Icon(
+                                Icons.person_outline_rounded,
+                                color: isHovered ? Colors.white : gold,
+                                size: iconSize,
+                              ),
+                            )
+                          : null,
+                    ),
+
+                    // Red Logout Badge at Bottom-Right
+                    Positioned(
+                      bottom: -1,
+                      right: -1,
+                      child: Container(
+                        width: badgeSize,
+                        height: badgeSize,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC2626),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.logout_rounded,
+                            size: badgeIconSize,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   PreferredSizeWidget _buildDashboardAppBar(String title) {
     return AppBar(
       backgroundColor: AppTheme.navColor,
@@ -1372,26 +1523,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       leading: Padding(
         padding: const EdgeInsets.only(left: 12),
         child: Center(
-          child: AnimatedTapScale(
-            onTap: () => setState(() => _selectedIndex = 4),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  width: 1,
-                ),
-              ),
-              child: const Icon(
-                Icons.person_outline_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
+          child: _buildAvatarAppBarButton(size: 40, iconSize: 20),
         ),
       ),
       centerTitle: true,
@@ -3275,15 +3407,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       _buildNotificationIcon(),
 
-                      IconButton(
-
-                        icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 24),
-
-                        onPressed: () => setState(() => _selectedIndex = 4),
-
-                        tooltip: 'Account',
-
-                      ),
+                      _buildAvatarAppBarButton(size: 36, iconSize: 20),
 
                       const SizedBox(width: 4),
 
@@ -3569,21 +3693,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       const SizedBox(width: 4),
 
-                      IconButton(
-
-                        onPressed: () => setState(() => _selectedIndex = 4),
-
-                        icon: const Icon(
-
-                          Icons.person_outline_rounded,
-
-                          color: Colors.white,
-
-                        ),
-
-                        tooltip: 'Account',
-
-                      ),
+                      _buildAvatarAppBarButton(size: 36, iconSize: 20),
 
                       const SizedBox(width: 8),
 
@@ -5396,15 +5506,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                             color: const Color(0xFF0C241F),
                                             width: 1.5,
                                           ),
-                                          image: _isValidAvatar(Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] as String?)
+                                          image: _isValidAvatar(_getEffectiveAvatarUrl())
                                               ? DecorationImage(
-                                                  image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
+                                                  image: NetworkImage(_getEffectiveAvatarUrl()!),
                                                   fit: BoxFit.cover,
                                                   onError: (_, __) {},
                                                 )
                                               : null,
                                         ),
-                                        child: !_isValidAvatar(Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] as String?)
+                                        child: !_isValidAvatar(_getEffectiveAvatarUrl())
                                             ? const Center(
                                                 child: Icon(Icons.person_rounded, color: AppTheme.warmGold, size: 28),
                                               )
@@ -7724,15 +7834,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: const Color(0xFF0C241F),
-                                        image: _isValidAvatar(currentUser?.userMetadata?['avatar_url'] as String?)
+                                        image: _isValidAvatar(_getEffectiveAvatarUrl())
                                             ? DecorationImage(
-                                                image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
+                                                image: NetworkImage(_getEffectiveAvatarUrl()!),
                                                 fit: BoxFit.cover,
                                                 onError: (_, __) {},
                                               )
                                             : null,
                                       ),
-                                      child: !_isValidAvatar(currentUser?.userMetadata?['avatar_url'] as String?)
+                                      child: !_isValidAvatar(_getEffectiveAvatarUrl())
                                           ? Center(
                                               child: Text(
                                                 initial,
@@ -7839,7 +7949,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               child: InkWell(
                                 onTap: () async {
                                   await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
-                                  if (mounted) setState(() {});
+                                  if (mounted) {
+                                    _loadDbAvatarUrl();
+                                    setState(() {});
+                                  }
                                 },
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
@@ -7939,7 +8052,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         subtitle: 'Update your personal details and photo',
                         onTap: () async {
                           await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
-                          if (mounted) setState(() {});
+                          if (mounted) {
+                            _loadDbAvatarUrl();
+                            setState(() {});
+                          }
                         },
                       ),
                       if (_hasSetPassword) ...[

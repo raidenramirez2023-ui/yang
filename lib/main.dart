@@ -248,6 +248,16 @@ class YangChowApp extends StatelessWidget {
           redirectRoute: '/staff-login',
           child: AdminMainPage(initialIndex: 14),
         ),
+        '/admin/sales-forecast': (context) => const AuthGuard(
+          allowedRoles: ['admin'],
+          redirectRoute: '/staff-login',
+          child: AdminMainPage(initialIndex: 15),
+        ),
+        '/admin/continuity': (context) => const AuthGuard(
+          allowedRoles: ['admin'],
+          redirectRoute: '/staff-login',
+          child: AdminMainPage(initialIndex: 16),
+        ),
 
         // ==========================================
         // Chef Portal Routes (with Deep Linking)
