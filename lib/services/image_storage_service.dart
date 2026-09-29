@@ -36,6 +36,32 @@ class ImageStorageService {
     }
   }
 
+  /// Uploads an announcement/promo banner or flyer to Firebase Storage (`announcements/`).
+  /// Returns the public download URL, or null if the upload failed.
+  static Future<String?> uploadAnnouncementImage({
+    required Uint8List bytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    try {
+      final sanitizedName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final uniqueFileName = '${DateTime.now().millisecondsSinceEpoch}_$sanitizedName';
+      final ref = _storage.ref().child('announcements/$uniqueFileName');
+      
+      final metadata = SettableMetadata(
+        contentType: contentType ?? _guessContentType(sanitizedName),
+      );
+
+      final uploadTask = await ref.putData(bytes, metadata);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      debugPrint('✅ Announcement image uploaded to Firebase: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      debugPrint('❌ Failed to upload announcement image to Firebase: $e');
+      return null;
+    }
+  }
+
   /// Uploads a user/customer/staff avatar to Firebase Storage (`avatars/`).
   /// Returns the public download URL, or null on failure.
   static Future<String?> uploadAvatar({

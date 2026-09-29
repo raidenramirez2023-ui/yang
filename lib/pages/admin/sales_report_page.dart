@@ -236,10 +236,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     
     _fetchLocationData();
     
-    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) {
         _fetchLocationData();
-        setState(() {});
       }
     });
     
@@ -948,8 +947,8 @@ class _SalesReportPageState extends State<SalesReportPage>
           if (isValidRevenue) totalQuantitySold += 1;
         }
       } else if (t['type'] == 'Advance' || t['type'] == 'Reservation') {
-        if (t['selected_menu_items'] != null) {
-          final items = Map<String, dynamic>.from(t['selected_menu_items']);
+        if (t['selected_menu_items'] != null && t['selected_menu_items'] is Map) {
+          final items = Map<String, dynamic>.from(t['selected_menu_items'] as Map);
           itemsSummary = items.entries.map((e) => '${e.key} x${e.value}').join('; ');
           itemsCount = items.values.fold(0, (sum, v) => sum + ((v as num?)?.toInt() ?? 1));
 
@@ -3515,8 +3514,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                 child: SingleChildScrollView(
                   child: Builder(
                     builder: (context) {
-                      if ((transaction['type'] == 'Advance' || transaction['type'] == 'Reservation') && transaction['selected_menu_items'] != null) {
-                        final Map<String, dynamic> items = Map<String, dynamic>.from(transaction['selected_menu_items']);
+                      if ((transaction['type'] == 'Advance' || transaction['type'] == 'Reservation') && transaction['selected_menu_items'] != null && transaction['selected_menu_items'] is Map) {
+                        final Map<String, dynamic> items = Map<String, dynamic>.from(transaction['selected_menu_items'] as Map);
                         if (items.isEmpty) return const Text('No items specified', style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12));
                         return Column(
                           children: items.entries.map((e) => Padding(
@@ -3700,6 +3699,30 @@ class _SalesReportPageState extends State<SalesReportPage>
                     return StreamBuilder<List<Map<String, dynamic>>>(
                       stream: _inventoryStreamVar,
                       builder: (context, invSnapshot) {
+                        final bool isInitialLoading = (orderSnapshot.connectionState == ConnectionState.waiting && orderSnapshot.data == null) &&
+                            (advanceOrderSnapshot.connectionState == ConnectionState.waiting && advanceOrderSnapshot.data == null) &&
+                            (reservationsSnapshot.connectionState == ConnectionState.waiting && reservationsSnapshot.data == null);
+
+                        if (isInitialLoading) {
+                          return const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(color: AppTheme.adminPrimaryAccent),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Kinukuha ang pinakabagong datos ng benta...',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.adminSecondaryText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
                         final allOrders = orderSnapshot.data ?? [];
                         final allAdvanceOrders = advanceOrderSnapshot.data ?? [];
                         final allReservations = reservationsSnapshot.data ?? [];
@@ -3748,10 +3771,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                         final Map<String, int> popularAdvanceItems = {};
                         for (var o in periodAdvanceOrders) {
                           if (o['status'] == 'done' || o['status'] == 'completed' || o['status'] == 'ready') {
-                            final items = o['selected_menu_items'] as Map<String, dynamic>? ?? {};
-                            items.forEach((name, qty) {
-                              popularAdvanceItems[name] = (popularAdvanceItems[name] ?? 0) + (qty as num).toInt();
-                            });
+                            final rawItems = o['selected_menu_items'];
+                            if (rawItems is Map) {
+                              rawItems.forEach((name, qty) {
+                                final count = (qty as num?)?.toInt() ?? 0;
+                                popularAdvanceItems[name.toString()] = (popularAdvanceItems[name.toString()] ?? 0) + count;
+                              });
+                            }
                           }
                         }
 
@@ -5307,21 +5333,19 @@ class _SalesReportPageState extends State<SalesReportPage>
     final lowSellers = _operationalReportData?.lowSellers ?? [];
 
     if (isDesktop) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 5,
-              child: _buildMealRushHoursCard(hourlyData, totalRevenue),
-            ),
-            const SizedBox(width: AppTheme.xl),
-            Expanded(
-              flex: 6,
-              child: _buildMenuPerformanceCard(bestSellers, lowSellers, totalRevenue),
-            ),
-          ],
-        ),
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 5,
+            child: _buildMealRushHoursCard(hourlyData, totalRevenue),
+          ),
+          const SizedBox(width: AppTheme.xl),
+          Expanded(
+            flex: 6,
+            child: _buildMenuPerformanceCard(bestSellers, lowSellers, totalRevenue),
+          ),
+        ],
       );
     } else {
       return Column(
@@ -5657,11 +5681,12 @@ class _SalesReportPageState extends State<SalesReportPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Tab Toggle
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          // Responsive Header with Tab Toggle
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 460;
+              final titleWidget = Row(
+                mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -5676,92 +5701,125 @@ class _SalesReportPageState extends State<SalesReportPage>
                     child: const Icon(Icons.restaurant_menu_rounded, size: 16, color: Colors.white),
                   ),
                   const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Menu Item Velocity',
-                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
-                      ),
-                      Text(
-                        isBest ? 'Top selling menu items & dishes' : 'Slow-moving dishes for manager review',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText),
-                      ),
-                    ],
+                  Expanded(
+                    flex: isNarrow ? 1 : 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Menu Item Velocity',
+                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                        ),
+                        Text(
+                          isBest ? 'Top selling menu items & dishes' : 'Slow-moving dishes for manager review',
+                          style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-              ),
-              // Segmented Toggle
-              Container(
+              );
+
+              final toggleWidget = Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
+                  mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
                   children: [
-                    InkWell(
-                      onTap: () => setState(() => _menuRankingFilter = 'best'),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isBest ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: isBest
-                              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
-                              : null,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star_rounded, size: 12, color: isBest ? const Color(0xFFD97706) : AppTheme.mediumGrey),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Best Sellers',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: isBest ? FontWeight.bold : FontWeight.w500,
-                                color: isBest ? AppTheme.adminPrimaryText : AppTheme.mediumGrey,
+                    Expanded(
+                      flex: isNarrow ? 1 : 0,
+                      child: InkWell(
+                        onTap: () => setState(() => _menuRankingFilter = 'best'),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isBest ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: isBest
+                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.star_rounded, size: 12, color: isBest ? const Color(0xFFD97706) : AppTheme.mediumGrey),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Best Sellers',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: isBest ? FontWeight.bold : FontWeight.w500,
+                                  color: isBest ? AppTheme.adminPrimaryText : AppTheme.mediumGrey,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    InkWell(
-                      onTap: () => setState(() => _menuRankingFilter = 'slow'),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: !isBest ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: !isBest
-                              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
-                              : null,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.trending_down_rounded, size: 12, color: !isBest ? const Color(0xFFDC2626) : AppTheme.mediumGrey),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Slow-Movers',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: !isBest ? FontWeight.bold : FontWeight.w500,
-                                color: !isBest ? AppTheme.adminPrimaryText : AppTheme.mediumGrey,
+                    Expanded(
+                      flex: isNarrow ? 1 : 0,
+                      child: InkWell(
+                        onTap: () => setState(() => _menuRankingFilter = 'slow'),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: !isBest ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: !isBest
+                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.trending_down_rounded, size: 12, color: !isBest ? const Color(0xFFDC2626) : AppTheme.mediumGrey),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Slow-Movers',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: !isBest ? FontWeight.bold : FontWeight.w500,
+                                  color: !isBest ? AppTheme.adminPrimaryText : AppTheme.mediumGrey,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleWidget,
+                    const SizedBox(height: 12),
+                    toggleWidget,
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  titleWidget,
+                  toggleWidget,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 

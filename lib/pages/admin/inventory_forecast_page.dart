@@ -2172,17 +2172,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildPeriodToggle(),
+                      _buildPeriodToggle(isMobile: true),
                       const SizedBox(height: 10),
                       _buildSecondaryTimeDropdown(isMobile: true),
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: _buildDemandSourceDropdown(isMobile: true)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildCategorySelectorButton(context, isMobile: true)),
-                        ],
-                      ),
+                      _buildDemandSourceDropdown(isMobile: true),
+                      const SizedBox(height: 10),
+                      _buildCategorySelectorButton(context, isMobile: true),
                     ],
                   )
                 : Wrap(
@@ -2191,7 +2187,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       // 1. Timeframe
-                      _buildPeriodToggle(),
+                      _buildPeriodToggle(isMobile: false),
                       Container(width: 1, height: 26, color: AppTheme.cardBorder),
                       // 2. Secondary Time Dropdown (Month / Day / Week / Year)
                       _buildSecondaryTimeDropdown(isMobile: false),
@@ -2223,6 +2219,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               ? _selectedDemandSource
               : demandSourceFilters.first,
           isDense: true,
+          isExpanded: isMobile,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF14332E)),
           style: const TextStyle(
             fontSize: 12,
@@ -2254,7 +2251,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 children: [
                   Icon(icon, size: 14, color: const Color(0xFF14332E)),
                   const SizedBox(width: 8),
-                  Text(label),
+                  Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
                 ],
               ),
             );
@@ -2282,7 +2279,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           ),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
           children: [
             Icon(
               Icons.category_rounded,
@@ -2290,7 +2287,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               color: isFiltered ? const Color(0xFFD97706) : const Color(0xFF14332E),
             ),
             const SizedBox(width: 8),
-            Text(
+            const Text(
               'Category: ',
               style: TextStyle(
                 fontSize: 11.5,
@@ -2298,17 +2295,30 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 color: AppTheme.mediumGrey,
               ),
             ),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isMobile ? 120 : 180),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isFiltered ? const Color(0xFFB45309) : AppTheme.darkGrey,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+            Expanded(
+              flex: isMobile ? 1 : 0,
+              child: isMobile
+                  ? Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isFiltered ? const Color(0xFFB45309) : AppTheme.darkGrey,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isFiltered ? const Color(0xFFB45309) : AppTheme.darkGrey,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
             ),
             const SizedBox(width: 6),
             if (isFiltered)
@@ -2491,7 +2501,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   }
 
 
-  Widget _buildPeriodToggle() {
+  Widget _buildPeriodToggle({required bool isMobile}) {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -2500,10 +2510,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
         children: timeFilters.map((period) {
           final isSel = _selectedTimeFilter == period;
-          return GestureDetector(
+          final itemWidget = GestureDetector(
             onTap: () => setState(() {
               _selectedTimeFilter = period;
               if (period == 'Weekly' &&
@@ -2515,6 +2525,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: isSel ? const Color(0xFF14332E) : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
@@ -2529,6 +2540,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               ),
             ),
           );
+
+          if (isMobile) {
+            return Expanded(child: itemWidget);
+          }
+          return itemWidget;
         }).toList(),
       ),
     );
@@ -2757,6 +2773,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     String prefix = '',
     Map<String, String>? itemSubtitles,
     required ValueChanged<String?> onChanged,
+    bool isExpanded = true,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
@@ -2769,6 +2786,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         child: DropdownButton<String>(
           value: items.contains(value) ? value : items.first,
           isDense: true,
+          isExpanded: isExpanded,
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF14332E)),
           items: items.map((i) {
@@ -2779,12 +2797,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('$prefix$i'),
-                    const SizedBox(width: 8),
+                    Flexible(child: Text('$prefix$i', overflow: TextOverflow.ellipsis)),
+                    const SizedBox(width: 6),
                     Text(
                       sub,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w400,
                         color: AppTheme.mediumGrey,
                       ),
@@ -2793,7 +2811,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 ),
               );
             }
-            return DropdownMenuItem<String>(value: i, child: Text('$prefix$i'));
+            return DropdownMenuItem<String>(
+              value: i,
+              child: Text('$prefix$i', overflow: TextOverflow.ellipsis),
+            );
           }).toList(),
           onChanged: onChanged,
         ),

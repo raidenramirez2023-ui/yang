@@ -48,14 +48,49 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   final Map<String, List<Map<String, dynamic>>> _recipeCache = {};
   bool _isFetchingInventory = false;
 
+  bool get _isEventPlace =>
+      widget.reservationType.toLowerCase().contains('event');
+
   @override
   void initState() {
     super.initState();
-    menu = MenuService.getMenu();
+    final rawMenu = MenuService.getMenu();
+    if (_isEventPlace) {
+      // For Event Place reservations, only Yangchow Family Bundles are eligible
+      menu = {};
+      rawMenu.forEach((category, items) {
+        if (category.toLowerCase().contains('yangchow family bundles') ||
+            category.toLowerCase().contains('family bundle')) {
+          menu[category] = items;
+        }
+      });
+      // Fallback if key check didn't match exact title: filter by item category
+      if (menu.isEmpty) {
+        final bundleItems = rawMenu.values.expand((list) => list).where((item) =>
+            item.category.toLowerCase().contains('yangchow family bundles') ||
+            item.category.toLowerCase().contains('family bundle')).toList();
+        if (bundleItems.isNotEmpty) {
+          menu['Yangchow Family Bundles'] = bundleItems;
+        }
+      }
+      _selectedCategory = menu.keys.isNotEmpty ? menu.keys.first : 'Yangchow Family Bundles';
+    } else {
+      menu = rawMenu;
+    }
     
     // Initialize with any provided selection
     if (widget.initialSelection != null) {
-      selectedItems.addAll(widget.initialSelection!);
+      if (_isEventPlace) {
+        // Keep only bundle items if any
+        final allowedNames = menu.values.expand((list) => list).map((e) => e.name).toSet();
+        widget.initialSelection!.forEach((name, qty) {
+          if (allowedNames.contains(name)) {
+            selectedItems[name] = qty;
+          }
+        });
+      } else {
+        selectedItems.addAll(widget.initialSelection!);
+      }
     }
     
     _categoryScrollController.addListener(_categoryScrollListener);
@@ -399,10 +434,12 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                 ListView(
                   controller: _categoryScrollController,
                   scrollDirection: Axis.horizontal,
-                  children: [
-                    _buildCategoryChip('All'),
-                    ...MenuService.categories.map((cat) => _buildCategoryChip(cat)),
-                  ],
+                  children: _isEventPlace
+                      ? menu.keys.map((cat) => _buildCategoryChip(cat)).toList()
+                      : [
+                          _buildCategoryChip('All'),
+                          ...MenuService.categories.map((cat) => _buildCategoryChip(cat)),
+                        ],
                 ),
                 if (_canScrollCategoryLeft)
                   Positioned(

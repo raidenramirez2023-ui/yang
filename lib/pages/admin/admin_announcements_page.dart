@@ -1,9 +1,12 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
+import 'package:yang_chow/services/image_storage_service.dart';
 
 class AdminAnnouncementsPage extends StatefulWidget {
   const AdminAnnouncementsPage({super.key});
@@ -26,6 +29,10 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
   final TextEditingController imageUrlController = TextEditingController();
   final TextEditingController tagController = TextEditingController();
   DateTime? selectedDate;
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
+  bool _isUploadingImage = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   // Color constants
   static const _darkBg = Color(0xFF0F172A);
@@ -80,6 +87,33 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+      );
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImageName = image.name;
+          imageUrlController.clear();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to select image: $e', style: GoogleFonts.plusJakartaSans()),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _addAnnouncement() async {
     if (titleController.text.trim().isEmpty || contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,10 +126,29 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
     }
 
     try {
+      setState(() => _isUploadingImage = true);
+
+      String? finalImageUrl;
+
+      // 1. If a local image file was picked, upload it to storage
+      if (_selectedImageBytes != null && _selectedImageName != null) {
+        final uploadedUrl = await ImageStorageService.uploadAnnouncementImage(
+          bytes: _selectedImageBytes!,
+          fileName: _selectedImageName!,
+        );
+        if (uploadedUrl != null) {
+          finalImageUrl = uploadedUrl;
+        } else {
+          throw Exception('Failed to upload announcement image to cloud storage.');
+        }
+      } else if (imageUrlController.text.trim().isNotEmpty) {
+        finalImageUrl = imageUrlController.text.trim();
+      }
+
       final inserted = await supabase.from('announcements').insert({
         'title': titleController.text.trim(),
         'content': contentController.text.trim(),
-        'image_url': imageUrlController.text.trim().isEmpty ? null : imageUrlController.text.trim(),
+        'image_url': finalImageUrl,
         'tag': tagController.text.trim().isEmpty ? 'Promo' : tagController.text.trim(),
         'is_active': true,
         'expiration_date': selectedDate?.toUtc().toIso8601String(),
@@ -109,6 +162,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
         metadata: {
           'title': titleController.text.trim(),
           'tag': tagController.text.trim(),
+          'has_image': finalImageUrl != null,
           'expires_at': selectedDate?.toIso8601String(),
         },
       );
@@ -118,6 +172,9 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
         contentController.clear();
         imageUrlController.clear();
         tagController.clear();
+        _selectedImageBytes = null;
+        _selectedImageName = null;
+        _isUploadingImage = false;
         selectedDate = null;
         setState(() => _isCreateExpanded = false);
         _loadAnnouncements();
@@ -131,6 +188,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isUploadingImage = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error creating announcement: $e', style: GoogleFonts.plusJakartaSans()),
@@ -601,7 +659,9 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: contentController,
-                      maxLines: 3,
+                      minLines: 3,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
                       style: GoogleFonts.plusJakartaSans(fontSize: 13),
                       decoration: InputDecoration(
                         labelText: 'Content Description *',
@@ -629,12 +689,22 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: imageUrlController,
+                        onChanged: (val) {
+                          if (val.trim().isNotEmpty && _selectedImageBytes != null) {
+                            setState(() {
+                              _selectedImageBytes = null;
+                              _selectedImageName = null;
+                            });
+                          } else {
+                            setState(() {});
+                          }
+                        },
                         style: GoogleFonts.plusJakartaSans(fontSize: 13),
                         decoration: InputDecoration(
                           labelText: 'Image URL (Optional)',
                           hintText: 'https://example.com/banner.jpg',
                           labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12),
-                          prefixIcon: const Icon(Icons.image_outlined, size: 18, color: _slate),
+                          prefixIcon: const Icon(Icons.link_rounded, size: 18, color: _slate),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
@@ -660,12 +730,22 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                           Expanded(
                             child: TextField(
                               controller: imageUrlController,
+                              onChanged: (val) {
+                                if (val.trim().isNotEmpty && _selectedImageBytes != null) {
+                                  setState(() {
+                                    _selectedImageBytes = null;
+                                    _selectedImageName = null;
+                                  });
+                                } else {
+                                  setState(() {});
+                                }
+                              },
                               style: GoogleFonts.plusJakartaSans(fontSize: 13),
                               decoration: InputDecoration(
                                 labelText: 'Image URL (Optional)',
                                 hintText: 'https://example.com/banner.jpg',
                                 labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12),
-                                prefixIcon: const Icon(Icons.image_outlined, size: 18, color: _slate),
+                                prefixIcon: const Icon(Icons.link_rounded, size: 18, color: _slate),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               ),
@@ -674,6 +754,345 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                         ],
                       ),
                     const SizedBox(height: 12),
+
+                    // Dual Image Option: Local Upload or Image URL Preview
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedImageBytes != null
+                              ? _emerald.withValues(alpha: 0.4)
+                              : _slateLight,
+                          width: _selectedImageBytes != null ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.photo_library_rounded,
+                                    size: 16,
+                                    color: _selectedImageBytes != null ? _emerald : _slate,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Announcement Banner Image',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _darkBg,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Supports PNG, JPG, JPEG, WEBP, GIF',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: _slate,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          if (_selectedImageBytes != null) ...[
+                            // Selected Local Image Preview Card
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: _emerald.withValues(alpha: 0.25)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.memory(
+                                          _selectedImageBytes!,
+                                          width: isMobile ? 56 : 68,
+                                          height: isMobile ? 46 : 52,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: _emerald.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                'Ready to Upload',
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _emerald,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _selectedImageName ?? 'selected_image.jpg',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: _darkBg,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (!isMobile) ...[
+                                        const SizedBox(width: 8),
+                                        OutlinedButton.icon(
+                                          onPressed: _pickImage,
+                                          icon: const Icon(Icons.refresh_rounded, size: 14),
+                                          label: const Text('Change'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: _emerald,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            side: BorderSide(color: _emerald.withValues(alpha: 0.4)),
+                                            textStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedImageBytes = null;
+                                              _selectedImageName = null;
+                                            });
+                                          },
+                                          icon: const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 18),
+                                          tooltip: 'Remove Image',
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  if (isMobile) ...[
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed: _pickImage,
+                                          icon: const Icon(Icons.refresh_rounded, size: 13),
+                                          label: const Text('Change'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: _emerald,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            side: BorderSide(color: _emerald.withValues(alpha: 0.4)),
+                                            textStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedImageBytes = null;
+                                              _selectedImageName = null;
+                                            });
+                                          },
+                                          icon: const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 16),
+                                          label: const Text('Remove', style: TextStyle(color: Color(0xFFDC2626), fontSize: 11, fontWeight: FontWeight.w600)),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ] else if (imageUrlController.text.trim().isNotEmpty) ...[
+                            // Image URL Preview Card
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: _gold.withValues(alpha: 0.35)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          imageUrlController.text.trim(),
+                                          width: isMobile ? 56 : 68,
+                                          height: isMobile ? 46 : 52,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            width: isMobile ? 56 : 68,
+                                            height: isMobile ? 46 : 52,
+                                            color: const Color(0xFFF1F5F9),
+                                            child: const Icon(Icons.broken_image_rounded, size: 20, color: _slate),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: _gold.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                'Using Web URL',
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF9E6D10),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              imageUrlController.text.trim(),
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: _slate,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (!isMobile) ...[
+                                        const SizedBox(width: 8),
+                                        ElevatedButton.icon(
+                                          onPressed: _pickImage,
+                                          icon: const Icon(Icons.file_upload_outlined, size: 14),
+                                          label: const Text('Upload File Instead'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _emerald,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            textStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  if (isMobile) ...[
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: ElevatedButton.icon(
+                                        onPressed: _pickImage,
+                                        icon: const Icon(Icons.file_upload_outlined, size: 13),
+                                        label: const Text('Upload File Instead'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: _emerald,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          textStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            // Upload Button / Dropzone
+                            InkWell(
+                              onTap: _pickImage,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _emerald.withValues(alpha: 0.35),
+                                    style: BorderStyle.solid,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: _emerald.withValues(alpha: 0.08),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_photo_alternate_rounded,
+                                        color: _emerald,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Click to Browse & Upload Image File',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: _emerald,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Upload from your computer or device',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 10.5,
+                                              color: _slate,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     Row(
                       children: [
                         Expanded(
@@ -721,10 +1140,19 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton.icon(
-                        onPressed: _addAnnouncement,
-                        icon: const Icon(Icons.send_rounded, size: 16, color: Colors.white),
+                        onPressed: _isUploadingImage ? null : _addAnnouncement,
+                        icon: _isUploadingImage
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded, size: 16, color: Colors.white),
                         label: Text(
-                          'Publish Announcement',
+                          _isUploadingImage ? 'Uploading & Publishing...' : 'Publish Announcement',
                           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12.5, color: Colors.white),
                         ),
                         style: ElevatedButton.styleFrom(

@@ -43,6 +43,22 @@ class PaymentPanel extends StatefulWidget {
   State<PaymentPanel> createState() => _PaymentPanelState();
 }
 
+class SplitTenderItem {
+  final String method;
+  final double amount;
+  final double tendered;
+  final double change;
+  final String? reference;
+
+  SplitTenderItem({
+    required this.method,
+    required this.amount,
+    this.tendered = 0.0,
+    this.change = 0.0,
+    this.reference,
+  });
+}
+
 class _PaymentPanelState extends State<PaymentPanel>
     with SingleTickerProviderStateMixin {
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
@@ -50,7 +66,12 @@ class _PaymentPanelState extends State<PaymentPanel>
   late AnimationController _ctrl;
   late Animation<Offset> _slide;
 
-  String _method = 'Cash';
+  String _method = 'Cash'; // 'Cash', 'E-wallet', 'Split'
+  String _splitSelectedMethod = 'Cash'; // Active tender method when in Split mode
+  final List<SplitTenderItem> _splitPayments = [];
+  final TextEditingController _gcashRefController = TextEditingController();
+  final FocusNode _gcashRefFocusNode = FocusNode();
+  bool _isTypingGcashRef = false;
   String _entered = '';
   // ignore: unused_field
   bool _isPayMongoProcessing = false;
@@ -65,6 +86,7 @@ class _PaymentPanelState extends State<PaymentPanel>
   static const _textDark = Color(0xFF1E293B);
   static const _indigo = Color(0xFF4F46E5);
   static const _green = Color(0xFF10B981);
+  static const _amber = Color(0xFFF59E0B);
 
   List<String> _dynamicCashiers = [];
   List<String> _dynamicServers = [];
@@ -96,6 +118,13 @@ class _PaymentPanelState extends State<PaymentPanel>
   void initState() {
     super.initState();
     _loadStaffNames();
+    _gcashRefFocusNode.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isTypingGcashRef = _gcashRefFocusNode.hasFocus;
+        });
+      }
+    });
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -109,18 +138,36 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   @override
   void dispose() {
+    _gcashRefFocusNode.dispose();
+    _gcashRefController.dispose();
     _pollingTimer?.cancel();
     _ctrl.dispose();
     super.dispose();
   }
 
+  bool get _isSplitMode => _method == 'Split';
+
   double get _total =>
       widget.overrideTotalAmount ??
       widget.cart.fold(0.0, (s, i) => s + i.item.price * i.quantity);
 
-  double get _paid => double.tryParse(_entered) ?? 0.0;
-  double get _change => _paid - _total;
-  bool get _canComplete => _paid >= _total && _total > 0;
+  double get _splitTotalPaid =>
+      _splitPayments.fold(0.0, (s, i) => s + i.amount);
+
+  double get _splitRemaining =>
+      (_total - _splitTotalPaid).clamp(0.0, _total);
+
+  double get _paid => _isSplitMode
+      ? _splitTotalPaid
+      : (double.tryParse(_entered) ?? 0.0);
+
+  double get _change => _isSplitMode
+      ? _splitPayments.fold(0.0, (s, i) => s + i.change)
+      : (_paid - _total);
+
+  bool get _canComplete => _isSplitMode
+      ? (_splitTotalPaid >= _total && _total > 0)
+      : (_paid >= _total && _total > 0);
 
   String get _displayPaid {
     if (_entered.isEmpty) return '0.00';
@@ -128,6 +175,91 @@ class _PaymentPanelState extends State<PaymentPanel>
     if (v == null) return _entered;
     if (_entered.endsWith('.')) return '${_fmt.format(v)}.';
     return _fmt.format(v);
+  }
+
+  String get _resolvedPaymentMethod {
+    if (!_isSplitMode) return _method;
+    if (_splitPayments.isEmpty) return 'SPLIT';
+    final breakdown = _splitPayments.map((p) {
+      if (p.reference != null && p.reference!.isNotEmpty) {
+        return '${p.method}: ₱${_fmt.format(p.amount)} [Ref: ${p.reference}]';
+      }
+      return '${p.method}: ₱${_fmt.format(p.amount)}';
+    }).join(', ');
+    return 'SPLIT ($breakdown)';
+  }
+
+  void _addSplitTender() {
+    final remaining = _splitRemaining;
+    if (remaining <= 0) return;
+
+    if (_splitSelectedMethod == 'GCash') {
+      final refText = _gcashRefController.text.trim();
+      if (refText.isEmpty) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'GCash Reference Number is required.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            backgroundColor: Color(0xFFDC2626),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    final enteredVal = double.tryParse(_entered);
+    final targetAmount = (enteredVal != null && enteredVal > 0) ? enteredVal : remaining;
+
+    double appliedAmount = targetAmount;
+    double tenderedAmount = targetAmount;
+    double changeAmount = 0.0;
+
+    if (_splitSelectedMethod == 'Cash') {
+      if (targetAmount > remaining) {
+        appliedAmount = remaining;
+        tenderedAmount = targetAmount;
+        changeAmount = targetAmount - remaining;
+      }
+    } else {
+      if (appliedAmount > remaining) {
+        appliedAmount = remaining;
+      }
+    }
+
+    final ref = _splitSelectedMethod == 'GCash'
+        ? _gcashRefController.text.trim()
+        : null;
+
+    setState(() {
+      _splitPayments.add(
+        SplitTenderItem(
+          method: _splitSelectedMethod,
+          amount: appliedAmount,
+          tendered: tenderedAmount,
+          change: changeAmount,
+          reference: ref,
+        ),
+      );
+      _entered = '';
+      _gcashRefController.clear();
+    });
+  }
+
+  void _removeSplitTender(int index) {
+    setState(() {
+      _splitPayments.removeAt(index);
+    });
   }
 
   Future<void> _printReceipt() async {
@@ -140,7 +272,7 @@ class _PaymentPanelState extends State<PaymentPanel>
       widget.onComplete(
         widget.customerName,
         widget.note,
-        _method,
+        _resolvedPaymentMethod,
         _paid,
         _change,
         _selectedCashier,
@@ -337,16 +469,41 @@ class _PaymentPanelState extends State<PaymentPanel>
               // ===== PAYMENT SECTION =====
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
-                child: pw.Text('Tendered:', style: baseStyle),
+                child: pw.Text('Tendered / Payments:', style: baseStyle),
               ),
               pw.SizedBox(height: 2),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('  ${_method.toUpperCase()}', style: baseStyle),
-                  pw.Text(_fmt.format(_paid), style: baseStyle),
-                ],
-              ),
+              if (_isSplitMode && _splitPayments.isNotEmpty) ...[
+                ..._splitPayments.map((item) => pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('  ${item.method.toUpperCase()}:', style: baseStyle),
+                        pw.Text(_fmt.format(item.amount), style: baseStyle),
+                      ],
+                    ),
+                    if (item.reference != null && item.reference!.isNotEmpty) ...[
+                      pw.SizedBox(height: 1),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.end,
+                        children: [
+                          pw.Text('Ref: ${item.reference}', style: pw.TextStyle(fontSize: 8.5, font: monoFont)),
+                        ],
+                      ),
+                    ],
+                    pw.SizedBox(height: 1),
+                  ],
+                )),
+              ] else ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('  ${_method.toUpperCase()}', style: baseStyle),
+                    pw.Text(_fmt.format(_paid), style: baseStyle),
+                  ],
+                ),
+              ],
               pw.SizedBox(height: 2),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -401,16 +558,28 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   void _tap(String key) {
     setState(() {
-      if (key == 'DEL') {
-        if (_entered.isNotEmpty) {
-          _entered = _entered.substring(0, _entered.length - 1);
-        }
-      } else if (key == '.') {
-        if (!_entered.contains('.')) {
-          _entered = _entered.isEmpty ? '0.' : '$_entered.';
+      if (_isSplitMode && _splitSelectedMethod == 'GCash' && _isTypingGcashRef) {
+        if (key == 'DEL') {
+          if (_gcashRefController.text.isNotEmpty) {
+            _gcashRefController.text = _gcashRefController.text.substring(0, _gcashRefController.text.length - 1);
+          }
+        } else if (key != '.') {
+          if (_gcashRefController.text.length < 13) {
+            _gcashRefController.text += key;
+          }
         }
       } else {
-        if (_entered.length < 9) _entered += key;
+        if (key == 'DEL') {
+          if (_entered.isNotEmpty) {
+            _entered = _entered.substring(0, _entered.length - 1);
+          }
+        } else if (key == '.') {
+          if (!_entered.contains('.')) {
+            _entered = _entered.isEmpty ? '0.' : '$_entered.';
+          }
+        } else {
+          if (_entered.length < 9) _entered += key;
+        }
       }
     });
   }
@@ -422,18 +591,36 @@ class _PaymentPanelState extends State<PaymentPanel>
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
+        // If the user is typing in the GCash Ref field, let normal keyboard events pass to the TextField
+        if (_gcashRefFocusNode.hasFocus) {
+          final key = event.logicalKey;
+          if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+            _gcashRefFocusNode.unfocus();
+            setState(() => _isTypingGcashRef = false);
+            return KeyEventResult.handled;
+          }
+          if (key == LogicalKeyboardKey.escape) {
+            _gcashRefFocusNode.unfocus();
+            setState(() => _isTypingGcashRef = false);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored; // Let the TextField process digits and typing!
+        }
+
         final key = event.logicalKey;
         if (key == LogicalKeyboardKey.backspace) {
           _tap('DEL');
           return KeyEventResult.handled;
         } else if (key == LogicalKeyboardKey.enter ||
             key == LogicalKeyboardKey.numpadEnter) {
-          if (_canComplete) {
+          if (_isSplitMode && _splitRemaining > 0 && _entered.isNotEmpty) {
+            _addSplitTender();
+          } else if (_canComplete) {
             _ctrl.reverse().then((_) {
               widget.onComplete(
                 widget.customerName,
                 widget.note,
-                _method,
+                _resolvedPaymentMethod,
                 _paid,
                 _change,
                 _selectedCashier,
@@ -470,17 +657,21 @@ class _PaymentPanelState extends State<PaymentPanel>
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
+                    horizontal: 20,
+                    vertical: 16,
                   ),
                   child: Column(
                     children: [
                       _buildTopSummary(),
-                      const SizedBox(height: 24),
-                      _buildInputBox(),
-                      const SizedBox(height: 24),
-                      Expanded(child: _buildNumpad()),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      if (_isSplitMode) ...[
+                        Expanded(child: _buildSplitPaymentView()),
+                      ] else ...[
+                        _buildInputBox(),
+                        const SizedBox(height: 16),
+                        Expanded(child: _buildNumpad()),
+                      ],
+                      const SizedBox(height: 16),
                       _buildActions(),
                     ],
                   ),
@@ -495,7 +686,7 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   Widget _buildSidebar() {
     return Container(
-      width: 80,
+      width: 84,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(right: BorderSide(color: _border)),
@@ -527,9 +718,11 @@ class _PaymentPanelState extends State<PaymentPanel>
                 size: 24,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             _sidebarItem('Cash', Icons.payments_outlined, 'CASH'),
             _sidebarItem('E-wallet', Icons.qr_code_2, 'E-WALLET'),
+            _sidebarItem('Split', Icons.pie_chart_outline_rounded, 'SPLIT'),
+            const SizedBox(height: 8),
             _sidebarCashierButton(),
             _sidebarServerButton(),
             const SizedBox(height: 20),
@@ -1213,8 +1406,33 @@ class _PaymentPanelState extends State<PaymentPanel>
   }
 
   Widget _buildTopSummary() {
+    if (_isSplitMode) {
+      final isDone = _splitRemaining == 0.0 && _splitTotalPaid >= _total;
+      return Container(
+        height: 84,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _border),
+        ),
+        child: Row(
+          children: [
+            _summaryItem('TOTAL BILL', '₱${_fmt.format(_total)}', _textDark),
+            _vDivider(),
+            _summaryItem('PAID SO FAR', '₱${_fmt.format(_splitTotalPaid)}', _indigo),
+            _vDivider(),
+            _summaryItem(
+              isDone ? 'STATUS' : 'REMAINING BALANCE',
+              isDone ? 'FULLY PAID ✓' : '₱${_fmt.format(_splitRemaining)}',
+              isDone ? _green : _amber,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      height: 90,
+      height: 84,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1232,6 +1450,438 @@ class _PaymentPanelState extends State<PaymentPanel>
             _green,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSplitPaymentView() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Left: Applied Payments List & Quick Presets ──
+        Expanded(
+          flex: 6,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 18, color: _indigo),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Applied Tenders',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: _textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _splitRemaining == 0 ? _green.withValues(alpha: 0.1) : _amber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _splitRemaining == 0 ? 'Completed' : '₱${_fmt.format(_splitRemaining)} left',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _splitRemaining == 0 ? _green : const Color(0xFFD97706),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _splitPayments.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.payments_outlined, size: 36, color: _labelGrey.withValues(alpha: 0.5)),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'No payments added yet',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _labelGrey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Select a method and click "Add Payment"',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: _labelGrey.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _splitPayments.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final item = _splitPayments[index];
+                            final isCash = item.method.toLowerCase().contains('cash');
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: _border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: isCash ? _green.withValues(alpha: 0.1) : _indigo.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      isCash ? Icons.payments_outlined : Icons.qr_code_2,
+                                      color: isCash ? _green : _indigo,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.method.toUpperCase(),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _textDark,
+                                          ),
+                                        ),
+                                        if (item.reference != null && item.reference!.isNotEmpty)
+                                          Text(
+                                            'Ref: #${item.reference}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFF2563EB),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        if (item.change > 0)
+                                          Text(
+                                            'Tendered: ₱${_fmt.format(item.tendered)} (Sukli: ₱${_fmt.format(item.change)})',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: _green,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '₱${_fmt.format(item.amount)}',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: _textDark,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.close, size: 18, color: Colors.redAccent),
+                                    onPressed: () => _removeSplitTender(index),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 6),
+                // Quick Split Helper Presets
+                Row(
+                  children: [
+                    _buildQuickSplitChip('50 / 50', _total / 2),
+                    const SizedBox(width: 4),
+                    _buildQuickSplitChip('1/3', _total / 3),
+                    const SizedBox(width: 4),
+                    _buildQuickSplitChip('1/4', _total / 4),
+                    const SizedBox(width: 4),
+                    _buildQuickSplitChip('All Left', _splitRemaining),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // ── Right: Tender Method Selector, Keypad & Add Button ──
+        Expanded(
+          flex: 7,
+          child: Column(
+            children: [
+              // Tender Method Chips (Cash & GCash only)
+              Row(
+                children: [
+                  _buildSplitMethodChip('Cash', Icons.payments_outlined, const Color(0xFF059669)),
+                  const SizedBox(width: 8),
+                  _buildSplitMethodChip('GCash', Icons.qr_code_2, const Color(0xFF2563EB)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // GCash Reference Number Field (shown when GCash is active)
+              if (_splitSelectedMethod == 'GCash') ...[
+                GestureDetector(
+                  onTap: () {
+                    setState(() => _isTypingGcashRef = true);
+                    _gcashRefFocusNode.requestFocus();
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    height: 44,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: _isTypingGcashRef ? Colors.white : const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _isTypingGcashRef ? const Color(0xFF2563EB) : const Color(0xFF2563EB).withValues(alpha: 0.4),
+                        width: _isTypingGcashRef ? 2.0 : 1.0,
+                      ),
+                      boxShadow: _isTypingGcashRef
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.tag, size: 18, color: Color(0xFF2563EB)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _gcashRefController,
+                            focusNode: _gcashRefFocusNode,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(13),
+                            ],
+                            onTap: () {
+                              setState(() => _isTypingGcashRef = true);
+                            },
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                              color: _textDark,
+                              fontFamily: 'monospace',
+                            ),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              hintText: 'GCash Ref No. (13 digits: e.g. 1002348291823)',
+                              hintStyle: TextStyle(
+                                fontSize: 11,
+                                letterSpacing: 0,
+                                color: Color(0xFF94A3B8),
+                                fontWeight: FontWeight.normal,
+                                fontFamily: 'sans-serif',
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 10),
+                            ),
+                          ),
+                        ),
+                        if (_gcashRefController.text.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => setState(() => _gcashRefController.clear()),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(Icons.cancel, size: 16, color: _labelGrey),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              // Compact Tender Input Box
+              GestureDetector(
+                onTap: () {
+                  setState(() => _isTypingGcashRef = false);
+                  _gcashRefFocusNode.unfocus();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: !_isTypingGcashRef && _splitSelectedMethod == 'GCash'
+                          ? _indigo
+                          : (_splitSelectedMethod == 'Cash' ? const Color(0xFF059669).withValues(alpha: 0.6) : _border),
+                      width: (!_isTypingGcashRef && _splitSelectedMethod == 'GCash') ? 2.0 : 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Tender for $_splitSelectedMethod:',
+                        style: const TextStyle(
+                          color: _labelGrey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '₱${_entered.isEmpty ? _fmt.format(_splitRemaining) : _displayPaid}',
+                        style: const TextStyle(
+                          color: _textDark,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Compact Numpad
+              Expanded(child: _buildNumpad()),
+              const SizedBox(height: 8),
+              // Add Payment Button
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: _splitRemaining <= 0 ? null : _addSplitTender,
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  label: Text(
+                    '+ Add ₱${_entered.isEmpty ? _fmt.format(_splitRemaining) : _displayPaid} as $_splitSelectedMethod',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _splitSelectedMethod == 'Cash' ? const Color(0xFF059669) : const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: _indigo.withValues(alpha: 0.3),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickSplitChip(String label, double amount) {
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _entered = amount.toStringAsFixed(2);
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _border),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: _indigo,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSplitMethodChip(String method, IconData icon, Color activeColor) {
+    final isSelected = _splitSelectedMethod == method;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _splitSelectedMethod = method;
+          });
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? activeColor : _border,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: isSelected ? Colors.white : _textDark),
+              const SizedBox(width: 6),
+              Text(
+                method,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : _textDark,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1255,7 +1905,7 @@ class _PaymentPanelState extends State<PaymentPanel>
             value,
             style: TextStyle(
               color: color,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1271,7 +1921,7 @@ class _PaymentPanelState extends State<PaymentPanel>
       clipBehavior: Clip.none,
       children: [
         Container(
-          height: 90,
+          height: 84,
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
@@ -1286,7 +1936,7 @@ class _PaymentPanelState extends State<PaymentPanel>
             '₱$_displayPaid',
             style: const TextStyle(
               color: _textDark,
-              fontSize: 42,
+              fontSize: 38,
               fontWeight: FontWeight.w900,
               fontFamily: 'monospace',
             ),
@@ -1327,7 +1977,7 @@ class _PaymentPanelState extends State<PaymentPanel>
             children: row.map((key) {
               return Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(6.0),
+                  padding: const EdgeInsets.all(4.0),
                   child: _numpadKey(key),
                 ),
               );
@@ -1345,7 +1995,7 @@ class _PaymentPanelState extends State<PaymentPanel>
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isDel ? Colors.red.withValues(alpha: 0.1) : _border,
           ),
@@ -1362,13 +2012,13 @@ class _PaymentPanelState extends State<PaymentPanel>
               ? const Icon(
                   Icons.backspace_outlined,
                   color: Colors.redAccent,
-                  size: 24,
+                  size: 20,
                 )
               : Text(
                   key,
                   style: const TextStyle(
                     color: _textDark,
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1378,54 +2028,64 @@ class _PaymentPanelState extends State<PaymentPanel>
   }
 
   Widget _buildActions() {
+    final isSplit = _isSplitMode;
     return Row(
       children: [
         Expanded(
           flex: 1,
           child: SizedBox(
-            height: 60,
+            height: 52,
             child: ElevatedButton(
-              onPressed: () => setState(() => _entered = ''),
+              onPressed: () {
+                setState(() {
+                  _entered = '';
+                  if (isSplit) {
+                    _splitPayments.clear();
+                  }
+                });
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF1F5F9),
                 foregroundColor: _textDark,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'CLEAR',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                isSplit ? 'RESET' : 'CLEAR',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           flex: 2,
           child: SizedBox(
-            height: 60,
+            height: 52,
             child: ElevatedButton(
               onPressed: _canComplete ? _printReceipt : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _indigo,
+                backgroundColor: _canComplete ? _green : _indigo,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: _indigo.withValues(alpha: 0.3),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Print Receipt',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    _canComplete
+                        ? 'Complete & Print Receipt'
+                        : (isSplit ? 'Remaining ₱${_fmt.format(_splitRemaining)}' : 'Print Receipt'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  SizedBox(width: 10),
-                  Icon(Icons.print, size: 20),
+                  const SizedBox(width: 8),
+                  Icon(_canComplete ? Icons.check_circle : Icons.print, size: 18),
                 ],
               ),
             ),

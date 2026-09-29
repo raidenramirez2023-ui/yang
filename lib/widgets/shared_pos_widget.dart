@@ -807,37 +807,84 @@ class ReceiptTemplate extends StatelessWidget {
 
             const SizedBox(height: 2),
 
-            Row(
+            if (paymentMethod.toUpperCase().startsWith('SPLIT') && paymentMethod.contains('(')) ...[
+              ...paymentMethod
+                  .replaceFirst(RegExp(r'^SPLIT\s*\(?', caseSensitive: false), '')
+                  .replaceAll(')', '')
+                  .split(',')
+                  .map((part) {
+                    final p = part.trim();
+                    final colonIdx = p.indexOf(':');
+                    if (colonIdx != -1) {
+                      final m = p.substring(0, colonIdx).trim().toUpperCase();
+                      var valAndRef = p.substring(colonIdx + 1).trim();
+                      String? ref;
+                      final refMatch = RegExp(r'\[Ref:\s*([^\]]+)\]', caseSensitive: false).firstMatch(valAndRef);
+                      if (refMatch != null) {
+                        ref = refMatch.group(1)?.trim();
+                        valAndRef = valAndRef.replaceAll(refMatch.group(0)!, '').trim();
+                      }
+                      // Remove any stray currency symbol to prevent line wraps
+                      valAndRef = valAndRef.replaceAll('₱', '').trim();
 
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-              children: [
-
-                Text(
-
-                  '  ${paymentMethod.toUpperCase()}',
-
-                  style: const TextStyle(
-
-                    fontSize: 12,
-
-                    fontFamily: 'monospace',
-
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('  $m:', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                                Text(valAndRef, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                              ],
+                            ),
+                            if (ref != null && ref.isNotEmpty) ...[
+                              const SizedBox(height: 1),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'Ref: $ref',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontFamily: 'monospace',
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('  $p', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                        const SizedBox(),
+                      ],
+                    );
+                  }),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '  ${paymentMethod.toUpperCase()}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
                   ),
-
-                ),
-
-                Text(
-
-                  fmt.format(paidAmount),
-
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-
-                ),
-
-              ],
-
-            ),
+                  Text(
+                    fmt.format(paidAmount),
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ],
 
             const SizedBox(height: 2),
 

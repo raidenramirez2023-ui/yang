@@ -408,7 +408,7 @@ class _LandingPageState extends State<LandingPage>
           .limit(3);
 
       // 3. Fetch Latest Reviews and Total Count/Average
-      final reviewsResponse = await _reservationService.getAllReviews(limit: 6);
+      final reviewsResponse = await _reservationService.getAllReviews(limit: 50);
 
       List<Map<String, dynamic>> enrichedReviews = [];
       try {
@@ -4380,29 +4380,23 @@ class _LandingPageState extends State<LandingPage>
                   }).toList(),
                 )
               else
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: itemsToShow.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      return Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            right: index < itemsToShow.length - 1 ? 24 : 0,
-                          ),
-                          child: _ModernAnnouncementCardWidget(
-                            item: item,
-                            index: index,
-                            isMobile: false,
-                            triggerNotifier: _updatesAssemblyNotifier,
-                            onTap: () =>
-                                _showAnnouncementDetailsDialog(context, item),
-                          ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < itemsToShow.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 24),
+                      Expanded(
+                        child: _ModernAnnouncementCardWidget(
+                          item: itemsToShow[i],
+                          index: i,
+                          isMobile: false,
+                          triggerNotifier: _updatesAssemblyNotifier,
+                          onTap: () => _showAnnouncementDetailsDialog(
+                              context, itemsToShow[i]),
                         ),
-                      );
-                    }).toList(),
-                  ),
+                      ),
+                    ],
+                  ],
                 ),
             ],
           ),
@@ -4670,7 +4664,7 @@ class _LandingPageState extends State<LandingPage>
                 onPressed: () => _showAllReviewsDialog(context, displayReviews),
                 icon: const Icon(Icons.rate_review_rounded, color: darkGreyText, size: 18),
                 label: Text(
-                  'View All Verified Reviews (${_totalReviewCount > 0 ? _totalReviewCount : '150+'})',
+                  'View All Verified Reviews (${_totalReviewCount > 0 ? _totalReviewCount : defaultReviews.length})',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
                     fontSize: 13.5,
@@ -4740,7 +4734,7 @@ class _LandingPageState extends State<LandingPage>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Based on ${_totalReviewCount > 0 ? _totalReviewCount : '150+'} verified reviews',
+                      'Based on ${_totalReviewCount > 0 ? _totalReviewCount : 8} verified reviews',
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white70,
                         fontSize: 11,
@@ -4812,7 +4806,7 @@ class _LandingPageState extends State<LandingPage>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Based on ${_totalReviewCount > 0 ? _totalReviewCount : '150+'} verified guest reviews',
+                    'Based on ${_totalReviewCount > 0 ? _totalReviewCount : 8} verified guest reviews',
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.white70,
                       fontSize: 12.5,
@@ -4876,7 +4870,7 @@ class _LandingPageState extends State<LandingPage>
       builder: (ctx) => _AllReviewsDialog(
         reviews: reviews,
         averageRating: _averageRating > 0 ? _averageRating : 4.9,
-        totalCount: _totalReviewCount > 0 ? _totalReviewCount : 150,
+        totalCount: _totalReviewCount > 0 ? _totalReviewCount : reviews.length,
       ),
     );
   }
@@ -8470,7 +8464,7 @@ class _AllReviewsDialogState extends State<_AllReviewsDialog> {
                                       )),
                               const SizedBox(width: 8),
                               Text(
-                                '${widget.averageRating.toStringAsFixed(1)}  ·  ${widget.totalCount}+ verified reviews',
+                                '${widget.averageRating.toStringAsFixed(1)}  ·  ${widget.totalCount} verified reviews',
                                 style: GoogleFonts.plusJakartaSans(
                                   color: Colors.white70,
                                   fontSize: 12.5,
@@ -9470,14 +9464,15 @@ class _ModernAnnouncementCardWidgetState
                           ),
                         )
                       else
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 7),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                               children: [
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     // Highlight Tags Row (Smooth Fade + Slide Down)
                                     Opacity(
@@ -9541,7 +9536,7 @@ class _ModernAnnouncementCardWidgetState
                                             0, 10 * (1.0 - _titleAnimation.value)),
                                         child: Text(
                                           title,
-                                          maxLines: 2,
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.playfairDisplay(
                                             fontWeight: FontWeight.bold,
@@ -9555,7 +9550,7 @@ class _ModernAnnouncementCardWidgetState
                                   ],
                                 ),
 
-                                const Spacer(),
+                                const SizedBox(height: 10),
 
                                 // Hairline Divider & Footer (Smooth Fade + Slide Up)
                                 Opacity(
@@ -9565,13 +9560,12 @@ class _ModernAnnouncementCardWidgetState
                                         0, 10 * (1.0 - _footerAnimation.value)),
                                     child: const Column(
                                       children: [
-                                        SizedBox(height: 3),
                                         Divider(
                                           color: Color(0xFFEAE5D8),
                                           height: 1,
                                           thickness: 1,
                                         ),
-                                        SizedBox(height: 4),
+                                        SizedBox(height: 6),
                                       ],
                                     ),
                                   ),
@@ -9657,8 +9651,7 @@ class _ModernAnnouncementCardWidgetState
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
                     ],

@@ -1445,7 +1445,9 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                         // Description
                         TextFormField(
                           controller: descController,
-                          maxLines: 2,
+                          minLines: 2,
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
                           decoration: const InputDecoration(labelText: 'Description', alignLabelWithHint: true, prefixIcon: Icon(Icons.description)),
                         ),
                         const SizedBox(height: 20),

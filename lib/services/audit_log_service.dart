@@ -35,13 +35,16 @@ class AuditLogService {
           try {
             final userRecord = await _supabase
                 .from('users')
-                .select('name, role')
+                .select('firstname, lastname, role')
                 .eq('email', email)
                 .maybeSingle();
 
             if (userRecord != null) {
-              if (name.isEmpty && userRecord['name'] != null && userRecord['name'].toString().isNotEmpty) {
-                name = userRecord['name'].toString();
+              final fName = userRecord['firstname']?.toString() ?? '';
+              final lName = userRecord['lastname']?.toString() ?? '';
+              final fullName = '$fName $lName'.trim();
+              if (name.isEmpty && fullName.isNotEmpty) {
+                name = fullName;
               }
               if (userRecord['role'] != null) {
                 role = userRecord['role'].toString();

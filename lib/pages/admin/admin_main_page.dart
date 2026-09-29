@@ -1566,12 +1566,12 @@ class _AdminMainPageState extends State<AdminMainPage> {
       indices: [6, 13, 12], // Payment Management, Refunds & Reschedules, Petty Cash
     ),
     _AdminNavGroup(
-      title: 'ADMIN & SYSTEM',
-      indices: [7, 16, 8, 9, 11, 10, 14], // Employee Management, Admin Continuity, Customers & Reviews, Deletion Requests, Customer Chat, Announcements, Audit Logs
-    ),
-    _AdminNavGroup(
       title: 'FORECASTING',
       indices: [15, 3], // Sales Forecasting, Inventory Forecast
+    ),
+    _AdminNavGroup(
+      title: 'ADMIN & SYSTEM',
+      indices: [7, 16, 8, 9, 11, 10, 14], // Employee Management, Admin Continuity, Customers & Reviews, Deletion Requests, Customer Chat, Announcements, Audit Logs
     ),
   ];
 
@@ -4131,13 +4131,18 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 16,
+        vertical: isMobile ? 16 : 24,
+      ),
       child: Container(
-        width: 620,
+        width: isMobile ? double.infinity : 620,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.88,
+          maxHeight: MediaQuery.of(context).size.height * 0.90,
         ),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -4157,41 +4162,44 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
             children: [
               // ── Enterprise Header ──
               Container(
-                padding: const EdgeInsets.fromLTRB(22, 18, 16, 18),
+                padding: EdgeInsets.fromLTRB(isMobile ? 14 : 22, 14, isMobile ? 8 : 16, 14),
                 decoration: const BoxDecoration(
                   color: Color(0xFF0F172A),
                   border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(9),
+                      padding: EdgeInsets.all(isMobile ? 7 : 9),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E293B),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: const Color(0xFF334155)),
                       ),
-                      child: const Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 20),
+                      child: Icon(Icons.shield_rounded, color: const Color(0xFF38BDF8), size: isMobile ? 18 : 20),
                     ),
-                    const SizedBox(width: 14),
+                    SizedBox(width: isMobile ? 10 : 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 4,
                             children: [
                               Text(
                                 'Technical Support & Developer Help',
                                 style: GoogleFonts.inter(
-                                  fontSize: 16,
+                                  fontSize: isMobile ? 14 : 16,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                   letterSpacing: -0.2,
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(4),
@@ -4200,7 +4208,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                                 child: Text(
                                   'IT SUPPORT',
                                   style: GoogleFonts.inter(
-                                    fontSize: 9.5,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.6,
                                     color: const Color(0xFF38BDF8),
@@ -4213,7 +4221,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                           Text(
                             'Request temporary technical assistance from the system developer',
                             style: GoogleFonts.inter(
-                              fontSize: 11,
+                              fontSize: isMobile ? 10 : 11,
                               color: const Color(0xFF94A3B8),
                             ),
                           ),
@@ -4224,6 +4232,8 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                       icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
                       onPressed: () => Navigator.pop(context),
                       tooltip: 'Close',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
                   ],
                 ),
@@ -4231,7 +4241,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
 
               // ── Tab Bar Navigation ──
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 18, vertical: 8),
                 decoration: const BoxDecoration(
                   color: Color(0xFFF8FAFC),
                   border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
@@ -4243,7 +4253,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                         borderRadius: BorderRadius.circular(8),
                         onTap: () => setState(() => _currentTab = 0),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                           decoration: BoxDecoration(
                             color: _currentTab == 0 ? Colors.white : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
@@ -4265,16 +4275,19 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                             children: [
                               Icon(
                                 Icons.support_agent_rounded,
-                                size: 16,
+                                size: isMobile ? 14 : 16,
                                 color: _currentTab == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Request Support',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12.5,
-                                  fontWeight: _currentTab == 0 ? FontWeight.w700 : FontWeight.w500,
-                                  color: _currentTab == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              SizedBox(width: isMobile ? 5 : 8),
+                              Flexible(
+                                child: Text(
+                                  'Request Support',
+                                  style: GoogleFonts.inter(
+                                    fontSize: isMobile ? 11 : 12.5,
+                                    fontWeight: _currentTab == 0 ? FontWeight.w700 : FontWeight.w500,
+                                    color: _currentTab == 0 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -4288,7 +4301,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                         borderRadius: BorderRadius.circular(8),
                         onTap: () => setState(() => _currentTab = 1),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                           decoration: BoxDecoration(
                             color: _currentTab == 1 ? Colors.white : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
@@ -4310,23 +4323,26 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                             children: [
                               Icon(
                                 Icons.history_rounded,
-                                size: 16,
+                                size: isMobile ? 14 : 16,
                                 color: _currentTab == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Active Session & History',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12.5,
-                                  fontWeight: _currentTab == 1 ? FontWeight.w700 : FontWeight.w500,
-                                  color: _currentTab == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                              SizedBox(width: isMobile ? 5 : 8),
+                              Flexible(
+                                child: Text(
+                                  'Active Session & History',
+                                  style: GoogleFonts.inter(
+                                    fontSize: isMobile ? 11 : 12.5,
+                                    fontWeight: _currentTab == 1 ? FontWeight.w700 : FontWeight.w500,
+                                    color: _currentTab == 1 ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               if (_activeSession != null) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 4),
                                 Container(
-                                  width: 7,
-                                  height: 7,
+                                  width: 6,
+                                  height: 6,
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF10B981),
                                     shape: BoxShape.circle,
@@ -4345,7 +4361,7 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
               // ── Tab Content ──
               Flexible(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(22),
+                  padding: EdgeInsets.all(isMobile ? 14 : 22),
                   child: _currentTab == 0
                       ? _buildElevationRequestTab()
                       : _buildActiveSessionAndAuditTab(),
