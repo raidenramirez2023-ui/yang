@@ -7723,6 +7723,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   Widget _buildPaymentMethodSelector({required bool isEventPlace, required bool isSmallScreen}) {
+    final effectiveSelected = (!isEventPlace && _selectedPaymentMethod == 'cash')
+        ? null
+        : _selectedPaymentMethod;
+
     final List<Map<String, dynamic>> methods = [
       {
         'id': 'paymongo',
@@ -7740,19 +7744,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         'badge': 'GCash QR',
         'badgeColor': const Color(0xFF2563EB),
       },
-      {
-        'id': 'cash',
-        'title': 'Cash on site',
-        'subtitle': isEventPlace ? 'Pay on site within 3 days' : 'Pay on site within 24 hours',
-        'icon': Icons.payments_rounded,
-        'badge': isEventPlace ? '3-Day Grace' : '24-Hour Grace',
-        'badgeColor': const Color(0xFF16A34A),
-      },
+      if (isEventPlace)
+        {
+          'id': 'cash',
+          'title': 'Cash on site',
+          'subtitle': 'Pay on site within 3 days',
+          'icon': Icons.payments_rounded,
+          'badge': '3-Day Grace',
+          'badgeColor': const Color(0xFF16A34A),
+        },
     ];
 
     return Column(
       children: methods.map((m) {
-        final isSelected = _selectedPaymentMethod == m['id'];
+        final isSelected = effectiveSelected == m['id'];
         return Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
           child: AnimatedTapScale(
@@ -17336,8 +17341,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         }
       }
 
-      if (_selectedPaymentMethod == null) {
-        _showSnackBar('Please select a payment method', Colors.red);
+      if (_selectedPaymentMethod == null || _selectedPaymentMethod == 'cash') {
+        _showSnackBar('Please select an online payment method (PayMongo or GCash QR)', Colors.red);
         return;
       }
     }
@@ -17795,8 +17800,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         return;
       }
     } else {
-      if (_selectedPaymentMethod == null) {
-        _showSnackBar('Please select a payment method', Colors.red);
+      if (_selectedPaymentMethod == null || _selectedPaymentMethod == 'cash') {
+        _showSnackBar('Please select an online payment method (PayMongo or GCash QR)', Colors.red);
         return;
       }
     }
