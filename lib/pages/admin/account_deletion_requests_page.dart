@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/supabase_options.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
 class AccountDeletionRequestsPage extends StatefulWidget {
@@ -497,7 +500,7 @@ class _AccountDeletionRequestsPageState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Warning: This action will permanently anonymize personal details for ${request['email']}. Historical transactions are retained as anonymized records for compliance.',
+                          'Warning: This action will permanently delete user credentials and account details for ${request['email']}. This allows the customer to register anew or have their record completely removed under RA 10173.',
                           style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF9F1239), height: 1.4),
                         ),
                       ),
@@ -554,60 +557,129 @@ class _AccountDeletionRequestsPageState
                           setDialogState(() => isProcessing = true);
                           try {
                             final reqId = request['id'];
-                            final targetEmail = request['email'];
+                            final targetEmail = (request['email'] ?? '').toString().trim();
+                            final normEmail = targetEmail.toLowerCase();
                             final adminEmail = _supabase.auth.currentUser?.email ?? 'Admin';
 
-                        // 1. Anonymize user records if present in users table
-                        try {
-                          await _supabase.from('users').update({
-                            'firstname': 'Deleted',
-                            'lastname': 'Customer',
-                            'phone': null,
-                            'is_active': false,
-                            'restriction_status': 'deleted',
-                          }).eq('email', targetEmail);
-                        } catch (e) {
-                          debugPrint('Note anonymizing users table: $e');
-                        }
+                            // 1. Look up user UUID
+                            String? userId = request['user_id']?.toString();
+                            if (userId == null || userId.isEmpty) {
+                              try {
+                                final userRow = await _supabase
+                                    .from('users')
+                                    .select('id')
+                                    .ilike('email', normEmail)
+                                    .maybeSingle();
+                                if (userRow != null && userRow['id'] != null) {
+                                  userId = userRow['id'].toString();
+                                }
+                              } catch (e) {
+                                debugPrint('Note finding user id: $e');
+                              }
+                            }
 
-                        // 2. Mark deletion request as approved
-                        await _supabase.from('account_deletion_requests').update({
-                          'status': 'approved',
-                          'admin_notes': 'Account anonymized and deleted upon verified customer request.',
-                          'processed_by': adminEmail,
-                          'processed_at': DateTime.now().toIso8601String(),
-                        }).eq('id', reqId);
+                            // If not found in users table, lookup from Supabase Auth admin API
+                            if (userId == null || userId.isEmpty) {
+                              try {
+                                final listAuthUrl = Uri.parse('${SupabaseOptions.supabaseUrl}/auth/v1/admin/users');
+                                final authListRes = await http.get(
+                                  listAuthUrl,
+                                  headers: {
+                                    'apikey': SupabaseOptions.supabaseServiceRoleKey,
+                                    'Authorization': 'Bearer ${SupabaseOptions.supabaseServiceRoleKey}',
+                                  },
+                                );
+                                if (authListRes.statusCode == 200) {
+                                  final data = jsonDecode(authListRes.body);
+                                  final usersList = (data['users'] as List?) ?? [];
+                                  for (var u in usersList) {
+                                    if ((u['email'] ?? '').toString().trim().toLowerCase() == normEmail) {
+                                      userId = u['id']?.toString();
+                                      break;
+                                    }
+                                  }
+                                }
+                              } catch (e) {
+                                debugPrint('Note searching user in auth: $e');
+                              }
+                            }
 
-                        // 3. Audit Log
-                        try {
-                          await _supabase.from('audit_logs').insert({
-                            'action': 'ACCOUNT_DELETED_PERMANENTLY',
-                            'performed_by': adminEmail,
-                            'target': targetEmail,
-                            'details': 'Account deletion executed and personal data anonymized in compliance with RA 10173.',
-                            'created_at': DateTime.now().toIso8601String(),
-                          });
-                        } catch (_) {}
+                            // 2. Permanently delete user from Supabase Auth (auth.users)
+                            if (userId != null && userId.isNotEmpty) {
+                              try {
+                                final authDelUrl = Uri.parse('${SupabaseOptions.supabaseUrl}/auth/v1/admin/users/$userId');
+                                final authDelRes = await http.delete(
+                                  authDelUrl,
+                                  headers: {
+                                    'apikey': SupabaseOptions.supabaseServiceRoleKey,
+                                    'Authorization': 'Bearer ${SupabaseOptions.supabaseServiceRoleKey}',
+                                  },
+                                );
+                                debugPrint('Auth delete status: ${authDelRes.statusCode}');
+                              } catch (e) {
+                                debugPrint('Note deleting auth user: $e');
+                              }
+                            }
 
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        _loadRequests();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Account successfully anonymized & marked as Deleted.'),
-                              backgroundColor: Color(0xFF059669),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        setDialogState(() => isProcessing = false);
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
+                            // 3. Permanently delete user record from public.users table
+                            try {
+                              final restDelUrl = Uri.parse('${SupabaseOptions.supabaseUrl}/rest/v1/users?email=ilike.${Uri.encodeComponent(normEmail)}');
+                              await http.delete(
+                                restDelUrl,
+                                headers: {
+                                  'apikey': SupabaseOptions.supabaseServiceRoleKey,
+                                  'Authorization': 'Bearer ${SupabaseOptions.supabaseServiceRoleKey}',
+                                  'Content-Type': 'application/json',
+                                },
+                              );
+                            } catch (e) {
+                              debugPrint('Note deleting user via REST: $e');
+                            }
+
+                            try {
+                              await _supabase.from('users').delete().ilike('email', normEmail);
+                            } catch (e) {
+                              debugPrint('Note deleting user via client: $e');
+                            }
+
+                            // 4. Mark deletion request as approved
+                            await _supabase.from('account_deletion_requests').update({
+                              'status': 'approved',
+                              'admin_notes': 'Account and personal data permanently deleted upon verified customer request.',
+                              'processed_by': adminEmail,
+                              'processed_at': DateTime.now().toIso8601String(),
+                            }).eq('id', reqId);
+
+                            // 5. Audit Log
+                            try {
+                              await _supabase.from('audit_logs').insert({
+                                'action': 'ACCOUNT_DELETED_PERMANENTLY',
+                                'performed_by': adminEmail,
+                                'target': targetEmail,
+                                'details': 'Account ($targetEmail) permanently deleted from database and authentication in compliance with RA 10173.',
+                                'created_at': DateTime.now().toIso8601String(),
+                              });
+                            } catch (_) {}
+
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            _loadRequests();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Account successfully deleted from database and authentication.'),
+                                  backgroundColor: Color(0xFF059669),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isProcessing = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE11D48),
                 foregroundColor: Colors.white,

@@ -415,6 +415,126 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return result;
   }
 
+  static String _normalizeDishName(String name) {
+    String s = name.toLowerCase().replaceAll(RegExp(r'\s*\([^)]*\)'), '');
+    s = s.replaceAll(RegExp(r'[^\w\s]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return s;
+  }
+
+  static const Map<String, List<Map<String, dynamic>>> _fallbackRecipes = {
+    'beef with broccoli': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef with broccoli flower': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef with broccoli leaves (kaylan)': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Bell Pepper', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef steak chinese style': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'White Onion', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef with ampalaya': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Ampalaya', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef with black pepper': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Black Pepper', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef with green pepper': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Bell Pepper', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'beef with scramble egg': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Fresh Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'slice beef mango': [
+      {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Mango', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+      {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'bola-bola siopao': [
+      {'name': 'Bola Pao', 'quantity': 1.0, 'unit': 'order', 'category': 'Davids'},
+    ],
+    'asado siopao': [
+      {'name': 'Asado Pao', 'quantity': 1.0, 'unit': 'order', 'category': 'Davids'},
+    ],
+    'special siopao': [
+      {'name': 'Asado Pao', 'quantity': 1.0, 'unit': 'order', 'category': 'Davids'},
+    ],
+    'shark\'s fin dumpling': [
+      {'name': 'Sharksfin Meat', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Wonton Wrapper', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+    ],
+    'wonton dumplings': [
+      {'name': 'Wonton Meat', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Wonton Wrapper', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+    ],
+    'spinach dumpling': [
+      {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+      {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+    ],
+    'hakaw': [
+      {'name': 'Hakaw', 'quantity': 1.0, 'unit': 'order', 'category': 'Davids'},
+    ],
+    'siomai with shrimp': [
+      {'name': 'Shrimp Marinated 10x100', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Siomai Meat Mix', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+    ],
+    'quail egg siomai': [
+      {'name': 'Quail Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+      {'name': 'Siomai Meat Mix', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+    ],
+    'chicken feet': [
+      {'name': 'Chicken Feet', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Davids'},
+    ],
+    'buchi': [
+      {'name': 'Buchi', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Davids'},
+    ],
+    'cuapao / mantau': [
+      {'name': 'Cuapao', 'quantity': 1.0, 'unit': 'order', 'category': 'Davids'},
+    ],
+    'tausi spareribs': [
+      {'name': 'Spicy Spareribs 5x300', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Tausi Sauce', 'quantity': 1.0, 'unit': 'gram', 'category': 'Sauces'},
+    ],
+    'sweet and sour pork': [
+      {'name': 'Sweet and Sour Pork 5x200', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+      {'name': 'Sweet and Sour Sauce', 'quantity': 1.0, 'unit': 'bot', 'category': 'Sauces'},
+    ],
+    'yang chow fried rice': [
+      {'name': 'YC Rice', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+      {'name': 'Fresh Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+    ],
+  };
+
+  static bool _matchesCategoryFilter(Map<String, dynamic> item, String selectedCategory) {
+    if (selectedCategory.trim().toLowerCase() == 'all') return true;
+    final sel = selectedCategory.trim().toLowerCase();
+
+    final supplyCat = (item['category'] ?? '').toString().trim().toLowerCase();
+    final menuCat = (item['menuCategory'] ?? '').toString().trim().toLowerCase();
+
+    return supplyCat == sel || menuCat == sel;
+  }
+
   List<Map<String, dynamic>> _calculateForecast({
     required List<Map<String, dynamic>> inventory,
     required List<Map<String, dynamic>> kitchenRequests,
@@ -436,22 +556,114 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       inventoryLowerMap[name.toLowerCase().trim()] = item;
     }
 
-    // Group recipes by menu_item_name (lowercase)
+    // Group recipes by menu_item_name (lowercase) & normalized name
     final Map<String, List<Map<String, dynamic>>> recipesByMenu = {};
+    final Map<String, List<Map<String, dynamic>>> recipesByNormalizedName = {};
     for (var r in recipes) {
-      final menuName = (r['menu_item_name'] ?? '').toString().toLowerCase().trim();
+      final rawMenuName = (r['menu_item_name'] ?? '').toString().trim();
+      final menuName = rawMenuName.toLowerCase();
       if (menuName.isNotEmpty) {
         recipesByMenu.putIfAbsent(menuName, () => []).add(r);
+        final norm = _normalizeDishName(rawMenuName);
+        if (norm.isNotEmpty) {
+          recipesByNormalizedName.putIfAbsent(norm, () => []).add(r);
+        }
       }
     }
 
+    // Normalized menu category map
+    final Map<String, String> normalizedMenuCategoryMap = {};
+    menuCategoryMap.forEach((name, cat) {
+      final norm = _normalizeDishName(name);
+      if (norm.isNotEmpty) {
+        normalizedMenuCategoryMap[norm] = cat;
+      }
+    });
+
+    // Helper to resolve dish menu category
+    String resolveMenuCategory(String menuItemName) {
+      final clean = menuItemName.trim().toLowerCase();
+      if (menuCategoryMap.containsKey(clean) && menuCategoryMap[clean]!.isNotEmpty) {
+        return menuCategoryMap[clean]!;
+      }
+
+      final norm = _normalizeDishName(menuItemName);
+      if (norm.isNotEmpty && normalizedMenuCategoryMap.containsKey(norm) && normalizedMenuCategoryMap[norm]!.isNotEmpty) {
+        return normalizedMenuCategoryMap[norm]!;
+      }
+
+      for (final entry in menuCategoryMap.entries) {
+        if (entry.key.contains(clean) || clean.contains(entry.key)) {
+          return entry.value;
+        }
+      }
+
+      for (final entry in normalizedMenuCategoryMap.entries) {
+        if (entry.key.contains(norm) || norm.contains(entry.key)) {
+          return entry.value;
+        }
+      }
+
+      return '';
+    }
+
+    // Helper to find matching recipes with normalized, partial, and fallback resolution
+    List<Map<String, dynamic>>? findMatchingRecipes(String menuItemName) {
+      final clean = menuItemName.trim().toLowerCase();
+      if (clean.isEmpty) return null;
+
+      // 1. Direct lowercase match in database recipes
+      if (recipesByMenu.containsKey(clean) && recipesByMenu[clean]!.isNotEmpty) {
+        return recipesByMenu[clean];
+      }
+
+      // 2. Normalized match (strips parentheticals like (2pcs), (4pcs), punctuation)
+      final norm = _normalizeDishName(menuItemName);
+      if (norm.isNotEmpty && recipesByNormalizedName.containsKey(norm) && recipesByNormalizedName[norm]!.isNotEmpty) {
+        return recipesByNormalizedName[norm];
+      }
+
+      // 3. Database recipe prefix / substring match
+      for (final entry in recipesByMenu.entries) {
+        final key = entry.key;
+        if (key.startsWith(clean) || clean.startsWith(key) || key.contains(clean) || clean.contains(key)) {
+          return entry.value;
+        }
+      }
+
+      // 4. Normalized substring match
+      for (final entry in recipesByNormalizedName.entries) {
+        final key = entry.key;
+        if (key.startsWith(norm) || norm.startsWith(key) || key.contains(norm) || norm.contains(key)) {
+          return entry.value;
+        }
+      }
+
+      // 5. Fallback standard restaurant recipes
+      if (_fallbackRecipes.containsKey(clean)) {
+        return _fallbackRecipes[clean];
+      }
+      if (norm.isNotEmpty && _fallbackRecipes.containsKey(norm)) {
+        return _fallbackRecipes[norm];
+      }
+      for (final entry in _fallbackRecipes.entries) {
+        if (entry.key.contains(clean) || clean.contains(entry.key) || entry.key.contains(norm) || norm.contains(entry.key)) {
+          return entry.value;
+        }
+      }
+
+      return null;
+    }
+
     // Helper to dynamically resolve direct category (drinks, retail, beverages)
-    String resolveDirectCategory(Map<String, dynamic> invItem, String menuLower) {
+    String resolveDirectCategory(Map<String, dynamic> invItem, String menuLower, String menuCat) {
       final invCat = (invItem['category'] ?? '').toString().trim();
       if (invCat.isNotEmpty) return invCat;
 
-      final menuCat = menuCategoryMap[menuLower];
-      if (menuCat != null && menuCat.trim().isNotEmpty) return menuCat.trim();
+      if (menuCat.trim().isNotEmpty) return menuCat.trim();
+
+      final mappedCat = menuCategoryMap[menuLower];
+      if (mappedCat != null && mappedCat.trim().isNotEmpty) return mappedCat.trim();
 
       for (final entry in menuCategoryMap.entries) {
         if (entry.key.contains(menuLower) || menuLower.contains(entry.key)) {
@@ -478,6 +690,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       forecast.add({
         'name': inventoryItem['name'] ?? itemName,
         'category': inventoryItem['category'] ?? 'Uncategorized',
+        'menuCategory': '',
+        'menuItem': '',
         'currentStock': currentStock,
         'unit': unit,
         'requestQuantity': requestQuantity,
@@ -514,21 +728,23 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       final createdAt = ord?['created_at']?.toString() ?? DateTime.now().toIso8601String();
 
       final menuLower = menuItemName.toLowerCase();
-      final matchedRecipes = recipesByMenu[menuLower];
+      final matchedRecipes = findMatchingRecipes(menuItemName);
 
       if (matchedRecipes != null && matchedRecipes.isNotEmpty) {
         // Explode menu dish into ingredients
         for (var rec in matchedRecipes) {
           final ingName = (rec['name'] ?? '').toString().trim();
+          if (ingName.isEmpty) continue;
+
           final ingLower = ingName.toLowerCase();
           final invItem = inventoryLowerMap[ingLower] ??
               inventory.firstWhere(
-                (inv) => (inv['name'] ?? '').toString().toLowerCase().contains(ingLower) ||
-                    ingLower.contains((inv['name'] ?? '').toString().toLowerCase()),
+                (inv) {
+                  final invName = (inv['name'] ?? '').toString().toLowerCase().trim();
+                  return invName.isNotEmpty && (invName == ingLower || invName.contains(ingLower) || ingLower.contains(invName));
+                },
                 orElse: () => {},
               );
-
-          if (invItem.isEmpty) continue;
 
           final unitReq = (rec['quantity'] as num?)?.toDouble() ?? 1.0;
           final totalNeeded = unitReq * orderQty;
@@ -537,9 +753,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           final priority = currentStock <= 0 ? 'Urgent' : (currentStock < totalNeeded ? 'High' : 'Normal');
           final storage = (invItem['storage_room'] ?? 'Kitchen Line').toString();
 
+          final supplyCategory = (invItem['category'] ?? rec['category'] ?? 'Groceries').toString().trim();
+          final dishCategory = resolveMenuCategory(menuItemName);
+
           forecast.add({
             'name': invItem['name'] ?? ingName,
-            'category': invItem['category'] ?? menuCategoryMap[menuLower] ?? 'Groceries',
+            'category': supplyCategory.isNotEmpty ? supplyCategory : (dishCategory.isNotEmpty ? dishCategory : 'Groceries'),
+            'menuCategory': dishCategory,
+            'menuItem': menuItemName,
             'currentStock': currentStock,
             'unit': unit,
             'requestQuantity': totalNeeded,
@@ -567,7 +788,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               orElse: () => {},
             );
 
-        final directCategory = resolveDirectCategory(invItem, menuLower);
+        final dishCategory = resolveMenuCategory(menuItemName);
+        final directCategory = resolveDirectCategory(invItem, menuLower, dishCategory);
         final currentStock = (invItem['quantity'] as num?)?.toDouble() ?? 0.0;
         final unit = (invItem['unit'] ?? 'pcs').toString();
         final totalNeeded = orderQty.toDouble();
@@ -577,6 +799,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         forecast.add({
           'name': invItem['name'] ?? menuItemName,
           'category': directCategory,
+          'menuCategory': dishCategory.isNotEmpty ? dishCategory : directCategory,
+          'menuItem': menuItemName,
           'currentStock': currentStock,
           'unit': unit,
           'requestQuantity': totalNeeded,
@@ -612,20 +836,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
       menuItems.forEach((menuItemName, orderQty) {
         final menuLower = menuItemName.toLowerCase().trim();
-        final matchedRecipes = recipesByMenu[menuLower];
+        final matchedRecipes = findMatchingRecipes(menuItemName);
 
         if (matchedRecipes != null && matchedRecipes.isNotEmpty) {
           for (var rec in matchedRecipes) {
             final ingName = (rec['name'] ?? '').toString().trim();
+            if (ingName.isEmpty) continue;
+
             final ingLower = ingName.toLowerCase();
             final invItem = inventoryLowerMap[ingLower] ??
                 inventory.firstWhere(
-                  (inv) => (inv['name'] ?? '').toString().toLowerCase().contains(ingLower) ||
-                      ingLower.contains((inv['name'] ?? '').toString().toLowerCase()),
+                  (inv) {
+                    final invName = (inv['name'] ?? '').toString().toLowerCase().trim();
+                    return invName.isNotEmpty && (invName == ingLower || invName.contains(ingLower) || ingLower.contains(invName));
+                  },
                   orElse: () => {},
                 );
-
-            if (invItem.isEmpty) continue;
 
             final unitReq = (rec['quantity'] as num?)?.toDouble() ?? 1.0;
             final totalNeeded = unitReq * orderQty;
@@ -634,9 +860,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             final priority = currentStock <= 0 ? 'Urgent' : (currentStock < totalNeeded ? 'High' : 'Normal');
             final storage = (invItem['storage_room'] ?? 'Kitchen Line').toString();
 
+            final supplyCategory = (invItem['category'] ?? rec['category'] ?? 'Groceries').toString().trim();
+            final dishCategory = resolveMenuCategory(menuItemName);
+
             forecast.add({
               'name': invItem['name'] ?? ingName,
-              'category': invItem['category'] ?? menuCategoryMap[menuLower] ?? 'Groceries',
+              'category': supplyCategory.isNotEmpty ? supplyCategory : (dishCategory.isNotEmpty ? dishCategory : 'Groceries'),
+              'menuCategory': dishCategory,
+              'menuItem': menuItemName,
               'currentStock': currentStock,
               'unit': unit,
               'requestQuantity': totalNeeded,
@@ -663,7 +894,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 orElse: () => {},
               );
 
-          final directCategory = resolveDirectCategory(invItem, menuLower);
+          final dishCategory = resolveMenuCategory(menuItemName);
+          final directCategory = resolveDirectCategory(invItem, menuLower, dishCategory);
           final currentStock = (invItem['quantity'] as num?)?.toDouble() ?? 0.0;
           final unit = (invItem['unit'] ?? 'pcs').toString();
           final totalNeeded = orderQty.toDouble();
@@ -673,6 +905,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           forecast.add({
             'name': invItem['name'] ?? menuItemName,
             'category': directCategory,
+            'menuCategory': dishCategory.isNotEmpty ? dishCategory : directCategory,
+            'menuItem': menuItemName,
             'currentStock': currentStock,
             'unit': unit,
             'requestQuantity': totalNeeded,
@@ -710,20 +944,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
       menuItems.forEach((menuItemName, orderQty) {
         final menuLower = menuItemName.toLowerCase().trim();
-        final matchedRecipes = recipesByMenu[menuLower];
+        final matchedRecipes = findMatchingRecipes(menuItemName);
 
         if (matchedRecipes != null && matchedRecipes.isNotEmpty) {
           for (var rec in matchedRecipes) {
             final ingName = (rec['name'] ?? '').toString().trim();
+            if (ingName.isEmpty) continue;
+
             final ingLower = ingName.toLowerCase();
             final invItem = inventoryLowerMap[ingLower] ??
                 inventory.firstWhere(
-                  (inv) => (inv['name'] ?? '').toString().toLowerCase().contains(ingLower) ||
-                      ingLower.contains((inv['name'] ?? '').toString().toLowerCase()),
+                  (inv) {
+                    final invName = (inv['name'] ?? '').toString().toLowerCase().trim();
+                    return invName.isNotEmpty && (invName == ingLower || invName.contains(ingLower) || ingLower.contains(invName));
+                  },
                   orElse: () => {},
                 );
-
-            if (invItem.isEmpty) continue;
 
             final unitReq = (rec['quantity'] as num?)?.toDouble() ?? 1.0;
             final totalNeeded = unitReq * orderQty;
@@ -732,9 +968,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             final priority = currentStock <= 0 ? 'Urgent' : (currentStock < totalNeeded ? 'High' : 'Normal');
             final storage = (invItem['storage_room'] ?? 'Kitchen Line').toString();
 
+            final supplyCategory = (invItem['category'] ?? rec['category'] ?? 'Groceries').toString().trim();
+            final dishCategory = resolveMenuCategory(menuItemName);
+
             forecast.add({
               'name': invItem['name'] ?? ingName,
-              'category': invItem['category'] ?? menuCategoryMap[menuLower] ?? 'Groceries',
+              'category': supplyCategory.isNotEmpty ? supplyCategory : (dishCategory.isNotEmpty ? dishCategory : 'Groceries'),
+              'menuCategory': dishCategory,
+              'menuItem': menuItemName,
               'currentStock': currentStock,
               'unit': unit,
               'requestQuantity': totalNeeded,
@@ -761,7 +1002,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 orElse: () => {},
               );
 
-          final directCategory = resolveDirectCategory(invItem, menuLower);
+          final dishCategory = resolveMenuCategory(menuItemName);
+          final directCategory = resolveDirectCategory(invItem, menuLower, dishCategory);
           final currentStock = (invItem['quantity'] as num?)?.toDouble() ?? 0.0;
           final unit = (invItem['unit'] ?? 'pcs').toString();
           final totalNeeded = orderQty.toDouble();
@@ -771,6 +1013,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           forecast.add({
             'name': invItem['name'] ?? menuItemName,
             'category': directCategory,
+            'menuCategory': dishCategory.isNotEmpty ? dishCategory : directCategory,
+            'menuItem': menuItemName,
             'currentStock': currentStock,
             'unit': unit,
             'requestQuantity': totalNeeded,
@@ -1071,9 +1315,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       var categoryFiltered = _forecastItems;
       if (_selectedCategory != 'All') {
         categoryFiltered = _forecastItems
-            .where((item) =>
-                (item['category'] ?? '').toString().trim().toLowerCase() ==
-                _selectedCategory.trim().toLowerCase())
+            .where((item) => _matchesCategoryFilter(item, _selectedCategory))
             .toList();
       }
       if (_selectedDemandSource != 'All') {
@@ -1360,9 +1602,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       var categoryFiltered = _forecastItems;
       if (_selectedCategory != 'All') {
         categoryFiltered = _forecastItems
-            .where((item) =>
-                (item['category'] ?? '').toString().trim().toLowerCase() ==
-                _selectedCategory.trim().toLowerCase())
+            .where((item) => _matchesCategoryFilter(item, _selectedCategory))
             .toList();
       }
       if (_selectedDemandSource != 'All') {
@@ -1681,9 +1921,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     var categoryFiltered = _forecastItems;
     if (_selectedCategory != 'All') {
       categoryFiltered = _forecastItems
-          .where((item) =>
-              (item['category'] ?? '').toString().trim().toLowerCase() ==
-              _selectedCategory.trim().toLowerCase())
+          .where((item) => _matchesCategoryFilter(item, _selectedCategory))
           .toList();
     }
     if (_selectedDemandSource != 'All') {
@@ -3914,11 +4152,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         : allDeficitItems.where((it) {
             final name = (it['name'] ?? '').toString().toLowerCase();
             final category = (it['category'] ?? '').toString().toLowerCase();
+            final menuCategory = (it['menuCategory'] ?? '').toString().toLowerCase();
             final notes = (it['notes'] ?? '').toString().toLowerCase();
             final storage = (it['storage_room'] ?? '').toString().toLowerCase();
             final src = (it['demandSource'] ?? '').toString().toLowerCase();
             return name.contains(query) ||
                 category.contains(query) ||
+                menuCategory.contains(query) ||
                 notes.contains(query) ||
                 storage.contains(query) ||
                 src.contains(query);
@@ -4504,11 +4744,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         : items.where((it) {
             final name = (it['name'] ?? '').toString().toLowerCase();
             final category = (it['category'] ?? '').toString().toLowerCase();
+            final menuCategory = (it['menuCategory'] ?? '').toString().toLowerCase();
             final notes = (it['notes'] ?? '').toString().toLowerCase();
             final storage = (it['storage_room'] ?? '').toString().toLowerCase();
             final src = (it['demandSource'] ?? '').toString().toLowerCase();
             return name.contains(query) ||
                 category.contains(query) ||
+                menuCategory.contains(query) ||
                 notes.contains(query) ||
                 storage.contains(query) ||
                 src.contains(query);
