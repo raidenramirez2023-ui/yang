@@ -233,6 +233,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     
     // Support custom extra/unlisted items added via modal/OCR
     final List<Map<String, dynamic>> extraCustomItems = [];
+    final List<String> scannedItemOrder = [];
 
     List<Map<String, dynamic>> allDbItems = [];
     List<String> pastReceivers = [
@@ -361,7 +362,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
           // Filter by search, category, & stock health status
           final query = searchCtrl.text.toLowerCase().trim();
-          final displayedItems = showOnlyUnlisted
+          List<Map<String, dynamic>> displayedItems = showOnlyUnlisted
               ? extraCustomItems.where((item) {
                   final name = (item['name']?.toString() ?? '').toLowerCase();
                   final cat = (item['category']?.toString() ?? 'General');
@@ -389,6 +390,20 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                   return matchesCategory && matchesQuery && matchesSelectedOnly && matchesStockHealth;
                 }).toList();
+
+          if (showOnlySelected && scannedItemOrder.isNotEmpty) {
+            displayedItems.sort((a, b) {
+              final nameA = a['name']?.toString() ?? '';
+              final nameB = b['name']?.toString() ?? '';
+              final indexA = scannedItemOrder.indexOf(nameA);
+              final indexB = scannedItemOrder.indexOf(nameB);
+              
+              if (indexA >= 0 && indexB >= 0) return indexA.compareTo(indexB);
+              if (indexA >= 0) return -1;
+              if (indexB >= 0) return 1;
+              return 0;
+            });
+          }
 
           // Calculate total items and units to receive
           int totalSelectedItems = 0;
@@ -521,6 +536,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                                         extraCustomItems.clear();
                                         restockQtys.clear();
+                                        scannedItemOrder.clear();
                                         for (var ctrl in qtyControllers.values) {
                                           ctrl.text = '0';
                                         }
@@ -529,6 +545,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                           final name = item['name']?.toString() ?? '';
                                           final qty = (item['quantity'] as num?)?.toInt() ?? 0;
                                           if (name.isNotEmpty && qty > 0) {
+                                            if (!scannedItemOrder.contains(name)) scannedItemOrder.add(name);
                                             final dbMatch = allDbItems.firstWhere(
                                               (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
                                               orElse: () => {},
@@ -661,6 +678,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   // Clear previous scan leftovers so old scans do not stack with new receipt!
                                   extraCustomItems.clear();
                                   restockQtys.clear();
+                                  scannedItemOrder.clear();
                                   for (var ctrl in qtyControllers.values) {
                                     ctrl.text = '0';
                                   }
@@ -669,6 +687,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     final name = item['name']?.toString() ?? '';
                                     final qty = (item['quantity'] as num?)?.toInt() ?? 0;
                                     if (name.isNotEmpty && qty > 0) {
+                                      if (!scannedItemOrder.contains(name)) scannedItemOrder.add(name);
                                       final dbMatch = allDbItems.firstWhere(
                                         (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
                                         orElse: () => {},

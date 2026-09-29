@@ -31,6 +31,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   int _totalInventoryItems = 0;
   int _lowStockItems = 0;
   int _outOfStockItems = 0;
+  Map<String, double> _currentInventoryStockMap = {};
   bool _isLoading = true;
   late int _selectedIndex;
   void Function()? _cancelPopState;
@@ -329,8 +330,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         int outOfStock = 0;
         Map<String, Map<String, int>> healthByCategory = {};
         List<Map<String, dynamic>> critical = [];
+        Map<String, double> stockMap = {};
 
         for (var item in inventoryResponse) {
+          final itemNameStr = (item['name'] ?? '').toString();
+          stockMap[itemNameStr] = (item['quantity'] as num?)?.toDouble() ?? 0.0;
+
           final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
           final category = item['category']?.toString() ?? 'Other';
           total++;
@@ -385,6 +390,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           final hasNewCriticalItems = currentCriticalIds.difference(_previouslyAlertedCriticalIds).isNotEmpty;
 
           setState(() {
+            _currentInventoryStockMap = stockMap;
             _totalInventoryItems = total;
             _lowStockItems = lowStock;
             _outOfStockItems = outOfStock;
@@ -515,15 +521,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   Widget _buildWelcomeBanner() {
-    final now = DateTime.now();
-    String greeting = 'Magandang Araw';
-    if (now.hour < 12) {
-      greeting = 'Magandang Umaga';
-    } else if (now.hour < 18) {
-      greeting = 'Magandang Hapon';
-    } else {
-      greeting = 'Magandang Gabi';
-    }
 
     return Container(
       width: double.infinity,
@@ -612,15 +609,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 ],
               ),
               const SizedBox(height: 14),
-              Text(
-                '$greeting,',
-                style: const TextStyle(
-                  color: Color(0xFFB0C8C3),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
               Text(
                 '$_userName!',
                 style: const TextStyle(
@@ -4838,7 +4826,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           Expanded(
                             flex: 12,
                             child: Text(
-                              'QTY NEEDED',
+                              'INV STOCK / NEEDED',
                               style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
                             ),
                           ),
@@ -4898,6 +4886,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         final requestedBy = request['requested_by']?.toString() ?? 'Staff';
                         final createdAt = request['created_at']?.toString();
                         final updatedAt = request['updated_at']?.toString();
+                        final double invStock = _currentInventoryStockMap[itemName] ?? 0.0;
+                        final String invStockDisplay = invStock.truncateToDouble() == invStock ? invStock.toInt().toString() : invStock.toStringAsFixed(2);
                         final isOverdue = _isRequestOverdue(createdAt, status);
 
                         Color statusColor;
@@ -5022,7 +5012,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       text: TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: '$quantity ',
+                                            text: '$invStockDisplay / $quantity ',
                                             style: const TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w900,
@@ -5399,6 +5389,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     final unit = (request['unit']?.toString() ?? 'pcs').toUpperCase();
     final note = request['note']?.toString().trim() ?? '';
     final requestedBy = request['requested_by']?.toString() ?? 'Staff';
+    final double invStock = _currentInventoryStockMap[itemName] ?? 0.0;
+    final String invStockDisplay = invStock.truncateToDouble() == invStock ? invStock.toInt().toString() : invStock.toStringAsFixed(2);
     final createdAt = request['created_at']?.toString();
     final updatedAt = request['updated_at']?.toString();
     final rawId = (request['id'] ?? '').toString();
@@ -5631,7 +5623,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             text: TextSpan(
                               children: [
                                 TextSpan(
-                                  text: '$quantity ',
+                                  text: '$invStockDisplay / $quantity ',
                                   style: const TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w900,
@@ -6005,7 +5997,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       // Fetch pending requests, main inventory, and kitchen inventory in parallel
       final results = await Future.wait([
-        _supabase.from('kitchen_requests').select().eq('status', 'Pending'),
+        _supabase.from('kitchen_requests').select().eq('status', 'Pending').order('created_at', ascending: true),
         _supabase.from('inventory').select('id, name, quantity, category, unit'),
         _supabase.from('kitchen_inventory').select('id, name, quantity, category, unit'),
       ]);
