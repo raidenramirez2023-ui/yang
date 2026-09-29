@@ -94,7 +94,7 @@ class DeliveryReceiptOcrService {
           'base64Image': base64WithPrefix,
           'language': 'eng',
           'isOverlayRequired': 'false',
-          'isTable': 'true',
+          'isTable': 'false',
           'filetype': fileType,
           'OCREngine': '2', // Engine 2 is better for handwriting & receipts
           'detectOrientation': 'true', // Auto-rotate if image is sideways
@@ -301,7 +301,7 @@ class DeliveryReceiptOcrService {
     }
 
     // Pattern 2: Arrow / Dash pattern: e.g. "Patatim -> 10 pcs" or "Patatim - 10 kg" or "1. Patatim ➔ 10 pcs"
-    final arrowMatch = RegExp(r"^(.+?)\s*(?:->|➔|=>|-|:)\s*(\d+(?:\.\d+)?)\s*([a-zA-Z]*)(?:\s*\(.*\))?$", caseSensitive: false).firstMatch(cleaned);
+    final arrowMatch = RegExp(r"^(.+?)\s*(?:->|➔|=>|-|—|–|=|~|:)\s*(\d+(?:\.\d+)?)\s*([a-zA-Z]*)(?:\s*\(.*\))?$", caseSensitive: false).firstMatch(cleaned);
     if (arrowMatch != null) {
       String rawName = arrowMatch.group(1)?.trim() ?? '';
       rawName = rawName.replaceFirst(RegExp(r'^\d+[\.\)]?\s*'), '');
@@ -320,7 +320,7 @@ class DeliveryReceiptOcrService {
     }
 
     // Pattern 3: Trailing Quantity Format: e.g. "Patatim 10 pcs" or "TEST1 20 kilo" or "Yangchow with Rice 5 order"
-    final trailingQtyMatch = RegExp(r"^([\w\s/&'\-]+?)\s+(\d+(?:\.\d+)?)\s*([a-zA-Z]*)$").firstMatch(cleaned);
+    final trailingQtyMatch = RegExp(r"^([^\d]+?)\s+(\d+(?:\.\d+)?)\s*([a-zA-Z]*)$").firstMatch(cleaned);
     if (trailingQtyMatch != null) {
       final rawName = trailingQtyMatch.group(1)?.trim() ?? '';
       final rawQty = double.tryParse(trailingQtyMatch.group(2) ?? '') ?? 1.0;

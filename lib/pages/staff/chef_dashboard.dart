@@ -6357,6 +6357,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   List<String> _availableItems = [];
   Map<String, String> _itemUnits = {};
   Map<String, int> _itemStocks = {};
+  Map<String, int> _itemPendingAmounts = {};
 
   List<String> _suggestions = [];
   bool _showSuggestions = false;
@@ -6431,6 +6432,19 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           .from('inventory')
           .select('name, unit, quantity')
           .order('name');
+          
+      // Fetch pending requests to subtract from available stock
+      final pendingReqs = await Supabase.instance.client
+          .from('kitchen_requests')
+          .select('item_name, quantity_needed')
+          .eq('status', 'Pending');
+          
+      final Map<String, int> pendingQuantities = {};
+      for (final req in pendingReqs) {
+        final name = req['item_name']?.toString() ?? '';
+        final qty = (req['quantity_needed'] as num?)?.toInt() ?? 0;
+        pendingQuantities[name] = (pendingQuantities[name] ?? 0) + qty;
+      }
 
       if (mounted) {
         setState(() {
@@ -6439,10 +6453,18 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
             for (var item in items)
               item['name'].toString(): item['unit']?.toString() ?? 'pcs',
           };
-          _itemStocks = {
-            for (var item in items)
-              item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0,
-          };
+          
+          _itemPendingAmounts = pendingQuantities;
+          
+          _itemStocks = Map.fromEntries(
+            items.map((item) {
+              final name = item['name'].toString();
+              final rawQty = (item['quantity'] as num?)?.toInt() ?? 0;
+              final pending = pendingQuantities[name] ?? 0;
+              final effectiveQty = rawQty - pending;
+              return MapEntry(name, effectiveQty < 0 ? 0 : effectiveQty);
+            }),
+          );
         });
       }
     } catch (e) {
@@ -6535,6 +6557,9 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         reservationId: 'N/A',
         eventType: '$itemName ($qty $_selectedUnit)',
       );
+
+      // Force recalculation of limits immediately reflecting the new pending queue
+      await _loadAvailableItems();
 
       if (mounted) {
         _itemCtrl.clear();
@@ -7051,18 +7076,42 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                           if (_itemStocks.containsKey(_itemCtrl.text.trim()))
                             Padding(
                               padding: const EdgeInsets.only(top: 5, left: 4),
-                              child: Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF10B981)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Available in Main Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      color: const Color(0xFF047857),
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF10B981)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Available in Main Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF047857),
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  if ((_itemPendingAmounts[_itemCtrl.text.trim()] ?? 0) > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFFD97706)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Note: A request for ${_itemPendingAmounts[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''} is already pending.',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: const Color(0xFFB45309),
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w600,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
