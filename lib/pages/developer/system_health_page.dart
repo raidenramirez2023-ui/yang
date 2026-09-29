@@ -177,12 +177,24 @@ class _SystemHealthPageState extends State<SystemHealthPage> {
   Future<void> _fetchTableCounts() async {
     setState(() => _loadingCounts = true);
     final supabase = Supabase.instance.client;
-    final tables = ['users', 'reservations', 'orders', 'menu_items', 'audit_logs', 'app_settings'];
+    final tables = [
+      'users',
+      'reservations',
+      'orders',
+      'menu_items',
+      'inventory',
+      'stock_transactions',
+      'refunds',
+      'it_access_requests',
+      'account_deletion_requests',
+      'audit_logs',
+      'app_settings',
+    ];
 
     final Map<String, int> counts = {};
     for (final tbl in tables) {
       try {
-        final res = await supabase.from(tbl).select('id').count(CountOption.exact);
+        final res = await supabase.from(tbl).select().count(CountOption.exact);
         counts[tbl] = res.count;
       } catch (_) {
         try {

@@ -25,6 +25,7 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
     'All Roles',
     'developer',
     'admin',
+    'backup_admin',
     'staff',
     'chef',
     'pagsanjaninv',
@@ -78,6 +79,8 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
         return DeveloperTheme.accentCyan;
       case 'admin':
         return DeveloperTheme.accentRose;
+      case 'backup_admin':
+        return DeveloperTheme.accentAmber;
       case 'chef':
         return DeveloperTheme.accentAmber;
       case 'pagsanjaninv':
@@ -111,7 +114,10 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
 
     // Counts by role
     final developerCount = _users.where((u) => (u['role'] ?? '').toString().toLowerCase() == 'developer').length;
-    final adminCount = _users.where((u) => (u['role'] ?? '').toString().toLowerCase() == 'admin').length;
+    final adminCount = _users.where((u) {
+      final r = (u['role'] ?? '').toString().toLowerCase();
+      return r == 'admin' || r == 'backup_admin';
+    }).length;
     final staffCount = _users.where((u) {
       final r = (u['role'] ?? '').toString().toLowerCase();
       return r == 'staff' || r == 'cashier' || r == 'waitstaff';
@@ -173,7 +179,7 @@ class _UserMonitoringPageState extends State<UserMonitoringPage> {
                 childAspectRatio: isWide ? 2.0 : 1.8,
                 children: [
                   _buildRoleCard('Developers', developerCount, DeveloperTheme.accentCyan, Icons.code),
-                  _buildRoleCard('Admins', adminCount, DeveloperTheme.accentRose, Icons.admin_panel_settings_rounded),
+                  _buildRoleCard('Admins & Backup', adminCount, DeveloperTheme.accentRose, Icons.admin_panel_settings_rounded),
                   _buildRoleCard('Staff & POS', staffCount, DeveloperTheme.accentIndigo, Icons.badge_rounded),
                   _buildRoleCard('Chefs & Kitchen', chefCount, DeveloperTheme.accentAmber, Icons.restaurant_rounded),
                   _buildRoleCard('Customers', customerCount, DeveloperTheme.accentEmerald, Icons.people_alt_rounded),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_constants.dart';
+import 'package:yang_chow/services/recipe_service.dart';
 
 /// Service to manage application settings fetched from the database
 class AppSettingsService {
@@ -361,7 +362,9 @@ class AppSettingsService {
   }
 
   /// Purges test payment and order records created during maintenance mode.
-  /// This ensures developer tests do not corrupt sales analytics or financial reports.
+  /// Safely cleans test orders, refunds, order_items, reservations, advance_orders,
+  /// releases temporary table holds, restores deducted kitchen inventory back to stock,
+  /// and clears developer testing logs, test stock transactions, and test kitchen requests.
   Future<Map<String, int>> purgeMaintenanceTestData({
     DateTime? windowStartTime,
     String? operatorEmail,
@@ -369,6 +372,10 @@ class AppSettingsService {
     int deletedOrders = 0;
     int deletedReservations = 0;
     int deletedAdvanceOrders = 0;
+    int restoredIngredientsCount = 0;
+    int deletedStockTransactions = 0;
+    int deletedKitchenRequests = 0;
+    int deletedTableHolds = 0;
 
     DateTime? effectiveStartTime = windowStartTime;
     if (effectiveStartTime == null) {
@@ -381,7 +388,7 @@ class AppSettingsService {
     effectiveStartTime ??= DateTime.now().subtract(const Duration(hours: 24));
 
     try {
-      // 1. Find and delete test POS orders
+      // 1. Find test POS orders, restore ingredients to kitchen inventory, then delete orders
       try {
         final ordersResponse = await _supabase
             .from('orders')
@@ -418,6 +425,26 @@ class AppSettingsService {
         }
 
         if (orderIds.isNotEmpty) {
+          // 1a. Restore kitchen ingredients deducted by test orders back to inventory
+          try {
+            final orderItemsResponse = await _supabase
+                .from('order_items')
+                .select('item_name, quantity')
+                .inFilter('order_id', orderIds);
+
+            for (final it in (orderItemsResponse as List<dynamic>)) {
+              final String itemName = it['item_name']?.toString() ?? '';
+              final int qty = (it['quantity'] as num?)?.toInt() ?? 1;
+              if (itemName.isNotEmpty && qty > 0) {
+                await RecipeService().restoreIngredientsToInventory(itemName, qty);
+                restoredIngredientsCount++;
+              }
+            }
+          } catch (e) {
+            debugPrint('Error restoring kitchen inventory ingredients: $e');
+          }
+
+          // 1b. Delete refunds, order_items, and orders
           try {
             await _supabase.from('refunds').delete().inFilter('source_id', orderIds);
           } catch (_) {}
@@ -525,7 +552,140 @@ class AppSettingsService {
         debugPrint('Error cleaning advance orders: $e');
       }
 
-      // 4. Find and delete test audit logs and framework crash logs created during this window
+      // 4. Release test or expired table holds
+      try {
+        final holdsResponse = await _supabase
+            .from('table_holds')
+            .select('id, customer_email, expires_at');
+
+        final List<dynamic> holdIdsToDelete = [];
+        final nowUtc = DateTime.now().toUtc();
+        for (final h in (holdsResponse as List<dynamic>)) {
+          final hid = h['id'];
+          if (hid == null) continue;
+
+          final email = (h['customer_email'] ?? '').toString().toLowerCase();
+          final expStr = (h['expires_at'] ?? '').toString();
+          final expDate = DateTime.tryParse(expStr);
+
+          bool shouldDelete = false;
+          if (expDate != null && expDate.isBefore(nowUtc)) {
+            shouldDelete = true;
+          }
+          if (operatorEmail != null && email == operatorEmail.toLowerCase()) {
+            shouldDelete = true;
+          }
+          if (email.contains('yangchowit') ||
+              email.contains('test') ||
+              email.contains('dev')) {
+            shouldDelete = true;
+          }
+
+          if (shouldDelete) {
+            holdIdsToDelete.add(hid);
+          }
+        }
+
+        if (holdIdsToDelete.isNotEmpty) {
+          await _supabase.from('table_holds').delete().inFilter('id', holdIdsToDelete);
+          deletedTableHolds = holdIdsToDelete.length;
+        }
+      } catch (e) {
+        debugPrint('Error cleaning table holds: $e');
+      }
+
+      // 5. Clean test stock transactions
+      try {
+        final stockTxResponse = await _supabase
+            .from('stock_transactions')
+            .select('id, processed_by, requested_by, purpose, created_at');
+
+        final List<dynamic> stockTxIds = [];
+        for (final st in (stockTxResponse as List<dynamic>)) {
+          final id = st['id'];
+          if (id == null) continue;
+
+          final processedBy = (st['processed_by'] ?? '').toString().toLowerCase();
+          final requestedBy = (st['requested_by'] ?? '').toString().toLowerCase();
+          final purpose = (st['purpose'] ?? '').toString().toLowerCase();
+          final cDateStr = (st['created_at'] ?? '').toString();
+          final cDate = DateTime.tryParse(cDateStr);
+
+          bool shouldDelete = false;
+          if (cDate != null && cDate.isAfter(effectiveStartTime)) {
+            if (operatorEmail != null &&
+                (processedBy == operatorEmail.toLowerCase() || requestedBy == operatorEmail.toLowerCase())) {
+              shouldDelete = true;
+            }
+            if (processedBy.contains('yangchowit') ||
+                processedBy.contains('test') ||
+                processedBy.contains('dev') ||
+                requestedBy.contains('yangchowit') ||
+                requestedBy.contains('test') ||
+                requestedBy.contains('dev') ||
+                purpose.contains('test') ||
+                purpose.contains('maintenance')) {
+              shouldDelete = true;
+            }
+          }
+
+          if (shouldDelete) {
+            stockTxIds.add(id);
+          }
+        }
+
+        if (stockTxIds.isNotEmpty) {
+          await _supabase.from('stock_transactions').delete().inFilter('id', stockTxIds);
+          deletedStockTransactions = stockTxIds.length;
+        }
+      } catch (e) {
+        debugPrint('Error cleaning test stock transactions: $e');
+      }
+
+      // 6. Clean test kitchen requests
+      try {
+        final krResponse = await _supabase
+            .from('kitchen_requests')
+            .select('id, requested_by, note, created_at');
+
+        final List<dynamic> krIds = [];
+        for (final kr in (krResponse as List<dynamic>)) {
+          final id = kr['id'];
+          if (id == null) continue;
+
+          final reqBy = (kr['requested_by'] ?? '').toString().toLowerCase();
+          final note = (kr['note'] ?? '').toString().toLowerCase();
+          final cDateStr = (kr['created_at'] ?? '').toString();
+          final cDate = DateTime.tryParse(cDateStr);
+
+          bool shouldDelete = false;
+          if (cDate != null && cDate.isAfter(effectiveStartTime)) {
+            if (operatorEmail != null && reqBy == operatorEmail.toLowerCase()) {
+              shouldDelete = true;
+            }
+            if (reqBy.contains('yangchowit') ||
+                reqBy.contains('test') ||
+                reqBy.contains('dev') ||
+                note.contains('test') ||
+                note.contains('maintenance')) {
+              shouldDelete = true;
+            }
+          }
+
+          if (shouldDelete) {
+            krIds.add(id);
+          }
+        }
+
+        if (krIds.isNotEmpty) {
+          await _supabase.from('kitchen_requests').delete().inFilter('id', krIds);
+          deletedKitchenRequests = krIds.length;
+        }
+      } catch (e) {
+        debugPrint('Error cleaning test kitchen requests: $e');
+      }
+
+      // 7. Find and delete test audit logs and framework crash logs created during this window
       try {
         await _supabase
             .from('audit_logs')
@@ -536,13 +696,13 @@ class AppSettingsService {
         debugPrint('Error cleaning test audit logs: $e');
       }
 
-      // 5. Log audit activity
+      // 8. Log audit activity
       try {
         await _supabase.from('audit_logs').insert({
           'action': 'PURGE_MAINTENANCE_TEST_DATA',
           'module': 'Maintenance',
           'description':
-              'Purged $deletedOrders test orders, $deletedReservations test events/reservations, and $deletedAdvanceOrders test advance orders.',
+              'Purged $deletedOrders orders, $deletedReservations events/reservations, $deletedAdvanceOrders advance orders, restored $restoredIngredientsCount kitchen ingredients, $deletedStockTransactions stock transactions, $deletedKitchenRequests kitchen requests, and released $deletedTableHolds table holds.',
           'user_email': operatorEmail ?? 'developer',
           'user_role': 'DEVELOPER',
           'created_at': DateTime.now().toUtc().toIso8601String(),
@@ -557,6 +717,10 @@ class AppSettingsService {
       'orders': deletedOrders,
       'reservations': deletedReservations,
       'advance_orders': deletedAdvanceOrders,
+      'restored_ingredients': restoredIngredientsCount,
+      'stock_transactions': deletedStockTransactions,
+      'kitchen_requests': deletedKitchenRequests,
+      'table_holds': deletedTableHolds,
     };
   }
 }
