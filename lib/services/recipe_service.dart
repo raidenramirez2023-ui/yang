@@ -17,7 +17,7 @@ class RecipeService {
           .select()
           .eq('menu_item_name', menuItemName);
           
-      if (response == null || (response as List).isEmpty) {
+      if ((response as List).isEmpty) {
         return null;
       }
       
@@ -162,6 +162,48 @@ class RecipeService {
     }
   }
 
+  /// Restores deducted ingredients back to kitchen_inventory when an order is purged or cancelled.
+  Future<void> restoreIngredientsToInventory(String menuItemName, int orderQuantity) async {
+    final recipe = await getRecipeForMenuItem(menuItemName);
+    if (recipe == null) return;
+
+    try {
+      final inventoryItems = await Supabase.instance.client
+          .from('kitchen_inventory')
+          .select('*');
+
+      for (var ingredient in recipe.ingredients) {
+        Map<String, dynamic>? matchingItem;
+        for (var item in inventoryItems) {
+          final inventoryName = item['name']?.toString().toLowerCase() ?? '';
+          final ingredientName = ingredient.name.toLowerCase();
+
+          if (inventoryName.contains(ingredientName) ||
+              ingredientName.contains(inventoryName)) {
+            matchingItem = item;
+            break;
+          }
+        }
+
+        if (matchingItem != null) {
+          final int currentQty = (matchingItem['quantity'] as num?)?.toInt() ?? 0;
+          final double ingredientQtyPerUnit = ingredient.quantity;
+          final int toRestore = (ingredientQtyPerUnit * orderQuantity).round();
+          final int newQty = currentQty + toRestore;
+
+          await Supabase.instance.client
+              .from('kitchen_inventory')
+              .update({'quantity': newQty})
+              .eq('id', matchingItem['id']);
+
+          debugPrint('Auto-Inventory Restore: Restored $toRestore of "${matchingItem['name']}" for purged "$menuItemName". New stock: $newQty');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error restoring inventory ingredients: $e');
+    }
+  }
+
   Future<String?> checkInventoryAvailability(List<CartItem> cart) async {
     try {
       final supabase = Supabase.instance.client;
@@ -176,7 +218,7 @@ class RecipeService {
             .select()
             .eq('menu_item_name', cartItem.item.name);
             
-        if (recipeDataResponse == null || (recipeDataResponse as List).isEmpty) continue;
+        if ((recipeDataResponse as List).isEmpty) continue;
 
         final List ingredients = recipeDataResponse as List;
         for (final ing in ingredients) {

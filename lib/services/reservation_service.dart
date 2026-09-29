@@ -79,6 +79,13 @@ class ReservationService {
 
       // Validate customer booking eligibility (restrictions, limits, duplicate spam)
       if (!bypassRestrictions) {
+        final isMaintenance = await AppSettingsService.checkMaintenanceModeFromDB();
+        if (isMaintenance) {
+          throw Exception(
+            'System maintenance is currently active. Online reservations are temporarily paused to protect your payment. Please check back shortly.',
+          );
+        }
+
         final eligibility = await validateCustomerBookingEligibility(
           customerEmail: customerEmail,
           eventDate: eventDate,

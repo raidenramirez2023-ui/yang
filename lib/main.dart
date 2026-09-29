@@ -423,11 +423,6 @@ class YangChowApp extends StatelessWidget {
           redirectRoute: '/developer/login',
           child: DeveloperDashboardPage(initialIndex: 7),
         ),
-        '/developer/error-logs': (context) => const AuthGuard(
-          allowedRoles: ['developer'],
-          redirectRoute: '/developer/login',
-          child: DeveloperDashboardPage(initialIndex: 8),
-        ),
 
         // ==========================================
         // Legacy Route Aliases (For backward compatibility)

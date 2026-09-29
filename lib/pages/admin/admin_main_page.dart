@@ -117,11 +117,15 @@ class _AdminMainPageState extends State<AdminMainPage> {
   int _pendingDeletionCount = 0;
   bool _isMaintenanceActive = false;
   Map<String, dynamic>? _activeItSession;
+  String _maintenanceReason = '';
+  String _maintenanceEndTime = '';
+  String _maintenanceUpdatedBy = '';
 
 
 
   late Timer? _countRefreshTimer;
   StreamSubscription<List<Map<String, dynamic>>>? _adminNotifsSubscription;
+  RealtimeChannel? _adminItAccessRealtimeSub;
   final Set<String> _shownToastAdminNotificationIds = {};
 
   // ── Top Toast Notification Overlay ──
@@ -202,6 +206,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       _loadPendingRefundCount();
       _loadPendingDeletionCount();
       _checkActiveItSession();
+      _loadMaintenanceStatus();
     });
 
     NotificationService.startStockMonitoring();
@@ -225,6 +230,23 @@ class _AdminMainPageState extends State<AdminMainPage> {
         }
       }
     });
+
+    // Realtime listener for IT access requests to dynamically update header badge
+    try {
+      _adminItAccessRealtimeSub = Supabase.instance.client
+          .channel('admin_it_access_header_stream')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'it_access_requests',
+            callback: (_) {
+              _checkActiveItSession();
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      debugPrint('[Admin] Realtime subscription to it_access_requests failed: $e');
+    }
   }
 
   Future<void> _checkActiveItSession() async {
@@ -242,16 +264,50 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Future<void> _loadMaintenanceStatus() async {
     try {
-      final result = await Supabase.instance.client
+      final results = await Supabase.instance.client
           .from('app_settings')
-          .select('setting_value')
-          .eq('setting_key', 'maintenance_mode_enabled')
-          .maybeSingle();
-      final active =
-          result != null && result['setting_value']?.toString().toLowerCase() == 'true';
+          .select('setting_key, setting_value')
+          .inFilter('setting_key', [
+            'maintenance_mode_enabled',
+            'maintenance_reason',
+            'maintenance_end_time',
+            'maintenance_updated_by',
+          ]);
+
+      bool active = false;
+      String reason = '';
+      String endTime = '';
+      String updatedBy = '';
+
+      for (final row in results) {
+        final key = row['setting_key']?.toString();
+        final val = row['setting_value']?.toString() ?? '';
+        if (key == 'maintenance_mode_enabled') {
+          active = val.toLowerCase() == 'true' || val == '1';
+        } else if (key == 'maintenance_reason') {
+          reason = val.trim();
+        } else if (key == 'maintenance_end_time') {
+          endTime = val.trim();
+        } else if (key == 'maintenance_updated_by') {
+          updatedBy = val.trim();
+        }
+      }
+
+      // Concurrently query any active IT access request session
+      Map<String, dynamic>? itSession;
+      try {
+        itSession = await ItAccessService.getActiveRequest();
+      } catch (e) {
+        debugPrint('[Admin] Error checking active IT request: $e');
+      }
+
       if (mounted) {
         setState(() {
           _isMaintenanceActive = active;
+          _maintenanceReason = reason;
+          _maintenanceEndTime = endTime;
+          _maintenanceUpdatedBy = updatedBy;
+          _activeItSession = itSession;
           if (active && !_isPageAllowedDuringMaintenance(_selectedIndex)) {
             _selectedIndex = 1; // Auto redirect to Sales Reports (Export Allowed)
             _syncUrl();
@@ -260,6 +316,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
       }
     } catch (e) {
       debugPrint('[Admin] Error loading maintenance status: $e');
+    }
+  }
+
+  String _formatMaintenanceEndTime(String rawIso) {
+    if (rawIso.isEmpty) return '';
+    try {
+      final dt = DateTime.tryParse(rawIso);
+      if (dt == null) return '';
+      return DateFormat('MMM dd, yyyy • hh:mm a').format(dt.toLocal());
+    } catch (_) {
+      return '';
     }
   }
 
@@ -630,6 +697,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
     NotificationService.stopStockMonitoring();
     _countRefreshTimer?.cancel();
     _adminNotifsSubscription?.cancel();
+    if (_adminItAccessRealtimeSub != null) {
+      Supabase.instance.client.removeChannel(_adminItAccessRealtimeSub!);
+    }
     _dismissAdminTopToast();
     _cancelPopState?.call();
     super.dispose();
@@ -689,13 +759,26 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   void _showMaintenanceBlockDialog(int index) {
     final pageName = _pageTitles[index];
+    final hasItSession = _activeItSession != null;
+    final isDeveloperGlobal = !hasItSession;
+    final operatorDisplay = _maintenanceUpdatedBy.isNotEmpty
+        ? (_maintenanceUpdatedBy.toLowerCase() == 'yangchowit@gmail.com'
+            ? 'IT Lead (yangchowit@gmail.com)'
+            : _maintenanceUpdatedBy)
+        : 'IT Lead (yangchowit@gmail.com)';
+    final reasonText = _maintenanceReason.isNotEmpty
+        ? _maintenanceReason
+        : (isDeveloperGlobal
+            ? 'System maintenance, database integrity optimization, or platform upgrade.'
+            : (_activeItSession?['issue_description']?.toString() ?? 'Authorized IT investigation'));
+
     showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
-          width: 400,
-          padding: const EdgeInsets.all(28),
+          width: 420,
+          padding: const EdgeInsets.all(26),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             gradient: const LinearGradient(
@@ -709,77 +792,137 @@ class _AdminMainPageState extends State<AdminMainPage> {
             children: [
               // Icon
               Container(
-                width: 64,
-                height: 64,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   color: const Color(0xFFB45309).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.engineering_rounded,
-                  size: 32,
+                  size: 30,
                   color: Color(0xFFB45309),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Text(
-                'Access Restricted',
+                'Actions Restricted',
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFF92400E),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'System maintenance is currently active.',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFFB45309),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: Text(
+                  isDeveloperGlobal
+                      ? 'GLOBAL IT INFRASTRUCTURE MAINTENANCE'
+                      : 'ADMIN AUTHORIZED IT SESSION',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFB91C1C),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
-                child: Text(
-                  '"$pageName" is not accessible while maintenance is running.\n\nYou may only export data from Sales Reports, Inventory, and Audit Logs during this period.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12.5,
-                    color: const Color(0xFF78350F),
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
+                child: Column(
+                  children: [
+                    Text(
+                      '"$pageName" is locked in Read-Only Mode.',
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF78350F),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Reason: $reasonText\nInitiator: $operatorDisplay',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: const Color(0xFF92400E),
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'All mutation actions are locked to prevent database transaction conflicts. You may freely view and export data from Sales Reports, Inventory, and Audit Logs.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: const Color(0xFF78350F),
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB45309),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF78350F),
+                        side: const BorderSide(color: Color(0xFFD97706)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showMaintenanceScopeDialog();
+                      },
+                      child: Text(
+                        'View Details',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: Text(
-                    'Understood',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB45309),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(
+                        'Understood',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -802,9 +945,25 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildMaintenanceRestrictedView() {
     final pageName = _pageTitles[_selectedIndex];
+    final hasItSession = _activeItSession != null;
+    final isDeveloperGlobal = !hasItSession;
+    final operatorDisplay = _maintenanceUpdatedBy.isNotEmpty
+        ? (_maintenanceUpdatedBy.toLowerCase() == 'yangchowit@gmail.com'
+            ? 'IT Lead (yangchowit@gmail.com)'
+            : _maintenanceUpdatedBy)
+        : 'IT Lead (yangchowit@gmail.com)';
+
+    final reasonText = _maintenanceReason.isNotEmpty
+        ? _maintenanceReason
+        : (isDeveloperGlobal
+            ? 'Infrastructure updates, system health diagnostic, or database maintenance.'
+            : (_activeItSession?['issue_description']?.toString() ?? 'Authorized IT investigation'));
+
+    final formattedEndTime = _formatMaintenanceEndTime(_maintenanceEndTime);
+
     return Center(
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 620),
+        constraints: const BoxConstraints(maxWidth: 640),
         padding: const EdgeInsets.all(32),
         margin: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -867,7 +1026,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'SYSTEM MAINTENANCE IS ACTIVE',
+                    isDeveloperGlobal
+                        ? 'GLOBAL IT INFRASTRUCTURE MAINTENANCE ACTIVE'
+                        : 'ELEVATED IT SUPPORT SESSION ACTIVE',
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -880,7 +1041,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Bawal magsagawa ng anumang aksyon (add, edit, approve, confirm, delete) sa "$pageName" habang aktibo ang maintenance upang maiwasan ang conflict sa system.',
+              'All mutation actions (add, edit, approve, confirm, delete) in "$pageName" are locked in Read-Only Mode to prevent database conflicts and protect transaction integrity while maintenance is running.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
@@ -889,8 +1050,47 @@ class _AdminMainPageState extends State<AdminMainPage> {
               ),
             ),
             const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Reason: $reasonText',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF334155)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Initiator: $operatorDisplay'
+                          '${formattedEndTime.isNotEmpty ? " • Est. Completion: $formattedEndTime" : ""}',
+                          style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
-              'Ang pwede mo lang magawa ngayon ay mag-export ng data:',
+              'Data viewing and export capabilities remain active:',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 13,
@@ -898,7 +1098,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 color: const Color(0xFF1E293B),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -936,6 +1136,20 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   onPressed: () => _onSelectTab(14),
                   icon: const Icon(Icons.shield_outlined, size: 18),
                   label: const Text('Export Audit Logs', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB45309),
+                    side: const BorderSide(color: Color(0xFFF59E0B)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    _loadMaintenanceStatus();
+                    _checkActiveItSession();
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Refresh Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 ),
               ],
             ),
@@ -1267,106 +1481,253 @@ class _AdminMainPageState extends State<AdminMainPage> {
           _showLogoutDialog(context);
         }
       },
-      child: Column(
-        children: [
-          // ── Maintenance Warning Banner (Top) ──
-          if (_isMaintenanceActive)
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Color(0xFF92400E), Color(0xFFB45309), Color(0xFF92400E)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFD97706).withValues(alpha: 0.5),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          children: [
+            // ── Maintenance Warning Banner (Top) ──
+            if (_isMaintenanceActive)
+              _buildMaintenanceBanner(),
+            Expanded(child: layout),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+
+
+
+
+  Widget _buildMaintenanceBanner() {
+    final hasItSession = _activeItSession != null;
+    final isDeveloperGlobal = !hasItSession;
+
+    final bannerColors = isDeveloperGlobal
+        ? const [Color(0xFF78350F), Color(0xFF92400E), Color(0xFF78350F)]
+        : const [Color(0xFF0F172A), Color(0xFF1E3A8A), Color(0xFF0F172A)];
+
+    final badgeColor = isDeveloperGlobal ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8);
+    final shadowColor = isDeveloperGlobal ? const Color(0xFFD97706) : const Color(0xFF2563EB);
+
+    final title = isDeveloperGlobal
+        ? 'GLOBAL IT INFRASTRUCTURE MAINTENANCE'
+        : 'ELEVATED IT SUPPORT ACTIVE (ADMIN AUTHORIZED)';
+
+    final sourceBadge = isDeveloperGlobal
+        ? 'DEVELOPER / IT LEAD INITIATED'
+        : 'ADMIN AUTHORIZED SESSION';
+
+    final operatorDisplay = _maintenanceUpdatedBy.isNotEmpty
+        ? (_maintenanceUpdatedBy.toLowerCase() == 'yangchowit@gmail.com'
+            ? 'IT Lead (yangchowit@gmail.com)'
+            : _maintenanceUpdatedBy)
+        : 'IT Lead (yangchowit@gmail.com)';
+
+    final reasonText = _maintenanceReason.isNotEmpty
+        ? _maintenanceReason
+        : (isDeveloperGlobal
+            ? 'System infrastructure update and performance optimizations in progress.'
+            : (_activeItSession?['issue_description']?.toString() ?? 'Authorized IT investigation'));
+
+    final formattedEndTime = _formatMaintenanceEndTime(_maintenanceEndTime);
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: bannerColors,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor.withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Icon with pulse badge
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
                   ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                ),
+                Icon(
+                  isDeveloperGlobal ? Icons.engineering_rounded : Icons.shield_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(width: 14),
+
+            // Label + details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Pulsing dot + icon
-                  Stack(
-                    alignment: Alignment.center,
+                  Row(
                     children: [
                       Container(
-                        width: 32,
-                        height: 32,
+                        width: 8,
+                        height: 8,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: badgeColor,
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const Icon(Icons.engineering_rounded, color: Colors.white, size: 18),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Label + details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFCA5A5),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'SYSTEM MAINTENANCE IS ACTIVE',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(width: 6),
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.8,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'System maintenance is currently running. All actions and modifications are restricted. Data export is permitted.',
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: Text(
+                          sourceBadge,
                           style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            height: 1.4,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            _buildBannerRestrictionChip(Icons.lock_rounded, 'Actions Locked'),
-                            _buildBannerRestrictionChip(Icons.money_off_rounded, 'Payments'),
-                            _buildBannerAllowedChip(Icons.qr_code_scanner_rounded, 'Scan Pass Allowed'),
-                            _buildBannerAllowedChip(Icons.file_download_outlined, 'Export Allowed'),
-                          ],
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Reason: $reasonText • Operator: $operatorDisplay'
+                    '${formattedEndTime.isNotEmpty ? " • Est. Finish: $formattedEndTime" : ""}',
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.95),
+                      height: 1.35,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      _buildBannerRestrictionChip(Icons.lock_rounded, 'Actions Locked'),
+                      _buildBannerRestrictionChip(Icons.edit_off_rounded, 'Read-Only Mode'),
+                      _buildBannerAllowedChip(Icons.file_download_outlined, 'Export Allowed'),
+                      _buildBannerAllowedChip(Icons.visibility_rounded, 'Viewing Permitted'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Actions
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // Details Button
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: _showMaintenanceScopeDialog,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Scope Details',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                ),
 
+                // If active IT session, button to manage/view it
+                if (hasItSession)
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => _showItAccessRequestDialog(initialTab: 0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.shield_outlined, color: Colors.white, size: 14),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Manage IT',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
 
-
-                  // Refresh button
-                  GestureDetector(
-                    onTap: _loadMaintenanceStatus,
+                // Refresh button
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      _loadMaintenanceStatus();
+                      _checkActiveItSession();
+                    },
                     child: Tooltip(
                       message: 'Refresh status',
                       child: Container(
@@ -1394,20 +1755,294 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          Expanded(child: layout),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  void _showMaintenanceScopeDialog() {
+    final hasItSession = _activeItSession != null;
+    final isDeveloperGlobal = !hasItSession;
+    final operatorDisplay = _maintenanceUpdatedBy.isNotEmpty
+        ? (_maintenanceUpdatedBy.toLowerCase() == 'yangchowit@gmail.com'
+            ? 'IT Lead (yangchowit@gmail.com)'
+            : _maintenanceUpdatedBy)
+        : 'IT Lead (yangchowit@gmail.com)';
 
+    final reasonText = _maintenanceReason.isNotEmpty
+        ? _maintenanceReason
+        : (isDeveloperGlobal
+            ? 'System maintenance, database integrity optimization, or platform upgrade.'
+            : (_activeItSession?['issue_description']?.toString() ?? 'Authorized IT investigation'));
 
+    final formattedEndTime = _formatMaintenanceEndTime(_maintenanceEndTime);
 
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 540),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: isDeveloperGlobal
+                          ? const Color(0xFFFEF3C7)
+                          : const Color(0xFFE0F2FE),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isDeveloperGlobal ? Icons.engineering_rounded : Icons.shield_rounded,
+                      color: isDeveloperGlobal ? const Color(0xFFB45309) : const Color(0xFF0369A1),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isDeveloperGlobal
+                              ? 'Global IT Maintenance Scope'
+                              : 'Elevated IT Support Scope',
+                          style: GoogleFonts.inter(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isDeveloperGlobal
+                              ? 'Developer-initiated system maintenance'
+                              : 'Admin-authorized elevated IT access session',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF94A3B8)),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const SizedBox(height: 16),
 
+              // Details table / card
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    _buildScopeDetailRow('Type', isDeveloperGlobal ? 'Global Infrastructure Maintenance' : 'Admin-Authorized Support'),
+                    const SizedBox(height: 8),
+                    _buildScopeDetailRow('Initiator', operatorDisplay),
+                    const SizedBox(height: 8),
+                    _buildScopeDetailRow('Reason', reasonText),
+                    if (formattedEndTime.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildScopeDetailRow('Est. Completion', formattedEndTime),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
 
+              // Why Read-Only Explanation
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lock_clock_rounded, color: Color(0xFFB45309), size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Why are actions restricted to Read-Only?',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF92400E),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'To preserve database integrity and prevent data collisions during IT maintenance or schema updates, mutation actions (such as adding menu items, confirming reservations, or modifying payments) are locked. You can still inspect data and export reports freely.',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              color: const Color(0xFF78350F),
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Allowed vs Restricted
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF16A34A)),
+                              const SizedBox(width: 6),
+                              Text('Permitted', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF166534))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('• Export Sales Reports\n• Export Inventory\n• Review Audit Logs\n• Real-time Monitoring',
+                              style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF15803D), height: 1.4)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.block_rounded, size: 14, color: Color(0xFFDC2626)),
+                              const SizedBox(width: 6),
+                              Text('Locked', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF991B1B))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('• Reservation edits\n• Payment approvals\n• Menu mutations\n• Refund processing',
+                              style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFFB91C1C), height: 1.4)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Bottom buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      _loadMaintenanceStatus();
+                      _checkActiveItSession();
+                      Navigator.pop(ctx);
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Refresh Status'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDeveloperGlobal ? const Color(0xFFB45309) : const Color(0xFF0F766E),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: Text('Understood', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScopeDetailRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildBannerRestrictionChip(IconData icon, String label) {
     return Container(
@@ -3527,10 +4162,10 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
   late final TextEditingController _issueController;
   late int _currentTab;
   String _selectedSeverity = 'High (Report / Data Issue)';
-  String _selectedScope = 'chefycp';
-  String _selectedFunction = '';
+  String _selectedScope = 'full';
   int _selectedDuration = 2;
   bool _autoPurgeTestData = true;
+  bool _lockModuleForStaff = true;
   bool _isSubmitting = false;
   Map<String, dynamic>? _activeSession;
   static bool _hasDismissedContactReminder = false;
@@ -3543,51 +4178,14 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
 
   // Module tabs: key, short label, icon
   static const List<Map<String, dynamic>> _scopeOptions = [
-    {'key': 'chefycp',      'label': 'ChefYCP',          'icon': Icons.restaurant_menu_rounded,      'color': Color(0xFFD97706)},
-    {'key': 'pagsanjaninv', 'label': 'PagsanjanINV',     'icon': Icons.inventory_2_rounded,          'color': Color(0xFF059669)},
-    {'key': 'customer',     'label': 'Customer Side',    'icon': Icons.people_alt_rounded,           'color': Color(0xFF7C3AED)},
-    {'key': 'admin',        'label': 'Admin Panel',      'icon': Icons.admin_panel_settings_rounded, 'color': Color(0xFF2563EB)},
-    {'key': 'full',         'label': 'All Modules',      'icon': Icons.grid_view_rounded,            'color': Color(0xFFDC2626)},
+    {'key': 'full',            'label': 'All Modules / Full Diagnostics (Recommended)', 'icon': Icons.grid_view_rounded,            'color': Color(0xFFDC2626)},
+    {'key': 'kitchen_supply',  'label': 'Kitchen & Supply Suite (ChefYCP + PagsanjanINV)', 'icon': Icons.soup_kitchen_rounded,      'color': Color(0xFFD97706)},
+    {'key': 'foh_cashier',     'label': 'Front-of-House Suite (Staff POS + Customer + Admin)', 'icon': Icons.point_of_sale_rounded, 'color': Color(0xFF2563EB)},
+    {'key': 'chefycp',         'label': 'ChefYCP (Kitchen Screen)',                     'icon': Icons.restaurant_menu_rounded,      'color': Color(0xFFD97706)},
+    {'key': 'pagsanjaninv',    'label': 'PagsanjanINV (Stock & Storage)',               'icon': Icons.inventory_2_rounded,          'color': Color(0xFF059669)},
+    {'key': 'customer',        'label': 'Customer Side',                                'icon': Icons.people_alt_rounded,           'color': Color(0xFF7C3AED)},
+    {'key': 'admin',           'label': 'Admin Panel',                                  'icon': Icons.admin_panel_settings_rounded, 'color': Color(0xFF2563EB)},
   ];
-
-  // Functions per module
-  static const Map<String, List<String>> _moduleFunctions = {
-    'chefycp': [
-      'Kitchen Order Queue',
-      'Order Status Updates',
-      'Chef Assignment & Notifications',
-      'Order Fulfillment Tracking',
-      'Menu Item Availability',
-      'Full Access — ChefYCP',
-    ],
-    'pagsanjaninv': [
-      'Stock Level Monitoring',
-      'Low Stock Alerts',
-      'Inventory Forecasting',
-      'Purchase Records & Receiving',
-      'Ingredient Usage Tracking',
-      'Full Access — PagsanjanINV',
-    ],
-    'customer': [
-      'Online Menu Browsing',
-      'Add to Cart / Ordering',
-      'Reservation / Table Booking',
-      'Order Status Tracking',
-      'Customer Account / Login',
-      'Full Access — Customer Side',
-    ],
-    'admin': [
-      'Sales Reports & Analytics',
-      'Menu Management',
-      'Customer Order Approvals',
-      'Staff Access Control',
-      'Audit Logs & History',
-      'Full Access — Admin Panel',
-    ],
-    'full': [
-      'Full Access — All Modules (Entire System)',
-    ],
-  };
 
   static const List<int> _durationOptions = [1, 2, 4, 8];
 
@@ -4086,15 +4684,19 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
 
     final fullDescription = '[$_selectedSeverity] $issueText';
 
+    final scopeLabel = _scopeOptions.firstWhere(
+      (opt) => opt['key'] == _selectedScope,
+      orElse: () => {'label': _selectedScope},
+    )['label'] as String;
+
     final result = await ItAccessService.sendAccessRequest(
       adminEmail: widget.user.email!,
       adminName: adminName,
       issueDescription: fullDescription,
-      accessScope: _selectedFunction.isNotEmpty
-          ? '$_selectedScope > $_selectedFunction'
-          : _selectedScope,
+      accessScope: scopeLabel,
       durationHours: _selectedDuration,
       autoPurgeTestData: _autoPurgeTestData,
+      lockModule: _lockModuleForStaff,
     );
 
     widget.onSessionUpdated();
@@ -4526,7 +5128,14 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
 
             return InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => setState(() => _selectedSeverity = opt['code'] as String),
+              onTap: () {
+                setState(() {
+                  _selectedSeverity = opt['code'] as String;
+                  if (_selectedSeverity.contains('High')) {
+                    _selectedScope = 'full';
+                  }
+                });
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -4594,49 +5203,82 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                 if (v != null) {
                   setState(() {
                     _selectedScope = v;
-                    _selectedFunction = '';
                   });
                 }
               },
             ),
           ),
         ),
-        const SizedBox(height: 10),
-
-        // 2. Specific function
-        Text(
-          'What specific function is affected?',
-          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedFunction.isEmpty ? null : _selectedFunction,
-              hint: Text('Select affected function...', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8))),
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
-              items: (_moduleFunctions[_selectedScope] ?? []).map((fn) {
-                return DropdownMenuItem<String>(
-                  value: fn,
-                  child: Text(fn, style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B))),
-                );
-              }).toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _selectedFunction = v);
-              },
+        if (_selectedScope == 'full') ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lightbulb_outline_rounded, size: 14, color: Color(0xFFD97706)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All Modules: Recommended for report/data issues. Gives developer end-to-end visibility across POS, Kitchen, and Inventory.',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF92400E)),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        const SizedBox(height: 16),
+        ] else if (_selectedScope == 'kitchen_supply') ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFA7F3D0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.link_rounded, size: 14, color: Color(0xFF059669)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Linked Suite: Developer can access both ChefYCP and PagsanjanINV to trace ingredient deductions and menu stocks.',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF065F46)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (_selectedScope == 'foh_cashier') ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.link_rounded, size: 14, color: Color(0xFF2563EB)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Linked Suite: Unlocks Staff POS, Customer Ordering, and Admin Panel to test payment approvals & order punching.',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF1E40AF)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 14),
 
-        // 3. Issue description
+        // 2. Issue description
         Row(
           children: [
             Text(
@@ -4779,6 +5421,50 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                     Text(
                       'Prevents test orders and diagnostic data created by the developer from appearing in official sales reports.',
                       style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFB91C1C)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Scoped Module Lock safeguard
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _lockModuleForStaff ? const Color(0xFFFFFBEB) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _lockModuleForStaff ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Checkbox(
+                value: _lockModuleForStaff,
+                activeColor: const Color(0xFFD97706),
+                checkColor: Colors.white,
+                onChanged: (val) {
+                  setState(() => _lockModuleForStaff = val ?? true);
+                },
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lock module for staff during session (Recommended)',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF92400E),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Puts the affected module on temporary hold for staff so they don\'t enter conflicting orders while IT tests. Other unaffected modules remain operational.',
+                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFB45309)),
                     ),
                   ],
                 ),
@@ -5139,6 +5825,35 @@ class _EnterpriseItSupportDialogState extends State<_EnterpriseItSupportDialog> 
                         'Scope: ${r['access_scope'] ?? 'General'}',
                         style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
                       ),
+                      if ((r['developer_notes'] ?? '').toString().trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.build_circle_outlined, size: 14, color: Color(0xFF2563EB)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Developer Resolution: ${r['developer_notes']}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF334155),
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 );

@@ -23,6 +23,7 @@ class ItAccessService {
     required String accessScope,
     required int durationHours,
     bool autoPurgeTestData = true,
+    bool lockModule = true,
   }) async {
     try {
       final response = await _supabase.from(_tableName).insert({
@@ -34,13 +35,13 @@ class ItAccessService {
         'duration_hours': durationHours,
         'status': 'pending',
         'requested_at': DateTime.now().toUtc().toIso8601String(),
-        'admin_notes': autoPurgeTestData ? 'AUTO_PURGE:true' : 'AUTO_PURGE:false',
+        'admin_notes': 'AUTO_PURGE:$autoPurgeTestData;LOCK_MODULE:$lockModule',
       }).select().single();
 
       await AuditLogService.logActivity(
         action: 'IT_ACCESS_REQUESTED',
         module: 'IT Access Control',
-        description: 'Admin requested IT support access: "$issueDescription" (Scope: $accessScope, Duration: ${durationHours}h, Auto-purge: $autoPurgeTestData)',
+        description: 'Admin requested IT support access: "$issueDescription" (Scope: $accessScope, Duration: ${durationHours}h, Auto-purge: $autoPurgeTestData, Lock Module: $lockModule)',
         customUserEmail: adminEmail,
         customUserRole: 'ADMIN',
         metadata: {
@@ -48,6 +49,7 @@ class ItAccessService {
           'duration_hours': durationHours,
           'developer_email': _developerEmail,
           'auto_purge_test_data': autoPurgeTestData,
+          'lock_module': lockModule,
         },
       );
 
@@ -83,6 +85,26 @@ class ItAccessService {
     final notes = (request['admin_notes'] ?? '').toString();
     if (notes.contains('AUTO_PURGE:false')) return false;
     return true; // Default to true for safety
+  }
+
+  /// Check whether an IT Access Request specifies that regular users should be locked out.
+  static bool shouldLockModule(Map<String, dynamic> request) {
+    final notes = (request['admin_notes'] ?? '').toString();
+    if (notes.contains('LOCK_MODULE:false')) return false;
+    return true; // Default to true for safety
+  }
+
+  /// Checks if a given module ('staff', 'chef', 'inventory', 'customer', 'admin')
+  /// is affected by an active, accepted IT support session.
+  /// Returns the active request if affected, or null if not affected.
+  static Future<Map<String, dynamic>?> getActiveRequestForModule(String moduleKey) async {
+    final active = await getActiveRequest();
+    if (active == null) return null;
+    final scope = (active['access_scope'] ?? '').toString();
+    if (isModuleAllowed(scope, moduleKey)) {
+      return active;
+    }
+    return null;
   }
 
   /// Mark an active session as completed / resolved.
@@ -303,6 +325,44 @@ class ItAccessService {
           .eq('status', 'accepted')
           .lt('expires_at', now);
     } catch (_) {}
+  }
+
+  // ─── Utility: Check whether a specific portal module is accessible ─────────
+
+  /// Checks whether a target module ('chef', 'inventory', 'customer', 'admin', 'staff')
+  /// is permitted under the provided IT access scope.
+  static bool isModuleAllowed(String? accessScope, String targetModule) {
+    if (accessScope == null || accessScope.isEmpty) return false;
+    final lower = accessScope.toLowerCase();
+
+    // Full / All Modules grants access to all modules
+    if (lower.contains('full') || lower.contains('all')) return true;
+
+    // Kitchen & Supply Chain Suite grants access to both Chef and Inventory
+    if (lower.contains('kitchen') || lower.contains('supply')) {
+      return targetModule == 'chef' || targetModule == 'inventory';
+    }
+
+    // Front-of-House & Cashier Suite grants access to Staff POS, Customer, and Admin
+    if (lower.contains('front') || lower.contains('foh') || lower.contains('cashier')) {
+      return targetModule == 'staff' || targetModule == 'customer' || targetModule == 'admin';
+    }
+
+    // Specific single module matching
+    switch (targetModule.toLowerCase()) {
+      case 'chef':
+        return lower.contains('chef');
+      case 'inventory':
+        return lower.contains('inv') || lower.contains('storage') || lower.contains('pagsanjan');
+      case 'customer':
+        return lower.contains('customer');
+      case 'admin':
+        return lower.contains('admin');
+      case 'staff':
+        return lower.contains('staff') || lower.contains('pos');
+      default:
+        return false;
+    }
   }
 
   // ─── Utility: Get remaining time string ──────────────────────────────────

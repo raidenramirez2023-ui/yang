@@ -362,7 +362,7 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
 
         // Immutable Audit Log
         final purgeSummary = purgeResults != null
-            ? ' Purged ${purgeResults['orders']} test orders and ${purgeResults['reservations']} test reservations.'
+            ? ' Purged ${purgeResults['orders']} test orders, ${purgeResults['reservations']} test reservations, ${purgeResults['advance_orders']} advance orders, and restored ${purgeResults['restored_ingredients']} kitchen stock items.'
             : '';
         await AuditLogService.logActivity(
           action: 'MAINTENANCE_TOGGLE',
@@ -428,7 +428,7 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
 
   Future<void> _showManualPurgeDialog() async {
     final user = Supabase.instance.client.auth.currentUser;
-    final developerEmail = user?.email ?? 'developer@yangchow.com';
+    final developerEmail = user?.email ?? 'yangchowit@gmail.com';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -465,7 +465,7 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Target Tables: orders, order_items, reservations, refunds',
+                    Text('Target: orders, items, reservations, advance orders, table holds, stock txs & kitchen inventory restore',
                         style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.accentAmber)),
                     const SizedBox(height: 4),
                     Text(
@@ -507,7 +507,7 @@ class _MaintenanceModePageState extends State<MaintenanceModePage> {
             SnackBar(
               backgroundColor: DeveloperTheme.accentEmerald,
               content: Text(
-                'Purged ${res['orders']} test orders, ${res['reservations']} events/reservations, and ${res['advance_orders']} advance orders.',
+                'Purged ${res['orders']} orders, ${res['reservations']} events, ${res['advance_orders']} advance orders, & restored ${res['restored_ingredients']} kitchen items.',
                 style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
               ),
             ),

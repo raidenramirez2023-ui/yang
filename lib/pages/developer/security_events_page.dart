@@ -41,8 +41,13 @@ class _SecurityEventsPageState extends State<SecurityEventsPage> {
             act.contains('DELETE') ||
             act.contains('MAINTENANCE') ||
             act.contains('ROLE') ||
+            act.contains('SUCCESSION') ||
+            act.contains('IT_ACCESS') ||
+            act.contains('DEACTIVAT') ||
             mod.contains('auth') ||
             mod.contains('security') ||
+            mod.contains('it access') ||
+            mod.contains('continuity') ||
             mod.contains('user');
       }).toList();
 

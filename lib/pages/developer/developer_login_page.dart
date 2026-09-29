@@ -300,7 +300,7 @@ class _DeveloperLoginPageState extends State<DeveloperLoginPage> {
                   keyboardType: TextInputType.emailAddress,
                   style: GoogleFonts.inter(fontSize: 14, color: DeveloperTheme.textPrimary),
                   decoration: InputDecoration(
-                    hintText: 'developer@yangchow.com',
+                    hintText: 'yangchowit@gmail.com',
                     hintStyle: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
                     prefixIcon: const Icon(Icons.badge_outlined, size: 18, color: DeveloperTheme.textMuted),
                     filled: true,

@@ -15,7 +15,6 @@ import 'audit_logs_page.dart';
 import 'security_events_page.dart';
 import 'maintenance_mode_page.dart';
 import 'user_monitoring_page.dart';
-import 'error_log_viewer_page.dart';
 import '../../utils/url_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../services/it_access_service.dart';
@@ -43,13 +42,13 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     '/developer/maintenance',  // 5 – Maintenance Mode
     '/developer/backup',      // 6 – Backup Status
     '/developer/info',        // 7 – System Information
-    '/developer/error-logs',  // 8 – Error Log Viewer
   ];
 
   int _latencyMs = 0;
   bool _isMaintenanceActive = false;
   Timer? _latencyTimer;
   Timer? _itAccessPollTimer;
+  RealtimeChannel? _itAccessRealtimeSub;
   String _developerEmail = 'Developer';
   String _appName = 'Yang Chow Pagsanjan Restaurant Management System (YCPRMS)';
   String _appVersion = '1.0.0+20';
@@ -62,15 +61,32 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
-    _developerEmail = Supabase.instance.client.auth.currentUser?.email ?? 'developer@yangchow.com';
+    _developerEmail = Supabase.instance.client.auth.currentUser?.email ?? 'yangchowit@gmail.com';
     _loadAppVersion();
     _checkSystemPulse();
     _loadItAccessRequests();
     _loadContinuityConfig();
     // Periodically update latency and maintenance status
     _latencyTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkSystemPulse());
-    // Poll for IT access requests every 30 seconds
-    _itAccessPollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadItAccessRequests());
+    // Active session watchdog: poll for IT access requests every 15 seconds
+    _itAccessPollTimer = Timer.periodic(const Duration(seconds: 15), (_) => _loadItAccessRequests());
+
+    // Realtime stream subscription for live IT request notifications
+    try {
+      _itAccessRealtimeSub = Supabase.instance.client
+          .channel('developer_it_access_stream')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'it_access_requests',
+            callback: (_) {
+              _loadItAccessRequests();
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      debugPrint('[DevDashboard] Realtime subscription to it_access_requests failed: $e');
+    }
   }
 
   Future<void> _loadContinuityConfig() async {
@@ -107,14 +123,25 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   void dispose() {
     _latencyTimer?.cancel();
     _itAccessPollTimer?.cancel();
+    if (_itAccessRealtimeSub != null) {
+      Supabase.instance.client.removeChannel(_itAccessRealtimeSub!);
+    }
     super.dispose();
   }
 
   Future<void> _loadItAccessRequests() async {
     try {
+      final wasActive = _activeItRequest != null;
       final pending = await ItAccessService.getPendingRequests();
       final active = await ItAccessService.getActiveRequest();
       if (mounted) {
+        if (wasActive && active == null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('⏱️ IT Elevated Session has expired. Portal access has been re-locked.'),
+            backgroundColor: DeveloperTheme.accentAmber,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
         setState(() {
           _pendingItRequests = pending;
           _activeItRequest = active;
@@ -134,7 +161,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
         content: Text(ok
             ? '✅ Access granted for ${duration}h. Auto-expires at ${DateTime.now().add(Duration(hours: duration)).toLocal().toString().substring(11, 16)}.'
             : '❌ Failed to accept request.'),
-        backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFB45309),
+        backgroundColor: ok ? DeveloperTheme.accentEmerald : DeveloperTheme.accentAmber,
         behavior: SnackBarBehavior.floating,
       ));
       _loadItAccessRequests();
@@ -147,7 +174,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(ok ? 'Request declined.' : '❌ Failed to decline request.'),
-        backgroundColor: ok ? const Color(0xFF475569) : const Color(0xFFB45309),
+        backgroundColor: ok ? DeveloperTheme.bgCardHover : DeveloperTheme.accentAmber,
         behavior: SnackBarBehavior.floating,
       ));
       _loadItAccessRequests();
@@ -255,7 +282,6 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                       MaintenanceModePage(onMaintenanceChanged: _checkSystemPulse),
                       const BackupRestorePage(),
                       _buildSystemInfoTab(),
-                      const ErrorLogViewerPage(),
                     ],
                   ),
                 ),
@@ -459,7 +485,6 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 _buildNavItem(5, 'Maintenance Mode', Icons.build_circle),
                 _buildNavItem(6, 'Backup Status', Icons.backup),
                 _buildNavItem(7, 'System Information', Icons.info_outline_rounded),
-                _buildNavItem(8, 'Error Log Viewer', Icons.bug_report),
               ],
             ),
           ),
@@ -923,6 +948,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     icon: Icons.point_of_sale_rounded,
                     color: const Color(0xFFFF6B35),
                     route: '/staff/dashboard',
+                    moduleKey: 'staff',
                   ),
                   _buildPortalCard(
                     label: 'Admin Portal',
@@ -930,6 +956,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     icon: Icons.admin_panel_settings_rounded,
                     color: DeveloperTheme.accentIndigo,
                     route: '/admin/dashboard',
+                    moduleKey: 'admin',
                   ),
                   _buildPortalCard(
                     label: 'Customer Portal',
@@ -937,6 +964,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     icon: Icons.person_rounded,
                     color: DeveloperTheme.accentEmerald,
                     route: '/customer/dashboard',
+                    moduleKey: 'customer',
                   ),
                   _buildPortalCard(
                     label: 'Chef Portal',
@@ -944,6 +972,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     icon: Icons.restaurant_rounded,
                     color: DeveloperTheme.accentCyan,
                     route: '/chef/dashboard',
+                    moduleKey: 'chef',
                   ),
                   _buildPortalCard(
                     label: 'Inventory Portal',
@@ -951,6 +980,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     icon: Icons.inventory_2_rounded,
                     color: DeveloperTheme.accentPurple,
                     route: '/inventory/dashboard',
+                    moduleKey: 'inventory',
                   ),
                 ],
               );
@@ -1292,8 +1322,20 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                         ? 'Active Co-Admin (Authorized Daily Login)'
                         : 'Standby Mode (Emergency Takeover Only)',
                   ),
+                  if (isSuccessionDone) ...[
+                    if (cfg.formerAdminEmail != null && cfg.formerAdminEmail!.isNotEmpty)
+                      _buildVaultInfoRow('Predecessor Admin', '${cfg.formerAdminName ?? "Former Admin"} (${cfg.formerAdminEmail})'),
+                    if (cfg.successionDate != null && cfg.successionDate!.isNotEmpty)
+                      _buildVaultInfoRow('Executed At', cfg.successionDate!),
+                    if (cfg.successionReason != null && cfg.successionReason!.isNotEmpty)
+                      _buildVaultInfoRow('Succession Cause', cfg.successionReason!),
+                  ],
                 ],
               );
+
+              final effectiveRefNumber = (cfg.successionReference != null && cfg.successionReference!.trim().isNotEmpty)
+                  ? cfg.successionReference!.trim()
+                  : 'HR-MEMO-2026-004';
 
               final rightSide = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1366,7 +1408,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                   const SizedBox(height: 16),
 
                   Text(
-                    'OFFICIAL REFERENCE DIRECTIVE TEMPLATE (AUDIT RECORD)',
+                    'OFFICIAL REFERENCE DIRECTIVE (AUDIT RECORD)',
                     style: DeveloperTheme.monoText(
                       fontSize: 11,
                       color: DeveloperTheme.accentCyan,
@@ -1386,7 +1428,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: SelectableText(
-                            'HR-MEMO-2026-004',
+                            effectiveRefNumber,
                             style: DeveloperTheme.monoText(
                               fontSize: 12.5,
                               color: DeveloperTheme.accentCyan,
@@ -1396,12 +1438,12 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                         IconButton(
                           icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
                           onPressed: () {
-                            Clipboard.setData(const ClipboardData(text: 'HR-MEMO-2026-004'));
+                            Clipboard.setData(ClipboardData(text: effectiveRefNumber));
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 backgroundColor: DeveloperTheme.accentEmerald,
                                 content: Text(
-                                  'Official Reference Document Number (HR-MEMO-2026-004) copied to clipboard.',
+                                  'Official Reference Document Number ($effectiveRefNumber) copied to clipboard.',
                                   style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
                                 ),
                                 duration: const Duration(seconds: 3),
@@ -1417,7 +1459,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '⚠ Required legal audit identifier. In production, this matches the physical HR Memorandum or Incident Certificate.',
+                    '⚠ Required legal audit identifier. Matches the physical HR Memorandum or Incident Certificate on file.',
                     style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
                   ),
                 ],
@@ -1480,17 +1522,20 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   }
 
   /// Portal card for the Portal Access Launchpad.
-  /// Unlocked if Maintenance Mode is active OR if an Admin IT Access request is active.
+  /// Unlocked if Maintenance Mode is active OR if an Admin IT Access request is active under the permitted scope.
   Widget _buildPortalCard({
     required String label,
     required String subtitle,
     required IconData icon,
     required Color color,
     required String route,
+    required String moduleKey,
   }) {
-    final hasAccess = _isMaintenanceActive || _activeItRequest != null;
+    final bool isScopeAllowed = _activeItRequest != null &&
+        ItAccessService.isModuleAllowed(_activeItRequest?['access_scope']?.toString(), moduleKey);
+    final hasAccess = _isMaintenanceActive || isScopeAllowed;
     final isLocked = !hasAccess;
-    final isElevated = !isLocked && !_isMaintenanceActive && _activeItRequest != null;
+    final isElevated = !isLocked && !_isMaintenanceActive && isScopeAllowed;
 
     final cardBorderColor = isLocked
         ? DeveloperTheme.borderSubtle
@@ -1507,7 +1552,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     return InkWell(
       onTap: () {
         if (isLocked) {
-          _showAccessRequiredDialog(label);
+          _showAccessRequiredDialog(label, moduleKey);
           return;
         }
         Navigator.pushNamed(context, route);
@@ -1594,7 +1639,9 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             const SizedBox(height: 2),
             Text(
               isLocked
-                  ? 'Locked (Admin Request or Maintenance Required)'
+                  ? (_activeItRequest != null
+                      ? 'Locked (Outside ${_activeItRequest!['access_scope'] ?? 'Current'} scope)'
+                      : 'Locked (Admin Request or Maintenance Required)')
                   : (isElevated ? 'Authorized by Admin • Live Session' : subtitle),
               style: DeveloperTheme.bodySmall(
                 color: isElevated ? const Color(0xFF34D399) : DeveloperTheme.textMuted,
@@ -1635,7 +1682,8 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     );
   }
 
-  void _showAccessRequiredDialog(String portalName) {
+  void _showAccessRequiredDialog(String portalName, String moduleKey) {
+    final activeScope = _activeItRequest?['access_scope']?.toString() ?? 'None';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1668,7 +1716,9 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Hindi mabubuksan ang $portalName dahil kasalukuyang OPERATIONAL (Live) ang sistema.',
+              _activeItRequest != null
+                  ? '$portalName is outside your current IT access scope.'
+                  : 'Cannot open $portalName because the system is currently OPERATIONAL (Live).',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: DeveloperTheme.textPrimary,
@@ -1677,7 +1727,9 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             ),
             const SizedBox(height: 10),
             Text(
-              'Naka-lock ang direct portal access habang live ang operations upang maprotektahan ang live sales, orders, at customer records.',
+              _activeItRequest != null
+                  ? 'Your active IT session is scoped for "$activeScope". If this issue is linked across modules (e.g. Kitchen with Inventory, or Cashier with Orders), ask Admin to select "All Modules" or the appropriate suite.'
+                  : 'Direct portal access is locked during live operations to protect live customer records, ongoing POS sales, and table orders from developer test mutations.',
               style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
             ),
             const SizedBox(height: 14),
@@ -1692,7 +1744,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Para ma-unlock ang portal, kailangan ng isa sa mga ito:',
+                    _activeItRequest != null ? 'Access Scope Notice:' : 'To unlock portal access, fulfill one of the following requirements:',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -1700,33 +1752,49 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.support_agent_rounded, size: 16, color: Color(0xFF60A5FA)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '1. Mag-request si Admin ng IT Support sa Admin Sidebar at i-accept mo ito rito sa dashboard.',
-                          style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                  if (_activeItRequest != null) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 16, color: DeveloperTheme.accentCyan),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Active Scope: "$activeScope". To access $portalName, ask Admin to grant "All Modules" or a linked suite (e.g., Kitchen & Supply Suite).',
+                            style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.build_circle_outlined, size: 16, color: DeveloperTheme.accentAmber),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '2. I-activate ang Maintenance Mode kung routine technical maintenance ang gagawin.',
-                          style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.support_agent_rounded, size: 16, color: DeveloperTheme.accentCyan),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '1. Elevated IT Support: Have an Administrator submit an IT support request from the Admin Portal and accept it here on the dashboard.',
+                            style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.build_circle_outlined, size: 16, color: DeveloperTheme.accentAmber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '2. Maintenance Mode: Activate Maintenance Mode in the Maintenance Control tab if conducting routine system maintenance or test transactions.',
+                            style: GoogleFonts.inter(fontSize: 12, color: DeveloperTheme.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1830,7 +1898,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Auto-purge test payments & orders',
+                                'Auto-purge test records & restore inventory',
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
@@ -1839,7 +1907,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Deletes orders, payments & test reservations created during this IT session so admin sales reports stay clean.',
+                                'Deletes test orders, reservations, advance orders, releases table holds, and automatically restores deducted kitchen stock back to inventory.',
                                 style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
                               ),
                             ],
@@ -1874,6 +1942,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
     if (confirmed == true) {
       try {
         int purgedCount = 0;
+        int restoredStock = 0;
         if (shouldPurgeTestData) {
           final acceptedAtStr = request['accepted_at']?.toString();
           final startTime = acceptedAtStr != null ? DateTime.tryParse(acceptedAtStr) : null;
@@ -1881,13 +1950,16 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             windowStartTime: startTime,
             operatorEmail: _developerEmail,
           );
-          purgedCount = (purgeRes['orders'] ?? 0) + (purgeRes['reservations'] ?? 0);
+          purgedCount = (purgeRes['orders'] ?? 0) +
+              (purgeRes['reservations'] ?? 0) +
+              (purgeRes['advance_orders'] ?? 0);
+          restoredStock = purgeRes['restored_ingredients'] ?? 0;
         }
 
         await ItAccessService.completeSession(
           requestId,
           notes: shouldPurgeTestData
-              ? 'Session ended. Auto-purged $purgedCount test records.'
+              ? 'Session ended. Auto-purged $purgedCount test records & restored $restoredStock kitchen stock items.'
               : 'Session ended without purging test data.',
           adminEmail: request['requested_by_email']?.toString(),
           adminName: request['requested_by_name']?.toString(),
@@ -1902,7 +1974,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             behavior: SnackBarBehavior.floating,
             content: Text(
               shouldPurgeTestData
-                  ? '✅ IT Support Session completed. Test payments & orders were auto-purged.'
+                  ? '✅ IT Session ended. Test records purged & kitchen stock restored.'
                   : '✅ IT Support Session completed.',
               style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
             ),
