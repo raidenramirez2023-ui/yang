@@ -1067,44 +1067,46 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           const SizedBox(height: 16),
 
           // Controls Bar (Horizon Selector + Export Actions)
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // Horizon Toggle Buttons
-              Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 860;
+
+              final horizonSelector = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
                     'Piliin ang Panahon:',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: AppTheme.adminMainBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.cardBorder),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildHorizonChip('7 Araw (1 Linggo)', 7),
-                        _buildHorizonChip('14 Araw (2 Linggo)', 14),
-                        _buildHorizonChip('Buong Buwan (30 Araw)', 30),
-                      ],
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.adminMainBackground,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.cardBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildHorizonChip('7 Araw (1 Linggo)', 7),
+                          _buildHorizonChip('14 Araw (2 Linggo)', 14),
+                          _buildHorizonChip('Buong Buwan (30 Araw)', 30),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ),
+              );
 
-              // Action Buttons (Refresh, Excel, PDF)
-              Wrap(
+              final actionButtons = Wrap(
                 spacing: 8,
                 runSpacing: 8,
+                alignment: isWide ? WrapAlignment.end : WrapAlignment.start,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => _fetchAndCalculateForecast(isSilent: false),
@@ -1145,8 +1147,28 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     ),
                   ),
                 ],
-              ),
-            ],
+              );
+
+              if (isWide) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    horizonSelector,
+                    Flexible(child: actionButtons),
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  horizonSelector,
+                  const SizedBox(height: 12),
+                  actionButtons,
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1758,9 +1780,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           const SizedBox(height: 24),
 
           SizedBox(
-            height: 300,
+            height: 340,
             child: SfCartesianChart(
-              margin: EdgeInsets.zero,
+              margin: const EdgeInsets.only(top: 8, bottom: 8, left: 4, right: 8),
               primaryXAxis: CategoryAxis(
                 majorGridLines: const MajorGridLines(width: 0),
                 labelStyle: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppTheme.adminSecondaryText),
@@ -1774,17 +1796,18 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 enable: true,
                 header: '',
                 canShowMarker: true,
+                elevation: 10,
                 builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
                   if (pointIndex < 0 || pointIndex >= _dailyForecasts.length) return const SizedBox.shrink();
                   final f = _dailyForecasts[pointIndex];
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    constraints: const BoxConstraints(maxWidth: 230),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    constraints: const BoxConstraints(maxWidth: 220),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F172A),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 12, offset: Offset(0, 4))],
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 6))],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1793,63 +1816,52 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         // Header: Date
                         Row(
                           children: [
-                            const Icon(Icons.calendar_today_rounded, color: Colors.white54, size: 11),
+                            const Icon(Icons.calendar_today_rounded, color: Colors.white54, size: 10),
                             const SizedBox(width: 4),
                             Text('${f.dayName}, ${f.dateFormatted}',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10.5)),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
 
                         // Total
                         _tooltipRow(const Color(0xFF8B5CF6), 'Kabuuang Inaasahang Kita'),
                         Padding(
-                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 1),
+                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
                           child: Text(_currencyFormat.format(f.totalForecastRevenue),
-                              style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w900, fontSize: 13)),
+                              style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w900, fontSize: 12)),
                         ),
-                        const SizedBox(height: 5),
 
                         // Naka-Book
                         _tooltipRow(const Color(0xFF0284C7), 'Sigurado (Naka-Book na)'),
                         Padding(
-                          padding: const EdgeInsets.only(left: 14, top: 1),
+                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
                           child: Text(_currencyFormat.format(f.guaranteedPipeline),
-                              style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700, fontSize: 11)),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(left: 14, bottom: 5),
-                          child: Text('Kumpirmadong reservation / advance order',
-                              style: TextStyle(color: Colors.white38, fontSize: 8.5)),
+                              style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700, fontSize: 10.5)),
                         ),
 
                         // Walk-In
                         _tooltipRow(const Color(0xFFF59E0B), 'Tantyang Walk-In / Dine-In'),
                         Padding(
-                          padding: const EdgeInsets.only(left: 14, top: 1),
+                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
                           child: Text(_currencyFormat.format(f.projectedWalkInRevenue),
-                              style: const TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.w700, fontSize: 11)),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(left: 14, bottom: 5),
-                          child: Text('Hulang kita mula sa mga regular na customer',
-                              style: TextStyle(color: Colors.white38, fontSize: 8.5)),
+                              style: const TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.w700, fontSize: 10.5)),
                         ),
 
                         Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 4),
 
                         // Operational Load
                         Row(
                           children: [
-                            const Icon(Icons.info_outline_rounded, size: 10, color: Colors.white38),
+                            const Icon(Icons.info_outline_rounded, size: 9.5, color: Colors.white38),
                             const SizedBox(width: 4),
-                            const Text('Antas ng Abala: ', style: TextStyle(color: Colors.white38, fontSize: 9.5)),
+                            const Text('Antas ng Abala: ', style: TextStyle(color: Colors.white38, fontSize: 9)),
                             Flexible(
                               child: Text(f.operationalLoad,
-                                  style: TextStyle(color: f.loadColor, fontWeight: FontWeight.w700, fontSize: 9.5)),
+                                  style: TextStyle(color: f.loadColor, fontWeight: FontWeight.w700, fontSize: 9)),
                             ),
                           ],
                         ),
@@ -2153,8 +2165,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
               children: [
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2172,6 +2187,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 ),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     InkWell(
@@ -2225,46 +2241,77 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.functions_rounded, size: 16, color: Color(0xFF475569)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.4),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 640;
+                final textWidget = Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.functions_rounded, size: 16, color: Color(0xFF475569)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.4),
+                          children: [
+                            const TextSpan(text: 'Pormula sa Pagtataya: ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                            const TextSpan(text: 'Kabuuang Inaasahan = '),
+                            const TextSpan(text: 'Sigurado na (Bookings)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            const TextSpan(text: ' + ['),
+                            const TextSpan(text: 'Dating Benta sa Araw (90-Day Baseline)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            const TextSpan(text: ' × '),
+                            TextSpan(text: 'Trend ng Benta (${_momentumFactor.toStringAsFixed(3)})', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            const TextSpan(text: ']'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+
+                final detailBtn = Align(
+                  alignment: isNarrow ? Alignment.centerRight : Alignment.center,
+                  child: TextButton(
+                    onPressed: _showFormulaExplanationDialog,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: const Color(0xFF14332E),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const TextSpan(text: 'Pormula sa Pagtataya: ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-                        const TextSpan(text: 'Kabuuang Inaasahan = '),
-                        const TextSpan(text: 'Sigurado na (Bookings)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                        const TextSpan(text: ' + ['),
-                        const TextSpan(text: 'Dating Benta sa Araw (90-Day Baseline)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                        const TextSpan(text: ' × '),
-                        TextSpan(text: 'Trend ng Benta (${_momentumFactor.toStringAsFixed(3)})', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                        const TextSpan(text: ']'),
+                        Text('Alamin ang Detalye', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                        SizedBox(width: 3),
+                        Icon(Icons.arrow_forward_rounded, size: 12),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: _showFormulaExplanationDialog,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: const Color(0xFF14332E),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Alamin ang Detalye', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                      SizedBox(width: 3),
-                      Icon(Icons.arrow_forward_rounded, size: 12),
+                      textWidget,
+                      const SizedBox(height: 6),
+                      detailBtn,
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: textWidget),
+                    const SizedBox(width: 8),
+                    detailBtn,
+                  ],
+                );
+              },
             ),
           ),
 
@@ -2672,16 +2719,22 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.event_note_rounded, size: 18, color: Color(0xFF14332E)),
                   SizedBox(width: 8),
-                  Text(
-                    'Listahan ng mga Kumpirmadong Bookings',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                  Flexible(
+                    child: Text(
+                      'Listahan ng mga Kumpirmadong Bookings',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                    ),
                   ),
                 ],
               ),

@@ -296,6 +296,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   // Menu selection state (only set when customer confirms inside MenuSelectionPage)
 
   Map<String, int> _selectedMenuItems = {};
+  bool _showSelectedDishesDetails = false;
 
 
 
@@ -6843,22 +6844,138 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     ),
                                   ),
                                   if (_selectedMenuItems.isNotEmpty)
-                                    GestureDetector(
-                                      onTap: () => setState(() {
-                                        _selectedMenuItems.clear();
-                                        _preOrderCart.clear();
-                                      }),
-                                      child: Text(
-                                        'Clear',
-                                        style: GoogleFonts.inter(
-                                          color: AppTheme.errorRed,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 12,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () => setState(() {
+                                            _showSelectedDishesDetails = !_showSelectedDishesDetails;
+                                          }),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.goldenAmber.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: AppTheme.goldenAmber.withValues(alpha: 0.3),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  _showSelectedDishesDetails ? 'Hide' : 'View',
+                                                  style: GoogleFonts.inter(
+                                                    color: AppTheme.darkBrownText,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 11.5,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 2),
+                                                Icon(
+                                                  _showSelectedDishesDetails
+                                                      ? Icons.keyboard_arrow_up_rounded
+                                                      : Icons.keyboard_arrow_down_rounded,
+                                                  size: 15,
+                                                  color: AppTheme.darkBrownText,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () => setState(() {
+                                            _selectedMenuItems.clear();
+                                            _preOrderCart.clear();
+                                            _showSelectedDishesDetails = false;
+                                          }),
+                                          child: Text(
+                                            'Clear',
+                                            style: GoogleFonts.inter(
+                                              color: AppTheme.errorRed,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                 ],
                               ),
+                              if (_selectedMenuItems.isNotEmpty && _showSelectedDishesDetails) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  constraints: const BoxConstraints(maxHeight: 180),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(11),
+                                    child: ListView.separated(
+                                      shrinkWrap: true,
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      itemCount: _selectedMenuItems.length,
+                                      separatorBuilder: (_, __) => const Divider(height: 12, color: Color(0xFFF1F5F9)),
+                                      itemBuilder: (context, index) {
+                                        final itemName = _selectedMenuItems.keys.elementAt(index);
+                                        final qty = _selectedMenuItems[itemName] ?? 0;
+                                        MenuItem? itemObj;
+                                        try {
+                                          itemObj = MenuService.getMenu().values.expand((e) => e).firstWhere((e) => e.name == itemName);
+                                        } catch (_) {}
+                                        final price = (itemObj?.price ?? 0.0) * qty;
+
+                                        return Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.forestGreen.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '${qty}x',
+                                                style: GoogleFonts.inter(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 11,
+                                                  color: AppTheme.forestGreen,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                itemName,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(0xFF1E293B),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '₱${NumberFormat('#,##0.00').format(price)}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.darkGrey,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
                               if (_selectedMenuItems.isNotEmpty) ...[
                                 const SizedBox(height: 10),
                                 const Divider(height: 1),

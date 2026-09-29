@@ -933,8 +933,13 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Widget _buildPageHeader() {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 18,
+        vertical: isMobile ? 10 : 14,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -950,14 +955,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(11),
+            padding: EdgeInsets.all(isMobile ? 8 : 11),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: _emerald.withValues(alpha: 0.25),
@@ -966,29 +971,33 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 ),
               ],
             ),
-            child: const Icon(Icons.event_available_rounded, color: _gold, size: 22),
+            child: Icon(Icons.event_available_rounded, color: _gold, size: isMobile ? 18 : 22),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isMobile ? 8 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
-                    Text(
-                      'Event Reservations',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _darkBg,
-                        letterSpacing: -0.4,
+                    Flexible(
+                      child: Text(
+                        'Event Reservations',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: isMobile ? 15 : 18,
+                          fontWeight: FontWeight.w800,
+                          color: _darkBg,
+                          letterSpacing: -0.4,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
                     ),
                     if (_isMaintenance) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(6),
@@ -997,12 +1006,12 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.qr_code_scanner_rounded, size: 11, color: Color(0xFFB45309)),
-                            const SizedBox(width: 4),
+                            const Icon(Icons.qr_code_scanner_rounded, size: 10, color: Color(0xFFB45309)),
+                            const SizedBox(width: 3),
                             Text(
-                              'SCAN ONLY (MAINTENANCE)',
+                              'SCAN ONLY',
                               style: GoogleFonts.inter(
-                                fontSize: 9.5,
+                                fontSize: 8.5,
                                 fontWeight: FontWeight.w800,
                                 color: const Color(0xFF92400E),
                               ),
@@ -1016,77 +1025,132 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Text(
                   'Manage, approve and track all reservation bookings',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
+                    fontSize: isMobile ? 10 : 12,
                     color: _slate,
                     fontWeight: FontWeight.w500,
                     height: 1.15,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          ElevatedButton.icon(
-            icon: Icon(_isMaintenance ? Icons.lock_outline_rounded : Icons.add_rounded, size: 18),
-            label: ResponsiveUtils.isMobile(context) 
-                ? const SizedBox.shrink() 
-                : Text('Add Event', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isMaintenance ? const Color(0xFFCBD5E1) : const Color(0xFF14332E),
-              foregroundColor: _isMaintenance ? const Color(0xFF64748B) : AppTheme.warmGold,
-              padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              if (_isMaintenance) {
-                _showMaintenanceActionBlockedSnackbar('Adding new events');
-                return;
-              }
-              AdminAddEventDialog.show(
-                context,
-                onEventCreated: () {
-                  _loadReservations();
-                },
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
-            label: ResponsiveUtils.isMobile(context) 
-                ? const SizedBox.shrink() 
-                : Text('Scan Pass', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isMaintenance ? const Color(0xFF0F766E) : const Color(0xFF14332E),
-              foregroundColor: _isMaintenance ? Colors.white : AppTheme.warmGold,
-              padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 10 : 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => QrScannerDialog.show(
-              context,
-              onCheckInSuccess: (scanned) {
-                _loadReservations();
-                final resId = scanned['id']?.toString();
-                setState(() {
-                  _scannedReservationId = resId;
-                  _scannedReservationMeta = scanned;
-                  _selectedFilter = 'all';
-                  _searchQuery = '';
-                  _searchController.clear();
-                  _currentPage = 0;
-                });
+          const SizedBox(width: 6),
+          // Add Event Action Button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                if (_isMaintenance) {
+                  _showMaintenanceActionBlockedSnackbar('Adding new events');
+                  return;
+                }
+                AdminAddEventDialog.show(
+                  context,
+                  onEventCreated: () {
+                    _loadReservations();
+                  },
+                );
               },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 14,
+                  vertical: isMobile ? 7 : 10,
+                ),
+                decoration: BoxDecoration(
+                  color: _isMaintenance ? const Color(0xFFCBD5E1) : const Color(0xFF14332E),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isMaintenance ? Icons.lock_outline_rounded : Icons.add_rounded,
+                      size: isMobile ? 16 : 18,
+                      color: _isMaintenance ? const Color(0xFF64748B) : AppTheme.warmGold,
+                    ),
+                    if (!isMobile) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        'Add Event',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _isMaintenance ? const Color(0xFF64748B) : AppTheme.warmGold,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-
+          const SizedBox(width: 5),
+          // Scan Pass Action Button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => QrScannerDialog.show(
+                context,
+                onCheckInSuccess: (scanned) {
+                  _loadReservations();
+                  final resId = scanned['id']?.toString();
+                  setState(() {
+                    _scannedReservationId = resId;
+                    _scannedReservationMeta = scanned;
+                    _selectedFilter = 'all';
+                    _searchQuery = '';
+                    _searchController.clear();
+                    _currentPage = 0;
+                  });
+                },
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 14,
+                  vertical: isMobile ? 7 : 10,
+                ),
+                decoration: BoxDecoration(
+                  color: _isMaintenance ? const Color(0xFF0F766E) : const Color(0xFF14332E),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.qr_code_scanner_rounded,
+                      size: isMobile ? 15 : 16,
+                      color: _isMaintenance ? Colors.white : AppTheme.warmGold,
+                    ),
+                    if (!isMobile) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        'Scan Pass',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _isMaintenance ? Colors.white : AppTheme.warmGold,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
           AnimatedRotation(
             turns: _headerCollapsed ? 0.5 : 0.0,
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeInOut,
             child: IconButton(
               onPressed: () => setState(() => _headerCollapsed = !_headerCollapsed),
-              icon: const Icon(Icons.keyboard_arrow_up_rounded, color: _slate, size: 22),
+              icon: const Icon(Icons.keyboard_arrow_up_rounded, color: _slate, size: 20),
               tooltip: _headerCollapsed ? 'Show Stats' : 'Hide Stats',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
           ),
         ],

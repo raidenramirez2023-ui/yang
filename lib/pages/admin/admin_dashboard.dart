@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import 'dart:async';
 
@@ -2594,45 +2594,105 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ? 'Average per day:\nTotal Monthly Revenue ($_selectedMonthlyMonth $_selectedYear) ÷ ${chartData.length} days'
                 : 'Average per year:\nTotal Gross ÷ ${chartData.length} recorded years';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildChartStat(
-            icon: Icons.paid_rounded,
-            color: const Color(0xFF14332E),
-            label: 'Total Revenue',
-            subLabel: 'All Channels',
-            value: fmtFull.format(total),
-            tooltipMessage: 'Consolidated gross revenue combining POS Walk-in, Advance Orders, and Event Bookings.',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 640;
+
+        if (isNarrow) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildChartStat(
+                  icon: Icons.paid_rounded,
+                  color: const Color(0xFF14332E),
+                  label: 'Total Revenue',
+                  subLabel: 'All Channels',
+                  value: fmtFull.format(total),
+                  tooltipMessage: 'Consolidated gross revenue combining POS Walk-in, Advance Orders, and Event Bookings.',
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Divider(height: 1, color: AppTheme.cardBorder),
+                ),
+                _buildChartStat(
+                  icon: Icons.bar_chart_rounded,
+                  color: const Color(0xFF2B6CB0),
+                  label: 'Average',
+                  subLabel: '/ $periodLabel',
+                  value: avg > 100000 ? fmt.format(avg) : fmtFull.format(avg),
+                  tooltipMessage: avgTooltip,
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Divider(height: 1, color: AppTheme.cardBorder),
+                ),
+                _buildChartStat(
+                  icon: Icons.trending_up_rounded,
+                  color: const Color(0xFFD9A441),
+                  label: 'Peak $periodLabel',
+                  value: (peak != null && peak.value > 0)
+                      ? '${peak.label}  •  ${peak.value > 100000 ? fmt.format(peak.value) : fmtFull.format(peak.value)}'
+                      : '—',
+                  tooltipMessage: 'Highest revenue point recorded in the selected period.',
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.cardBorder),
           ),
-          Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 8)),
-          _buildChartStat(
-            icon: Icons.bar_chart_rounded,
-            color: const Color(0xFF2B6CB0),
-            label: 'Average',
-            subLabel: '/ $periodLabel',
-            value: avg > 100000 ? fmt.format(avg) : fmtFull.format(avg),
-            tooltipMessage: avgTooltip,
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildChartStat(
+                  icon: Icons.paid_rounded,
+                  color: const Color(0xFF14332E),
+                  label: 'Total Revenue',
+                  subLabel: 'All Channels',
+                  value: fmtFull.format(total),
+                  tooltipMessage: 'Consolidated gross revenue combining POS Walk-in, Advance Orders, and Event Bookings.',
+                ),
+              ),
+              Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 8)),
+              Expanded(
+                child: _buildChartStat(
+                  icon: Icons.bar_chart_rounded,
+                  color: const Color(0xFF2B6CB0),
+                  label: 'Average',
+                  subLabel: '/ $periodLabel',
+                  value: avg > 100000 ? fmt.format(avg) : fmtFull.format(avg),
+                  tooltipMessage: avgTooltip,
+                ),
+              ),
+              Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 8)),
+              Expanded(
+                child: _buildChartStat(
+                  icon: Icons.trending_up_rounded,
+                  color: const Color(0xFFD9A441),
+                  label: 'Peak $periodLabel',
+                  value: (peak != null && peak.value > 0)
+                      ? '${peak.label}  •  ${peak.value > 100000 ? fmt.format(peak.value) : fmtFull.format(peak.value)}'
+                      : '—',
+                  tooltipMessage: 'Highest revenue point recorded in the selected period.',
+                ),
+              ),
+            ],
           ),
-          Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 8)),
-          _buildChartStat(
-            icon: Icons.trending_up_rounded,
-            color: const Color(0xFFD9A441),
-            label: 'Peak $periodLabel',
-            value: (peak != null && peak.value > 0)
-                ? '${peak.label}  •  ${peak.value > 100000 ? fmt.format(peak.value) : fmtFull.format(peak.value)}'
-                : '—',
-            tooltipMessage: 'Highest revenue point recorded in the selected period.',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2644,101 +2704,99 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     required String value,
     String? tooltipMessage,
   }) {
-    return Expanded(
-      child: Row(
-        children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 16),
+    return Row(
+      children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        color: AppTheme.mediumGrey,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: AppTheme.mediumGrey,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  if (tooltipMessage != null) ...[
+                    const SizedBox(width: 3),
+                    Tooltip(
+                      message: tooltipMessage,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                      waitDuration: Duration.zero,
+                      showDuration: const Duration(seconds: 4),
+                      triggerMode: TooltipTriggerMode.tap,
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        size: 11,
+                        color: AppTheme.mediumGrey.withValues(alpha: 0.7),
                       ),
                     ),
-                    if (tooltipMessage != null) ...[
-                      const SizedBox(width: 3),
-                      Tooltip(
-                        message: tooltipMessage,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        textStyle: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          height: 1.3,
-                        ),
-                        waitDuration: Duration.zero,
-                        showDuration: const Duration(seconds: 4),
-                        triggerMode: TooltipTriggerMode.tap,
-                        child: Icon(
-                          Icons.info_outline_rounded,
-                          size: 11,
-                          color: AppTheme.mediumGrey.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                    if (subLabel != null) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          subLabel,
-                          style: const TextStyle(
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2E7D32),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
+                  if (subLabel != null) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        subLabel,
+                        style: const TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2E7D32),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.darkGrey,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.darkGrey,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -6762,7 +6820,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
 
-    Widget? subPeriodWidget;
+    final List<Widget> filterItems = [periodDropdown];
+
     if (_selectedPeriod == 'Daily') {
       final monthIdx = _getMonthIndex(_selectedDailyMonth);
       final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
@@ -6771,149 +6830,145 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         _selectedDailyDay = daysInMonth.toString();
       }
 
-      subPeriodWidget = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.cardBorder),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                focusNode: _dashboardDailyMonthFocusNode,
-                value: _selectedDailyMonth,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                items: _monthFilters
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
-                    .toList(),
-                onChanged: (v) {
-                  _dashboardDailyMonthFocusNode.unfocus();
-                  if (mounted && v != null) {
-                    setState(() {
-                      _selectedDailyMonth = v;
-                      onFilterChanged();
-                    });
-                  }
-                },
-              ),
-            ),
+      final monthDropdown = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            focusNode: _dashboardDailyMonthFocusNode,
+            value: _selectedDailyMonth,
+            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+            items: _monthFilters
+                .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                .toList(),
+            onChanged: (v) {
+              _dashboardDailyMonthFocusNode.unfocus();
+              if (mounted && v != null) {
+                setState(() {
+                  _selectedDailyMonth = v;
+                  onFilterChanged();
+                });
+              }
+            },
           ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.cardBorder),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                focusNode: _dashboardDailyDayFocusNode,
-                value: _selectedDailyDay,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                items: dayItems
-                    .map((d) => DropdownMenuItem(value: d, child: Text('Day $d', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
-                    .toList(),
-                onChanged: (v) {
-                  _dashboardDailyDayFocusNode.unfocus();
-                  if (mounted && v != null) {
-                    setState(() {
-                      _selectedDailyDay = v;
-                      onFilterChanged();
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
+        ),
       );
+
+      final dayDropdown = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            focusNode: _dashboardDailyDayFocusNode,
+            value: _selectedDailyDay,
+            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+            items: dayItems
+                .map((d) => DropdownMenuItem(value: d, child: Text('Day $d', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                .toList(),
+            onChanged: (v) {
+              _dashboardDailyDayFocusNode.unfocus();
+              if (mounted && v != null) {
+                setState(() {
+                  _selectedDailyDay = v;
+                  onFilterChanged();
+                });
+              }
+            },
+          ),
+        ),
+      );
+
+      filterItems.add(monthDropdown);
+      filterItems.add(dayDropdown);
     } else if (_selectedPeriod == 'Weekly') {
-      subPeriodWidget = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.cardBorder),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                focusNode: _dashboardWeeklyMonthFocusNode,
-                value: _selectedWeeklyMonth,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                items: _monthFilters
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
-                    .toList(),
-                onChanged: (v) {
-                  _dashboardWeeklyMonthFocusNode.unfocus();
-                  if (mounted && v != null) {
-                    setState(() {
-                      _selectedWeeklyMonth = v;
-                      onFilterChanged();
-                    });
-                  }
-                },
-              ),
-            ),
+      final monthDropdown = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            focusNode: _dashboardWeeklyMonthFocusNode,
+            value: _selectedWeeklyMonth,
+            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+            items: _monthFilters
+                .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                .toList(),
+            onChanged: (v) {
+              _dashboardWeeklyMonthFocusNode.unfocus();
+              if (mounted && v != null) {
+                setState(() {
+                  _selectedWeeklyMonth = v;
+                  onFilterChanged();
+                });
+              }
+            },
           ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.cardBorder),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                focusNode: _dashboardWeeklyWeekFocusNode,
-                value: _selectedWeeklyWeek,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                items: _weekFilters.map((w) {
-                   final rangeLabel = _getWeekDateRangeLabel(w);
-                   return DropdownMenuItem<String>(
-                     value: w,
-                     child: Row(
-                       mainAxisSize: MainAxisSize.min,
-                       children: [
-                         Text(w, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
-                         if (rangeLabel.isNotEmpty) ...[
-                           const SizedBox(width: 6),
-                           Text(
-                             rangeLabel,
-                             style: const TextStyle(
-                               fontSize: 11,
-                               fontWeight: FontWeight.w400,
-                               color: AppTheme.adminSecondaryText,
-                             ),
-                           ),
-                         ],
-                       ],
-                     ),
-                   );
-                 }).toList(),
-                onChanged: (v) {
-                  _dashboardWeeklyWeekFocusNode.unfocus();
-                  if (mounted && v != null) {
-                    setState(() {
-                      _selectedWeeklyWeek = v;
-                      onFilterChanged();
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
+        ),
       );
+
+      final weekDropdown = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            focusNode: _dashboardWeeklyWeekFocusNode,
+            value: _selectedWeeklyWeek,
+            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+            items: _weekFilters.map((w) {
+              final rangeLabel = _getWeekDateRangeLabel(w);
+              return DropdownMenuItem<String>(
+                value: w,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(w, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
+                    if (rangeLabel.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        rangeLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: AppTheme.adminSecondaryText,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (v) {
+              _dashboardWeeklyWeekFocusNode.unfocus();
+              if (mounted && v != null) {
+                setState(() {
+                  _selectedWeeklyWeek = v;
+                  onFilterChanged();
+                });
+              }
+            },
+          ),
+        ),
+      );
+
+      filterItems.add(monthDropdown);
+      filterItems.add(weekDropdown);
     } else if (_selectedPeriod == 'Monthly') {
-      subPeriodWidget = Container(
+      final monthDropdown = Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -6940,52 +6995,54 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           ),
         ),
       );
+
+      filterItems.add(monthDropdown);
     }
 
-    final yearDropdown = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.calendar_month_outlined, size: 14, color: AppTheme.mediumGrey),
-          const SizedBox(width: 4),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              focusNode: _dashboardYearFocusNode,
-              value: availableYears.contains(_selectedYear) ? _selectedYear : availableYears.last,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-              items: availableYears
-                  .map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
-                  .toList(),
-              onChanged: (v) {
-                _dashboardYearFocusNode.unfocus();
-                if (mounted && v != null) {
-                  setState(() {
-                    _selectedYear = v;
-                    onFilterChanged();
-                  });
-                }
-              },
+    if (_selectedPeriod != 'Annually') {
+      final yearDropdown = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_month_outlined, size: 14, color: AppTheme.mediumGrey),
+            const SizedBox(width: 4),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                focusNode: _dashboardYearFocusNode,
+                value: availableYears.contains(_selectedYear) ? _selectedYear : availableYears.last,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                items: availableYears
+                    .map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                    .toList(),
+                onChanged: (v) {
+                  _dashboardYearFocusNode.unfocus();
+                  if (mounted && v != null) {
+                    setState(() {
+                      _selectedYear = v;
+                      onFilterChanged();
+                    });
+                  }
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+
+      filterItems.add(yearDropdown);
+    }
 
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        periodDropdown,
-        if (subPeriodWidget != null) subPeriodWidget,
-        if (_selectedPeriod != 'Annually') yearDropdown,
-      ],
+      children: filterItems,
     );
   }
 }

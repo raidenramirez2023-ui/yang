@@ -169,17 +169,19 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       'Admin Continuity & Recovery',
                       style: GoogleFonts.outfit(
                         color: Colors.white,
-                        fontSize: isMobile ? 18 : 22,
+                        fontSize: isMobile ? 16 : 22,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
@@ -249,60 +251,97 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
   }
 
   Widget _buildContinuityHealthBanner(AdminContinuityConfig config) {
+    final isMobile = ResponsiveUtils.isMobile(context);
     final hasBackup = config.hasBackupAssigned;
     final isCoAdmin = config.isCoAdminAuthorized;
 
+    final bannerContent = RichText(
+      text: TextSpan(
+        style: GoogleFonts.inter(color: const Color(0xFF334155), fontSize: isMobile ? 12 : 13),
+        children: [
+          TextSpan(
+            text: hasBackup
+                ? 'Continuity Status: 100% Operational. '
+                : 'Continuity Advisory: ',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          TextSpan(
+            text: hasBackup
+                ? (isCoAdmin
+                    ? 'Primary Admin (${config.primaryAdminEmail}) has authorized backup administrator (${config.backupAdminEmail}) as Active Co-Administrator.'
+                    : 'Primary Admin (${config.primaryAdminEmail}) has designated backup administrator (${config.backupAdminEmail}) on Standby (Emergency Recovery only; login locked).')
+                : 'No Authorized Backup Administrator assigned. Designate a backup admin to guarantee business continuity.',
+          ),
+        ],
+      ),
+    );
+
+    final nistBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Text(
+        'NIST SP 800-63 Compliant',
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: _slate,
+        ),
+      ),
+    );
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: isMobile ? 10 : 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: Row(
-        children: [
-          Icon(
-            hasBackup ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
-            color: hasBackup ? _successGreen : _goldDark,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: GoogleFonts.inter(color: const Color(0xFF334155), fontSize: 13),
-                children: [
-                  TextSpan(
-                    text: hasBackup
-                        ? 'Continuity Status: 100% Operational. '
-                        : 'Continuity Advisory: ',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  TextSpan(
-                    text: hasBackup
-                        ? (isCoAdmin
-                            ? 'Primary Admin (${config.primaryAdminEmail}) has authorized backup administrator (${config.backupAdminEmail}) as Active Co-Administrator.'
-                            : 'Primary Admin (${config.primaryAdminEmail}) has designated backup administrator (${config.backupAdminEmail}) on Standby (Emergency Recovery only; login locked).')
-                        : 'No Authorized Backup Administrator assigned. Designate a backup admin to guarantee business continuity.',
-                  ),
-                ],
-              ),
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      hasBackup ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                      color: hasBackup ? _successGreen : _goldDark,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: bannerContent),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: nistBadge,
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Icon(
+                  hasBackup ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                  color: hasBackup ? _successGreen : _goldDark,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: bannerContent),
+                const SizedBox(width: 12),
+                nistBadge,
+              ],
             ),
-          ),
-          Text(
-            'NIST SP 800-63 Compliant',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _slate,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildTabBar() {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -311,12 +350,14 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
       ),
       child: TabBar(
         controller: _tabController,
+        isScrollable: isMobile,
+        tabAlignment: isMobile ? TabAlignment.start : TabAlignment.fill,
         labelColor: _emerald,
         unselectedLabelColor: _slate,
         indicatorColor: _gold,
         indicatorWeight: 3,
-        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
-        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
+        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: isMobile ? 12 : 13),
+        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: isMobile ? 12 : 13),
         tabs: const [
           Tab(icon: Icon(Icons.people_alt_outlined, size: 18), text: 'Admin Accounts'),
           Tab(icon: Icon(Icons.swap_horiz_rounded, size: 18), text: 'Emergency Succession'),
@@ -335,24 +376,28 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Administrative Account Hierarchy',
                 style: GoogleFonts.outfit(
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 16,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF1E293B),
                 ),
               ),
-              const Spacer(),
               OutlinedButton.icon(
                 onPressed: () => _showUpdateSecurityKeyDialog(config),
                 icon: const Icon(Icons.key_rounded, size: 16),
-                label: const Text('Change Security Verification Key'),
+                label: Text(isMobile ? 'Change Security Key' : 'Change Security Verification Key'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _emerald,
                   side: const BorderSide(color: _emerald),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
             ],
@@ -380,8 +425,10 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
   }
 
   Widget _buildPrimaryAdminCard(AdminContinuityConfig config) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -398,6 +445,7 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -412,7 +460,10 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           'Primary Administrator',
@@ -422,7 +473,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                             color: const Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -440,6 +490,7 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                         ),
                       ],
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Primary account holder with operational and governance authority.',
                       style: GoogleFonts.inter(fontSize: 11, color: _slate),
@@ -456,61 +507,108 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
           _buildInfoRow(Icons.phone_outlined, 'Contact Hotline', config.primaryAdminPhone),
           _buildInfoRow(Icons.shield_outlined, 'Identity Rule', 'Individual Account (No Shared Passwords)'),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _showUpdatePrimaryDialog(config),
-                  icon: const Icon(Icons.edit_outlined, size: 15),
-                  label: const Text('Edit Details'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _emerald,
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+          if (isMobile) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showUpdatePrimaryDialog(config),
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: const Text('Edit Details', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _emerald,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _showChangeEmailDialog(config.primaryAdminEmail, config.primaryAdminName),
-                  icon: const Icon(Icons.alternate_email_rounded, size: 15),
-                  label: const Text('Change Email'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0284C7),
-                    side: const BorderSide(color: Color(0xFFBAE6FD)),
-                    backgroundColor: const Color(0xFFF0F9FF),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showChangeEmailDialog(config.primaryAdminEmail, config.primaryAdminName),
+                    icon: const Icon(Icons.alternate_email_rounded, size: 14),
+                    label: const Text('Change Email', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0284C7),
+                      side: const BorderSide(color: Color(0xFFBAE6FD)),
+                      backgroundColor: const Color(0xFFF0F9FF),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _showChangePasswordDialog(config.primaryAdminEmail, config.primaryAdminName),
-                  icon: const Icon(Icons.lock_reset_rounded, size: 15),
-                  label: const Text('Change Password'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _emerald,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showChangePasswordDialog(config.primaryAdminEmail, config.primaryAdminName),
+                icon: const Icon(Icons.lock_reset_rounded, size: 14),
+                label: const Text('Change Password', style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _emerald,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
                 ),
               ),
-            ],
-          ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showUpdatePrimaryDialog(config),
+                    icon: const Icon(Icons.edit_outlined, size: 15),
+                    label: const Text('Edit Details'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _emerald,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showChangeEmailDialog(config.primaryAdminEmail, config.primaryAdminName),
+                    icon: const Icon(Icons.alternate_email_rounded, size: 15),
+                    label: const Text('Change Email'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0284C7),
+                      side: const BorderSide(color: Color(0xFFBAE6FD)),
+                      backgroundColor: const Color(0xFFF0F9FF),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showChangePasswordDialog(config.primaryAdminEmail, config.primaryAdminName),
+                    icon: const Icon(Icons.lock_reset_rounded, size: 15),
+                    label: const Text('Change Password'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _emerald,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
-
   }
 
   Widget _buildBackupAdminCard(AdminContinuityConfig config) {
+    final isMobile = ResponsiveUtils.isMobile(context);
     final hasBackup = config.hasBackupAssigned;
     final isCoAdmin = config.isCoAdminAuthorized;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -529,6 +627,7 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -549,7 +648,10 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           'Authorized Backup Admin',
@@ -559,7 +661,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                             color: const Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -592,6 +693,7 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                         ),
                       ],
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       isCoAdmin
                           ? 'Authorized by Primary Admin to access the Admin Portal for daily operations.'
@@ -639,37 +741,46 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                   child: isCoAdmin
                       ? OutlinedButton.icon(
                           onPressed: () => _showConfirmToggleAuthorityDialog(config, 'standby'),
-                          icon: const Icon(Icons.lock_clock_rounded, size: 16),
-                          label: const Text('Revoke to Standby'),
+                          icon: const Icon(Icons.lock_clock_rounded, size: 14),
+                          label: Text(
+                            isMobile ? 'Revoke' : 'Revoke to Standby',
+                            style: TextStyle(fontSize: isMobile ? 12 : 13),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFB45309),
                             side: const BorderSide(color: Color(0xFFF59E0B)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                         )
                       : ElevatedButton.icon(
                           onPressed: () => _showConfirmToggleAuthorityDialog(config, 'co_admin'),
-                          icon: const Icon(Icons.how_to_reg_rounded, size: 16),
-                          label: const Text('Authorize Co-Admin Login'),
+                          icon: const Icon(Icons.how_to_reg_rounded, size: 14),
+                          label: Text(
+                            isMobile ? 'Authorize Login' : 'Authorize Co-Admin Login',
+                            style: TextStyle(fontSize: isMobile ? 12 : 13),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _emerald,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _showAssignBackupDialog(config),
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Update Backup Admin'),
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: Text(
+                      isMobile ? 'Update Backup' : 'Update Backup Admin',
+                      style: TextStyle(fontSize: isMobile ? 12 : 13),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF334155),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
@@ -682,34 +793,33 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _showChangeEmailDialog(config.backupAdminEmail, config.backupAdminName),
-                    icon: const Icon(Icons.alternate_email_rounded, size: 15),
-                    label: const Text('Change Email'),
+                    icon: const Icon(Icons.alternate_email_rounded, size: 14),
+                    label: Text('Change Email', style: TextStyle(fontSize: isMobile ? 12 : 13)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0284C7),
                       side: const BorderSide(color: Color(0xFFBAE6FD)),
                       backgroundColor: const Color(0xFFF0F9FF),
-                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 11),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _showChangePasswordDialog(config.backupAdminEmail, config.backupAdminName),
-                    icon: const Icon(Icons.lock_reset_rounded, size: 15),
-                    label: const Text('Change Password'),
+                    icon: const Icon(Icons.lock_reset_rounded, size: 14),
+                    label: Text('Change Password', style: TextStyle(fontSize: isMobile ? 12 : 13)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _emerald,
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 11),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ),
               ],
             ),
-
           ] else ...[
             SizedBox(
               width: double.infinity,
@@ -822,8 +932,10 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
   }
 
   Widget _buildSuccessionStepper() {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isMobile ? 14 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -837,22 +949,77 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
             style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
           ),
           const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStepItem('1', 'Incident Occurs', 'Primary Admin permanently unavailable (accident / death / incapacitation)'),
-              const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
-              _buildStepItem('2', 'Initiate Recovery', 'Authorized Backup Admin / Management files succession request'),
-              const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
-              _buildStepItem('3', 'Verify Authority', 'Verification Key & reference document validated'),
-              const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
-              _buildStepItem('4', 'Access Transfer', 'Backup Admin becomes Primary; Old admin account deactivated'),
-              const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
-              _buildStepItem('5', 'Audit Logged', 'Immutable record saved; business operations continue uninterrupted'),
-            ],
-          ),
+          if (isMobile) ...[
+            _buildStepItemMobile('1', 'Incident Occurs', 'Primary Admin permanently unavailable (accident / death / incapacitation)', isLast: false),
+            _buildStepItemMobile('2', 'Initiate Recovery', 'Authorized Backup Admin / Management files succession request', isLast: false),
+            _buildStepItemMobile('3', 'Verify Authority', 'Verification Key & reference document validated', isLast: false),
+            _buildStepItemMobile('4', 'Access Transfer', 'Backup Admin becomes Primary; Old admin account deactivated', isLast: false),
+            _buildStepItemMobile('5', 'Audit Logged', 'Immutable record saved; business operations continue uninterrupted', isLast: true),
+          ] else ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStepItem('1', 'Incident Occurs', 'Primary Admin permanently unavailable (accident / death / incapacitation)'),
+                const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
+                _buildStepItem('2', 'Initiate Recovery', 'Authorized Backup Admin / Management files succession request'),
+                const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
+                _buildStepItem('3', 'Verify Authority', 'Verification Key & reference document validated'),
+                const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
+                _buildStepItem('4', 'Access Transfer', 'Backup Admin becomes Primary; Old admin account deactivated'),
+                const Icon(Icons.arrow_forward_rounded, color: _slate, size: 16),
+                _buildStepItem('5', 'Audit Logged', 'Immutable record saved; business operations continue uninterrupted'),
+              ],
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildStepItemMobile(String number, String title, String description, {required bool isLast}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: _emerald,
+              child: Text(
+                number,
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 30,
+                color: const Color(0xFFCBD5E1),
+                margin: const EdgeInsets.symmetric(vertical: 2),
+              ),
+          ],
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: GoogleFonts.inter(fontSize: 10.5, color: _slate),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1061,15 +1228,16 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
         children: [
           Row(
             children: [
-              Text(
-                'Governance & Succession Audit Logs',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E293B),
+              Expanded(
+                child: Text(
+                  'Governance & Succession Audit Logs',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E293B),
+                  ),
                 ),
               ),
-              const Spacer(),
               IconButton(
                 onPressed: _loadAuditLogs,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
@@ -1077,7 +1245,10 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
               ),
             ],
           ),
-          Row(
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               ChoiceChip(
                 label: Text('Legal Succession Register (${_formalContinuityRecords.length})'),
@@ -1090,7 +1261,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(width: 8),
               ChoiceChip(
                 label: Text('System Activity Logs (${_continuityAuditLogs.length})'),
                 selected: _selectedAuditView == 1,
@@ -1162,34 +1332,42 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: WrapAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isSuccession
-                          ? _dangerRed.withValues(alpha: 0.15)
-                          : _emerald.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: isSuccession ? _dangerRed : _emerald,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isSuccession
+                              ? _dangerRed.withValues(alpha: 0.15)
+                              : _emerald.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSuccession ? _dangerRed : _emerald,
+                          ),
+                        ),
+                        child: Text(
+                          eventType,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isSuccession ? _dangerRed : _emerald,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      eventType,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: isSuccession ? _dangerRed : _emerald,
+                      const SizedBox(width: 8),
+                      Text(
+                        formattedDate,
+                        style: GoogleFonts.inter(fontSize: 11, color: _slate),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    formattedDate,
-                    style: GoogleFonts.inter(fontSize: 11, color: _slate),
-                  ),
-                  const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -1234,9 +1412,11 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                 children: [
                   const Icon(Icons.person_outline, size: 13, color: _slate),
                   const SizedBox(width: 4),
-                  Text(
-                    'Initiated by: ${rec['initiated_by_name'] ?? 'System'} (${rec['initiated_by_email'] ?? 'system'})',
-                    style: GoogleFonts.inter(fontSize: 10.5, color: _slate),
+                  Expanded(
+                    child: Text(
+                      'Initiated by: ${rec['initiated_by_name'] ?? 'System'} (${rec['initiated_by_email'] ?? 'system'})',
+                      style: GoogleFonts.inter(fontSize: 10.5, color: _slate),
+                    ),
                   ),
                 ],
               ),
@@ -1284,7 +1464,10 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
               size: 18,
             ),
           ),
-          title: Row(
+          title: Wrap(
+            spacing: 8,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 log.action,
@@ -1294,7 +1477,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                   color: isEmergency ? _dangerRed : const Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(width: 8),
               Text(
                 DateFormat('yyyy-MM-dd HH:mm').format(log.createdAt),
                 style: GoogleFonts.inter(fontSize: 10, color: _slate),
