@@ -493,21 +493,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     final now = DateTime.now();
 
+    final todayYear = now.year;
+    final todayMonth = now.month;
+    final todayDay = now.day;
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
-    // Get ALL orders and advance orders for today (comprehensive daily revenue)
-
+    // Get ALL active/valid orders for today (matching Sales Report standard)
+    // Exclude cancelled, voided, or refunded transactions and match against local date
     final todayOrders = allOrders.where((o) {
-      final createdAt = o['created_at']?.toString() ?? '';
-
-      return createdAt.startsWith(todayStr);
+      final status = (o['status']?.toString() ?? o['kitchen_status']?.toString() ?? '').toLowerCase();
+      final paymentStatus = (o['payment_status']?.toString() ?? '').toLowerCase();
+      if (status == 'cancelled' || status == 'voided' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+        return false;
+      }
+      final date = DateTime.tryParse(o['created_at']?.toString() ?? '')?.toLocal();
+      if (date == null) return false;
+      return date.year == todayYear && date.month == todayMonth && date.day == todayDay;
     }).toList();
 
     final paidAdvanceOrders = allAdvanceOrders.where((o) {
+      final status = (o['status']?.toString() ?? '').toLowerCase();
+      final paymentStatus = (o['payment_status']?.toString() ?? '').toLowerCase();
+      if (status == 'cancelled' || status == 'voided' || status == 'refunded' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+        return false;
+      }
       final isPaid =
-          o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid';
+          paymentStatus == 'paid' || paymentStatus == 'fully_paid';
 
-      // Count ALL paid advance orders regardless of date
+      // Count ALL active paid advance orders regardless of date
 
       return isPaid;
     }).toList();
@@ -515,20 +528,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     // Also get today's paid advance orders for revenue calculation
 
     final todayPaidAdvanceOrders = allAdvanceOrders.where((o) {
+      final status = (o['status']?.toString() ?? '').toLowerCase();
+      final paymentStatus = (o['payment_status']?.toString() ?? '').toLowerCase();
+      if (status == 'cancelled' || status == 'voided' || status == 'refunded' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
+        return false;
+      }
       final orderDate = o['order_date']?.toString() ?? '';
 
       final isPaid =
-          o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid';
+          paymentStatus == 'paid' || paymentStatus == 'fully_paid';
 
       // Only count if scheduled for today AND paid (for revenue)
 
       return orderDate == todayStr && isPaid;
     }).toList();
 
-    // Calculate total daily revenue from ALL orders today
+    // Calculate total daily revenue from valid orders today
 
     final regularRevenue = todayOrders.fold(0.0, (sum, o) {
-      final amount = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+      final amount = (o['total_amount'] as num?)?.toDouble() ??
+          (o['total_price'] as num?)?.toDouble() ??
+          0.0;
 
       return sum + amount;
     });
@@ -1295,12 +1315,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       final daysInMonth = DateTime(year, monthIdx + 1, 0).day;
       return List.generate(daysInMonth, (i) => '${i + 1}');
     } else {
-      // Annual - 2020 to current year
-      final currentYear = DateTime.now().year;
-      return List.generate(
-        currentYear - 2020 + 1,
-        (index) => (2020 + index).toString(),
-      );
+      // Annual - 12 Months of the selected year
+      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     }
   }
 
@@ -1406,8 +1422,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             break;
 
           case 'Annually':
-            if (date.year >= 2020 && date.year <= now.year) {
-              final key = date.year - 2020;
+            if (date.year == year) {
+              final key = date.month - 1;
               targetMap[key] = (targetMap[key] ?? 0) + amount;
             }
             break;
@@ -1444,8 +1460,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       final monthIdx = _getMonthIndex(_selectedMonthlyMonth);
       count = DateTime(year, monthIdx + 1, 0).day;
     } else {
-      final currentYear = now.year;
-      count = currentYear - 2020 + 1;
+      count = 12;
     }
 
     _weeklyRegularRevenue = List.generate(count, (i) => regularData[i] ?? 0.0);
@@ -2306,7 +2321,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         final d = DateTime(year, monthIdx, i + 1);
         return DateFormat('MMMM d, yyyy (EEEE)').format(d);
       }
-      return i < dayLabels.length ? 'Year ${dayLabels[i]}' : 'Year ${2020 + i}';
+      if (_selectedPeriod == 'Annually') {
+        final d = DateTime(year, i + 1, 1);
+        return DateFormat('MMMM yyyy').format(d);
+      }
+      return i < dayLabels.length ? dayLabels[i] : 'Month ${i + 1}';
     }
 
     final chartData = List.generate(chartLength, (i) {
@@ -2382,7 +2401,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             ? 'Consolidated hourly gross ($_selectedDailyMonth $_selectedDailyDay, $_selectedYear)'
                             : _selectedPeriod == 'Monthly'
                                 ? 'Consolidated monthly gross ($_selectedMonthlyMonth $_selectedYear)'
-                                : 'Consolidated annual gross (2020 - $_selectedYear)',
+                                : 'Consolidated annual gross ($_selectedYear)',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppTheme.mediumGrey,
@@ -2579,7 +2598,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final fmtFull = NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2);
     final periodLabel = _selectedPeriod == 'Daily' ? 'Hour'
         : _selectedPeriod == 'Weekly' ? 'Day'
-        : _selectedPeriod == 'Monthly' ? 'Day' : 'Year';
+        : _selectedPeriod == 'Monthly' ? 'Day' : 'Month';
 
     final startH = AppSettingsService().getOperatingHoursStart();
     final endH = AppSettingsService().getOperatingHoursEnd();
@@ -2592,7 +2611,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ? 'Average per day:\nTotal Weekly Revenue ($_selectedWeeklyWeek · ${_getWeekDateRangeLabel(_selectedWeeklyWeek)}) ÷ ${chartData.length} days'
             : _selectedPeriod == 'Monthly'
                 ? 'Average per day:\nTotal Monthly Revenue ($_selectedMonthlyMonth $_selectedYear) ÷ ${chartData.length} days'
-                : 'Average per year:\nTotal Gross ÷ ${chartData.length} recorded years';
+                : 'Average per month:\nTotal Annual Gross ($_selectedYear) ÷ 12 months';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2989,7 +3008,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     ? 'No transactions in $_selectedWeeklyWeek of $_selectedWeeklyMonth $_selectedYear'
                     : _selectedPeriod == 'Monthly'
                         ? 'No transactions in $_selectedMonthlyMonth $_selectedYear'
-                        : 'No data for the selected period',
+                        : 'No transactions recorded for the year $_selectedYear',
             style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
           ),
         ],
@@ -6771,8 +6790,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final year = int.tryParse(_selectedYear) ?? DateTime.now().year;
     final currentYearInt = DateTime.now().year;
     final availableYears = List.generate(
-      currentYearInt >= 2020 ? currentYearInt - 2020 + 1 : 1,
-      (i) => (2020 + i).toString(),
+      currentYearInt >= 2023 ? currentYearInt - 2023 + 1 : 1,
+      (i) => (2023 + i).toString(),
     );
 
     void onFilterChanged() {
@@ -6999,44 +7018,42 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       filterItems.add(monthDropdown);
     }
 
-    if (_selectedPeriod != 'Annually') {
-      final yearDropdown = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.cardBorder),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.calendar_month_outlined, size: 14, color: AppTheme.mediumGrey),
-            const SizedBox(width: 4),
-            DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                focusNode: _dashboardYearFocusNode,
-                value: availableYears.contains(_selectedYear) ? _selectedYear : availableYears.last,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                items: availableYears
-                    .map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
-                    .toList(),
-                onChanged: (v) {
-                  _dashboardYearFocusNode.unfocus();
-                  if (mounted && v != null) {
-                    setState(() {
-                      _selectedYear = v;
-                      onFilterChanged();
-                    });
-                  }
-                },
-              ),
+    final yearDropdown = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.calendar_month_outlined, size: 14, color: AppTheme.mediumGrey),
+          const SizedBox(width: 4),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              focusNode: _dashboardYearFocusNode,
+              value: availableYears.contains(_selectedYear) ? _selectedYear : availableYears.last,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              items: availableYears
+                  .map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey))))
+                  .toList(),
+              onChanged: (v) {
+                _dashboardYearFocusNode.unfocus();
+                if (mounted && v != null) {
+                  setState(() {
+                    _selectedYear = v;
+                    onFilterChanged();
+                  });
+                }
+              },
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
 
-      filterItems.add(yearDropdown);
-    }
+    filterItems.add(yearDropdown);
 
     return Wrap(
       spacing: 6,
