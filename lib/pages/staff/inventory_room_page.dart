@@ -917,16 +917,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   decoration: BoxDecoration(
                                     color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFEF2F2),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFECACA),
-                                    ),
+                                    border: Border.all(color: Colors.black),
                                   ),
                                   child: Row(
                                     children: [
                                       Icon(
                                         Icons.cancel_rounded,
                                         size: 13,
-                                        color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFFEF4444),
+                                        color: stockHealthFilter == 'OUT' ? Colors.white : Colors.black,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -934,7 +932,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
-                                          color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFF991B1B),
+                                          color: stockHealthFilter == 'OUT' ? Colors.white : Colors.black,
                                         ),
                                       ),
                                     ],
@@ -956,16 +954,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   decoration: BoxDecoration(
                                     color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFFFBEB),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFDE68A),
-                                    ),
+                                    border: Border.all(color: Colors.black),
                                   ),
                                   child: Row(
                                     children: [
                                       Icon(
                                         Icons.warning_amber_rounded,
                                         size: 13,
-                                        color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFFD97706),
+                                        color: stockHealthFilter == 'LOW' ? Colors.white : Colors.black,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -973,7 +969,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
-                                          color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFF92400E),
+                                          color: stockHealthFilter == 'LOW' ? Colors.white : Colors.black,
                                         ),
                                       ),
                                     ],
@@ -991,18 +987,18 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF0FDF4),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                                    border: Border.all(color: Colors.black),
                                   ),
                                   child: const Row(
                                     children: [
-                                      Icon(Icons.bolt_rounded, size: 13, color: Color(0xFF16A34A)),
+                                      Icon(Icons.bolt_rounded, size: 13, color: Colors.black),
                                       SizedBox(width: 3),
                                       Text(
                                         'Auto-Fill (<10)',
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF15803D),
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
@@ -1023,16 +1019,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   decoration: BoxDecoration(
                                     color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1),
-                                    ),
+                                    border: Border.all(color: Colors.black),
                                   ),
                                   child: Row(
                                     children: [
                                       Icon(
                                         Icons.shopping_basket_outlined,
                                         size: 12,
-                                        color: showOnlySelected ? Colors.white : const Color(0xFF475569),
+                                        color: showOnlySelected ? Colors.white : Colors.black,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -1040,7 +1034,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
-                                          color: showOnlySelected ? Colors.white : const Color(0xFF334155),
+                                          color: showOnlySelected ? Colors.white : Colors.black,
                                         ),
                                       ),
                                     ],
@@ -1060,16 +1054,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     decoration: BoxDecoration(
                                       color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFFAF5FF),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFD8B4FE),
-                                      ),
+                                      border: Border.all(color: Colors.black),
                                     ),
                                     child: Row(
                                       children: [
                                         Icon(
                                           Icons.stars_rounded,
                                           size: 12,
-                                          color: showOnlyUnlisted ? Colors.white : const Color(0xFF9333EA),
+                                          color: showOnlyUnlisted ? Colors.white : Colors.black,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
@@ -1077,7 +1069,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                           style: TextStyle(
                                             fontSize: 10.5,
                                             fontWeight: FontWeight.w800,
-                                            color: showOnlyUnlisted ? Colors.white : const Color(0xFF7E22CE),
+                                            color: showOnlyUnlisted ? Colors.white : Colors.black,
                                           ),
                                         ),
                                       ],
@@ -3323,8 +3315,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               decoration: BoxDecoration(
                 color: _emeraldDeep.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.black),
               ),
-              child: const Icon(Icons.local_shipping_rounded, color: _emeraldDeep, size: 22),
+              child: const Icon(Icons.local_shipping_rounded, color: Colors.black, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -3336,7 +3329,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -3347,7 +3340,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
+                          color: Colors.black,
                         ),
                       ),
                       Text(
@@ -3355,7 +3348,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: _emeraldMedium,
+                          color: Colors.black,
                         ),
                       ),
                     ],
@@ -3365,14 +3358,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     'Receiver: $receiver  •  $deliveryDateTime',
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF64748B),
+                      color: Colors.black,
                     ),
                   ),
                 ],
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+              icon: const Icon(Icons.close, color: Colors.black),
               onPressed: () => Navigator.pop(context),
             ),
           ],
@@ -3386,7 +3379,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Colors.black),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -3394,7 +3387,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               children: [
                 // Table Header (4 Columns: Item Name, Quantity, Unit, Supplier)
                 Container(
-                  color: const Color(0xFFF8FAFC),
+                  color: Colors.transparent,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                   child: const Row(
                     children: [
@@ -3405,7 +3398,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
+                            color: Colors.black,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -3418,7 +3411,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
+                            color: Colors.black,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -3431,7 +3424,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
+                            color: Colors.black,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -3443,7 +3436,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
+                            color: Colors.black,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -3451,7 +3444,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     ],
                   ),
                 ),
-                const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+                const Divider(height: 1, thickness: 1, color: Colors.black),
 
                 // Table Rows
                 Flexible(
@@ -3460,8 +3453,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     itemCount: transactions.length,
                     separatorBuilder: (_, __) => const Divider(
                       height: 1,
-                      thickness: 1,
-                      color: Color(0xFFF1F5F9),
+                      thickness: 0.5,
+                      color: Colors.black,
                     ),
                     itemBuilder: (context, index) {
                       final transaction = transactions[index];
@@ -3469,10 +3462,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       final qty = transaction['quantity']?.toString() ?? '0';
                       final unit = transaction['unit']?.toString().trim() ?? 'pcs';
                       final supplier = transaction['supplier']?.toString().trim() ?? '';
-                      final isEven = index % 2 == 0;
 
                       return Container(
-                        color: isEven ? Colors.white : const Color(0xFFFAFAFA),
+                        color: Colors.transparent,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         child: Row(
                           children: [
@@ -3481,7 +3473,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               flex: 4,
                               child: Row(
                                 children: [
-                                  const Icon(Icons.inventory_2_outlined, size: 15, color: _emeraldMedium),
+                                  const Icon(Icons.inventory_2_outlined, size: 15, color: Colors.black),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -3489,7 +3481,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        color: Color(0xFF0F172A),
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ),
@@ -3505,14 +3497,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFECFDF5),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                                    border: Border.all(color: Colors.black),
                                   ),
                                   child: Text(
                                     qty,
                                     style: const TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF065F46),
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ),
@@ -3527,13 +3519,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.black),
                                   ),
                                   child: Text(
                                     unit,
                                     style: const TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF475569),
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ),
@@ -3544,15 +3537,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               flex: 3,
                               child: Row(
                                 children: [
-                                  Icon(Icons.storefront_outlined, size: 14, color: Colors.amber.shade800),
+                                  const Icon(Icons.storefront_outlined, size: 14, color: Colors.black),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       supplier.isNotEmpty ? supplier : 'N/A',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: supplier.isNotEmpty ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+                                        color: Colors.black,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -3569,7 +3562,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                 // Table Summary Footer
                 Container(
-                  color: const Color(0xFFF8FAFC),
+                  color: Colors.transparent,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3579,7 +3572,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF64748B),
+                          color: Colors.black,
                         ),
                       ),
                       Text(
@@ -3587,7 +3580,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
-                          color: _emeraldMedium,
+                          color: Colors.black,
                         ),
                       ),
                     ],
@@ -3603,9 +3596,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             style: ElevatedButton.styleFrom(
               backgroundColor: _emeraldDeep,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: Colors.black),
+              ),
             ),
-            child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
           ),
         ],
       ),
@@ -3764,7 +3760,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   colors: [_obsidianDark, _emeraldDeep],
                 ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _goldAccent.withValues(alpha: 0.25)),
+                border: Border.all(color: Colors.black),
                 boxShadow: [
                   BoxShadow(
                     color: _obsidianDark.withValues(alpha: 0.25),
@@ -3778,11 +3774,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _goldAccent.withValues(alpha: 0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _goldAccent.withValues(alpha: 0.3)),
+                      border: Border.all(color: Colors.black),
                     ),
-                    child: const Icon(Icons.warehouse_rounded, color: _goldAccent, size: 26),
+                    child: const Icon(Icons.warehouse_rounded, color: Colors.white, size: 26),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -3812,13 +3808,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   // Stat badges
                   Row(
                     children: [
-                      _statBadge('$totalItems Total', Colors.white.withValues(alpha: 0.15), Colors.white, border: Colors.white24),
+                      _statBadge('$totalItems Total', Colors.white.withValues(alpha: 0.15), Colors.white, border: Colors.black),
                       if (outOfStock > 0) ...[
                         const SizedBox(width: 6),
-                        _statBadge('$outOfStock Out', const Color(0x33EF4444), const Color(0xFFFCA5A5), border: const Color(0x66EF4444)),
+                        _statBadge('$outOfStock Out', const Color(0x33EF4444), Colors.white, border: Colors.black),
                       ] else if (lowStock > 0) ...[
                         const SizedBox(width: 6),
-                        _statBadge('$lowStock Low', const Color(0x33F59E0B), const Color(0xFFFCD34D), border: const Color(0x66F59E0B)),
+                        _statBadge('$lowStock Low', const Color(0x33F59E0B), Colors.white, border: Colors.black),
                       ],
                     ],
                   ),
@@ -3833,7 +3829,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: Colors.black),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
@@ -3849,25 +3845,25 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     decoration: InputDecoration(
                       hintText: 'Search items or storage rooms...',
                       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                      prefixIcon: const Icon(Icons.search_rounded, color: _emeraldMedium, size: 22),
+                      prefixIcon: const Icon(Icons.search_rounded, color: Colors.black, size: 22),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                              icon: const Icon(Icons.close_rounded, color: Colors.black, size: 20),
                               onPressed: () => setState(() => _searchQuery = ''),
                             )
                           : null,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: Colors.black),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: Colors.black),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: _emeraldMedium, width: 1.5),
+                        borderSide: const BorderSide(color: Colors.black, width: 1.5),
                       ),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
@@ -3890,8 +3886,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 color: isSel ? _emeraldDeep : const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: isSel ? _goldAccent.withValues(alpha: 0.6) : const Color(0xFFE2E8F0),
-                                  width: isSel ? 1.2 : 1,
+                                  color: Colors.black,
+                                  width: 1,
                                 ),
                                 boxShadow: isSel
                                     ? [
@@ -3907,7 +3903,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (isSel) ...[
-                                    const Icon(Icons.check_circle_rounded, size: 13, color: _goldAccent),
+                                    const Icon(Icons.check_circle_rounded, size: 13, color: Colors.white),
                                     const SizedBox(width: 5),
                                   ],
                                   Text(
@@ -3915,7 +3911,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                                      color: isSel ? _goldAccent : const Color(0xFF475569),
+                                      color: isSel ? Colors.white : Colors.black,
                                     ),
                                   ),
                                 ],
@@ -3948,14 +3944,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     decoration: BoxDecoration(
                                       color: _emeraldDeep.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(50),
-                                      border: Border.all(color: _emeraldDeep.withValues(alpha: 0.2)),
+                                      border: Border.all(color: Colors.black),
                                     ),
-                                    child: const Icon(Icons.warehouse_outlined, size: 52, color: _emeraldMedium),
+                                    child: const Icon(Icons.warehouse_outlined, size: 52, color: Colors.black),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text('No storage items found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                                  const Text('No storage items found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
                                   const SizedBox(height: 4),
-                                  const Text('Try adjusting your search query or room filter', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                                  const Text('Try adjusting your search query or room filter', style: TextStyle(fontSize: 13, color: Colors.black54)),
                                 ],
                               ),
                             )
@@ -3982,7 +3978,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      border: Border.all(color: Colors.black),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withValues(alpha: 0.05),
@@ -4016,7 +4012,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                           style: const TextStyle(
                                                             fontSize: 12,
                                                             fontWeight: FontWeight.w800,
-                                                            color: Color(0xFF0F172A),
+                                                            color: Colors.black,
                                                           ),
                                                           maxLines: 2,
                                                           overflow: TextOverflow.ellipsis,
@@ -4028,6 +4024,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                         decoration: BoxDecoration(
                                                           color: stockColor.withValues(alpha: 0.12),
                                                           borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(color: Colors.black, width: 0.8),
                                                         ),
                                                         child: Icon(stockIcon, color: stockColor, size: 14),
                                                       ),
@@ -4036,12 +4033,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                   const SizedBox(height: 4),
                                                   Row(
                                                     children: [
-                                                      const Icon(Icons.room_rounded, size: 11, color: Color(0xFF94A3B8)),
+                                                      const Icon(Icons.room_rounded, size: 11, color: Colors.black),
                                                       const SizedBox(width: 3),
                                                       Expanded(
                                                         child: Text(
                                                           storageRoom,
-                                                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                                          style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w600),
                                                           maxLines: 1,
                                                           overflow: TextOverflow.ellipsis,
                                                         ),
@@ -4055,10 +4052,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                       decoration: BoxDecoration(
                                                         color: const Color(0xFFF1F5F9),
                                                         borderRadius: BorderRadius.circular(4),
+                                                        border: Border.all(color: Colors.black, width: 0.8),
                                                       ),
                                                       child: Text(
                                                         category,
-                                                        style: const TextStyle(fontSize: 9, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                                                        style: const TextStyle(fontSize: 9, color: Colors.black, fontWeight: FontWeight.w600),
                                                       ),
                                                     ),
                                                   ],
@@ -4070,25 +4068,25 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                     decoration: BoxDecoration(
                                                       color: stockColor.withValues(alpha: 0.08),
                                                       borderRadius: BorderRadius.circular(8),
-                                                      border: Border.all(color: stockColor.withValues(alpha: 0.25)),
+                                                      border: Border.all(color: Colors.black, width: 0.8),
                                                     ),
                                                     child: Row(
                                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                       children: [
                                                         Text(
                                                           stockLabel,
-                                                          style: TextStyle(
+                                                          style: const TextStyle(
                                                             fontSize: 9,
                                                             fontWeight: FontWeight.w800,
-                                                            color: stockColor,
+                                                            color: Colors.black,
                                                           ),
                                                         ),
                                                         Text(
                                                           '$quantity ${item['unit']?.toString().trim() ?? 'pcs'}',
-                                                          style: TextStyle(
+                                                          style: const TextStyle(
                                                             fontSize: 12,
                                                             fontWeight: FontWeight.w900,
-                                                            color: stockColor,
+                                                            color: Colors.black,
                                                           ),
                                                         ),
                                                       ],
@@ -4459,7 +4457,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: Colors.black),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF0F172A).withValues(alpha: 0.03),
@@ -4486,9 +4484,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
                         decoration: const BoxDecoration(
-                          color: Color(0xFFF8FAFC),
+                          color: Colors.transparent,
                           border: Border(
-                            bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                            bottom: BorderSide(color: Colors.black, width: 0.8),
                           ),
                         ),
                         child: const Row(
@@ -4497,42 +4495,42 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               flex: 26,
                               child: Text(
                                 'ITEM SPECIFICATION',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                               ),
                             ),
                             Expanded(
                               flex: 12,
                               child: Text(
                                 'QUANTITY',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                               ),
                             ),
                             Expanded(
                               flex: 16,
                               child: Text(
                                 'SUPPLIER',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                               ),
                             ),
                             Expanded(
                               flex: 20,
                               child: Text(
                                 'PURCHASED BY',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                               ),
                             ),
                             Expanded(
                               flex: 13,
                               child: Text(
                                 'PURCHASE DATE',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                               ),
                             ),
                             Expanded(
                               flex: 13,
                               child: Text(
                                 'ACTION',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                               ),
                             ),
                           ],
@@ -4544,7 +4542,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: transactions.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9), thickness: 1),
+                        separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black, thickness: 0.5),
                         itemBuilder: (context, index) {
                           final t = transactions[index];
                           final itemName = t['item_name']?.toString() ?? 'Unknown';
@@ -4563,7 +4561,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                            color: index.isEven ? Colors.white : const Color(0xFFFCFDFE),
+                            color: Colors.transparent,
                             child: Row(
                               children: [
                                 // Item Spec
@@ -4576,8 +4574,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF14332E).withValues(alpha: 0.08),
                                           borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.black, width: 0.8),
                                         ),
-                                        child: const Icon(Icons.inventory_2_outlined, size: 15, color: Color(0xFF14332E)),
+                                        child: const Icon(Icons.inventory_2_outlined, size: 15, color: Colors.black),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -4586,7 +4585,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w800,
                                             fontSize: 13,
-                                            color: Color(0xFF0F172A),
+                                            color: Colors.black,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -4606,7 +4605,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF14332E).withValues(alpha: 0.06),
                                         borderRadius: BorderRadius.circular(7),
-                                        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.12)),
+                                        border: Border.all(color: Colors.black, width: 0.8),
                                       ),
                                       child: RichText(
                                         text: TextSpan(
@@ -4616,7 +4615,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w900,
-                                                color: Color(0xFF0F172A),
+                                                color: Colors.black,
                                               ),
                                             ),
                                             TextSpan(
@@ -4624,7 +4623,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                               style: const TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w800,
-                                                color: Color(0xFF14332E),
+                                                color: Colors.black,
                                               ),
                                             ),
                                           ],
@@ -4639,14 +4638,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   flex: 16,
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.storefront_rounded, size: 14, color: Color(0xFF64748B)),
+                                      const Icon(Icons.storefront_rounded, size: 14, color: Colors.black),
                                       const SizedBox(width: 5),
                                       Expanded(
                                         child: Text(
                                           supplier,
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: supplier == 'Unknown' ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+                                            color: Colors.black,
                                             fontWeight: FontWeight.w600,
                                             fontStyle: supplier == 'Unknown' ? FontStyle.italic : FontStyle.normal,
                                           ),
@@ -4663,12 +4662,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   flex: 20,
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                      const Icon(Icons.person_outline_rounded, size: 14, color: Colors.black),
                                       const SizedBox(width: 5),
                                       Expanded(
                                         child: Text(
                                           processedBy,
-                                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                                          style: const TextStyle(fontSize: 11.5, color: Colors.black, fontWeight: FontWeight.w500),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -4682,12 +4681,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   flex: 13,
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.schedule_rounded, size: 13, color: Color(0xFF94A3B8)),
+                                      const Icon(Icons.schedule_rounded, size: 13, color: Colors.black),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           timeStr,
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                          style: const TextStyle(fontSize: 11, color: Colors.black, fontWeight: FontWeight.w500),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -4696,7 +4695,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   ),
                                 ),
 
-                                // Crisp Vibrant Action Button
+                                // Crisp Action Button
                                 Expanded(
                                   flex: 13,
                                   child: Align(
@@ -4717,11 +4716,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.white),
                                       ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF10B981),
+                                        backgroundColor: const Color(0xFF16A34A),
                                         foregroundColor: Colors.white,
                                         elevation: 0,
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          side: const BorderSide(color: Colors.black),
+                                        ),
                                         minimumSize: Size.zero,
                                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                       ),
@@ -4900,24 +4902,26 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        color: Colors.transparent,
+        border: const Border(top: BorderSide(color: Colors.black, width: 0.8)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             totalItems == 0
                 ? 'No transactions found'
                 : 'Showing ${startItem + 1}–$endItem of $totalItems transactions',
             style: const TextStyle(
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
+              color: Colors.black,
             ),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Previous button
               IconButton(
@@ -4925,25 +4929,31 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 onPressed: _pettyCashCurrentPage > 1
                     ? () => setState(() => _pettyCashCurrentPage--)
                     : null,
-                color: _emeraldDeep,
-                disabledColor: const Color(0xFFCBD5E1),
+                color: Colors.black,
+                disabledColor: Colors.black26,
                 splashRadius: 18,
                 tooltip: 'Previous Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
-              const SizedBox(width: 4),
-              const Text(
-                'Page',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
+              const SizedBox(width: 6),
+              Container(
+                height: 28,
+                alignment: Alignment.center,
+                child: const Text(
+                  'Page',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               // Numeric Page Input Field
               SizedBox(
-                width: 48,
-                height: 32,
+                width: 44,
+                height: 28,
                 child: TextField(
                   controller: pageInputController,
                   keyboardType: TextInputType.number,
@@ -4951,27 +4961,29 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     FilteringTextInputFormatter.digitsOnly,
                   ],
                   textAlign: TextAlign.center,
+                  textAlignVertical: TextAlignVertical.center,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: Colors.black,
                   ),
                   decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                     isDense: true,
+                    isCollapsed: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: _emeraldDeep, width: 1.5),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
                     ),
                   ),
                   onSubmitted: (value) {
@@ -4985,25 +4997,31 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                'of $totalPages',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
+              Container(
+                height: 28,
+                alignment: Alignment.center,
+                child: Text(
+                  'of $totalPages',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               // Next button
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded, size: 20),
                 onPressed: _pettyCashCurrentPage < totalPages
                     ? () => setState(() => _pettyCashCurrentPage++)
                     : null,
-                color: _emeraldDeep,
-                disabledColor: const Color(0xFFCBD5E1),
+                color: Colors.black,
+                disabledColor: Colors.black26,
                 splashRadius: 18,
                 tooltip: 'Next Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
             ],
           ),
@@ -5026,7 +5044,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               colors: [_obsidianDark, _emeraldDeep],
             ),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _goldAccent.withValues(alpha: 0.25)),
+            border: Border.all(color: Colors.black),
             boxShadow: [
               BoxShadow(
                 color: _obsidianDark.withValues(alpha: 0.25),
@@ -5040,11 +5058,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _goldAccent.withValues(alpha: 0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _goldAccent.withValues(alpha: 0.3)),
+                  border: Border.all(color: Colors.black),
                 ),
-                child: const Icon(Icons.local_shipping_rounded, color: _goldAccent, size: 26),
+                child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 26),
               ),
               const SizedBox(width: 14),
               const Expanded(
@@ -5070,16 +5088,19 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               ),
               ElevatedButton.icon(
                 onPressed: _showBulkReplenishDialog,
-                icon: const Icon(Icons.add_rounded, size: 18, color: _obsidianDark),
+                icon: const Icon(Icons.add_rounded, size: 18, color: Colors.black),
                 label: const Text(
                   'New Delivery',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: _obsidianDark),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Colors.black),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _goldAccent,
-                  foregroundColor: _obsidianDark,
+                  foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: Colors.black),
+                  ),
                   elevation: 2,
                 ),
               ),
@@ -5093,7 +5114,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: Colors.black),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3)),
             ],
@@ -5103,19 +5124,19 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             decoration: InputDecoration(
               hintText: 'Search by DR Number or Date...',
               hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-              prefixIcon: const Icon(Icons.search_rounded, color: _emeraldMedium, size: 22),
+              prefixIcon: const Icon(Icons.search_rounded, color: Colors.black, size: 22),
               suffixIcon: _incomingSearchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                      icon: const Icon(Icons.close_rounded, color: Colors.black, size: 20),
                       onPressed: () => setState(() { _incomingSearchQuery = ''; _incomingCurrentPage = 1; }),
                     )
                   : null,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _emeraldMedium, width: 1.5),
+                borderSide: const BorderSide(color: Colors.black, width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -5242,7 +5263,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: Colors.black),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),
@@ -5278,12 +5299,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       dataRowMaxHeight: 68,
                                       horizontalMargin: 20,
                                       columnSpacing: 24,
-                                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                                      headingRowColor: WidgetStateProperty.all(Colors.transparent),
                                       dividerThickness: 1,
                                       border: const TableBorder(
                                         horizontalInside: BorderSide(
-                                          color: Color(0xFFF1F5F9),
-                                          width: 1,
+                                          color: Colors.black,
+                                          width: 0.5,
                                         ),
                                       ),
                                       columns: const [
@@ -5293,7 +5314,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                             style: TextStyle(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF475569),
+                                              color: Colors.black,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -5304,7 +5325,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                             style: TextStyle(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF475569),
+                                              color: Colors.black,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -5315,7 +5336,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                             style: TextStyle(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF475569),
+                                              color: Colors.black,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -5326,7 +5347,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                             style: TextStyle(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF475569),
+                                              color: Colors.black,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -5337,7 +5358,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                             style: TextStyle(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Color(0xFF475569),
+                                              color: Colors.black,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -5362,10 +5383,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                     decoration: BoxDecoration(
                                                       color: _emeraldDeep.withValues(alpha: 0.08),
                                                       borderRadius: BorderRadius.circular(8),
+                                                      border: Border.all(color: Colors.black, width: 0.8),
                                                     ),
                                                     child: const Icon(
                                                       Icons.local_shipping_rounded,
-                                                      color: _emeraldMedium,
+                                                      color: Colors.black,
                                                       size: 16,
                                                     ),
                                                   ),
@@ -5375,7 +5397,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                     style: const TextStyle(
                                                       fontWeight: FontWeight.w800,
                                                       fontSize: 13,
-                                                      color: Color(0xFF0F172A),
+                                                      color: Colors.black,
                                                     ),
                                                   ),
                                                 ],
@@ -5389,14 +5411,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                 decoration: BoxDecoration(
                                                   color: const Color(0xFFE6C374).withValues(alpha: 0.2),
                                                   borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.6)),
+                                                  border: Border.all(color: Colors.black, width: 0.8),
                                                 ),
                                                 child: Text(
                                                   '$itemCount item${itemCount > 1 ? 's' : ''}',
                                                   style: const TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF9A7B2C),
+                                                    color: Colors.black,
                                                   ),
                                                 ),
                                               ),
@@ -5407,13 +5429,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                               Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.person_outline_rounded, size: 15, color: Color(0xFF94A3B8)),
+                                                  const Icon(Icons.person_outline_rounded, size: 15, color: Colors.black),
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     receiver,
                                                     style: const TextStyle(
                                                       fontSize: 12.5,
-                                                      color: Color(0xFF334155),
+                                                      color: Colors.black,
                                                       fontWeight: FontWeight.w500,
                                                     ),
                                                   ),
@@ -5426,13 +5448,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                               Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                                  const Icon(Icons.schedule_rounded, size: 14, color: Colors.black),
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     dateStr,
                                                     style: const TextStyle(
                                                       fontSize: 12,
-                                                      color: Color(0xFF64748B),
+                                                      color: Colors.black,
                                                       fontWeight: FontWeight.w500,
                                                     ),
                                                   ),
@@ -5458,7 +5480,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                   foregroundColor: Colors.white,
                                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                                   minimumSize: const Size(0, 32),
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    side: const BorderSide(color: Colors.black),
+                                                  ),
                                                   elevation: 0,
                                                 ),
                                               ),
@@ -5492,24 +5517,26 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        color: Colors.transparent,
+        border: const Border(top: BorderSide(color: Colors.black, width: 0.8)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             totalItems == 0
                 ? 'No deliveries found'
                 : 'Showing ${startItem + 1}-$endItem of $totalItems deliveries',
             style: const TextStyle(
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
+              color: Colors.black,
             ),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Previous button
               IconButton(
@@ -5517,25 +5544,31 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 onPressed: _incomingCurrentPage > 1
                     ? () => setState(() => _incomingCurrentPage--)
                     : null,
-                color: _emeraldDeep,
-                disabledColor: const Color(0xFFCBD5E1),
+                color: Colors.black,
+                disabledColor: Colors.black26,
                 splashRadius: 18,
                 tooltip: 'Previous Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
-              const SizedBox(width: 4),
-              const Text(
-                'Page',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
+              const SizedBox(width: 6),
+              Container(
+                height: 28,
+                alignment: Alignment.center,
+                child: const Text(
+                  'Page',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               // Numeric Page Input Field
               SizedBox(
-                width: 48,
-                height: 32,
+                width: 44,
+                height: 28,
                 child: TextField(
                   controller: pageInputController,
                   keyboardType: TextInputType.number,
@@ -5543,27 +5576,29 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     FilteringTextInputFormatter.digitsOnly,
                   ],
                   textAlign: TextAlign.center,
+                  textAlignVertical: TextAlignVertical.center,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: Colors.black,
                   ),
                   decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                     isDense: true,
+                    isCollapsed: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: _emeraldDeep, width: 1.5),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
                     ),
                   ),
                   onSubmitted: (value) {
@@ -5577,25 +5612,31 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                'of $totalPages',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
+              Container(
+                height: 28,
+                alignment: Alignment.center,
+                child: Text(
+                  'of $totalPages',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               // Next button
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded, size: 20),
                 onPressed: _incomingCurrentPage < totalPages
                     ? () => setState(() => _incomingCurrentPage++)
                     : null,
-                color: _emeraldDeep,
-                disabledColor: const Color(0xFFCBD5E1),
+                color: Colors.black,
+                disabledColor: Colors.black26,
                 splashRadius: 18,
                 tooltip: 'Next Page',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
             ],
           ),
@@ -5614,8 +5655,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   Color _getStockStatusColor(int quantity) {
     if (quantity == 0) return const Color(0xFFEF4444);
     if (quantity < 10) return const Color(0xFFF59E0B);
-    if (quantity < 50) return const Color(0xFF3B82F6);
-    return const Color(0xFF10B981);
+    return const Color(0xFF16A34A);
   }
 
   IconData _getStockStatusIcon(int quantity) {

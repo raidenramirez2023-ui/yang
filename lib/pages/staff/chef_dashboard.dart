@@ -7084,7 +7084,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                       const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF10B981)),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Available in Main Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
+                                        'Available to request in Main Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
                                         style: GoogleFonts.plusJakartaSans(
                                           color: const Color(0xFF047857),
                                           fontSize: 11.5,

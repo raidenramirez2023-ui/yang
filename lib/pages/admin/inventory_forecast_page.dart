@@ -2008,11 +2008,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppTheme.warmGold.withValues(alpha: 0.15),
+            color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.4)),
+            border: Border.all(color: Colors.black, width: 1.0),
           ),
-          child: const Icon(Icons.auto_graph_rounded, color: AppTheme.warmGold, size: 24),
+          child: const Icon(Icons.auto_graph_rounded, color: Colors.white, size: 24),
         ),
         const SizedBox(width: 14),
         const Expanded(
@@ -2055,7 +2055,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 13, vertical: isMobile ? 8 : 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+              side: const BorderSide(color: Colors.black, width: 1.0),
+            ),
             textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
             elevation: 2,
           ),
@@ -2069,7 +2072,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             backgroundColor: const Color(0xFF0F766E),
             foregroundColor: Colors.white,
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 13, vertical: isMobile ? 8 : 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+              side: const BorderSide(color: Colors.black, width: 1.0),
+            ),
             textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
             elevation: 2,
           ),
@@ -2077,13 +2083,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         // PDF Print / Layout Preview Button
         OutlinedButton.icon(
           onPressed: () => _exportForecastToPdf(printPreview: true),
-          icon: const Icon(Icons.print_rounded, size: 15, color: AppTheme.warmGold),
+          icon: const Icon(Icons.print_rounded, size: 15, color: Colors.white),
           label: const Text('Print / Preview'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppTheme.warmGold,
-            side: BorderSide(color: AppTheme.warmGold.withValues(alpha: 0.8), width: 1.2),
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.black, width: 1.0),
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 13, vertical: isMobile ? 8 : 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+              side: const BorderSide(color: Colors.black, width: 1.0),
+            ),
             textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
           ),
         ),
@@ -2103,7 +2112,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.35), width: 1.5),
+        border: Border.all(color: Colors.black, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF14332E).withValues(alpha: 0.35),
@@ -2237,12 +2246,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: color.withValues(alpha: isAlert ? 0.35 : 0.15),
-          width: isAlert ? 1.5 : 1,
+          color: Colors.black,
+          width: isAlert ? 1.5 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: isAlert ? 0.08 : 0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -2260,13 +2269,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
                 child: Text(
                   categoryTag,
                   style: TextStyle(
                     fontSize: isMobile ? 8.5 : 9,
                     fontWeight: FontWeight.w800,
-                    color: color,
+                    color: Colors.black,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -2276,8 +2286,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(isMobile ? 6 : 7),
+                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
-                child: Icon(icon, color: color, size: isMobile ? 14 : 15),
+                child: Icon(icon, color: Colors.black, size: isMobile ? 14 : 15),
               ),
             ],
           ),
@@ -2287,7 +2298,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             style: TextStyle(
               fontSize: isMobile ? 16 : 18,
               fontWeight: FontWeight.w900,
-              color: color,
+              color: Colors.black,
               letterSpacing: -0.3,
             ),
             maxLines: 1,
@@ -2298,7 +2309,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             subtitle,
             style: TextStyle(
               fontSize: isMobile ? 9.5 : 10.5,
-              color: AppTheme.mediumGrey,
+              color: Colors.black,
               fontWeight: FontWeight.w600,
               height: 1.15,
             ),
@@ -2319,7 +2330,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -2334,14 +2345,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           // Header Bar with Title, Reset Button, and Active Filter Context
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
-              borderRadius: const BorderRadius.only(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(15),
                 topRight: Radius.circular(15),
               ),
-              border: const Border(
-                bottom: BorderSide(color: AppTheme.cardBorder),
+              border: Border(
+                bottom: BorderSide(color: Colors.black, width: 1.0),
               ),
             ),
             child: Row(
@@ -2349,10 +2360,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                    color: Colors.black.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.black, width: 0.8),
                   ),
-                  child: const Icon(Icons.tune_rounded, size: 15, color: Color(0xFF14332E)),
+                  child: const Icon(Icons.tune_rounded, size: 15, color: Colors.black),
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -2361,7 +2373,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
-                    color: Color(0xFF14332E),
+                    color: Colors.black,
                   ),
                 ),
                 if (hasActiveCustomFilter) ...[
@@ -2381,16 +2393,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.refresh_rounded, size: 12, color: Colors.red),
+                          Icon(Icons.refresh_rounded, size: 12, color: Colors.black),
                           SizedBox(width: 4),
                           Text(
                             'Reset Filters',
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.red),
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.black),
                           ),
                         ],
                       ),
@@ -2426,10 +2438,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     children: [
                       // 1. Timeframe
                       _buildPeriodToggle(isMobile: false),
-                      Container(width: 1, height: 26, color: AppTheme.cardBorder),
+                      Container(width: 1, height: 26, color: Colors.black),
                       // 2. Secondary Time Dropdown (Month / Day / Week / Year)
                       _buildSecondaryTimeDropdown(isMobile: false),
-                      Container(width: 1, height: 26, color: AppTheme.cardBorder),
+                      Container(width: 1, height: 26, color: Colors.black),
                       // 3. Channel Dropdown
                       _buildDemandSourceDropdown(isMobile: false),
                       // 4. Category Searchable Selector
@@ -2449,7 +2461,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -2458,11 +2470,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               : demandSourceFilters.first,
           isDense: true,
           isExpanded: isMobile,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF14332E)),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: AppTheme.darkGrey,
+            color: Colors.black,
           ),
           onChanged: (val) {
             if (val != null) {
@@ -2487,9 +2499,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 14, color: const Color(0xFF14332E)),
+                  Icon(icon, size: 14, color: Colors.black),
                   const SizedBox(width: 8),
-                  Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+                  Flexible(child: Text(label, style: const TextStyle(color: Colors.black), overflow: TextOverflow.ellipsis)),
                 ],
               ),
             );
@@ -2513,16 +2525,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           color: isFiltered ? const Color(0xFFD97706).withValues(alpha: 0.1) : AppTheme.adminMainBackground.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isFiltered ? const Color(0xFFD97706).withValues(alpha: 0.5) : AppTheme.cardBorder,
+            color: Colors.black,
+            width: 1.0,
           ),
         ),
         child: Row(
           mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.category_rounded,
               size: 14,
-              color: isFiltered ? const Color(0xFFD97706) : const Color(0xFF14332E),
+              color: Colors.black,
             ),
             const SizedBox(width: 8),
             const Text(
@@ -2530,7 +2543,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.mediumGrey,
+                color: Colors.black,
               ),
             ),
             Expanded(
@@ -2538,10 +2551,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               child: isMobile
                   ? Text(
                       label,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isFiltered ? const Color(0xFFB45309) : AppTheme.darkGrey,
+                        color: Colors.black,
                       ),
                       overflow: TextOverflow.ellipsis,
                     )
@@ -2549,10 +2562,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       constraints: const BoxConstraints(maxWidth: 180),
                       child: Text(
                         label,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: isFiltered ? const Color(0xFFB45309) : AppTheme.darkGrey,
+                          color: Colors.black,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2571,14 +2584,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD97706).withValues(alpha: 0.2),
+                    color: Colors.black.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black, width: 0.8),
                   ),
-                  child: const Icon(Icons.close_rounded, size: 12, color: Color(0xFFB45309)),
+                  child: const Icon(Icons.close_rounded, size: 12, color: Colors.black),
                 ),
               )
             else
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF14332E)),
+              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
           ],
         ),
       ),
@@ -2745,7 +2759,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: AppTheme.adminMainBackground.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: Row(
         mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
@@ -2773,7 +2787,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                  color: isSel ? Colors.white : AppTheme.darkGrey,
+                  color: isSel ? Colors.white : Colors.black,
                 ),
               ),
             ),
@@ -2811,21 +2825,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF14332E).withValues(alpha: 0.06),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.15)),
+        border: Border.all(color: Colors.black, width: 0.8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF14332E)),
+          const Icon(Icons.event_available_rounded, size: 14, color: Colors.black),
           const SizedBox(width: 5),
           Text(
             text,
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF14332E),
+              color: Colors.black,
             ),
           ),
         ],
@@ -3018,15 +3032,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: items.contains(value) ? value : items.first,
           isDense: true,
           isExpanded: isExpanded,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF14332E)),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
           items: items.map((i) {
             final sub = itemSubtitles?[i];
             if (sub != null && sub.isNotEmpty) {
@@ -3035,14 +3049,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(child: Text('$prefix$i', overflow: TextOverflow.ellipsis)),
+                    Flexible(child: Text('$prefix$i', style: const TextStyle(color: Colors.black), overflow: TextOverflow.ellipsis)),
                     const SizedBox(width: 6),
                     Text(
                       sub,
                       style: const TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w400,
-                        color: AppTheme.mediumGrey,
+                        color: Colors.black54,
                       ),
                     ),
                   ],
@@ -3051,7 +3065,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             }
             return DropdownMenuItem<String>(
               value: i,
-              child: Text('$prefix$i', overflow: TextOverflow.ellipsis),
+              child: Text('$prefix$i', style: const TextStyle(color: Colors.black), overflow: TextOverflow.ellipsis),
             );
           }).toList(),
           onChanged: onChanged,
@@ -3248,15 +3262,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.cardBorder),
+          border: Border.all(color: Colors.black, width: 1.0),
         ),
         child: const Center(
           child: Column(
             children: [
-              Icon(Icons.bar_chart_rounded, size: 44, color: AppTheme.mediumGrey),
+              Icon(Icons.bar_chart_rounded, size: 44, color: Colors.black),
               SizedBox(height: 10),
               Text('No demand records in this timeframe to graph.',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.darkGrey)),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
             ],
           ),
         ),
@@ -3365,7 +3379,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 if (value < 0 || value > calculatedMaxY) return const SizedBox.shrink();
                 return Text(
                   _formatAxisValue(value),
-                  style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.black, fontSize: 9.5, fontWeight: FontWeight.bold),
                 );
               },
             ),
@@ -3390,7 +3404,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         style: TextStyle(
                           fontSize: isMobile ? 8.5 : 9.5,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.darkGrey,
+                          color: Colors.black,
                           height: 1.15,
                         ),
                       ),
@@ -3407,7 +3421,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           drawVerticalLine: false,
           horizontalInterval: gridInterval,
           getDrawingHorizontalLine: (_) => FlLine(
-            color: AppTheme.cardBorder,
+            color: Colors.black.withValues(alpha: 0.12),
             strokeWidth: 1,
           ),
         ),
@@ -3421,7 +3435,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -3447,10 +3461,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                            color: Colors.black.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.black, width: 0.8),
                           ),
-                          child: const Icon(Icons.bar_chart_rounded, size: 16, color: Color(0xFF14332E)),
+                          child: const Icon(Icons.bar_chart_rounded, size: 16, color: Colors.black),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -3459,7 +3474,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             style: TextStyle(
                               fontSize: isMobile ? 13.5 : 15.5,
                               fontWeight: FontWeight.w800,
-                              color: AppTheme.darkGrey,
+                              color: Colors.black,
                             ),
                           ),
                         ),
@@ -3468,7 +3483,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     const SizedBox(height: 4),
                     Text(
                       'Highest requested supplies for $_selectedTimeFilter • Ranked by kitchen volume',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
+                      style: const TextStyle(fontSize: 11, color: Colors.black),
                     ),
                   ],
                 ),
@@ -3480,7 +3495,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 decoration: BoxDecoration(
                   color: AppTheme.adminMainBackground,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.cardBorder),
+                  border: Border.all(color: Colors.black, width: 1.0),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3500,7 +3515,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                            color: isSel ? Colors.white : AppTheme.darkGrey,
+                            color: isSel ? Colors.white : Colors.black,
                           ),
                         ),
                       ),
@@ -3533,19 +3548,19 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.swipe_rounded, size: 14, color: AppTheme.mediumGrey.withValues(alpha: 0.8)),
-                const SizedBox(width: 5),
-                const Text(
+              children: const [
+                Icon(Icons.swipe_rounded, size: 14, color: Colors.black),
+                SizedBox(width: 5),
+                Text(
                   'Scroll chart horizontally to view all ingredient bars',
-                  style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ],
 
           const SizedBox(height: 20),
-          const Divider(height: 1, color: AppTheme.cardBorder),
+          const Divider(height: 1, color: Colors.black),
           const SizedBox(height: 16),
 
           // ── Ranked Consumption Leaderboard & Stock Health ──
@@ -3578,10 +3593,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         Container(
                           padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                            color: Colors.black.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.black, width: 0.8),
                           ),
-                          child: const Icon(Icons.military_tech_rounded, size: 14, color: Color(0xFFD97706)),
+                          child: const Icon(Icons.military_tech_rounded, size: 14, color: Colors.black),
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -3589,7 +3605,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF14332E),
+                            color: Colors.black,
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -3605,7 +3621,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFFCA5A5)),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
                             child: Text(
                               '$deficitCount Deficit Risk',
@@ -3620,7 +3636,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: const Color(0xFFF0FDF4),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFF86EFAC)),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
                             child: Text(
                               '$coveredCount Covered',
@@ -3636,7 +3652,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           decoration: BoxDecoration(
                             color: AppTheme.adminMainBackground,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.cardBorder),
+                            border: Border.all(color: Colors.black, width: 1.0),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -3652,7 +3668,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                   child: Icon(
                                     Icons.grid_view_rounded,
                                     size: 13,
-                                    color: !_leaderboardTableView ? Colors.white : AppTheme.mediumGrey,
+                                    color: !_leaderboardTableView ? Colors.white : Colors.black,
                                   ),
                                 ),
                               ),
@@ -3668,7 +3684,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                   child: Icon(
                                     Icons.table_rows_rounded,
                                     size: 13,
-                                    color: _leaderboardTableView ? Colors.white : AppTheme.mediumGrey,
+                                    color: _leaderboardTableView ? Colors.white : Colors.black,
                                   ),
                                 ),
                               ),
@@ -3748,9 +3764,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: currentStock <= 0
-                      ? const Color(0xFFFCA5A5)
-                      : (hasDeficit ? const Color(0xFFFDBA74).withValues(alpha: 0.7) : AppTheme.cardBorder),
+                  color: Colors.black,
+                  width: 1.0,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -3770,7 +3785,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         width: 22,
                         height: 22,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(color: rankBg, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: rankBg,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black, width: 0.8),
+                        ),
                         child: Text(
                           '#${index + 1}',
                           style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: rankColor),
@@ -3780,7 +3799,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       Expanded(
                         child: Text(
                           item.key,
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Colors.black),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -3793,11 +3812,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               ? const Color(0xFFFEF2F2)
                               : (hasDeficit ? const Color(0xFFFFF7ED) : const Color(0xFFF0FDF4)),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(
-                            color: currentStock <= 0
-                                ? const Color(0xFFFCA5A5)
-                                : (hasDeficit ? const Color(0xFFFDBA74) : const Color(0xFF86EFAC)),
-                          ),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Text(
                           currentStock <= 0
@@ -3821,7 +3836,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     children: [
                       Text(
                         '$category • $storage',
-                        style: const TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 9.5, color: Colors.black, fontWeight: FontWeight.w500),
                       ),
                       RichText(
                         text: TextSpan(
@@ -3831,16 +3846,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: currentStock <= 0 ? const Color(0xFFDC2626) : AppTheme.mediumGrey,
+                                color: currentStock <= 0 ? const Color(0xFFDC2626) : Colors.black,
                               ),
                             ),
                             const TextSpan(
                               text: '  /  ',
-                              style: TextStyle(fontSize: 9, color: AppTheme.mediumGrey),
+                              style: TextStyle(fontSize: 9, color: Colors.black),
                             ),
                             TextSpan(
                               text: 'Need: ${_formatQty(demand)} $unit',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF14332E)),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black),
                             ),
                           ],
                         ),
@@ -3880,7 +3895,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.2),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -3889,21 +3904,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             // Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              color: AppTheme.adminMainBackground.withValues(alpha: 0.65),
+              color: Colors.transparent,
               child: Row(
                 children: const [
                   SizedBox(
                     width: 38,
                     child: Text(
                       '#',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black),
                     ),
                   ),
                   Expanded(
                     flex: 3,
                     child: Text(
                       'INGREDIENT & CATEGORY',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3911,7 +3926,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'STORAGE ROOM',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3919,7 +3934,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'PROJECTED DEMAND',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3927,7 +3942,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'ON-HAND STOCK',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3935,7 +3950,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'DEFICIT SHORTAGE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3943,13 +3958,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'STOCK STATUS',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: AppTheme.cardBorder),
+            const Divider(height: 1, color: Colors.black),
 
             // Rows
             ...List.generate(topItems.length, (index) {
@@ -3982,9 +3997,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                 decoration: BoxDecoration(
-                  color: index.isEven ? Colors.white : AppTheme.adminMainBackground.withValues(alpha: 0.25),
+                  color: Colors.transparent,
                   border: index < topItems.length - 1
-                      ? Border(bottom: BorderSide(color: AppTheme.cardBorder.withValues(alpha: 0.7)))
+                      ? const Border(bottom: BorderSide(color: Colors.black, width: 1.0))
                       : null,
                 ),
                 child: Row(
@@ -3995,7 +4010,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         width: 22,
                         height: 22,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(color: rankBg, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: rankBg,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black, width: 0.8),
+                        ),
                         child: Text(
                           '#${index + 1}',
                           style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: rankColor),
@@ -4009,11 +4028,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         children: [
                           Text(
                             item.key,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black),
                           ),
                           Text(
                             category,
-                            style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
+                            style: const TextStyle(fontSize: 10, color: Colors.black),
                           ),
                         ],
                       ),
@@ -4023,7 +4042,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       flex: 2,
                       child: Text(
                         storage,
-                        style: const TextStyle(fontSize: 11, color: AppTheme.darkGrey, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 11, color: Colors.black, fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -4031,7 +4050,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       flex: 2,
                       child: Text(
                         '${_formatQty(demand)} $unit',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF14332E)),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.black),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -4042,7 +4061,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
-                          color: currentStock <= 0 ? const Color(0xFFDC2626) : AppTheme.darkGrey,
+                          color: currentStock <= 0 ? const Color(0xFFDC2626) : Colors.black,
                         ),
                       ),
                     ),
@@ -4070,11 +4089,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 ? const Color(0xFFFEF2F2)
                                 : (hasDeficit ? const Color(0xFFFFF7ED) : const Color(0xFFF0FDF4)),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(
-                              color: currentStock <= 0
-                                  ? const Color(0xFFFCA5A5)
-                                  : (hasDeficit ? const Color(0xFFFDBA74) : const Color(0xFF86EFAC)),
-                            ),
+                            border: Border.all(color: Colors.black, width: 0.8),
                           ),
                           child: Text(
                             currentStock <= 0 ? 'Out of Stock' : (hasDeficit ? 'Deficit Risk' : 'Sufficient'),
@@ -4237,7 +4252,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
                     ),
@@ -4249,7 +4264,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           children: [
                             const Text(
                               'CRITICAL STOCK DEFICITS',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF991B1B), fontWeight: FontWeight.w800),
+                              style: TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(width: 8),
                             Container(
@@ -4257,6 +4272,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEE2E2),
                                 borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.black, width: 0.8),
                               ),
                               child: Text(
                                 query.isEmpty
@@ -4270,7 +4286,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         const SizedBox(height: 1),
                         const Text(
                           'Demand exceeds warehouse on-hand stock. Recommended reorder quantities are prioritized below.',
-                          style: TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -4284,7 +4300,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: AppTheme.adminMainBackground,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.cardBorder),
+                        border: Border.all(color: Colors.black, width: 1.0),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -4344,18 +4360,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       width: 220,
       height: 34,
       child: TextField(
-        style: const TextStyle(fontSize: 11.5, color: AppTheme.darkGrey),
+        style: const TextStyle(fontSize: 11.5, color: Colors.black),
         decoration: InputDecoration(
           hintText: 'Search deficits...',
-          hintStyle: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey),
-          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: AppTheme.mediumGrey),
+          hintStyle: const TextStyle(fontSize: 11.5, color: Colors.black54),
+          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: Colors.black),
           suffixIcon: _stockDeficitSearchQuery.isNotEmpty
               ? GestureDetector(
                   onTap: () => setState(() {
                     _stockDeficitSearchQuery = '';
                     _stockDeficitCurrentPage = 1;
                   }),
-                  child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.mediumGrey),
+                  child: const Icon(Icons.close_rounded, size: 14, color: Colors.black),
                 )
               : null,
           filled: true,
@@ -4363,15 +4379,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.cardBorder),
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.cardBorder),
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
+            borderSide: const BorderSide(color: Colors.black, width: 1.5),
           ),
         ),
         onChanged: (val) {
@@ -4392,12 +4408,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.cardBorder),
+          border: Border.all(color: Colors.black, width: 1.0),
         ),
         child: const Center(
           child: Text(
             'No matching deficit items found',
-            style: TextStyle(fontSize: 13, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 13, color: Colors.black, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -4407,7 +4423,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFCA5A5).withValues(alpha: 0.5)),
+        border: Border.all(color: Colors.black, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -4423,14 +4439,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             // Table Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              color: const Color(0xFFFEF2F2).withValues(alpha: 0.7),
+              color: Colors.transparent,
               child: Row(
                 children: const [
                   Expanded(
                     flex: 3,
                     child: Text(
                       'DEFICIT SKU & STORAGE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF991B1B), letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4438,7 +4454,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'DEMAND SOURCE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF991B1B), letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4446,7 +4462,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'TOTAL DEMAND',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF991B1B), letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4454,7 +4470,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'CURRENT IN-STOCK',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF991B1B), letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4462,7 +4478,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'REORDER DEFICIT',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF991B1B), letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4470,20 +4486,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 3,
                     child: Text(
                       'REQUEST INFO & DATE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF991B1B), letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFFCA5A5)),
+            const Divider(height: 1, color: Colors.black),
 
             // Table Data Rows
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: AppTheme.cardBorder),
+              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black),
               itemBuilder: (context, index) {
                 final item = items[index];
                 final name = (item['name'] ?? '').toString();
@@ -4504,43 +4520,33 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 final deficit = reqQty - currentStock;
 
                 Color srcBg;
-                Color srcFg;
-                Color srcBorder;
                 IconData srcIcon;
                 String srcLabel;
                 switch (demandSource) {
                   case 'POS Walk-in':
                     srcBg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFF2563EB);
-                    srcBorder = const Color(0xFF3B82F6).withValues(alpha: 0.3);
                     srcIcon = Icons.point_of_sale_rounded;
                     srcLabel = 'POS Walk-in';
                     break;
                   case 'Advance Order':
                     srcBg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFF7C3AED);
-                    srcBorder = const Color(0xFF8B5CF6).withValues(alpha: 0.3);
                     srcIcon = Icons.schedule_send_rounded;
                     srcLabel = 'Advance Order';
                     break;
                   case 'Catering Reservation':
                     srcBg = const Color(0xFFEA580C).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFFC2410C);
-                    srcBorder = const Color(0xFFEA580C).withValues(alpha: 0.3);
                     srcIcon = Icons.celebration_rounded;
                     srcLabel = 'Catering Event';
                     break;
                   default:
                     srcBg = const Color(0xFF10B981).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFF059669);
-                    srcBorder = const Color(0xFF10B981).withValues(alpha: 0.3);
                     srcIcon = Icons.restaurant_rounded;
                     srcLabel = 'Kitchen Req';
                     break;
                 }
 
                 return Container(
-                  color: index.isEven ? Colors.white : const Color(0xFFFFFDFD),
+                  color: Colors.transparent,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     children: [
@@ -4554,6 +4560,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEF4444).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.black, width: 0.8),
                               ),
                               child: const Icon(
                                 Icons.warning_amber_rounded,
@@ -4571,7 +4578,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     style: const TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w800,
-                                      color: AppTheme.darkGrey,
+                                      color: Colors.black,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -4580,7 +4587,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     '$category • $storageRoom',
                                     style: const TextStyle(
                                       fontSize: 10,
-                                      color: AppTheme.mediumGrey,
+                                      color: Colors.black,
                                       fontWeight: FontWeight.w500,
                                     ),
                                     maxLines: 1,
@@ -4604,20 +4611,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: srcBg,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: srcBorder),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(srcIcon, size: 11, color: srcFg),
+                                Icon(srcIcon, size: 11, color: Colors.black),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     srcLabel,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w800,
-                                      color: srcFg,
+                                      color: Colors.black,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -4637,7 +4644,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.darkGrey,
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -4651,7 +4658,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
-                            color: currentStock == 0 ? const Color(0xFFEF4444) : AppTheme.darkGrey,
+                            color: currentStock == 0 ? const Color(0xFFEF4444) : Colors.black,
                           ),
                         ),
                       ),
@@ -4667,7 +4674,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFFCA5A5)),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -4706,7 +4713,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               notes.isNotEmpty ? notes : 'By $requestedBy',
                               style: const TextStyle(
                                 fontSize: 10.5,
-                                color: AppTheme.darkGrey,
+                                color: Colors.black,
                                 fontStyle: FontStyle.italic,
                               ),
                               maxLines: 1,
@@ -4717,7 +4724,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 DateFormat('MMM d, h:mm a').format(createdAt),
                                 style: const TextStyle(
                                   fontSize: 9.5,
-                                  color: AppTheme.mediumGrey,
+                                  color: Colors.black,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -4829,7 +4836,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0FDF4),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF86EFAC)),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF16A34A), size: 16),
                     ),
@@ -4841,7 +4848,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           children: [
                             const Text(
                               'ITEMIZED DEMAND QUEUE',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w800),
+                              style: TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(width: 8),
                             Container(
@@ -4849,6 +4856,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               decoration: BoxDecoration(
                                 color: const Color(0xFFDCFCE7),
                                 borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.black, width: 0.8),
                               ),
                               child: Text(
                                 query.isEmpty
@@ -4862,7 +4870,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         const SizedBox(height: 1),
                         const Text(
                           'Complete audit trail of customer receipts, kitchen requisition slips, and catering reservations.',
-                          style: TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -4876,7 +4884,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: AppTheme.adminMainBackground,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.cardBorder),
+                        border: Border.all(color: Colors.black, width: 1.0),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -4936,18 +4944,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       width: 220,
       height: 34,
       child: TextField(
-        style: const TextStyle(fontSize: 11.5, color: AppTheme.darkGrey),
+        style: const TextStyle(fontSize: 11.5, color: Colors.black),
         decoration: InputDecoration(
           hintText: 'Search tickets...',
-          hintStyle: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey),
-          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: AppTheme.mediumGrey),
+          hintStyle: const TextStyle(fontSize: 11.5, color: Colors.black54),
+          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: Colors.black),
           suffixIcon: _demandQueueSearchQuery.isNotEmpty
               ? GestureDetector(
                   onTap: () => setState(() {
                     _demandQueueSearchQuery = '';
                     _demandQueueCurrentPage = 1;
                   }),
-                  child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.mediumGrey),
+                  child: const Icon(Icons.close_rounded, size: 14, color: Colors.black),
                 )
               : null,
           filled: true,
@@ -4955,15 +4963,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.cardBorder),
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.cardBorder),
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.2),
+            borderSide: const BorderSide(color: Colors.black, width: 1.5),
           ),
         ),
         onChanged: (val) {
@@ -4994,14 +5002,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: isActive ? Colors.white : AppTheme.mediumGrey),
+            Icon(icon, size: 12, color: isActive ? Colors.white : Colors.black),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                color: isActive ? Colors.white : AppTheme.darkGrey,
+                color: isActive ? Colors.white : Colors.black,
               ),
             ),
           ],
@@ -5018,12 +5026,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.cardBorder),
+          border: Border.all(color: Colors.black, width: 1.0),
         ),
         child: const Center(
           child: Text(
             'No matching tickets in queue',
-            style: TextStyle(fontSize: 13, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 13, color: Colors.black, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -5033,7 +5041,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -5049,14 +5057,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             // Table Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              color: AppTheme.adminMainBackground.withValues(alpha: 0.65),
+              color: Colors.transparent,
               child: Row(
                 children: const [
                   Expanded(
                     flex: 3,
                     child: Text(
                       'ITEM & STORAGE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5064,7 +5072,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'DEMAND CHANNEL',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5072,7 +5080,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'REQUIRED DEMAND',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5080,7 +5088,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'CURRENT STOCK',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5088,7 +5096,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'STATUS / HEALTH',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5096,20 +5104,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 3,
                     child: Text(
                       'EVENT / NOTE & DATE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: AppTheme.cardBorder),
+            const Divider(height: 1, color: Colors.black),
 
             // Table Data Rows
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: AppTheme.cardBorder),
+              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black),
               itemBuilder: (context, index) {
                 final item = items[index];
                 final name = (item['name'] ?? '').toString();
@@ -5132,43 +5140,33 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
                 // Demand source color & icon
                 Color srcBg;
-                Color srcFg;
-                Color srcBorder;
                 IconData srcIcon;
                 String srcLabel;
                 switch (demandSource) {
                   case 'POS Walk-in':
                     srcBg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFF2563EB);
-                    srcBorder = const Color(0xFF3B82F6).withValues(alpha: 0.3);
                     srcIcon = Icons.point_of_sale_rounded;
                     srcLabel = 'POS Walk-in';
                     break;
                   case 'Advance Order':
                     srcBg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFF7C3AED);
-                    srcBorder = const Color(0xFF8B5CF6).withValues(alpha: 0.3);
                     srcIcon = Icons.schedule_send_rounded;
                     srcLabel = 'Advance Order';
                     break;
                   case 'Catering Reservation':
                     srcBg = const Color(0xFFEA580C).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFFC2410C);
-                    srcBorder = const Color(0xFFEA580C).withValues(alpha: 0.3);
                     srcIcon = Icons.celebration_rounded;
                     srcLabel = 'Catering Event';
                     break;
                   default:
                     srcBg = const Color(0xFF10B981).withValues(alpha: 0.1);
-                    srcFg = const Color(0xFF059669);
-                    srcBorder = const Color(0xFF10B981).withValues(alpha: 0.3);
                     srcIcon = Icons.restaurant_rounded;
                     srcLabel = 'Kitchen Req';
                     break;
                 }
 
                 return Container(
-                  color: index.isEven ? Colors.white : const Color(0xFFFBFDFB),
+                  color: Colors.transparent,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     children: [
@@ -5184,6 +5182,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     ? const Color(0xFFEF4444).withValues(alpha: 0.12)
                                     : const Color(0xFF10B981).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.black, width: 0.8),
                               ),
                               child: Icon(
                                 hasDeficit ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
@@ -5201,7 +5200,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     style: const TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w800,
-                                      color: AppTheme.darkGrey,
+                                      color: Colors.black,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -5210,7 +5209,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     '$category • $storageRoom',
                                     style: const TextStyle(
                                       fontSize: 10,
-                                      color: AppTheme.mediumGrey,
+                                      color: Colors.black,
                                       fontWeight: FontWeight.w500,
                                     ),
                                     maxLines: 1,
@@ -5234,20 +5233,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: srcBg,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: srcBorder),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(srcIcon, size: 11, color: srcFg),
+                                Icon(srcIcon, size: 11, color: Colors.black),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     srcLabel,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w800,
-                                      color: srcFg,
+                                      color: Colors.black,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -5267,7 +5266,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.darkGrey,
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -5281,7 +5280,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
-                            color: currentStock == 0 ? const Color(0xFFEF4444) : AppTheme.darkGrey,
+                            color: currentStock == 0 ? const Color(0xFFEF4444) : Colors.black,
                           ),
                         ),
                       ),
@@ -5300,9 +5299,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                   : const Color(0xFF10B981).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: hasDeficit
-                                    ? const Color(0xFFEF4444).withValues(alpha: 0.3)
-                                    : const Color(0xFF10B981).withValues(alpha: 0.3),
+                                color: Colors.black,
+                                width: 0.8,
                               ),
                             ),
                             child: Row(
@@ -5342,7 +5340,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               notes.isNotEmpty ? notes : 'By $requestedBy',
                               style: const TextStyle(
                                 fontSize: 10.5,
-                                color: AppTheme.darkGrey,
+                                color: Colors.black,
                                 fontStyle: FontStyle.italic,
                               ),
                               maxLines: 1,
@@ -5353,7 +5351,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 DateFormat('MMM d, h:mm a').format(createdAt),
                                 style: const TextStyle(
                                   fontSize: 9.5,
-                                  color: AppTheme.mediumGrey,
+                                  color: Colors.black,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -5390,7 +5388,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -5409,21 +5407,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.mediumGrey,
+                  color: Colors.black,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
                 child: Text(
                   'Page $currentPage of $totalPages',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF14332E),
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -5454,7 +5453,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                            color: Colors.black,
+                            width: 1.0,
                           ),
                         ),
                         child: Row(
@@ -5463,7 +5463,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             Icon(
                               Icons.chevron_left_rounded,
                               size: 16,
-                              color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                              color: currentPage > 1 ? Colors.white : Colors.black45,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -5471,7 +5471,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
-                                color: currentPage > 1 ? Colors.white : const Color(0xFF94A3B8),
+                                color: currentPage > 1 ? Colors.white : Colors.black45,
                               ),
                             ),
                           ],
@@ -5492,7 +5492,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               padding: EdgeInsets.symmetric(horizontal: 4),
                               child: Text(
                                 '…',
-                                style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                               ),
                             );
                           }
@@ -5515,28 +5515,19 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             height: 30,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFF8FAFC),
+                              color: isSelected ? const Color(0xFF14332E) : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
-                                width: isSelected ? 1.5 : 1.0,
+                                color: Colors.black,
+                                width: isSelected ? 1.2 : 1.0,
                               ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: const Color(0xFFD9A441).withValues(alpha: 0.3),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ]
-                                  : null,
                             ),
                             child: Text(
                               '$pageNum',
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                color: isSelected ? const Color(0xFF14332E) : const Color(0xFF334155),
+                                color: isSelected ? Colors.white : Colors.black,
                               ),
                             ),
                           ),
@@ -5559,7 +5550,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                            color: Colors.black,
+                            width: 1.0,
                           ),
                         ),
                         child: Row(
@@ -5570,14 +5562,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
-                                color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                                color: currentPage < totalPages ? Colors.white : Colors.black45,
                               ),
                             ),
                             const SizedBox(width: 4),
                             Icon(
                               Icons.chevron_right_rounded,
                               size: 16,
-                              color: currentPage < totalPages ? Colors.white : const Color(0xFF94A3B8),
+                              color: currentPage < totalPages ? Colors.white : Colors.black45,
                             ),
                           ],
                         ),
@@ -5611,7 +5603,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -5621,7 +5613,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
-              color: AppTheme.mediumGrey,
+              color: Colors.black,
             ),
           ),
           const SizedBox(width: 6),
@@ -5635,7 +5627,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF14332E),
+                color: Colors.black,
               ),
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
@@ -5648,15 +5640,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 isDense: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: AppTheme.cardBorder),
+                  borderSide: const BorderSide(color: Colors.black, width: 1.0),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: AppTheme.cardBorder),
+                  borderSide: const BorderSide(color: Colors.black, width: 1.0),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                  borderSide: const BorderSide(color: Colors.black, width: 1.5),
                 ),
               ),
               onSubmitted: (val) {
@@ -5683,6 +5675,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               decoration: BoxDecoration(
                 color: const Color(0xFF14332E),
                 borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.black, width: 1.0),
               ),
               child: const Text(
                 'Go',
@@ -5732,8 +5725,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: hasDeficit ? const Color(0xFFEF4444).withValues(alpha: 0.35) : AppTheme.cardBorder,
-          width: hasDeficit ? 1.5 : 1,
+          color: Colors.black,
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
@@ -5755,6 +5748,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 decoration: BoxDecoration(
                   color: iconBg,
                   borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
                 child: Icon(iconData, size: 15, color: iconFg),
               ),
@@ -5765,12 +5759,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.black),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '$category • $storageRoom',
-                      style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -5787,7 +5781,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   Builder(
                     builder: (context) {
                       Color badgeBg;
-                      Color badgeBorder;
                       Color badgeFg;
                       IconData badgeIcon;
                       String badgeText;
@@ -5795,21 +5788,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       switch (demandSource) {
                         case 'POS Walk-in':
                           badgeBg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
-                          badgeBorder = const Color(0xFF3B82F6).withValues(alpha: 0.3);
                           badgeFg = const Color(0xFF2563EB);
                           badgeIcon = Icons.point_of_sale_rounded;
                           badgeText = 'POS WALK-IN';
                           break;
                         case 'Advance Order':
                           badgeBg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
-                          badgeBorder = const Color(0xFF8B5CF6).withValues(alpha: 0.3);
                           badgeFg = const Color(0xFF7C3AED);
                           badgeIcon = Icons.schedule_send_rounded;
                           badgeText = 'ADVANCE ORDER';
                           break;
                         case 'Catering Reservation':
                           badgeBg = const Color(0xFFEA580C).withValues(alpha: 0.1);
-                          badgeBorder = const Color(0xFFEA580C).withValues(alpha: 0.3);
                           badgeFg = const Color(0xFFC2410C);
                           badgeIcon = Icons.celebration_rounded;
                           badgeText = 'CATERING EVENT';
@@ -5817,7 +5807,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         case 'Kitchen Request':
                         default:
                           badgeBg = const Color(0xFF10B981).withValues(alpha: 0.1);
-                          badgeBorder = const Color(0xFF10B981).withValues(alpha: 0.3);
                           badgeFg = const Color(0xFF059669);
                           badgeIcon = Icons.restaurant_rounded;
                           badgeText = 'KITCHEN REQ';
@@ -5829,7 +5818,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         decoration: BoxDecoration(
                           color: badgeBg,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: badgeBorder),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -5858,7 +5847,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: const Text(
                         'DEFICIT RISK',
@@ -5873,7 +5862,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFFCD34D)),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: const Text(
                         'PENDING',
@@ -5891,9 +5880,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: AppTheme.adminMainBackground.withValues(alpha: 0.45),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.cardBorder),
+              border: Border.all(color: Colors.black, width: 0.8),
             ),
             child: Row(
               children: [
@@ -5903,40 +5892,40 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     children: [
                       Text(
                         isPos ? 'POS DEMAND' : 'REQ DEMAND',
-                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey),
+                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.black),
                       ),
                       const SizedBox(height: 1),
                       Text('${_formatQty(reqQty)} $unit',
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: AppTheme.darkGrey)),
+                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Colors.black)),
                     ],
                   ),
                 ),
-                Container(width: 1, height: 22, color: AppTheme.cardBorder),
+                Container(width: 1, height: 22, color: Colors.black),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('CURRENT IN-STOCK',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey)),
+                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.black)),
                       const SizedBox(height: 1),
                       Text('${_formatQty(currentStock)} $unit',
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w900,
-                            color: currentStock == 0 ? const Color(0xFFEF4444) : AppTheme.darkGrey,
+                            color: currentStock == 0 ? const Color(0xFFEF4444) : Colors.black,
                           )),
                     ],
                   ),
                 ),
-                Container(width: 1, height: 22, color: AppTheme.cardBorder),
+                Container(width: 1, height: 22, color: Colors.black),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('STOCK STATUS',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey)),
+                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.black)),
                       const SizedBox(height: 1),
                       Text(
                         hasDeficit ? 'Deficit: -${_formatQty(deficit)} $unit' : 'Covered in stock',
@@ -5960,14 +5949,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               Expanded(
                 child: Text(
                   notes.isNotEmpty ? 'Note: $notes' : 'Requested by $requestedBy',
-                  style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: AppTheme.mediumGrey),
+                  style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.black),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (createdAt != null)
                 Text(
                   DateFormat('MMM d, h:mm a').format(createdAt),
-                  style: const TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 9.5, color: Colors.black, fontWeight: FontWeight.w600),
                 ),
             ],
           ),
