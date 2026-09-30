@@ -788,7 +788,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+        border: Border.all(color: Colors.black, width: 1),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
@@ -818,7 +818,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   style: const TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF94A3B8),
+                    color: Colors.black,
                     letterSpacing: 0.6,
                   ),
                   maxLines: 1,
@@ -827,10 +827,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    color: color,
+                    color: Colors.black,
                     letterSpacing: -0.5,
                     height: 1.1,
                   ),
@@ -841,7 +841,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF94A3B8),
+                      color: Colors.black,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -914,7 +914,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: Colors.black),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF0F172A).withValues(alpha: 0.04),
@@ -930,23 +930,24 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
-                child: Icon(icon, size: 14, color: color),
+                child: Icon(icon, size: 14, color: Colors.black),
               ),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: color,
+                  color: Colors.black,
                   letterSpacing: 0.1,
                 ),
               ),
               const SizedBox(width: 6),
-              Icon(Icons.chevron_right_rounded, size: 14, color: color.withValues(alpha: 0.5)),
+              const Icon(Icons.chevron_right_rounded, size: 14, color: Colors.black),
             ],
           ),
         ),
@@ -962,12 +963,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFCA5A5).withValues(alpha: 0.6)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -977,14 +978,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           // ── Enterprise Alert Header Bar ──
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFEF2F2),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(15),
                 topRight: Radius.circular(15),
               ),
               border: Border(
-                bottom: BorderSide(color: Color(0xFFFECACA), width: 1),
+                bottom: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
               ),
             ),
             child: Row(
@@ -993,7 +994,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   width: 3.5,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDC2626),
+                    color: Colors.black,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1001,10 +1002,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    color: Colors.black.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                   ),
-                  child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
+                  child: const Icon(Icons.warning_amber_rounded, color: Colors.black, size: 16),
                 ),
                 const SizedBox(width: 10),
                 const Expanded(
@@ -1016,7 +1018,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF991B1B),
+                          color: Colors.black,
                           letterSpacing: -0.2,
                         ),
                         maxLines: 1,
@@ -1027,7 +1029,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFFB91C1C),
+                          color: Colors.black,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1038,13 +1040,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: _showAllCriticalItemsModal,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 12, color: Color(0xFFDC2626)),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 12, color: Colors.black),
                   label: Text(
                     'View All (${_criticalItems.length})',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFFDC2626),
+                      color: Colors.black,
                     ),
                   ),
                   style: TextButton.styleFrom(
@@ -1052,7 +1054,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     backgroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.2),
+                      side: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                   ),
                 ),
@@ -1072,7 +1074,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   final item = _criticalItems[index];
                   final qty = (item['quantity'] as num?)?.toInt() ?? 0;
                   final isOut = qty == 0;
-                  final tagColor = isOut ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+                  final tagBg = isOut
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                      : const Color(0xFFF59E0B).withValues(alpha: 0.12);
 
                   return Container(
                     width: 190,
@@ -1081,10 +1085,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: tagColor.withValues(alpha: 0.35), width: 1),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                       boxShadow: [
                         BoxShadow(
-                          color: tagColor.withValues(alpha: 0.06),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -1101,21 +1105,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 12.5,
-                            color: Color(0xFF0F172A),
+                            color: Colors.black,
                           ),
                         ),
                         const SizedBox(height: 5),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: tagColor.withValues(alpha: 0.1),
+                            color: tagBg,
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: tagColor.withValues(alpha: 0.35), width: 0.8),
+                            border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                           ),
                           child: Text(
                             isOut ? '✕  OUT OF STOCK' : '⚠  Only $qty left',
-                            style: TextStyle(
-                              color: tagColor,
+                            style: const TextStyle(
+                              color: Colors.black,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.2,
@@ -2875,21 +2879,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6.5),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor : const Color(0xFFF8FAFC),
+          color: isSelected ? activeColor : Colors.white,
           borderRadius: BorderRadius.circular(9),
           border: Border.all(
-            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+            color: Colors.black,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: isSelected ? Colors.white : const Color(0xFF64748B)),
+            Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.black),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF334155),
+                color: isSelected ? Colors.white : Colors.black,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 fontSize: 11.5,
               ),
@@ -2898,15 +2902,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withValues(alpha: 0.22) : const Color(0xFFE2E8F0),
+                color: isSelected ? Colors.white.withValues(alpha: 0.22) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.black, width: 0.8),
               ),
               child: Text(
                 '$count',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  color: isSelected ? Colors.white : Colors.black,
                 ),
               ),
             ),
@@ -2933,6 +2938,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: Colors.black),
             boxShadow: isActive
                 ? [
                     BoxShadow(
@@ -2946,7 +2952,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           child: Icon(
             icon,
             size: 16,
-            color: isActive ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+            color: Colors.black,
           ),
         ),
       ),
@@ -2965,42 +2971,43 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           dataRowMaxHeight: 58,
           horizontalMargin: 16,
           columnSpacing: 20,
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+          headingRowColor: WidgetStateProperty.all(Colors.transparent),
+          border: const TableBorder(horizontalInside: BorderSide(color: Colors.black, width: 0.5)),
           columns: const [
             DataColumn(
               label: Text(
                 'DATE & TIME',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
               ),
             ),
             DataColumn(
               label: Text(
                 'ITEM NAME & UNIT',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
               ),
             ),
             DataColumn(
               label: Text(
                 'TYPE',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
               ),
             ),
             DataColumn(
               label: Text(
                 'QTY MOVED',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
               ),
             ),
             DataColumn(
               label: Text(
                 'PURPOSE / REFERENCE',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
               ),
             ),
             DataColumn(
               label: Text(
                 'HANDLED BY',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.5),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
               ),
             ),
           ],
@@ -3045,11 +3052,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     children: [
                       Text(
                         timeStr,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Color(0xFF0F172A)),
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Colors.black),
                       ),
                       Text(
                         dateStr,
-                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 10.5, color: Colors.black87, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -3061,7 +3068,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     children: [
                       Text(
                         act['item_name'] ?? 'Unknown Item',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Colors.black),
                       ),
                       const SizedBox(width: 6),
                       Container(
@@ -3069,11 +3076,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Text(
                           unit,
-                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.black),
                         ),
                       ),
                     ],
@@ -3086,7 +3093,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+                      border: Border.all(color: Colors.black, width: 0.8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -3125,6 +3132,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(7),
+                      border: Border.all(color: Colors.black, width: 0.8),
                     ),
                     child: Text(
                       '${isIncoming ? '+' : '-'}${act['quantity']}',
@@ -3142,7 +3150,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     constraints: const BoxConstraints(maxWidth: 320),
                     child: Text(
                       _formatPurposeDisplay(rawPurpose),
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                      style: const TextStyle(fontSize: 11.5, color: Colors.black, fontWeight: FontWeight.w500),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -3153,7 +3161,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.person_outline_rounded, size: 13, color: Color(0xFF94A3B8)),
+                      const Icon(Icons.person_outline_rounded, size: 13, color: Colors.black),
                       const SizedBox(width: 4),
                       Text(
                         (isPetty || rawPurpose == 'Transferred to Storage' || rawPurpose.toLowerCase().contains('petty cash') || processedBy.toLowerCase() == 'unknown' || processedBy.trim().isEmpty || processedBy.toLowerCase() == 'null')
@@ -3163,7 +3171,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 : (requestedBy != null && requestedBy.isNotEmpty)
                                     ? '$processedBy → $requestedBy'
                                     : processedBy,
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.black),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -3774,18 +3782,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           color: isSelected ? accentColor : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? accentColor : const Color(0xFFCBD5E1),
+            color: Colors.black,
             width: 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: accentColor.withValues(alpha: 0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3795,13 +3794,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               decoration: BoxDecoration(
                 color: isSelected ? Colors.white.withValues(alpha: 0.25) : accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.black, width: 0.8),
               ),
               child: Text(
                 '$count',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: isSelected ? Colors.white : accentColor,
+                  color: isSelected ? Colors.white : Colors.black,
                 ),
               ),
             ),
@@ -3811,7 +3811,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected ? Colors.white : const Color(0xFF475569),
+                color: isSelected ? Colors.white : Colors.black,
               ),
             ),
           ],
@@ -3826,8 +3826,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     final unit = (item['unit'] as String?) ?? 'kg';
     final category = (item['category'] as String?) ?? 'General';
     final name = (item['name'] as String?) ?? 'Unnamed Item';
-
-    final Color statusColor = isOutOfStock ? const Color(0xFFDC2626) : const Color(0xFFD97706);
     final String statusText = isOutOfStock ? '0.00 $unit left' : '${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit left';
 
     IconData categoryIcon = Icons.inventory_2_outlined;
@@ -3848,12 +3846,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isOutOfStock ? const Color(0xFFFCA5A5) : const Color(0xFFFDE68A),
+          color: Colors.black,
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -3865,10 +3863,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.10),
+              color: const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.black, width: 0.8),
             ),
-            child: Icon(categoryIcon, color: statusColor, size: 18),
+            child: Icon(categoryIcon, color: Colors.black, size: 18),
           ),
           const SizedBox(width: 10),
 
@@ -3882,7 +3881,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
-                    color: const Color(0xFF0F172A),
+                    color: Colors.black,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -3898,13 +3897,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: Text(
                         category,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF475569),
+                          color: Colors.black,
                         ),
                       ),
                     ),
@@ -3912,7 +3912,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       '• Min: ${minQty.toStringAsFixed(0)} $unit',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 10,
-                        color: const Color(0xFF64748B),
+                        color: Colors.black,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -3933,7 +3933,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   color: isOutOfStock ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isOutOfStock ? const Color(0xFFF87171) : const Color(0xFFFBBF24),
+                    color: Colors.black,
                   ),
                 ),
                 child: Row(
@@ -3942,8 +3942,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     Container(
                       width: 5,
                       height: 5,
-                      decoration: BoxDecoration(
-                        color: statusColor,
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -3951,7 +3951,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     Text(
                       isOutOfStock ? 'OUT OF STOCK' : statusText,
                       style: GoogleFonts.plusJakartaSans(
-                        color: statusColor,
+                        color: Colors.black,
                         fontWeight: FontWeight.w800,
                         fontSize: 10,
                       ),
@@ -3971,14 +3971,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.add_shopping_cart_rounded, size: 11, color: Color(0xFF0F766E)),
+                      const Icon(Icons.add_shopping_cart_rounded, size: 11, color: Colors.black),
                       const SizedBox(width: 2),
                       Text(
                         'Restock',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF0F766E),
+                          color: Colors.black,
                         ),
                       ),
                     ],
@@ -4102,14 +4102,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                   ),
                   child: Column(
                     children: [
@@ -4158,10 +4151,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                         duration: const Duration(milliseconds: 180),
                                         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? tabColor : const Color(0xFFF8FAFC),
+                                          color: isSelected ? tabColor : Colors.white,
                                           borderRadius: BorderRadius.circular(9),
                                           border: Border.all(
-                                            color: isSelected ? tabColor : const Color(0xFFE2E8F0),
+                                            color: isSelected ? Colors.black : Colors.black.withValues(alpha: 0.20),
+                                            width: 1.0,
                                           ),
                                         ),
                                         child: Row(
@@ -4170,7 +4164,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             Text(
                                               _requestFilterLabels[index],
                                               style: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF475569),
+                                                color: isSelected ? Colors.white : Colors.black,
                                                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                                 fontSize: 11.5,
                                               ),
@@ -4181,13 +4175,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               decoration: BoxDecoration(
                                                 color: isSelected
                                                     ? Colors.white.withValues(alpha: 0.25)
-                                                    : const Color(0xFFE2E8F0),
+                                                    : const Color(0xFFF1F5F9),
                                                 borderRadius: BorderRadius.circular(7),
+                                                border: Border.all(
+                                                  color: isSelected ? Colors.transparent : Colors.black.withValues(alpha: 0.20),
+                                                  width: 0.8,
+                                                ),
                                               ),
                                               child: Text(
                                                 '$count',
                                                 style: TextStyle(
-                                                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                                                  color: isSelected ? Colors.white : Colors.black,
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 10.5,
                                                 ),
@@ -4211,7 +4209,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -4226,15 +4224,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       decoration: BoxDecoration(
                                         color: !isTableView ? Colors.white : Colors.transparent,
                                         borderRadius: BorderRadius.circular(6),
-                                        boxShadow: !isTableView
-                                            ? [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.06),
-                                                  blurRadius: 3,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ]
-                                            : null,
+                                        border: !isTableView ? Border.all(color: Colors.black, width: 1.0) : null,
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -4242,7 +4232,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           Icon(
                                             Icons.dashboard_customize_rounded,
                                             size: 14,
-                                            color: !isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                            color: !isTableView ? Colors.black : Colors.black54,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
@@ -4250,7 +4240,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: !isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                              color: !isTableView ? Colors.black : Colors.black54,
                                             ),
                                           ),
                                         ],
@@ -4268,15 +4258,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       decoration: BoxDecoration(
                                         color: isTableView ? Colors.white : Colors.transparent,
                                         borderRadius: BorderRadius.circular(6),
-                                        boxShadow: isTableView
-                                            ? [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.06),
-                                                  blurRadius: 3,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ]
-                                            : null,
+                                        border: isTableView ? Border.all(color: Colors.black, width: 1.0) : null,
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -4284,7 +4266,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           Icon(
                                             Icons.table_rows_rounded,
                                             size: 14,
-                                            color: isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                            color: isTableView ? Colors.black : Colors.black54,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
@@ -4292,7 +4274,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: isTableView ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                                              color: isTableView ? Colors.black : Colors.black54,
                                             ),
                                           ),
                                         ],
@@ -4309,16 +4291,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           // Bulk Actions (Approve All & Reject All)
                           ElevatedButton.icon(
                             onPressed: (_isLoading || pendingCount == 0) ? null : _approveAllRequests,
-                            icon: const Icon(Icons.done_all_rounded, size: 13),
+                            icon: const Icon(Icons.done_all_rounded, size: 13, color: Colors.black),
                             label: Text(
                               pendingCount > 0 ? 'Approve All ($pendingCount)' : 'Approve All',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Colors.black),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF10B981),
-                              foregroundColor: Colors.white,
+                              foregroundColor: Colors.black,
                               disabledBackgroundColor: const Color(0xFFE2E8F0),
                               disabledForegroundColor: const Color(0xFF94A3B8),
+                              side: const BorderSide(color: Colors.black, width: 1.0),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               elevation: 0,
@@ -4327,13 +4310,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
                             onPressed: (_isLoading || pendingCount == 0) ? null : _rejectAllRequests,
-                            icon: const Icon(Icons.cancel_outlined, size: 13),
-                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)),
+                            icon: const Icon(Icons.cancel_outlined, size: 13, color: Colors.black),
+                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Colors.black)),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFEF4444),
-                              side: BorderSide(
-                                color: pendingCount > 0 ? const Color(0xFFEF4444) : const Color(0xFFE2E8F0),
-                              ),
+                              foregroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.black, width: 1.0),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
@@ -4357,14 +4338,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     _currentPage = 1;
                                   });
                                 },
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black),
                                 decoration: InputDecoration(
                                   hintText: 'Search by ingredient, recipe note, chef, or unit...',
-                                  hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
-                                  prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                                  hintStyle: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                                  prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Colors.black),
                                   suffixIcon: _kitchenSearchQuery.isNotEmpty
                                       ? IconButton(
-                                          icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF64748B)),
+                                          icon: const Icon(Icons.close_rounded, size: 14, color: Colors.black),
                                           onPressed: () {
                                             _kitchenSearchCtrl.clear();
                                             setState(() {
@@ -4375,19 +4356,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                         )
                                       : null,
                                   filled: true,
-                                  fillColor: const Color(0xFFF8FAFC),
+                                  fillColor: Colors.white,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                                   ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                                  focusedBorder: const OutlineInputBorder(
+                                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                                    borderSide: BorderSide(color: Colors.black, width: 1.5),
                                   ),
                                 ),
                               ),
@@ -4397,9 +4378,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(7),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                             ),
                             child: Text(
                               filteredRequests.isEmpty
@@ -4408,7 +4389,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF475569),
+                                color: Colors.black,
                               ),
                             ),
                           ),
@@ -4437,21 +4418,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Showing ${startIndex + 1} to $endIndex of ${filteredRequests.length} requisitions',
-                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontSize: 11.5, color: Colors.black, fontWeight: FontWeight.w600),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -4459,7 +4433,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               IconButton(
                                 onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
                                 icon: const Icon(Icons.chevron_left_rounded),
-                                color: const Color(0xFF14332E),
+                                color: Colors.black,
                                 iconSize: 18,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -4468,19 +4442,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                                 ),
                                 child: Text(
                                   'Page $_currentPage of $totalPages',
-                                  style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF14332E), fontSize: 11.5),
+                                  style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black, fontSize: 11.5),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               IconButton(
                                 onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
                                 icon: const Icon(Icons.chevron_right_rounded),
-                                color: const Color(0xFF14332E),
+                                color: Colors.black,
                                 iconSize: 18,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -4522,14 +4497,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF28564D), width: 1.1),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F2C27).withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -4543,7 +4511,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.35)),
+                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
                 child: const Icon(Icons.soup_kitchen_rounded, color: Color(0xFFE6C374), size: 18),
               ),
@@ -4569,7 +4537,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF10B981).withValues(alpha: 0.22),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.45)),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -4675,8 +4643,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             : Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isHighEmphasis ? color.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.15),
-          width: isHighEmphasis ? 1.2 : 1,
+          color: Colors.black,
+          width: 0.8,
         ),
       ),
       child: Row(
@@ -4698,6 +4666,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: Colors.black, width: 0.8),
             ),
             child: Text(
               '$count',
@@ -4720,7 +4689,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -4728,24 +4697,25 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF14332E).withValues(alpha: 0.05),
+              color: Colors.white,
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
             ),
-            child: const Icon(Icons.soup_kitchen_outlined, size: 40, color: Color(0xFF14332E)),
+            child: const Icon(Icons.soup_kitchen_outlined, size: 40, color: Colors.black),
           ),
           const SizedBox(height: 12),
           Text(
             _kitchenSearchQuery.isNotEmpty
                 ? 'No requisitions matching "$_kitchenSearchQuery"'
                 : 'Kitchen Station In Sync',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black),
           ),
           const SizedBox(height: 4),
           Text(
             _kitchenSearchQuery.isNotEmpty
                 ? 'Try searching with different keywords or clearing the search bar.'
                 : 'All kitchen ingredient requisitions have been fulfilled and dispatched.',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
             textAlign: TextAlign.center,
           ),
           if (_kitchenSearchQuery.isNotEmpty || _requestFilter != 0) ...[
@@ -4764,6 +4734,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF14332E),
                 foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.black, width: 1.0),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -4787,14 +4758,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
@@ -4808,10 +4772,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     // Table Header Row
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF8FAFC),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
                         border: Border(
-                          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                          bottom: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1),
                         ),
                       ),
                       child: const Row(
@@ -4820,49 +4784,49 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             flex: 28,
                             child: Text(
                               'INGREDIENT & CHEF NOTE',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 12,
                             child: Text(
                               'INV STOCK / NEEDED',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 11,
                             child: Text(
                               'URGENCY',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 19,
                             child: Text(
                               'STATION / CHEF',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 14,
                             child: Text(
                               'ORDER TIME',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 12,
                             child: Text(
                               'STATUS',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                           Expanded(
                             flex: 18,
                             child: Text(
                               'ACTIONS & FULFILLMENT',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF475569), letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
                             ),
                           ),
                         ],
@@ -4874,7 +4838,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: requests.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9), thickness: 1),
+                      separatorBuilder: (context, index) => Divider(height: 1, color: Colors.black.withValues(alpha: 0.12), thickness: 1),
                       itemBuilder: (context, index) {
                         final request = requests[index];
                         final status = request['status']?.toString() ?? 'Pending';
@@ -4920,7 +4884,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                          color: index.isEven ? Colors.white : const Color(0xFFFBFDFE),
+                          color: Colors.transparent,
                           child: Row(
                             children: [
                               // Item Spec & Note
@@ -4931,10 +4895,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     Container(
                                       padding: const EdgeInsets.all(7),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                        color: Colors.white,
                                         borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                                       ),
-                                      child: const Icon(Icons.restaurant_rounded, size: 15, color: Color(0xFF14332E)),
+                                      child: const Icon(Icons.restaurant_rounded, size: 15, color: Colors.black),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -4947,7 +4912,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w800,
                                               fontSize: 13,
-                                              color: Color(0xFF0F172A),
+                                              color: Colors.black,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -4957,14 +4922,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: const Color(0xFFF1F5F9),
+                                                color: Colors.white,
                                                 borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+                                                border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.sticky_note_2_outlined, size: 10.5, color: Color(0xFFD97706)),
+                                                  const Icon(Icons.sticky_note_2_outlined, size: 10.5, color: Colors.black),
                                                   const SizedBox(width: 4),
                                                   Flexible(
                                                     child: Text(
@@ -4972,7 +4937,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                                       style: const TextStyle(
                                                         fontSize: 10,
                                                         fontStyle: FontStyle.italic,
-                                                        color: Color(0xFF475569),
+                                                        color: Colors.black,
                                                         fontWeight: FontWeight.w600,
                                                       ),
                                                       maxLines: 1,
@@ -4998,15 +4963,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF14332E),
+                                      color: Colors.transparent,
                                       borderRadius: BorderRadius.circular(7),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF14332E).withValues(alpha: 0.15),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
                                     ),
                                     child: RichText(
                                       text: TextSpan(
@@ -5016,7 +4974,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: const TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w900,
-                                              color: Color(0xFFE6C374),
+                                              color: Colors.black,
                                             ),
                                           ),
                                           TextSpan(
@@ -5024,7 +4982,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: const TextStyle(
                                               fontSize: 9.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Colors.white,
+                                              color: Colors.black,
                                               letterSpacing: 0.2,
                                             ),
                                           ),
@@ -5046,7 +5004,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFEF4444).withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4), width: 0.9),
+                                            border: Border.all(color: Colors.black, width: 0.8),
                                           ),
                                           child: const Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -5056,7 +5014,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               Text(
                                                 'URGENT',
                                                 style: TextStyle(
-                                                  color: Color(0xFFDC2626),
+                                                  color: Colors.black,
                                                   fontSize: 9.5,
                                                   fontWeight: FontWeight.w900,
                                                   letterSpacing: 0.3,
@@ -5071,12 +5029,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
                                                 borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                                                border: Border.all(color: Colors.black, width: 0.8),
                                               ),
                                               child: const Text(
                                                 'HIGH',
                                                 style: TextStyle(
-                                                  color: Color(0xFFD97706),
+                                                  color: Colors.black,
                                                   fontSize: 9.5,
                                                   fontWeight: FontWeight.w800,
                                                 ),
@@ -5089,7 +5047,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                                   width: 6,
                                                   height: 6,
                                                   decoration: const BoxDecoration(
-                                                    color: Color(0xFF94A3B8),
+                                                    color: Colors.black,
                                                     shape: BoxShape.circle,
                                                   ),
                                                 ),
@@ -5097,7 +5055,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                                 Text(
                                                   priority,
                                                   style: const TextStyle(
-                                                    color: Color(0xFF64748B),
+                                                    color: Colors.black,
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w600,
                                                   ),
@@ -5114,13 +5072,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   children: [
                                     CircleAvatar(
                                       radius: 12,
-                                      backgroundColor: const Color(0xFF14332E),
+                                      backgroundColor: const Color(0xFFF1F5F9),
                                       child: Text(
                                         initial,
                                         style: const TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFFE6C374),
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ),
@@ -5135,7 +5093,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: const TextStyle(
                                               fontSize: 11.5,
                                               fontWeight: FontWeight.w700,
-                                              color: Color(0xFF1E293B),
+                                              color: Colors.black,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -5144,7 +5102,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             requestedBy.contains('@') ? requestedBy : 'Kitchen Station',
                                             style: const TextStyle(
                                               fontSize: 9.5,
-                                              color: Color(0xFF94A3B8),
+                                              color: Colors.black,
                                               fontWeight: FontWeight.w500,
                                             ),
                                             maxLines: 1,
@@ -5170,7 +5128,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEF4444).withValues(alpha: 0.12),
                                           borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 0.8),
+                                          border: Border.all(color: Colors.black, width: 0.8),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -5182,7 +5140,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               style: const TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w800,
-                                                color: Color(0xFFDC2626),
+                                                color: Colors.black,
                                               ),
                                             ),
                                           ],
@@ -5192,14 +5150,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF64748B)),
+                                          const Icon(Icons.schedule_rounded, size: 11, color: Colors.black),
                                           const SizedBox(width: 3.5),
                                           Text(
                                             _formatElapsedTime(createdAt),
                                             style: const TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: Color(0xFF0F172A),
+                                              color: Colors.black,
                                             ),
                                           ),
                                         ],
@@ -5207,7 +5165,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     const SizedBox(height: 2.5),
                                     Text(
                                       _formatDateTime(createdAt),
-                                      style: const TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                                      style: const TextStyle(fontSize: 9.5, color: Colors.black, fontWeight: FontWeight.w500),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -5225,7 +5183,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     decoration: BoxDecoration(
                                       color: statusColor.withValues(alpha: 0.09),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: statusColor.withValues(alpha: 0.28)),
+                                      border: Border.all(color: Colors.black, width: 0.8),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -5234,8 +5192,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                         const SizedBox(width: 4.5),
                                         Text(
                                           status,
-                                          style: TextStyle(
-                                            color: statusColor,
+                                          style: const TextStyle(
+                                            color: Colors.black,
                                             fontSize: 10.5,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -5259,11 +5217,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               height: 31,
                                               child: ElevatedButton.icon(
                                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                                                icon: const Icon(Icons.check_rounded, size: 13),
-                                                label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                                                icon: const Icon(Icons.check_rounded, size: 13, color: Colors.black),
+                                                label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black)),
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: const Color(0xFF10B981),
-                                                  foregroundColor: Colors.white,
+                                                  foregroundColor: Colors.black,
+                                                  side: const BorderSide(color: Colors.black, width: 1.0),
                                                   elevation: 0,
                                                   padding: const EdgeInsets.symmetric(horizontal: 10),
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
@@ -5275,11 +5234,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               height: 31,
                                               child: OutlinedButton.icon(
                                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                                                icon: const Icon(Icons.close_rounded, size: 12),
-                                                label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                                                icon: const Icon(Icons.close_rounded, size: 12, color: Colors.black),
+                                                label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black)),
                                                 style: OutlinedButton.styleFrom(
-                                                  foregroundColor: const Color(0xFFEF4444),
-                                                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.1),
+                                                  foregroundColor: Colors.black,
+                                                  side: const BorderSide(color: Colors.black, width: 1.0),
                                                   padding: const EdgeInsets.symmetric(horizontal: 10),
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                                                 ),
@@ -5292,7 +5251,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           decoration: BoxDecoration(
                                             color: statusColor.withValues(alpha: 0.08),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: statusColor.withValues(alpha: 0.22)),
+                                            border: Border.all(color: Colors.black, width: 0.8),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -5302,9 +5261,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               Flexible(
                                                 child: Text(
                                                   'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
-                                                  style: TextStyle(
+                                                  style: const TextStyle(
                                                     fontSize: 10,
-                                                    color: statusColor,
+                                                    color: Colors.black,
                                                     fontWeight: FontWeight.w700,
                                                   ),
                                                   maxLines: 1,
@@ -5439,20 +5398,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isOverdue
-              ? const Color(0xFFFCA5A5).withValues(alpha: 0.7)
-              : (status == 'Pending'
-                  ? const Color(0xFFE2E8F0)
-                  : statusColor.withValues(alpha: 0.3)),
-          width: 1.2,
+          color: Colors.black.withValues(alpha: 0.20),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(13),
@@ -5483,7 +5431,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     decoration: BoxDecoration(
                       color: priorityColor.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: priorityColor.withValues(alpha: 0.6), width: 0.9),
+                      border: Border.all(color: Colors.black, width: 0.8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -5513,7 +5461,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         color: const Color(0xFFEF4444).withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.5),
+                          color: Colors.black,
                           width: 0.8,
                         ),
                       ),
@@ -5568,10 +5516,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(7),
+                            border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                           ),
-                          child: const Icon(Icons.restaurant_rounded, size: 15, color: Color(0xFF14332E)),
+                          child: const Icon(Icons.restaurant_rounded, size: 15, color: Colors.black),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -5584,7 +5533,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 13.5,
-                                  color: Color(0xFF0F172A),
+                                  color: Colors.black,
                                   letterSpacing: -0.2,
                                 ),
                                 maxLines: 1,
@@ -5595,7 +5544,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 'By: $chefHandle • ${_formatDateTime(createdAt)}',
                                 style: const TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF64748B),
+                                  color: Colors.black,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 maxLines: 1,
@@ -5609,15 +5558,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF14332E),
+                            color: Colors.transparent,
                             borderRadius: BorderRadius.circular(7),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF14332E).withValues(alpha: 0.18),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
                           ),
                           child: RichText(
                             text: TextSpan(
@@ -5627,7 +5569,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   style: const TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFFE6C374),
+                                    color: Colors.black,
                                   ),
                                 ),
                                 TextSpan(
@@ -5635,7 +5577,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   style: const TextStyle(
                                     fontSize: 9,
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ],
@@ -5653,13 +5595,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.sticky_note_2_outlined, size: 12, color: Color(0xFFD97706)),
+                            const Icon(Icons.sticky_note_2_outlined, size: 12, color: Colors.black),
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
@@ -5667,7 +5609,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontStyle: FontStyle.italic,
-                                  color: Color(0xFF475569),
+                                  color: Colors.black,
                                   fontWeight: FontWeight.w600,
                                 ),
                                 maxLines: 1,
@@ -5682,20 +5624,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.inventory_2_outlined, size: 11, color: Color(0xFF94A3B8)),
+                            Icon(Icons.inventory_2_outlined, size: 11, color: Colors.black),
                             SizedBox(width: 5),
                             Expanded(
                               child: Text(
                                 'Direct kitchen stock requisition',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF64748B),
+                                  color: Colors.black,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 maxLines: 1,
@@ -5718,11 +5660,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               height: 33,
                               child: ElevatedButton.icon(
                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                                icon: const Icon(Icons.check_rounded, size: 14),
-                                label: const Text('APPROVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
+                                icon: const Icon(Icons.check_rounded, size: 14, color: Colors.black),
+                                label: const Text('APPROVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.3, color: Colors.black)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: Colors.black,
+                                  side: const BorderSide(color: Colors.black, width: 1.0),
                                   elevation: 0,
                                   padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
@@ -5737,11 +5680,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               height: 33,
                               child: OutlinedButton.icon(
                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                                icon: const Icon(Icons.close_rounded, size: 13),
-                                label: const Text('REJECT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+                                icon: const Icon(Icons.close_rounded, size: 13, color: Colors.black),
+                                label: const Text('REJECT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.2, color: Colors.black)),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFEF4444),
-                                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.1),
+                                  foregroundColor: Colors.black,
+                                  side: const BorderSide(color: Colors.black, width: 1.0),
                                   padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                                 ),
@@ -5758,7 +5701,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(7),
-                          border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -5767,9 +5710,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             const SizedBox(width: 5),
                             Text(
                               '$status • ${_formatDateTime(updatedAt ?? createdAt)}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 10,
-                                color: statusColor,
+                                color: Colors.black,
                                 fontWeight: FontWeight.w800,
                               ),
                               maxLines: 1,
@@ -5778,15 +5721,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           ],
                         ),
                       ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _handleRequestAction(String requestId, String newStatus) async {
     setState(() => _isLoading = true);

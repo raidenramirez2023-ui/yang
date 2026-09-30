@@ -77,24 +77,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   }
 
   Color _getCategoryColor(String category) {
-    switch (category.toLowerCase().trim()) {
-      case 'inventory purchase':
-      case 'inventory_purchase':
-        return const Color(0xFF0D9488); // Teal Green
-      case 'supplies':
-      case 'kitchen_supplies':
-        return const Color(0xFF16A34A); // Emerald Green
-      case 'transportation':
-        return const Color(0xFF0284C7); // Sky Blue
-      case 'maintenance':
-        return const Color(0xFF4F46E5); // Indigo
-      case 'utilities':
-        return const Color(0xFF9333EA); // Purple
-      case 'other':
-        return const Color(0xFFD97706); // Golden Amber
-      default:
-        return const Color(0xFF14332E);
-    }
+    return Colors.black;
   }
 
   Color _getStatusColor(String status, {bool isAbono = false}) {
@@ -744,8 +727,8 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1,
+          color: Colors.black,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
@@ -765,18 +748,18 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: (value) => setState(() => _searchQuery = value),
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                  style: const TextStyle(fontSize: 13, color: Colors.black),
                   decoration: InputDecoration(
                     hintText: 'Search expenses by description, supplier, item, or receipt #...',
                     hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                     prefixIcon: const Icon(
                       Icons.search_rounded,
-                      color: Color(0xFF14332E),
+                      color: Colors.black,
                       size: 20,
                     ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8), size: 18),
+                            icon: const Icon(Icons.clear_rounded, color: Colors.black, size: 18),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -786,15 +769,15 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
@@ -814,7 +797,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                     decoration: BoxDecoration(
                       color: _isTableView ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      border: Border.all(color: Colors.black, width: 1.0),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -822,7 +805,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         Icon(
                           _isTableView ? Icons.grid_view_rounded : Icons.table_chart_rounded,
                           size: 16,
-                          color: _isTableView ? const Color(0xFFE6C374) : const Color(0xFF475569),
+                          color: _isTableView ? Colors.white : Colors.black,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -830,7 +813,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: _isTableView ? const Color(0xFFE6C374) : const Color(0xFF475569),
+                            color: _isTableView ? Colors.white : Colors.black,
                           ),
                         ),
                       ],
@@ -945,15 +928,16 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF14332E),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.black, width: 1.0),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.tune_rounded, size: 16, color: Color(0xFFE6C374)),
+                      Icon(Icons.tune_rounded, size: 16, color: Colors.white),
                       SizedBox(width: 6),
-                      Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE6C374))),
+                      Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
                       SizedBox(width: 4),
-                      Icon(Icons.arrow_drop_down_rounded, size: 18, color: Color(0xFFE6C374)),
+                      Icon(Icons.arrow_drop_down_rounded, size: 18, color: Colors.white),
                     ],
                   ),
                 ),
@@ -969,7 +953,6 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
             child: Row(
               children: categories.map((category) {
                 final isSelected = _selectedCategory == category;
-                final catColor = _getCategoryColor(category);
                 final catIcon = _getCategoryIcon(category);
 
                 return Padding(
@@ -991,10 +974,8 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF14332E)
-                              : const Color(0xFFE2E8F0),
-                          width: 1,
+                          color: Colors.black,
+                          width: 1.0,
                         ),
                         boxShadow: isSelected
                             ? [
@@ -1013,8 +994,8 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             catIcon,
                             size: 14,
                             color: isSelected
-                                ? const Color(0xFFE6C374)
-                                : catColor,
+                                ? Colors.white
+                                : Colors.black,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -1026,7 +1007,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   : FontWeight.w600,
                               color: isSelected
                                   ? Colors.white
-                                  : const Color(0xFF334155),
+                                  : Colors.black,
                             ),
                           ),
                         ],
@@ -1063,21 +1044,6 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
         : isRejected
             ? const Color(0xFFFEE2E2)
             : const Color(0xFFF1F5F9);
-    final borderColor = isPending
-        ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
-        : isRejected
-            ? const Color(0xFFEF4444).withValues(alpha: 0.5)
-            : const Color(0xFFCBD5E1);
-    final iconColor = isPending
-        ? const Color(0xFFB45309)
-        : isRejected
-            ? const Color(0xFFDC2626)
-            : const Color(0xFF475569);
-    final textColor = isPending
-        ? const Color(0xFF92400E)
-        : isRejected
-            ? const Color(0xFF991B1B)
-            : const Color(0xFF334155);
     final iconData = isPending
         ? Icons.pending_actions_rounded
         : isRejected
@@ -1095,14 +1061,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: Row(
         children: [
           Icon(
             iconData,
             size: 15,
-            color: iconColor,
+            color: Colors.black,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1114,10 +1080,10 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       : isArchive
                           ? 'Showing Archived Records (Restore or inspect past records)'
                           : 'Active Filter: ${[if (statusLabel != null) statusLabel, if (_selectedCategory != 'All') _selectedCategory, if (_searchQuery.isNotEmpty) '"$_searchQuery"'].join(' • ')}',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: textColor,
+                color: Colors.black,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1138,16 +1104,16 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
+                border: Border.all(color: Colors.black, width: 0.8),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.close_rounded, size: 12, color: Color(0xFF64748B)),
+                  Icon(Icons.close_rounded, size: 12, color: Colors.black),
                   SizedBox(width: 3),
                   Text(
                     'Reset',
-                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.black),
                   ),
                 ],
               ),
@@ -1213,7 +1179,6 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
     final statusColor = _getStatusColor(status, isAbono: expense.isAbono);
     final statusIcon = _getStatusIcon(status, isAbono: expense.isAbono);
     final category = expense.categoryDisplay;
-    final categoryColor = _getCategoryColor(category);
     final categoryIcon = _getCategoryIcon(category);
     final supplier = expense.supplier;
     final receiptNum = expense.receiptNumber;
@@ -1232,7 +1197,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: statusColor.withValues(alpha: 0.35),
+          color: Colors.black,
           width: 1.2,
         ),
         boxShadow: [
@@ -1264,20 +1229,20 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: categoryColor.withValues(alpha: 0.25),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: categoryColor.withValues(alpha: 0.55), width: 0.9),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(categoryIcon, size: 10, color: categoryColor),
+                            Icon(categoryIcon, size: 10, color: Colors.white),
                             const SizedBox(width: 3.5),
                             Flexible(
                               child: Text(
                                 category.toUpperCase(),
-                                style: TextStyle(
-                                  color: categoryColor,
+                                style: const TextStyle(
+                                  color: Colors.white,
                                   fontSize: 8.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.3,
@@ -1299,19 +1264,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFD97706).withValues(alpha: 0.28),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: const Color(0xFFF59E0B), width: 0.9),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.person_pin_rounded, size: 9, color: Color(0xFFFDE68A)),
+                            Icon(Icons.person_pin_rounded, size: 9, color: Colors.white),
                             SizedBox(width: 2.5),
                             Text(
                               'ABONO',
                               style: TextStyle(
                                 fontSize: 8,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFFFDE68A),
+                                color: Colors.white,
                                 letterSpacing: 0.3,
                               ),
                             ),
@@ -1325,21 +1290,21 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6C374).withValues(alpha: 0.22),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: const Color(0xFFE6C374), width: 0.9),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bolt_rounded, size: 9, color: Color(0xFFE6C374)),
+                            Icon(Icons.bolt_rounded, size: 9, color: Colors.white),
                             SizedBox(width: 2),
                             Text(
                               'NEW',
                               style: TextStyle(
                                 fontSize: 8,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFFE6C374),
+                                color: Colors.white,
                                 letterSpacing: 0.3,
                               ),
                             ),
@@ -1354,7 +1319,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: statusColor.withValues(alpha: 0.55), width: 0.9),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1362,7 +1327,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           Icon(
                             statusIcon,
                             size: 9,
-                            color: statusColor,
+                            color: Colors.white,
                           ),
                           const SizedBox(width: 3),
                           Text(
@@ -1386,7 +1351,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       icon: const Icon(
                         Icons.more_vert_rounded,
                         size: 16,
-                        color: Colors.white70,
+                        color: Colors.white,
                       ),
                       onSelected: (value) {
                         if (value == 'inspect') {
@@ -1488,11 +1453,11 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           Container(
                             padding: const EdgeInsets.all(7.5),
                             decoration: BoxDecoration(
-                              color: categoryColor.withValues(alpha: 0.12),
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: categoryColor.withValues(alpha: 0.3)),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
-                            child: Icon(categoryIcon, size: 17, color: categoryColor),
+                            child: Icon(categoryIcon, size: 17, color: Colors.black),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -1505,7 +1470,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 13.5,
-                                    color: Color(0xFF0F172A),
+                                    color: Colors.black,
                                     letterSpacing: -0.2,
                                   ),
                                   maxLines: 1,
@@ -1520,7 +1485,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                           'Vendor: $supplier',
                                           style: const TextStyle(
                                             fontSize: 11,
-                                            color: Color(0xFF64748B),
+                                            color: Colors.black,
                                             fontWeight: FontWeight.w600,
                                           ),
                                           maxLines: 1,
@@ -1528,7 +1493,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                         ),
                                       ),
                                       const SizedBox(width: 5),
-                                      const Text('•', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                                      const Text('•', style: TextStyle(color: Colors.black, fontSize: 10)),
                                       const SizedBox(width: 5),
                                     ],
                                     Flexible(
@@ -1538,7 +1503,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                             : DateFormat('MMM d, yyyy').format(expense.createdAt),
                                         style: TextStyle(
                                           fontSize: 10.5,
-                                          color: isToday ? const Color(0xFF0D9488) : const Color(0xFF64748B),
+                                          color: Colors.black,
                                           fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                                         ),
                                         maxLines: 1,
@@ -1552,12 +1517,13 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           ),
                           const SizedBox(width: 8),
 
-                          // Hero Amount Badge (Dark green box with gold figure)
+                          // Hero Amount Badge (Dark green box with white figure)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                             decoration: BoxDecoration(
                               color: const Color(0xFF14332E),
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.black, width: 1.0),
                               boxShadow: [
                                 BoxShadow(
                                   color: const Color(0xFF14332E).withValues(alpha: 0.2),
@@ -1574,7 +1540,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFFE6C374),
+                                      color: Colors.white,
                                     ),
                                   ),
                                   TextSpan(
@@ -1582,7 +1548,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w900,
-                                      color: Color(0xFFE6C374),
+                                      color: Colors.white,
                                       letterSpacing: -0.2,
                                     ),
                                   ),
@@ -1604,19 +1570,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(5),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(color: Colors.black, width: 0.8),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.inventory_2_rounded, size: 10, color: Color(0xFF64748B)),
+                                  const Icon(Icons.inventory_2_rounded, size: 10, color: Colors.black),
                                   const SizedBox(width: 3),
                                   Text(
                                     '${item.itemName} ×${item.quantity}',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF334155),
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],
@@ -1630,19 +1596,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(color: Colors.black, width: 0.8),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.inventory_2_rounded, size: 11, color: Color(0xFF64748B)),
+                              const Icon(Icons.inventory_2_rounded, size: 11, color: Colors.black),
                               const SizedBox(width: 4),
                               Text(
                                 '${expense.inventoryItemName!} ×${expense.quantityPurchased ?? 1}',
                                 style: const TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                 ),
                               ),
                             ],
@@ -1655,7 +1621,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                               : 'Disbursed by ${expense.purchasedBy.split('@').first}',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: Color(0xFF94A3B8),
+                            color: Colors.black,
                             fontStyle: FontStyle.italic,
                           ),
                           maxLines: 1,
@@ -1670,14 +1636,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               receiptNum?.isNotEmpty == true ? Icons.receipt_outlined : Icons.calendar_today_outlined,
                               size: 12,
-                              color: const Color(0xFF94A3B8),
+                              color: Colors.black,
                             ),
                             const SizedBox(width: 5),
                             Expanded(
@@ -1687,9 +1653,9 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                     : (receiptNum?.isNotEmpty == true
                                         ? 'Receipt #$receiptNum • Date: ${DateFormat('MMM d, yyyy').format(expense.expenseDate)}'
                                         : 'Expense Date: ${DateFormat('EEE, MMM d, yyyy').format(expense.expenseDate)}'),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 10.5,
-                                  color: expense.isNonOr ? const Color(0xFF0D9488) : const Color(0xFF475569),
+                                  color: Colors.black,
                                   fontWeight: FontWeight.w600,
                                 ),
                                 maxLines: 1,
@@ -1705,18 +1671,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF0D9488).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.black, width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.photo_rounded, size: 10, color: Color(0xFF0D9488)),
+                                      Icon(Icons.photo_rounded, size: 10, color: Colors.black),
                                       SizedBox(width: 3),
                                       Text(
                                         'PHOTO',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF0D9488),
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
@@ -1734,18 +1701,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF14332E).withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(color: Colors.black, width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.edit_rounded, size: 10, color: Color(0xFF14332E)),
+                                      Icon(Icons.edit_rounded, size: 10, color: Colors.black),
                                       SizedBox(width: 3),
                                       Text(
                                         'EDIT',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF14332E),
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
@@ -1761,19 +1729,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF14332E).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
+                                    border: Border.all(color: Colors.black, width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.unarchive_rounded, size: 10, color: Color(0xFF14332E)),
+                                      Icon(Icons.unarchive_rounded, size: 10, color: Colors.black),
                                       SizedBox(width: 3),
                                       Text(
                                         'RESTORE',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF14332E),
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
@@ -1789,19 +1757,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF64748B).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                                    border: Border.all(color: Colors.black, width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.archive_outlined, size: 10, color: Color(0xFF475569)),
+                                      Icon(Icons.archive_outlined, size: 10, color: Colors.black),
                                       SizedBox(width: 3),
                                       Text(
                                         'ARCHIVE',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xFF475569),
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
@@ -1889,7 +1857,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Colors.black, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
@@ -1904,9 +1872,9 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
+              color: Colors.transparent,
               borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(bottom: BorderSide(color: Colors.black, width: 0.8)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1916,7 +1884,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                   children: [
                     Text(
                       '$totalItems Record${totalItems == 1 ? '' : 's'} Listed',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Color(0xFF0F172A)),
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Colors.black),
                     ),
                     const SizedBox(width: 8),
                     Container(
@@ -1924,10 +1892,11 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFE2E8F0),
                         borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
                       child: Text(
                         'Page $_currentPage of $totalPages',
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.black),
                       ),
                     ),
                   ],
@@ -1937,6 +1906,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF14332E),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black, width: 1.0),
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF14332E).withValues(alpha: 0.18),
@@ -1953,7 +1923,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFFB0C8C3),
+                            color: Colors.white,
                           ),
                         ),
                         TextSpan(
@@ -1961,7 +1931,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFFE6C374),
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -1990,9 +1960,9 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         height: 40,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: const BoxDecoration(
-                          color: Color(0xFFF1F5F9),
+                          color: Colors.transparent,
                           border: Border(
-                            bottom: BorderSide(color: Color(0xFFCBD5E1), width: 1.1),
+                            bottom: BorderSide(color: Colors.black, width: 1.0),
                           ),
                         ),
                         child: const Row(
@@ -2004,7 +1974,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2016,7 +1986,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2028,7 +1998,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2040,7 +2010,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2052,7 +2022,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2065,7 +2035,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2078,7 +2048,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2091,7 +2061,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF334155),
+                                  color: Colors.black,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -2107,13 +2077,11 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.only(bottom: 70),
                           itemCount: paginated.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black),
                           itemBuilder: (context, index) {
                             final item = paginated[index];
                             final status = item.status.toLowerCase().trim();
-                            final statusColor = _getStatusColor(status, isAbono: item.isAbono);
                             final statusIcon = _getStatusIcon(status, isAbono: item.isAbono);
-                            final categoryColor = _getCategoryColor(item.categoryDisplay);
                             final categoryIcon = _getCategoryIcon(item.categoryDisplay);
                             final now = DateTime.now();
                             final isItemToday = item.createdAt.year == now.year &&
@@ -2153,7 +2121,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             final hasReceipt = item.receiptNumber != null && item.receiptNumber!.trim().isNotEmpty;
 
                             return Material(
-                              color: index % 2 == 0 ? Colors.white : const Color(0xFFFAFBFD),
+                              color: Colors.transparent,
                               child: InkWell(
                                 onTap: () => _showExpenseDetailsModal(item),
                                 hoverColor: const Color(0xFFF1F5F9),
@@ -2172,20 +2140,20 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               children: [
                                                 Text(
                                                   DateFormat('MMM d, yyyy').format(item.expenseDate),
-                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black),
                                                 ),
                                                 if (status == 'pending' && isItemRecent) ...[
                                                   const SizedBox(width: 4),
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                                     decoration: BoxDecoration(
-                                                      color: const Color(0xFFE6C374).withValues(alpha: 0.25),
+                                                      color: Colors.white,
                                                       borderRadius: BorderRadius.circular(4),
-                                                      border: Border.all(color: const Color(0xFFE6C374), width: 0.8),
+                                                      border: Border.all(color: Colors.black, width: 0.8),
                                                     ),
                                                     child: const Text(
                                                       'NEW',
-                                                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFFB45309)),
+                                                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.black),
                                                     ),
                                                   ),
                                                 ],
@@ -2194,20 +2162,20 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                             const SizedBox(height: 2),
                                             Row(
                                               children: [
-                                                Icon(
+                                                const Icon(
                                                   Icons.schedule_rounded,
                                                   size: 11,
-                                                  color: isItemToday ? const Color(0xFF0D9488) : const Color(0xFF94A3B8),
+                                                  color: Colors.black,
                                                 ),
                                                 const SizedBox(width: 3),
                                                 Text(
                                                   isItemToday
                                                       ? 'Req: Today, ${DateFormat('h:mm a').format(item.createdAt)}'
                                                       : 'Req: ${DateFormat('MMM d, h:mm a').format(item.createdAt)}',
-                                                  style: TextStyle(
+                                                  style: const TextStyle(
                                                     fontSize: 10,
-                                                    color: isItemToday ? const Color(0xFF0D9488) : const Color(0xFF94A3B8),
-                                                    fontWeight: isItemToday ? FontWeight.w700 : FontWeight.w500,
+                                                    color: Colors.black,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ],
@@ -2224,18 +2192,18 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                                               decoration: BoxDecoration(
-                                                color: categoryColor.withValues(alpha: 0.12),
+                                                color: const Color(0xFFF1F5F9),
                                                 borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: categoryColor.withValues(alpha: 0.25), width: 0.8),
+                                                border: Border.all(color: Colors.black, width: 0.8),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Icon(categoryIcon, size: 11.5, color: categoryColor),
+                                                  Icon(categoryIcon, size: 11.5, color: Colors.black),
                                                   const SizedBox(width: 4),
                                                   Text(
                                                     item.categoryDisplay,
-                                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: categoryColor),
+                                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ],
@@ -2254,7 +2222,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                           children: [
                                             Text(
                                               item.description,
-                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black),
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 1,
                                             ),
@@ -2262,7 +2230,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               const SizedBox(height: 2),
                                               Text(
                                                 '📦 ${item.inventoryItems!.length} item(s): ${item.inventoryItems!.first.itemName}',
-                                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                                style: const TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w600),
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 1,
                                               ),
@@ -2270,7 +2238,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               const SizedBox(height: 2),
                                               Text(
                                                 'Item: ${item.inventoryItemName!} ×${item.quantityPurchased ?? 1}',
-                                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                                style: const TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w600),
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 1,
                                               ),
@@ -2278,7 +2246,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               const SizedBox(height: 2),
                                               Text(
                                                 'Note: ${item.notes!}',
-                                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+                                                style: const TextStyle(fontSize: 10.5, color: Colors.black, fontStyle: FontStyle.italic),
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 1,
                                               ),
@@ -2293,12 +2261,12 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                         child: hasSupplier
                                             ? Row(
                                                 children: [
-                                                  const Icon(Icons.storefront_outlined, size: 13, color: Color(0xFF64748B)),
+                                                  const Icon(Icons.storefront_outlined, size: 13, color: Colors.black),
                                                   const SizedBox(width: 5),
                                                   Expanded(
                                                     child: Text(
                                                       item.supplier!,
-                                                      style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w600),
+                                                      style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w600),
                                                       overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
@@ -2306,11 +2274,11 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               )
                                             : const Row(
                                                 children: [
-                                                  Icon(Icons.storefront_outlined, size: 12, color: Color(0xFFCBD5E1)),
+                                                  Icon(Icons.storefront_outlined, size: 12, color: Colors.black),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     'Direct Purchase',
-                                                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+                                                    style: TextStyle(fontSize: 11, color: Colors.black, fontStyle: FontStyle.italic),
                                                   ),
                                                 ],
                                               ),
@@ -2328,13 +2296,13 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                                       decoration: BoxDecoration(
                                                         color: const Color(0xFFF1F5F9),
                                                         borderRadius: BorderRadius.circular(4),
-                                                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                                                        border: Border.all(color: Colors.black, width: 0.8),
                                                       ),
                                                       child: Text(
                                                         item.isNonOr ? '🏷️ Non-OR #${item.receiptNumber}' : '#${item.receiptNumber}',
-                                                        style: TextStyle(
+                                                        style: const TextStyle(
                                                           fontSize: 10.5,
-                                                          color: item.isNonOr ? const Color(0xFF0F766E) : const Color(0xFF334155),
+                                                          color: Colors.black,
                                                           fontWeight: FontWeight.w700,
                                                         ),
                                                         overflow: TextOverflow.ellipsis,
@@ -2345,14 +2313,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                                     const SizedBox(width: 4),
                                                     InkWell(
                                                       onTap: () => _showReceiptLightbox(item.receiptImageUrl!),
-                                                      child: const Icon(Icons.photo_library_outlined, size: 13, color: Color(0xFF0D9488)),
+                                                      child: const Icon(Icons.photo_library_outlined, size: 13, color: Colors.black),
                                                     ),
                                                   ],
                                                 ],
                                               )
                                             : const Text(
                                                 'No Receipt #',
-                                                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+                                                style: TextStyle(fontSize: 11, color: Colors.black, fontStyle: FontStyle.italic),
                                               ),
                                       ),
 
@@ -2365,7 +2333,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                           style: const TextStyle(
                                             fontSize: 13.5,
                                             fontWeight: FontWeight.w900,
-                                            color: Color(0xFF0F172A),
+                                            color: Colors.black,
                                             letterSpacing: -0.2,
                                           ),
                                         ),
@@ -2380,7 +2348,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                             decoration: BoxDecoration(
                                               color: statusBg,
                                               borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(color: statusColor.withValues(alpha: 0.35), width: 0.9),
+                                              border: Border.all(color: Colors.black, width: 0.8),
                                             ),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -2414,7 +2382,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                           children: [
                                             // Inspect Details
                                             IconButton(
-                                              icon: const Icon(Icons.visibility_outlined, size: 16, color: Color(0xFF14332E)),
+                                              icon: const Icon(Icons.visibility_outlined, size: 16, color: Colors.black),
                                               tooltip: 'Inspect Claim',
                                               padding: EdgeInsets.zero,
                                               constraints: const BoxConstraints(),
@@ -2424,7 +2392,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                             // Edit if pending
                                             if (status == 'pending') ...[
                                               IconButton(
-                                                icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF14332E)),
+                                                icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.black),
                                                 tooltip: 'Edit Claim',
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
@@ -2432,7 +2400,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               ),
                                             ] else if (item.isArchived) ...[
                                               IconButton(
-                                                icon: const Icon(Icons.unarchive_rounded, size: 16, color: Color(0xFF14332E)),
+                                                icon: const Icon(Icons.unarchive_rounded, size: 16, color: Colors.black),
                                                 tooltip: 'Restore from Archive',
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
@@ -2440,14 +2408,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                               ),
                                             ] else if (status == 'approved' || status == 'reimbursed') ...[
                                               IconButton(
-                                                icon: const Icon(Icons.archive_outlined, size: 16, color: Color(0xFF64748B)),
+                                                icon: const Icon(Icons.archive_outlined, size: 16, color: Colors.black),
                                                 tooltip: 'Archive Record',
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
                                                 onPressed: () => _toggleArchiveExpense(item),
                                               ),
                                             ] else ...[
-                                              const Icon(Icons.lock_outline_rounded, size: 15, color: Color(0xFFCBD5E1)),
+                                              const Icon(Icons.lock_outline_rounded, size: 15, color: Colors.black),
                                             ],
                                           ],
                                         ),
@@ -2471,12 +2439,12 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
+              color: Colors.transparent,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(16),
                 bottomRight: Radius.circular(16),
               ),
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(top: BorderSide(color: Colors.black, width: 0.8)),
             ),
             child: Row(
               children: [
@@ -2486,7 +2454,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: Colors.black,
                   ),
                 ),
                 const Spacer(),
@@ -2494,7 +2462,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Rows: ', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                    const Text('Rows: ', style: TextStyle(fontSize: 11, color: Colors.black, fontWeight: FontWeight.w600)),
                     const SizedBox(width: 4),
                     ...[15, 25, 50].map((size) {
                       final isSelected = _rowsPerPage == size;
@@ -2513,14 +2481,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             decoration: BoxDecoration(
                               color: isSelected ? const Color(0xFF14332E) : Colors.white,
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: isSelected ? const Color(0xFF14332E) : const Color(0xFFCBD5E1)),
+                              border: Border.all(color: Colors.black, width: 1.0),
                             ),
                             child: Text(
                               size.toString(),
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
-                                color: isSelected ? Colors.white : const Color(0xFF475569),
+                                color: isSelected ? Colors.white : Colors.black,
                               ),
                             ),
                           ),
@@ -2539,7 +2507,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                     decoration: BoxDecoration(
                       color: _currentPage > 1 ? Colors.white : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      border: Border.all(color: Colors.black, width: 1.0),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -2547,7 +2515,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         Icon(
                           Icons.chevron_left_rounded,
                           size: 16,
-                          color: _currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+                          color: _currentPage > 1 ? Colors.black : const Color(0xFF94A3B8),
                         ),
                         const SizedBox(width: 2),
                         Text(
@@ -2555,7 +2523,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: _currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+                            color: _currentPage > 1 ? Colors.black : const Color(0xFF94A3B8),
                           ),
                         ),
                       ],
@@ -2568,14 +2536,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: Colors.black, width: 1.0),
                   ),
                   child: Text(
                     '$_currentPage / $totalPages',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: Colors.black,
                     ),
                   ),
                 ),
@@ -2588,7 +2556,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                     decoration: BoxDecoration(
                       color: _currentPage < totalPages ? Colors.white : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      border: Border.all(color: Colors.black, width: 1.0),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -2598,14 +2566,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: _currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+                            color: _currentPage < totalPages ? Colors.black : const Color(0xFF94A3B8),
                           ),
                         ),
                         const SizedBox(width: 2),
                         Icon(
                           Icons.chevron_right_rounded,
                           size: 16,
-                          color: _currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+                          color: _currentPage < totalPages ? Colors.black : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
