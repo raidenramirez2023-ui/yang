@@ -3,14 +3,14 @@ import 'dart:convert';
 /// Helper utility for generating Philippine National Standard (QR Ph / EMVCo)
 /// Dynamic QR codes with pre-filled transaction amounts.
 class QrPhHelper {
-  // YangChow QR Ph Base Data extracted from assets/images/newgcash.png (InstaPay / P2P QR Pay)
+  // YangChow QR Ph Base Data extracted from assets/images/YCP_Gcash.png (InstaPay / P2P QR Pay)
   static const String _merchantInfo =
-      '27830012com.p2pqrpay0111GXCHPHM2XXX02089996440303152170200000006560417DWQM4TK3JDO0J6AGX';
+      '27830012com.p2pqrpay0111GXCHPHM2XXX02089996440303152170200000006560417DWQM4TK3JDNYYY3YL';
   static const String _mcc = '52046016';
   static const String _currency = '5303608'; // 608 = Philippine Peso (PHP ISO 4217)
   static const String _country = '5802PH';
-  static const String _merchantName = '5908YangChow';
-  static const String _city = '6010Pagsawitan';
+  static const String _merchantName = '5917CL***E GE****N A.';
+  static const String _city = '6007Tubigan';
   static const String _postalCode = '61041234';
 
   /// Generates a valid dynamic QR Ph (EMVCo) string with the exact transaction amount embedded.
@@ -39,7 +39,7 @@ class QrPhHelper {
 
   /// Returns the original static QR Ph string (where customer manually enters the amount).
   static String generateStaticQrPh() {
-    return '00020101021127830012com.p2pqrpay0111GXCHPHM2XXX02089996440303152170200000006560417DWQM4TK3JDO0J6AGX5204601653036085802PH5908YangChow6010Pagsawitan6104123463047221';
+    return '00020101021127830012com.p2pqrpay0111GXCHPHM2XXX02089996440303152170200000006560417DWQM4TK3JDNYYY3YL5204601653036085802PH5917CL***E GE****N A.6007Tubigan61041234630466EA';
   }
 
   /// Computes CRC-16/CCITT-FALSE (Polynomial: 0x1021, Initial: 0xFFFF)

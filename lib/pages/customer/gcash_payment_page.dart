@@ -319,7 +319,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.asset(
-                            'assets/images/newgcash.png',
+                            'assets/images/YCP_Gcash.png',
                             height: 260,
                             fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => Container(

@@ -5163,16 +5163,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 return true;
               }).toList();
 
-              // Deduplicate by item_name — show one entry per item in Incoming tab
-              final seenIncomingNames = <String>{};
-              final filteredTransactions = <Map<String, dynamic>>[];
-              for (var t in rawFiltered) {
-                final name = (t['item_name'] ?? '').toString().toLowerCase().trim();
-                if (!seenIncomingNames.contains(name)) {
-                  seenIncomingNames.add(name);
-                  filteredTransactions.add(t);
-                }
-              }
+              final filteredTransactions = rawFiltered;
 
               if (filteredTransactions.isEmpty) {
                 return Center(

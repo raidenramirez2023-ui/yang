@@ -31,7 +31,7 @@ class GCashQRPaymentPage extends StatefulWidget {
 class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
   bool _paymentConfirmed = false;
   bool _isLoading = false;
-  bool _useDynamicQr = true;
+  bool _useDynamicQr = false;
   Uint8List? _receiptBytes;
   String? _receiptExt;
   String? _receiptImageUrl;
@@ -255,7 +255,7 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.asset(
-                              'assets/images/newgcash.png',
+                              'assets/images/YCP_Gcash.png',
                               width: double.infinity,
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) {
