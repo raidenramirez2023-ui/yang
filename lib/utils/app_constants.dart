@@ -30,6 +30,7 @@ class AppConstants {
   // Asset Paths (kept as fallback for non-menu images like logos)
   static const String logoPath = 'assets/images/ycplogo.png';
   static const String logoJpgPath = 'assets/images/logo.jpg';
+  static const String gcashQrPath = 'assets/images/YCP_Gcash.png';
 
   // Supabase Storage (Fallback / Legacy)
   static const String supabaseStorageBaseUrl =
