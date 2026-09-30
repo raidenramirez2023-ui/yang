@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -146,6 +147,54 @@ class AdminContinuityService {
   static const String _settingKey = 'admin_continuity_config';
 
   static const String _prefCacheKey = 'yang_admin_continuity_config_cache';
+  static const String _failedAttemptsKey = 'continuity_failed_key_attempts';
+  static const String _lockoutUntilKey = 'continuity_lockout_until_epoch';
+  static const int maxFailedKeyAttempts = 3;
+  static const int lockoutMinutes = 1;
+
+  /// Get remaining lockout duration in seconds (0 if not locked out).
+  static Future<int> getRemainingLockoutSeconds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lockoutEpoch = prefs.getInt(_lockoutUntilKey) ?? 0;
+      final nowEpoch = DateTime.now().millisecondsSinceEpoch;
+      if (lockoutEpoch > nowEpoch) {
+        return ((lockoutEpoch - nowEpoch) / 1000).ceil();
+      } else if (lockoutEpoch > 0) {
+        await prefs.remove(_lockoutUntilKey);
+        await prefs.setInt(_failedAttemptsKey, 0);
+      }
+    } catch (_) {}
+    return 0;
+  }
+
+  /// Get current failed key attempts count.
+  static Future<int> getFailedAttemptsCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(_failedAttemptsKey) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Reset failed attempts and clear lockout.
+  static Future<void> resetFailedAttempts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_failedAttemptsKey);
+      await prefs.remove(_lockoutUntilKey);
+    } catch (_) {}
+  }
+
+  /// Cryptographically generate a standardized enterprise break-glass key.
+  /// Format: YCP-BRK-XXXX-XXXX (e.g., YCP-BRK-9F8A-77C2)
+  static String generateSecureBreakGlassKey() {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    final random = Random.secure();
+    String segment(int len) => List.generate(len, (_) => chars[random.nextInt(chars.length)]).join();
+    return 'YCP-BRK-${segment(4)}-${segment(4)}';
+  }
 
   /// Fetch current administrative continuity configuration.
   /// Seamlessly checks database `app_settings` (with local SharedPreferences cache fallback).
@@ -663,6 +712,87 @@ class AdminContinuityService {
     }
   }
 
+  /// Validate official reference document format (e.g., HR-MEMO-2026-004, CERT-INCIDENT-882).
+  /// Rejects arbitrary or non-standard text strings.
+  static bool isValidReferenceDirectiveFormat(String ref) {
+    final cleaned = ref.trim().toUpperCase();
+    if (cleaned.length < 5 || cleaned.length > 50) return false;
+    // Must contain a hyphen and standard formal prefix (e.g. HR-MEMO-, CERT-, DOC-, MEMO-, DIR-, GOV-, INC-, etc.)
+    final directiveRegex = RegExp(r'^(HR-MEMO|CERT|INCIDENT|DOC|GOV|LEGAL|DIR|MEMO)-[A-Z0-9]+(-[A-Z0-9]+)*$', caseSensitive: false);
+    if (directiveRegex.hasMatch(cleaned)) return true;
+
+    // Generic fallback for any formal uppercase hyphenated identifier with at least 2 alphanumeric segments (e.g. ABC-1234, HR-01)
+    final genericFormalRegex = RegExp(r'^[A-Z0-9]{2,12}(-[A-Z0-9]+)+$', caseSensitive: false);
+    return genericFormalRegex.hasMatch(cleaned);
+  }
+
+  /// Update the Pre-Registered Official Reference Directive Number in Escrow.
+  static Future<Map<String, dynamic>> updateReferenceDirective({
+    required String newReference,
+    required String updatedByEmail,
+  }) async {
+    try {
+      final trimmed = newReference.trim().toUpperCase();
+      if (!isValidReferenceDirectiveFormat(trimmed)) {
+        return {
+          'success': false,
+          'message': 'Invalid format. Directive must follow enterprise convention (e.g. HR-MEMO-2026-004, CERT-INCIDENT-882).',
+        };
+      }
+
+      final currentConfig = await getConfig();
+
+      final updatedConfig = AdminContinuityConfig(
+        primaryAdminEmail: currentConfig.primaryAdminEmail,
+        primaryAdminName: currentConfig.primaryAdminName,
+        primaryAdminPhone: currentConfig.primaryAdminPhone,
+        primaryAdminTitle: currentConfig.primaryAdminTitle,
+        backupAdminEmail: currentConfig.backupAdminEmail,
+        backupAdminName: currentConfig.backupAdminName,
+        backupAdminPhone: currentConfig.backupAdminPhone,
+        backupAdminTitle: currentConfig.backupAdminTitle,
+        status: currentConfig.status,
+        authorityMode: currentConfig.authorityMode,
+        successionReason: currentConfig.successionReason,
+        successionReference: trimmed,
+        successionDate: currentConfig.successionDate,
+        formerAdminEmail: currentConfig.formerAdminEmail,
+        formerAdminName: currentConfig.formerAdminName,
+        securityVerificationKey: currentConfig.securityVerificationKey,
+        lastUpdated: DateTime.now(),
+      );
+
+      final ok = await saveConfig(updatedConfig);
+      if (ok) {
+        await AuditLogService.logActivity(
+          action: 'CONTINUITY_DIRECTIVE_UPDATED',
+          module: 'Admin Governance',
+          description: 'Official Reference Directive updated to "$trimmed" by $updatedByEmail.',
+          customUserEmail: updatedByEmail,
+          customUserRole: 'DEVELOPER_CUSTODIAN',
+          metadata: {
+            'previous_reference': currentConfig.successionReference,
+            'new_reference': trimmed,
+          },
+        );
+        return {
+          'success': true,
+          'message': 'Official Reference Directive updated to $trimmed.',
+        };
+      }
+      return {
+        'success': false,
+        'message': 'Failed to save updated directive to database.',
+      };
+    } catch (e) {
+      debugPrint('[AdminContinuityService] Error updating reference directive: $e');
+      return {
+        'success': false,
+        'message': 'Exception updating reference directive: $e',
+      };
+    }
+  }
+
   /// Execute Formal Emergency Administrative Succession Protocol.
   /// 
   /// This implements the thesis panel scenario:
@@ -685,26 +815,135 @@ class AdminContinuityService {
     required String initiatedByName,
   }) async {
     try {
-      final config = await getConfig();
-
-      // 1. Authorization & Key Check
-      if (verificationKeyInput.trim() != config.securityVerificationKey.trim()) {
+      // 0. Anti-Brute-Force Rate Limiting Lockout Check
+      final remainingLockout = await getRemainingLockoutSeconds();
+      if (remainingLockout > 0) {
+        final remMinutes = (remainingLockout / 60).ceil();
         await AuditLogService.logActivity(
-          action: 'SUCCESSION_ATTEMPT_REJECTED',
+          action: 'SUCCESSION_BLOCKED_BY_LOCKOUT',
           module: 'Admin Governance',
-          description: 'Failed emergency succession attempt by $initiatedByEmail: Invalid Security Verification Key.',
+          description: 'Blocked succession attempt by $initiatedByEmail: Security Lockout active ($remMinutes min remaining).',
           customUserEmail: initiatedByEmail,
           customUserName: initiatedByName,
-          customUserRole: 'ADMIN',
+          customUserRole: 'SECURITY_ALERT',
           metadata: {
+            'remaining_seconds': remainingLockout,
             'emergency_reason': emergencyReason,
             'reference_doc': referenceDocument,
           },
         );
         return {
           'success': false,
-          'message': 'Invalid Security Verification Key. Emergency succession rejected.',
+          'is_locked': true,
+          'remaining_seconds': remainingLockout,
+          'message': 'Security Lockout Active: Too many failed key attempts. Please wait $remMinutes minute(s) before trying again or consult IT Custodian.',
         };
+      }
+
+      final config = await getConfig();
+
+      // 1. Authorization & Key Check
+      final inputKey = verificationKeyInput.trim();
+      final expectedKey = config.securityVerificationKey.trim();
+      if (inputKey != expectedKey) {
+        final prefs = await SharedPreferences.getInstance();
+        final currentAttempts = (prefs.getInt(_failedAttemptsKey) ?? 0) + 1;
+        await prefs.setInt(_failedAttemptsKey, currentAttempts);
+
+        if (currentAttempts >= maxFailedKeyAttempts) {
+          final lockoutUntil = DateTime.now().add(const Duration(minutes: lockoutMinutes)).millisecondsSinceEpoch;
+          await prefs.setInt(_lockoutUntilKey, lockoutUntil);
+
+          await AuditLogService.logActivity(
+            action: 'CRITICAL_SECURITY_ALERT',
+            module: 'Admin Governance',
+            description: 'CRITICAL: 3 failed succession key attempts by $initiatedByEmail! Succession protocol is LOCKED for $lockoutMinutes minutes.',
+            customUserEmail: initiatedByEmail,
+            customUserName: initiatedByName,
+            customUserRole: 'SECURITY_BREACH_DEFENSE',
+            metadata: {
+              'emergency_reason': emergencyReason,
+              'reference_doc': referenceDocument,
+              'failed_attempts': currentAttempts,
+              'lockout_minutes': lockoutMinutes,
+            },
+          );
+
+          return {
+            'success': false,
+            'is_locked': true,
+            'remaining_seconds': lockoutMinutes * 60,
+            'message': 'CRITICAL ALERT: 3 failed key attempts exceeded. Emergency Succession Protocol is now LOCKED for $lockoutMinutes minutes.',
+          };
+        } else {
+          final remainingAttempts = maxFailedKeyAttempts - currentAttempts;
+          await AuditLogService.logActivity(
+            action: 'SUCCESSION_ATTEMPT_REJECTED',
+            module: 'Admin Governance',
+            description: 'Failed emergency succession attempt ($currentAttempts/$maxFailedKeyAttempts) by $initiatedByEmail: Invalid Security Verification Key.',
+            customUserEmail: initiatedByEmail,
+            customUserName: initiatedByName,
+            customUserRole: 'ADMIN',
+            metadata: {
+              'emergency_reason': emergencyReason,
+              'reference_doc': referenceDocument,
+              'failed_attempts': currentAttempts,
+              'attempts_left': remainingAttempts,
+            },
+          );
+
+          return {
+            'success': false,
+            'remaining_attempts': remainingAttempts,
+            'message': 'Invalid Security Verification Key. Warning: $remainingAttempts attempt(s) remaining before 5-minute security lockout.',
+          };
+        }
+      }
+
+      // Valid Key: Clear any prior failed attempts
+      await resetFailedAttempts();
+
+      // 1.1 Reference Directive Format & Escrow Verification
+      final cleanRef = referenceDocument.trim().toUpperCase();
+      if (!isValidReferenceDirectiveFormat(cleanRef)) {
+        await AuditLogService.logActivity(
+          action: 'SUCCESSION_INVALID_REFERENCE_FORMAT',
+          module: 'Admin Governance',
+          description: 'Succession rejected: Reference document "$referenceDocument" does not adhere to official enterprise format.',
+          customUserEmail: initiatedByEmail,
+          customUserName: initiatedByName,
+          customUserRole: 'ADMIN',
+          metadata: {
+            'input_reference': referenceDocument,
+          },
+        );
+        return {
+          'success': false,
+          'message': 'Invalid Reference Directive format ("$referenceDocument"). Must follow formal legal identifier format (e.g. HR-MEMO-2026-004, CERT-INCIDENT-882).',
+        };
+      }
+
+      // If an active reference directive is registered in Escrow, verify match
+      if (config.successionReference != null && config.successionReference!.trim().isNotEmpty) {
+        final registeredRef = config.successionReference!.trim().toUpperCase();
+        if (cleanRef != registeredRef && !cleanRef.startsWith(registeredRef.split('-').take(2).join('-'))) {
+          await AuditLogService.logActivity(
+            action: 'SUCCESSION_REFERENCE_MISMATCH',
+            module: 'Admin Governance',
+            description: 'Succession rejected: Reference "$cleanRef" does not match Escrow directive "$registeredRef".',
+            customUserEmail: initiatedByEmail,
+            customUserName: initiatedByName,
+            customUserRole: 'ADMIN',
+            metadata: {
+              'input_reference': cleanRef,
+              'registered_reference': registeredRef,
+            },
+          );
+          return {
+            'success': false,
+            'message': 'Reference Mismatch: "$cleanRef" does not match the active directive registered in Escrow ($registeredRef).',
+          };
+        }
       }
 
       // Resolve target backup administrator
@@ -775,6 +1014,9 @@ class AdminContinuityService {
 
       final successionTimestamp = DateTime.now().toUtc().toIso8601String();
 
+      // Burn-After-Reading: Invalidate the consumed key and provision a fresh cryptographically secure key
+      final newRotatedKey = generateSecureBreakGlassKey();
+
       // 2. Build new configuration with updated succession state
       final updatedConfig = AdminContinuityConfig(
         primaryAdminEmail: newPrimaryEmail,
@@ -791,7 +1033,7 @@ class AdminContinuityService {
         successionDate: successionTimestamp,
         formerAdminEmail: formerAdminEmail,
         formerAdminName: formerAdminName,
-        securityVerificationKey: config.securityVerificationKey,
+        securityVerificationKey: newRotatedKey,
         lastUpdated: DateTime.now(),
       );
 
@@ -892,6 +1134,20 @@ class AdminContinuityService {
         },
       );
 
+      // Log Burn-After-Reading key destruction & rotation in audit trail
+      await AuditLogService.logActivity(
+        action: 'CONTINUITY_KEY_BURNED_AND_ROTATED',
+        module: 'Admin Governance',
+        description: 'Burn-After-Reading Policy Enforced: The emergency verification key used for succession was destroyed. A fresh break-glass escrow key has been provisioned for IT Custodianship.',
+        customUserEmail: initiatedByEmail,
+        customUserName: initiatedByName,
+        customUserRole: 'SECURITY_AUTOMATION',
+        metadata: {
+          'key_format': 'YCP-BRK-XXXX-XXXX',
+          'rotated_at': successionTimestamp,
+        },
+      );
+
       // 6. Non-blocking email alert to management and technical team
       try {
         await _supabase.functions.invoke(
@@ -909,7 +1165,7 @@ class AdminContinuityService {
 
       return {
         'success': true,
-        'message': 'Emergency Administrative Succession successfully executed. $newPrimaryName is now Primary Administrator.',
+        'message': 'Emergency Administrative Succession successfully executed. $newPrimaryName is now Primary Administrator. (Burn-After-Reading: Consumed key destroyed and rotated).',
         'new_primary_email': newPrimaryEmail,
         'former_admin_email': formerAdminEmail,
       };

@@ -56,6 +56,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   Map<String, dynamic>? _activeItRequest;
   AdminContinuityConfig? _continuityConfig;
   bool _isContinuityKeyRevealed = false;
+  int _continuityLockoutSeconds = 0;
 
   @override
   void initState() {
@@ -92,8 +93,12 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   Future<void> _loadContinuityConfig() async {
     try {
       final cfg = await AdminContinuityService.getConfig();
+      final lockout = await AdminContinuityService.getRemainingLockoutSeconds();
       if (mounted) {
-        setState(() => _continuityConfig = cfg);
+        setState(() {
+          _continuityConfig = cfg;
+          _continuityLockoutSeconds = lockout;
+        });
       }
     } catch (_) {}
   }
@@ -1299,6 +1304,56 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
           const Divider(color: DeveloperTheme.borderSubtle, height: 1),
           const SizedBox(height: 20),
 
+          if (_continuityLockoutSeconds > 0) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_clock, color: Colors.amberAccent, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Lockout Active: 3 failed attempts triggered by successor login (${(_continuityLockoutSeconds / 60).ceil()}m remaining).',
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.lock_open_rounded, size: 14),
+                    label: const Text('Reset Lockout Now'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: DeveloperTheme.accentEmerald,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      await AdminContinuityService.resetFailedAttempts();
+                      await _loadContinuityConfig();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: DeveloperTheme.accentEmerald,
+                            content: Text(
+                              'Security Lockout reset by IT Custodian! Succession login is now unlocked.',
+                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Details Layout
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1407,12 +1462,34 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
 
                   const SizedBox(height: 16),
 
-                  Text(
-                    'OFFICIAL REFERENCE DIRECTIVE (AUDIT RECORD)',
-                    style: DeveloperTheme.monoText(
-                      fontSize: 11,
-                      color: DeveloperTheme.accentCyan,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        'OFFICIAL REFERENCE DIRECTIVE (AUDIT RECORD)',
+                        style: DeveloperTheme.monoText(
+                          fontSize: 11,
+                          color: DeveloperTheme.accentCyan,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: DeveloperTheme.accentEmerald.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: DeveloperTheme.accentEmerald.withValues(alpha: 0.4)),
+                        ),
+                        child: Text(
+                          'REGISTERED & VALID',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: DeveloperTheme.accentEmerald,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -1435,6 +1512,14 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                             ),
                           ),
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: DeveloperTheme.accentCyan),
+                          onPressed: () => _showEditDirectiveDialog(effectiveRefNumber),
+                          tooltip: 'Edit Reference Directive',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                        const SizedBox(width: 12),
                         IconButton(
                           icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
                           onPressed: () {
@@ -1990,5 +2075,200 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
         }
       }
     }
+  }
+
+  void _showEditDirectiveDialog(String currentDirective) {
+    final controller = TextEditingController(text: currentDirective);
+    final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: DeveloperTheme.bgCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: DeveloperTheme.accentCyan.withValues(alpha: 0.4)),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: DeveloperTheme.accentCyan.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit_document, color: DeveloperTheme.accentCyan, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Update Reference Directive',
+                      style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: DeveloperTheme.textPrimary),
+                    ),
+                    Text(
+                      'Official Legal Incident / HR Memorandum Record',
+                      style: DeveloperTheme.bodySmall(color: DeveloperTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Directive Identifier *',
+                    style: DeveloperTheme.monoText(fontSize: 11, color: DeveloperTheme.textMuted),
+                  ),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: controller,
+                    style: DeveloperTheme.monoText(fontSize: 13, color: DeveloperTheme.textPrimary),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: DeveloperTheme.bgDark,
+                      hintText: 'e.g. HR-MEMO-2026-004',
+                      hintStyle: DeveloperTheme.monoText(fontSize: 12, color: DeveloperTheme.textMuted),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: DeveloperTheme.borderSubtle),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: DeveloperTheme.borderSubtle),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: DeveloperTheme.accentCyan),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Directive identifier is required';
+                      if (!AdminContinuityService.isValidReferenceDirectiveFormat(v)) {
+                        return 'Invalid format. Use convention e.g. HR-MEMO-2026-004';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Quick Presets:',
+                    style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      'HR-MEMO-2026-01',
+                      'HR-MEMO-2026-004',
+                      'CERT-INCIDENT-882',
+                      'GOV-DIRECTIVE-2026-01',
+                    ].map((preset) => InkWell(
+                      onTap: () => setModalState(() => controller.text = preset),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: DeveloperTheme.bgDark,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: DeveloperTheme.borderSubtle),
+                        ),
+                        child: Text(
+                          preset,
+                          style: DeveloperTheme.monoText(fontSize: 10, color: DeveloperTheme.accentCyan),
+                        ),
+                      ),
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: Colors.amber, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Must match the exact official document filed in the executive records folder.',
+                            style: GoogleFonts.inter(fontSize: 11, color: Colors.amber.shade200),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.inter(color: DeveloperTheme.textMuted)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setModalState(() => isSaving = true);
+                      final currentAuthUser = Supabase.instance.client.auth.currentUser;
+                      final res = await AdminContinuityService.updateReferenceDirective(
+                        newReference: controller.text.trim(),
+                        updatedByEmail: currentAuthUser?.email ?? 'developer@yangchow.com',
+                      );
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        if (res['success'] == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: DeveloperTheme.accentEmerald,
+                              content: Text(
+                                res['message'] ?? 'Directive updated successfully.',
+                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          );
+                          _loadContinuityConfig();
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: DeveloperTheme.accentRose,
+                              content: Text(res['message'] ?? 'Failed to update directive.'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DeveloperTheme.accentCyan,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: isSaving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                  : Text('Save Directive', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

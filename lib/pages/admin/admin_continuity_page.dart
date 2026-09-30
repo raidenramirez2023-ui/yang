@@ -2148,9 +2148,17 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
               const SizedBox(height: 14),
               TextFormField(
                 controller: keyController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Security Verification Key *',
-                  border: OutlineInputBorder(),
+                  helperText: 'Break-Glass passphrase held in IT Escrow / physical safe',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.auto_awesome, color: Colors.blueAccent, size: 20),
+                    tooltip: 'Generate Secure Token (YCP-BRK-XXXX-XXXX)',
+                    onPressed: () {
+                      keyController.text = AdminContinuityService.generateSecureBreakGlassKey();
+                    },
+                  ),
                 ),
               ),
             ],
@@ -2258,6 +2266,7 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                     decoration: const InputDecoration(
                       labelText: 'Official Reference Document Number *',
                       hintText: 'e.g. HR-MEMO-2026-004, CERT-INCIDENT-882',
+                      helperText: 'HR Memorandum or incident certificate on file',
                       border: OutlineInputBorder(),
                     ),
                     validator: (v) => v == null || v.trim().isEmpty ? 'Reference document is required' : null,
@@ -2269,6 +2278,7 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                     decoration: const InputDecoration(
                       labelText: 'Continuity Security Verification Key *',
                       hintText: 'Enter authorization key',
+                      helperText: 'Break-Glass key retrieved from Developer IT Escrow Vault',
                       border: OutlineInputBorder(),
                     ),
                     validator: (v) => v == null || v.trim().isEmpty ? 'Security key is required' : null,

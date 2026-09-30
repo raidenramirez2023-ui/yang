@@ -370,7 +370,7 @@ class YangChowApp extends StatelessWidget {
         // Staff POS Portal Routes
         // ==========================================
         '/staff/dashboard': (context) => const AuthGuard(
-          allowedRoles: ['staff'],
+          allowedRoles: ['staff', 'cashier', 'waitstaff'],
           redirectRoute: '/staff-login',
           child: StaffDashboardPage(),
         ),
@@ -452,7 +452,7 @@ class YangChowApp extends StatelessWidget {
         ),
 
         '/staff-dashboard': (context) => const AuthGuard(
-          allowedRoles: ['staff'],
+          allowedRoles: ['staff', 'cashier', 'waitstaff'],
           redirectRoute: '/staff-login',
           child: StaffDashboardPage(),
         ),

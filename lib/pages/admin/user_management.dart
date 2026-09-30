@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,7 +29,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   static const _slate = Color(0xFF64748B);
   static const _slateLight = Color(0xFFE2E8F0);
 
-  // Departments for filter — mutable so custom depts added in modal appear here too
+  // Departments for filter â mutable so custom depts added in modal appear here too
   List<String> _departments = [
     'All',
     'Management',
@@ -148,12 +149,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   int get _nextEmpNumber {
-    // Count only active (non-archived) staff
-    final activeCount = _staff.where(
-      (s) => (s['status'] ?? 'active').toString().toLowerCase() != 'archived',
-    ).length;
-    // Next number = active staff count + 1
-    return activeCount + 1;
+    int maxNum = 0;
+    for (final s in _staff) {
+      final idStr = (s['id'] ?? s['employee_id'] ?? '').toString();
+      final match = RegExp(r'EMP(\d+)', caseSensitive: false).firstMatch(idStr);
+      if (match != null) {
+        final n = int.tryParse(match.group(1)!) ?? 0;
+        if (n > maxNum) maxNum = n;
+      }
+    }
+    return (maxNum > 0) ? (maxNum + 1) : (_staff.length + 1);
   }
 
   @override
@@ -226,7 +231,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       // Action Buttons
                       Row(
                         children: [
-                          // 📦 Archived Staff Button
+                          // ð¦ Archived Staff Button
                           OutlinedButton.icon(
                             onPressed: _showArchivedStaffModal,
                             icon: const Icon(Icons.archive_outlined, size: 15, color: Color(0xFFD97706)),
@@ -251,7 +256,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // ➕ Add Staff Action Button
+                          // â Add Staff Action Button
                           ElevatedButton.icon(
                             onPressed: () => _showAddEditStaffModal(null),
                             icon: const Icon(Icons.person_add_rounded, size: 16, color: Colors.white),
@@ -1018,13 +1023,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
   String _getLevelLabel(int level) {
     switch (level) {
       case 4:
-        return 'L4 · EXEC';
+        return 'L4 Â· EXEC';
       case 3:
-        return 'L3 · SR. MGR';
+        return 'L3 Â· SR. MGR';
       case 2:
-        return 'L2 · STAFF';
+        return 'L2 Â· STAFF';
       case 1:
-        return 'L1 · SUPPORT';
+        return 'L1 Â· SUPPORT';
       default:
         return 'L$level';
     }
@@ -1043,6 +1048,62 @@ class _UserManagementPageState extends State<UserManagementPage> {
       return 1;
     }
     return 2; // default to Staff
+  }
+
+  /// Generates a readable 8-char temporary password (Google-style).
+  /// Format: Word + Symbol + 3 digits  →  e.g. Rice@472, Beef#839, Lime!253
+  String _generatePassword() {
+    const words = [
+      'Rice', 'Beef', 'Pork', 'Fish', 'Crab', 'Milk', 'Lime', 'Corn',
+      'Mint', 'Salt', 'Gold', 'Teal', 'Bold', 'Fast', 'Cool', 'Warm',
+      'Mango', 'Lemon', 'Sugar', 'Cream', 'Bread', 'Spice', 'Basil',
+      'Flame', 'Swift', 'Storm', 'Blaze', 'Frost', 'Maple', 'Cedar',
+    ];
+    const symbols = ['@', '#', '!'];
+    const digits = '2345678';
+    final rng = Random.secure();
+    final word = words[rng.nextInt(words.length)];
+    final sym = symbols[rng.nextInt(symbols.length)];
+    final d1 = digits[rng.nextInt(digits.length)];
+    final d2 = digits[rng.nextInt(digits.length)];
+    final d3 = digits[rng.nextInt(digits.length)];
+    return '$word$sym$d1$d2$d3';
+  }
+
+  /// Auto-detect the department based on role title keywords.
+  /// Mirrors the same logic used by StaffService._inferDepartment().
+  String _detectDeptFromRole(String role) {
+    final r = role.toLowerCase();
+    if (r.contains('manager') || r.contains('supervisor') || r.contains('admin') ||
+        r.contains('owner') || r.contains('exec') || r.contains('director') || r.contains('ceo')) {
+      return 'Management';
+    } else if (r.contains('cook') || r.contains('chef') || r.contains('cutter') ||
+        r.contains('prep') || r.contains('kitchen') || r.contains('dishwasher') ||
+        r.contains('busboy') || r.contains('cleaner')) {
+      return 'Kitchen';
+    } else if (r.contains('server') || r.contains('wait') || r.contains('dine') ||
+        r.contains('host') || r.contains('concierge')) {
+      return 'Service';
+    } else if (r.contains('cashier') || r.contains('inventory') || r.contains('stock') ||
+        r.contains('warehouse') || r.contains('utility') || r.contains('delivery')) {
+      return 'Operations';
+    }
+    return 'Operations'; // default
+  }
+
+  /// Check if a role is tied to one of the 4 system portals (Admin, chefycp, staffycp, pagsanjaninv).
+  /// Normal staff roles (e.g. Dishwasher, Cleaner, Utility, or custom roles) do not have portal access.
+  bool _isPortalRole(String role) {
+    const portalRoles = {
+      'Admin',
+      'Cook',
+      'Cashier & Food Server',
+      'Inventory Staff',
+    };
+    if (portalRoles.contains(role)) return true;
+    final r = role.toLowerCase();
+    if (r == 'chef' || r == 'cashier' || r == 'restaurant manager') return true;
+    return false;
   }
 
   // -------------------------------------------------------------------------
@@ -1315,12 +1376,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
     }
     final phoneController = TextEditingController(text: initialPhone);
+    final existingEmail = isEditing ? ((staff['email'] ?? '') as String) : '';
+    final emailController = TextEditingController(text: existingEmail);
+    final passwordController = TextEditingController(text: _generatePassword());
     final idController = TextEditingController(
       text: isEditing ? (staff['id'] ?? '') : 'EMP${_nextEmpNumber.toString().padLeft(3, '0')}',
     );
 
     String selectedDept = isEditing ? (staff['dept'] ?? 'Kitchen') : 'Kitchen';
     String selectedRole = isEditing ? (staff['role'] ?? 'Cook') : 'Cook';
+    bool createLoginAccount = !isEditing && _isPortalRole(selectedRole);
+    bool isPasswordVisible = false;
     int selectedLevel = isEditing ? (staff['level'] ?? 2) : 2;
     String selectedStatus = isEditing ? (staff['status'] ?? 'active') : 'active';
     String? currentPhoto = isEditing ? (staff['image'] as String?) : null;
@@ -1333,17 +1399,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
     // Mutable lists (so user can add custom entries)
     final List<String> deptOptions = List<String>.from(_departments.where((d) => d != 'All'));
     final List<String> roleOptions = [
-      'Supervisor',
-      'Cook',
-      'Cutter',
-      'Cashier & Food Server',
-      'Dine-in Food Server',
-      'Dishwasher',
-      'Kitchen Prep',
-      'Kitchen Utility',
-      'Restaurant Manager',
-      'Admin',
-      'Manager',
+      'Admin',                 // â ð¡ï¸ Admin Portal
+      'Cook',                  // â ð³ chefycp (Kitchen)
+      'Cashier & Food Server', // â ð¥ï¸ staffycp (POS)
+      'Inventory Staff',       // â ð¦ pagsanjaninv (Inventory)
       ..._customRoles,
     ];
 
@@ -1538,12 +1597,37 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               size: 20,
                             ),
                             const SizedBox(width: 8),
-                            Text(
+Text(
                               isEditing ? 'Edit Staff Member' : 'Add New Staff Member',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.badge_outlined, size: 12, color: _gold),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    idController.text,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -1565,7 +1649,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 📸 PHOTO UPLOADER SECTION (Camera + Gallery)
+                          // ð¸ PHOTO UPLOADER SECTION (Camera + Gallery)
                           Center(
                             child: Column(
                               children: [
@@ -1691,8 +1775,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Name
-                          _inputLabel('Name *'),
+                          // 1. Full Name
+                          _inputLabel('Full Name *'),
                           TextField(
                             controller: nameController,
                             onChanged: (_) => setDialogState(() {}),
@@ -1700,53 +1784,215 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // Job Title & Employee ID
+                          // 2. Mobile Phone (Placed directly under Name for natural personal info flow)
+                          _inputLabel('Contact Number (Exact 11 Digits) *'),
+                          TextField(
+                            controller: phoneController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(11),
+                            ],
+                            decoration: _inputDecoration('e.g. 09123456789', Icons.phone_outlined),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 3. Role / Access (Left) & Department (Right) - Role is first because it auto-detects Department & Level!
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Role / Position
                               Expanded(
-                                flex: 3,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _inputLabel('Job Title *'),
-                                    TextField(
-                                      controller: titleController,
-                                      decoration: _inputDecoration('e.g. Line Cook', Icons.work_outline_rounded),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        _inputLabel('Role / Position *'),
+                                        if (_customRoles.isNotEmpty)
+                                          GestureDetector(
+                                            onTap: () => _showManageRolesDialog(
+                                              parentContext: context,
+                                              roleOptions: roleOptions,
+                                              onRoleDeleted: (deletedRole) {
+                                                setDialogState(() {
+                                                  if (selectedRole == deletedRole) {
+                                                    selectedRole = roleOptions.first;
+                                                    selectedLevel = _detectLevelFromRole(selectedRole);
+                                                    selectedDept = _detectDeptFromRole(selectedRole);
+                                                    createLoginAccount = !isEditing && _isPortalRole(selectedRole);
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(bottom: 6),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.delete_outline_rounded, size: 12, color: Color(0xFFEF4444)),
+                                                  const SizedBox(width: 2),
+                                                  Text(
+                                                    'Manage Roles',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: const Color(0xFFEF4444),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: _slateLight),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: roleOptions.contains(selectedRole) ? selectedRole : roleOptions.first,
+                                          isExpanded: true,
+                                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+                                          items: [
+                                            ...roleOptions.map((r) => DropdownMenuItem(
+                                              value: r,
+                                              child: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 12), overflow: TextOverflow.ellipsis),
+                                            )),
+                                            DropdownMenuItem(
+                                              value: '__add_role__',
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Add Another Role',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: _emerald,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (_customRoles.isNotEmpty)
+                                              DropdownMenuItem(
+                                                value: '__manage_roles__',
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(Icons.delete_sweep_rounded, size: 14, color: Color(0xFFEF4444)),
+                                                    const SizedBox(width: 6),
+                                                    Expanded(
+                                                      child: Text(
+                                                        'Manage / Remove Roles',
+                                                        style: GoogleFonts.plusJakartaSans(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: const Color(0xFFEF4444),
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                          onChanged: (val) async {
+                                            if (val == '__manage_roles__') {
+                                              await _showManageRolesDialog(
+                                                parentContext: context,
+                                                roleOptions: roleOptions,
+                                                onRoleDeleted: (deletedRole) {
+                                                  setDialogState(() {
+                                                    if (selectedRole == deletedRole) {
+                                                      selectedRole = roleOptions.first;
+                                                      selectedLevel = _detectLevelFromRole(selectedRole);
+                                                      selectedDept = _detectDeptFromRole(selectedRole);
+                                                      createLoginAccount = !isEditing && _isPortalRole(selectedRole);
+                                                    }
+                                                  });
+                                                },
+                                              );
+                                            } else if (val == '__add_role__') {
+                                              final ctrl = TextEditingController();
+                                              final newRole = await showDialog<String>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                  title: Text('Add Role', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16)),
+                                                  content: TextField(
+                                                    controller: ctrl,
+                                                    autofocus: true,
+                                                    decoration: _inputDecoration('e.g. Bartender, Delivery Rider', Icons.work_outline_rounded),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(ctx),
+                                                      child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate)),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                                                      style: ElevatedButton.styleFrom(backgroundColor: _emerald, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                                                      child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (newRole != null && newRole.isNotEmpty) {
+                                                setDialogState(() {
+                                                  if (!roleOptions.contains(newRole)) roleOptions.add(newRole);
+                                                  selectedRole = newRole;
+                                                  selectedLevel = _detectLevelFromRole(newRole);
+                                                  selectedDept = _detectDeptFromRole(newRole);
+                                                  createLoginAccount = !isEditing && _isPortalRole(newRole);
+                                                });
+                                                if (!_customRoles.contains(newRole)) {
+                                                  setState(() => _customRoles.add(newRole));
+                                                  _saveCustomRoles();
+                                                }
+                                              }
+                                            } else if (val != null) {
+                                              setDialogState(() {
+                                                selectedRole = val;
+                                                selectedLevel = _detectLevelFromRole(val);
+                                                selectedDept = _detectDeptFromRole(val);
+                                                createLoginAccount = !isEditing && _isPortalRole(val);
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.auto_awesome_rounded, size: 10, color: _slate),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'Auto-detects Dept & Level',
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 9, color: _slate, fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _inputLabel(isEditing ? 'Employee ID (Locked)' : 'Employee ID (Auto: Staff #$_nextEmpNumber)'),
-                                    TextField(
-                                      controller: idController,
-                                      readOnly: true,
-                                      enabled: false,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF64748B),
-                                      ),
-                                      decoration: _inputDecoration('EMP001', Icons.badge_outlined).copyWith(
-                                        fillColor: const Color(0xFFF1F5F9),
-                                        suffixIcon: const Icon(Icons.lock_outline_rounded, size: 15, color: _slate),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
 
-                          // Department & Role
-                          Row(
-                            children: [
+                              // Department (Auto-updated from Role)
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1767,7 +2013,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           items: [
                                             ...deptOptions.map((d) => DropdownMenuItem(
                                               value: d,
-                                              child: Text(d, style: GoogleFonts.plusJakartaSans(fontSize: 13)),
+                                              child: Text(d, style: GoogleFonts.plusJakartaSans(fontSize: 12), overflow: TextOverflow.ellipsis),
                                             )),
                                             DropdownMenuItem(
                                               value: '__add_dept__',
@@ -1777,7 +2023,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                   const SizedBox(width: 6),
                                                   Expanded(
                                                     child: Text(
-                                                      'Add Another Department',
+                                                      'Add Another Dept',
                                                       style: GoogleFonts.plusJakartaSans(
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.w700,
@@ -1822,7 +2068,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                   if (!deptOptions.contains(newDept)) deptOptions.add(newDept);
                                                   selectedDept = newDept;
                                                 });
-                                                // Also add to the filter tab pills
                                                 setState(() {
                                                   if (!_departments.contains(newDept)) _departments.add(newDept);
                                                 });
@@ -1835,136 +2080,252 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         ),
                                       ),
                                     ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Department',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 9, color: _slate, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Work / Contact Email Address
+                          _inputLabel(
+                            _isPortalRole(selectedRole)
+                                ? 'Work Email Address (For Portal Login)'
+                                : 'Contact Email (Optional)',
+                          ),
+                          TextField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: _inputDecoration(
+                              _isPortalRole(selectedRole)
+                                  ? 'e.g. maria.staff@yangchow.com'
+                                  : 'e.g. maria@gmail.com (Optional)',
+                              Icons.email_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          // Portal Access or Normal Staff Badge
+                          Builder(builder: (_) {
+                            final isPortal = _isPortalRole(selectedRole);
+                            if (!isPortal) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF64748B).withValues(alpha: 0.2)),
+                                ),
+                                child: Row(
                                   children: [
-                                    _inputLabel('Role / Access *'),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF8FAFC),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: _slateLight),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value: roleOptions.contains(selectedRole) ? selectedRole : roleOptions.first,
-                                          isExpanded: true,
-                                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                                          items: [
-                                            ...roleOptions.map((r) => DropdownMenuItem(
-                                              value: r,
-                                              child: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 12), overflow: TextOverflow.ellipsis),
-                                            )),
-                                            DropdownMenuItem(
-                                              value: '__add_role__',
-                                              child: Row(
-                                                children: [
-                                                  const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
-                                                  const SizedBox(width: 6),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Add Another Role',
-                                                      style: GoogleFonts.plusJakartaSans(
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: _emerald,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
+                                    const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF64748B)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Role Type: ',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate, fontWeight: FontWeight.w500),
+                                    ),
+                                    Text(
+                                      'Normal Staff',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF334155), fontWeight: FontWeight.w800),
+                                    ),
+                                    Text(
+                                      '  Â·  Directory Record Only (No Portal Access)',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: _slate),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            final sysRole = StaffService.mapStaffRoleToSystemRole(selectedRole);
+                            String portalName;
+                            String portalDesc;
+                            Color portalColor;
+                            IconData portalIcon;
+                            if (sysRole == 'chef') {
+                              portalName = 'chefycp';
+                              portalDesc = 'Kitchen Dashboard';
+                              portalColor = const Color(0xFFD97706);
+                              portalIcon = Icons.restaurant_menu_rounded;
+                            } else if (sysRole == 'admin' || sysRole == 'backup_admin') {
+                              portalName = 'Admin Portal';
+                              portalDesc = 'Admin Dashboard';
+                              portalColor = const Color(0xFF0284C7);
+                              portalIcon = Icons.admin_panel_settings_rounded;
+                            } else if (sysRole == 'inventory staff') {
+                              portalName = 'pagsanjaninv';
+                              portalDesc = 'Inventory Dashboard';
+                              portalColor = const Color(0xFF7C3AED);
+                              portalIcon = Icons.inventory_2_rounded;
+                            } else {
+                              portalName = 'staffycp';
+                              portalDesc = 'POS / Staff Dashboard';
+                              portalColor = const Color(0xFF14332E);
+                              portalIcon = Icons.point_of_sale_rounded;
+                            }
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: portalColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: portalColor.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.login_rounded, size: 13, color: portalColor),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Portal Access: ',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate, fontWeight: FontWeight.w500),
+                                  ),
+                                  Icon(portalIcon, size: 13, color: portalColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    portalName,
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: portalColor, fontWeight: FontWeight.w800),
+                                  ),
+                                  Text(
+                                    '  Â·  $portalDesc',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 10, color: _slate),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+
+                          // Provision System Login Account Toggle & Credentials (ONLY for Portal Roles)
+                          if (_isPortalRole(selectedRole)) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: createLoginAccount
+                                  ? const Color(0xFF14332E).withValues(alpha: 0.05)
+                                  : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: createLoginAccount ? _emerald.withValues(alpha: 0.4) : _slateLight,
+                                width: createLoginAccount ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Checkbox(
+                                      value: createLoginAccount,
+                                      activeColor: _emerald,
+                                      onChanged: (val) {
+                                        setDialogState(() {
+                                          createLoginAccount = val ?? false;
+                                        });
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setDialogState(() {
+                                            createLoginAccount = !createLoginAccount;
+                                          });
+                                        },
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Provision System Login Account',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: _darkBg,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Creates credentials in Supabase Auth for Staff Login',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 10,
+                                                color: _slate,
                                               ),
                                             ),
                                           ],
-                                          onChanged: (val) async {
-                                            if (val == '__add_role__') {
-                                              final ctrl = TextEditingController();
-                                              final newRole = await showDialog<String>(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                                  title: Text('Add Role', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16)),
-                                                  content: TextField(
-                                                    controller: ctrl,
-                                                    autofocus: true,
-                                                    decoration: _inputDecoration('e.g. Bartender, Delivery Rider', Icons.work_outline_rounded),
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () => Navigator.pop(ctx),
-                                                      child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate)),
-                                                    ),
-                                                    ElevatedButton(
-                                                      onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-                                                      style: ElevatedButton.styleFrom(backgroundColor: _emerald, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                                                      child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (newRole != null && newRole.isNotEmpty) {
-                                                setDialogState(() {
-                                                  if (!roleOptions.contains(newRole)) roleOptions.add(newRole);
-                                                  selectedRole = newRole;
-                                                  // Auto-detect level from new role
-                                                  selectedLevel = _detectLevelFromRole(newRole);
-                                                });
-                                                // Persist the custom role
-                                                if (!_customRoles.contains(newRole)) {
-                                                  setState(() => _customRoles.add(newRole));
-                                                  _saveCustomRoles();
-                                                }
-                                              }
-                                            } else if (val != null) {
-                                              setDialogState(() {
-                                                selectedRole = val;
-                                                // Auto-detect level from selected role
-                                                selectedLevel = _detectLevelFromRole(val);
-                                              });
-                                            }
-                                          },
                                         ),
                                       ),
                                     ),
-                                    // Auto-detect hint
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.auto_awesome_rounded, size: 10, color: _slate),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            'Level auto-detected from role',
-                                            style: GoogleFonts.plusJakartaSans(fontSize: 9, color: _slate, fontWeight: FontWeight.w500),
-                                          ),
-                                        ],
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: _emerald.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        StaffService.mapStaffRoleToSystemRole(selectedRole).toUpperCase(),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: _emerald,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                if (createLoginAccount) ...[
+                                  const SizedBox(height: 8),
+                                  const Divider(height: 1),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      _inputLabel('Temporary Password *'),
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(6),
+                                        onTap: () => setDialogState(() {
+                                          passwordController.text = _generatePassword();
+                                        }),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                            const Icon(Icons.refresh_rounded, size: 11, color: _gold),
+                                            const SizedBox(width: 3),
+                                            Text('Regenerate', style: GoogleFonts.plusJakartaSans(fontSize: 10, color: _gold, fontWeight: FontWeight.w600)),
+                                          ]),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  TextField(
+                                    controller: passwordController,
+                                    obscureText: !isPasswordVisible,
+                                    decoration: _inputDecoration('Temporary password', Icons.lock_outline_rounded).copyWith(
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          isPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                          size: 16,
+                                          color: _slate,
+                                        ),
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            isPasswordVisible = !isPasswordVisible;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Auto-generated. Share with staff then ask them to change it.',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 12),
-
-                          // Mobile Phone (Strict 11 digits, numbers only)
-                          _inputLabel('Contact Number (Exact 11 Digits) *'),
-                          TextField(
-                            controller: phoneController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(11),
-                            ],
-                            decoration: _inputDecoration('e.g. 09123456789', Icons.phone_outlined),
-                          ),
+                          ],
                           const SizedBox(height: 14),
 
                           // Hierarchy Level (L4=Exec top, L1=Support bottom)
@@ -2151,7 +2512,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           child: ElevatedButton(
                             onPressed: () async {
                               final name = nameController.text.trim();
-                              final title = titleController.text.trim();
+                              // Job Title is auto-synced from Role (no manual field shown)
+                              final title = titleController.text.trim().isEmpty ? selectedRole : titleController.text.trim();
                               final phone = phoneController.text.trim();
                               final empId = idController.text.trim();
 
@@ -2187,20 +2549,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 showValidationError('Name must be at least 2 characters.');
                                 return;
                               }
-                              if (!RegExp(r"^[a-zA-Z\s\.\,\-\'\ñ\Ñ]+$").hasMatch(name)) {
+                              if (!RegExp(r"^[a-zA-Z\s\.\,\-\'\Ã±\Ã]+$").hasMatch(name)) {
                                 showValidationError('Name can only contain letters, spaces, and standard name characters.');
                                 return;
                               }
 
-                              // 2. JOB TITLE VALIDATION
-                              if (title.isEmpty) {
-                                showValidationError('Job Title is required.');
-                                return;
-                              }
-                              if (title.length < 2) {
-                                showValidationError('Job Title must be at least 2 characters.');
-                                return;
-                              }
+                              // 2. JOB TITLE — auto-synced from Role, no validation needed
 
                               // 3. EMPLOYEE ID VALIDATION & DUPLICATE CHECK
                               if (empId.isEmpty) {
@@ -2256,6 +2610,23 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 return;
                               }
 
+                              // 6. WORK EMAIL & PASSWORD VALIDATION (If system login account enabled)
+                              final email = emailController.text.trim().toLowerCase();
+                              final password = passwordController.text.trim();
+
+                              if (createLoginAccount && email.isEmpty) {
+                                showValidationError('Work Email is required when provisioning a system login account.');
+                                return;
+                              }
+                              if (email.isNotEmpty && !RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(email)) {
+                                showValidationError('Please enter a valid email address (e.g. maria.staff@yangchow.com).');
+                                return;
+                              }
+                              if (createLoginAccount && password.length < 6) {
+                                showValidationError('Temporary password must be at least 6 characters.');
+                                return;
+                              }
+
                               int colorHex = 0xFF14332E;
                               if (selectedDept == 'Management') colorHex = 0xFF0284C7;
                               if (selectedDept == 'Kitchen') colorHex = 0xFFD97706;
@@ -2295,6 +2666,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 'level': selectedLevel,
                                 'status': selectedStatus,
                                 'phone': formattedPhone,
+                                'email': email,
                                 'id': empId,
                                 'colorHex': colorHex,
                                 'image': currentPhoto ?? '',
@@ -2328,47 +2700,78 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                  // Save to database & local storage
                                  final bool dbSaved = await StaffService.saveStaffList(_staff);
 
+                                 // Provision Auth account if enabled
+                                 Map<String, dynamic>? authResult;
+                                 if (createLoginAccount && email.isNotEmpty) {
+                                   authResult = await StaffService.createStaffAuthAccount(
+                                     email: email,
+                                     password: password,
+                                     fullName: name,
+                                     role: selectedRole,
+                                     phone: formattedPhone,
+                                     employeeId: empId,
+                                   );
+                                 }
+
                                  AuditLogService.logActivity(
                                    action: isEditing ? 'UPDATE' : 'CREATE',
                                    module: 'Users',
                                    description: isEditing
                                        ? 'Updated staff profile for "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}'
-                                       : 'Added new staff member "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}',
+                                       : 'Added new staff member "${updatedData['name']}" (${updatedData['id']}) - Role: ${updatedData['role']}${createLoginAccount ? " [System Account Provisioned]" : ""}',
                                    entityId: updatedData['id']?.toString(),
                                    metadata: updatedData,
                                  );
 
                                  if (mounted) {
                                    Navigator.pop(ctx);
-                                   messenger.showSnackBar(
-                                     SnackBar(
-                                       content: Row(
-                                         children: [
-                                           Icon(
-                                             dbSaved ? Icons.cloud_done_rounded : Icons.check_circle_rounded,
-                                             color: Colors.white,
-                                             size: 20,
-                                           ),
-                                           const SizedBox(width: 10),
-                                           Expanded(
-                                             child: Text(
-                                               isEditing
-                                                   ? 'Staff "$name" updated & saved successfully!'
-                                                   : 'New staff "$name" ($empId) saved successfully!',
-                                               style: GoogleFonts.plusJakartaSans(
-                                                 fontWeight: FontWeight.w700,
-                                                 fontSize: 12,
+                                   if (authResult != null && authResult['success'] == true) {
+                                     _showCredentialsDialog(
+                                       name: name,
+                                       email: email,
+                                       password: password,
+                                       role: authResult['systemRole']?.toString() ?? selectedRole,
+                                     );
+                                   } else if (authResult != null && authResult['success'] == false) {
+                                     messenger.showSnackBar(
+                                       SnackBar(
+                                         content: Text('Staff saved, but note on Auth Account: ${authResult['error']}'),
+                                         backgroundColor: const Color(0xFFD97706),
+                                         behavior: SnackBarBehavior.floating,
+                                         duration: const Duration(seconds: 5),
+                                       ),
+                                     );
+                                   } else {
+                                     messenger.showSnackBar(
+                                       SnackBar(
+                                         content: Row(
+                                           children: [
+                                             Icon(
+                                               dbSaved ? Icons.cloud_done_rounded : Icons.check_circle_rounded,
+                                               color: Colors.white,
+                                               size: 20,
+                                             ),
+                                             const SizedBox(width: 10),
+                                             Expanded(
+                                               child: Text(
+                                                 isEditing
+                                                     ? 'Staff "$name" updated & saved successfully!'
+                                                     : 'New staff "$name" ($empId) saved successfully!',
+                                                 style: GoogleFonts.plusJakartaSans(
+                                                   fontWeight: FontWeight.w700,
+                                                   fontSize: 12,
+                                                 ),
                                                ),
                                              ),
-                                           ),
-                                         ],
+                                           ],
+                                         ),
+                                         backgroundColor: _emerald,
+                                         behavior: SnackBarBehavior.floating,
+                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                         duration: const Duration(seconds: 4),
                                        ),
-                                       backgroundColor: _emerald,
-                                       behavior: SnackBarBehavior.floating,
-                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                       duration: const Duration(seconds: 4),
-                                     ),
-                                   );
+                                     );
+                                   }
                                  }
                                } catch (saveErr) {
                                  debugPrint('Error saving staff: $saveErr');
@@ -2406,6 +2809,418 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // MANAGE CUSTOM ROLES DIALOG
+  // -------------------------------------------------------------------------
+  Future<void> _showManageRolesDialog({
+    required BuildContext parentContext,
+    required List<String> roleOptions,
+    required void Function(String deletedRole) onRoleDeleted,
+  }) async {
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setManageState) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Enterprise Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.badge_outlined, color: Color(0xFF334155), size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Custom Staff Roles',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${_customRoles.length}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Manage directory roles created outside core portals',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF94A3B8)),
+                          splashRadius: 18,
+                          tooltip: 'Close',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Content Body
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: _customRoles.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: const Icon(Icons.shield_outlined, size: 28, color: Color(0xFF94A3B8)),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No Custom Roles',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: const Color(0xFF1E293B),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Only the 4 standard portal positions (Admin, Cook, Cashier, Inventory) are active.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'POSITION CATALOG',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                  color: const Color(0xFF94A3B8),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxHeight: 280),
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  itemCount: _customRoles.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                  itemBuilder: (ctx, index) {
+                                    final roleName = _customRoles[index];
+                                    final dept = _detectDeptFromRole(roleName);
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFAFAFA),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Center(
+                                              child: Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF475569)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  roleName,
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: const Color(0xFF0F172A),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFE2E8F0),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        dept,
+                                                        style: GoogleFonts.plusJakartaSans(
+                                                          fontSize: 9.5,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: const Color(0xFF475569),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Text(
+                                                      'Normal Staff Â· Directory Record',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 10,
+                                                        color: const Color(0xFF94A3B8),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(8),
+                                              onTap: () async {
+                                                final confirm = await showDialog<bool>(
+                                                  context: dialogCtx,
+                                                  builder: (c) => Dialog(
+                                                    backgroundColor: Colors.transparent,
+                                                    child: ConstrainedBox(
+                                                      constraints: const BoxConstraints(maxWidth: 380),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(22),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white,
+                                                          borderRadius: BorderRadius.circular(16),
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: Colors.black.withValues(alpha: 0.12),
+                                                              blurRadius: 24,
+                                                              offset: const Offset(0, 10),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        child: Column(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Row(
+                                                              children: [
+                                                                Container(
+                                                                  padding: const EdgeInsets.all(8),
+                                                                  decoration: BoxDecoration(
+                                                                    color: const Color(0xFFFEE2E2),
+                                                                    borderRadius: BorderRadius.circular(8),
+                                                                  ),
+                                                                  child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                                                                ),
+                                                                const SizedBox(width: 10),
+                                                                Text(
+                                                                  'Remove Role',
+                                                                  style: GoogleFonts.plusJakartaSans(
+                                                                    fontWeight: FontWeight.w700,
+                                                                    fontSize: 15,
+                                                                    color: const Color(0xFF0F172A),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            const SizedBox(height: 12),
+                                                            Text(
+                                                              'Are you sure you want to remove "$roleName" from the position catalog? It will no longer be selectable for new employees.',
+                                                              style: GoogleFonts.plusJakartaSans(
+                                                                fontSize: 12,
+                                                                height: 1.4,
+                                                                color: const Color(0xFF475569),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(height: 20),
+                                                            Row(
+                                                              mainAxisAlignment: MainAxisAlignment.end,
+                                                              children: [
+                                                                TextButton(
+                                                                  onPressed: () => Navigator.pop(c, false),
+                                                                  style: TextButton.styleFrom(
+                                                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                                                  ),
+                                                                  child: Text(
+                                                                    'Cancel',
+                                                                    style: GoogleFonts.plusJakartaSans(
+                                                                      fontWeight: FontWeight.w600,
+                                                                      fontSize: 12,
+                                                                      color: const Color(0xFF64748B),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(width: 8),
+                                                                ElevatedButton(
+                                                                  onPressed: () => Navigator.pop(c, true),
+                                                                  style: ElevatedButton.styleFrom(
+                                                                    backgroundColor: const Color(0xFFDC2626),
+                                                                    elevation: 0,
+                                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                                  ),
+                                                                  child: Text(
+                                                                    'Remove Role',
+                                                                    style: GoogleFonts.plusJakartaSans(
+                                                                      color: Colors.white,
+                                                                      fontWeight: FontWeight.w700,
+                                                                      fontSize: 12,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+
+                                                if (confirm == true) {
+                                                  setState(() {
+                                                    _customRoles.remove(roleName);
+                                                  });
+                                                  roleOptions.remove(roleName);
+                                                  await _saveCustomRoles();
+                                                  onRoleDeleted(roleName);
+                                                  setManageState(() {});
+                                                }
+                                              },
+                                              child: Container(
+                                                padding: const EdgeInsets.all(7),
+                                                child: const Icon(
+                                                  Icons.delete_outline_rounded,
+                                                  size: 18,
+                                                  color: Color(0xFF94A3B8),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+
+                  // Footer
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Standard portal roles are protected',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F172A),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(
+                            'Done',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2453,6 +3268,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
               _saveStaffData();
               if (empId.isNotEmpty) {
                 StaffService.archiveStaffMember(empId);
+              }
+              final staffEmail = (staff['email'] ?? '').toString().trim();
+              if (staffEmail.isNotEmpty) {
+                StaffService.deactivateStaffAuthAccount(staffEmail);
               }
 
               AuditLogService.logActivity(
@@ -2622,7 +3441,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            '$empId · ${s['title'] ?? s['role'] ?? ''}',
+                                            '$empId Â· ${s['title'] ?? s['role'] ?? ''}',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 11,
                                               color: _slate,
@@ -2665,6 +3484,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         _saveStaffData();
                                         if (empId.isNotEmpty) {
                                           StaffService.restoreStaffMember(empId);
+                                        }
+                                        final staffEmail = (s['email'] ?? '').toString().trim();
+                                        if (staffEmail.isNotEmpty) {
+                                          StaffService.reactivateStaffAuthAccount(staffEmail, (s['role'] ?? 'staff').toString());
                                         }
                                         setModalState(() {});
 
@@ -2818,6 +3641,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
             _detailInfoRow('Department', dept.isNotEmpty ? dept : 'Kitchen', Icons.business_rounded),
             _detailInfoRow('Hierarchy Level', _getLevelLabel(level), Icons.stairs_rounded),
             _detailInfoRow('Contact Number', phone.isNotEmpty ? phone : 'N/A', Icons.phone_outlined),
+            _detailInfoRow(
+              'Work Email',
+              (staff['email'] ?? '').toString().isNotEmpty ? staff['email'].toString() : 'None provisioned',
+              Icons.email_outlined,
+            ),
             _detailInfoRow('Status', status, Icons.info_outline_rounded),
             if (dateHired.isNotEmpty)
               _detailInfoRow('Date Registered', dateHired.split('T').first, Icons.calendar_today_rounded),
@@ -2856,6 +3684,146 @@ class _UserManagementPageState extends State<UserManagementPage> {
           ),
         ],
       ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // CREDENTIALS MODAL (Shown when staff account is provisioned)
+  // -------------------------------------------------------------------------
+  void _showCredentialsDialog({
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _emerald.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.verified_user_rounded, color: _emerald, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Staff Account Created',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'A system login account has been successfully provisioned in Supabase Auth for "$name".',
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF475569)),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _slateLight),
+              ),
+              child: Column(
+                children: [
+                  _credentialRow('Email / Username', email),
+                  const Divider(height: 16),
+                  _credentialRow('Temporary Password', password),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('System Role', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _emerald.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          role.toUpperCase(),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: _emerald,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 14, color: _gold),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'The employee can now log in using these credentials at the Staff Login portal.',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _emerald,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Done', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _credentialRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 10, color: _slate)),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: _darkBg),
+            ),
+          ],
+        ),
+        IconButton(
+          icon: const Icon(Icons.copy_rounded, size: 16, color: _emerald),
+          tooltip: 'Copy',
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: value));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Copied $label to clipboard!'),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 

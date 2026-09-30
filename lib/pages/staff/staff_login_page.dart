@@ -1430,6 +1430,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
 
   void _showEmergencySuccessionDialog(String email, {String displayName = ''}) async {
     final config = await AdminContinuityService.getConfig();
+    final initialLockout = await AdminContinuityService.getRemainingLockoutSeconds();
     if (!mounted) return;
 
     final reasonController = TextEditingController(text: 'Permanent Medical Incapacitation / Deceased');
@@ -1438,6 +1439,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     final formKey = GlobalKey<FormState>();
     bool obscureKey = true;
     bool isSubmitting = false;
+    int lockoutSeconds = initialLockout;
 
     showDialog(
       context: context,
@@ -1493,6 +1495,49 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (lockoutSeconds > 0) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7F1D1D),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFEF4444)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lock_clock_rounded, color: Colors.amberAccent, size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'SECURITY LOCKOUT ACTIVE: 3 failed key attempts exceeded. Succession protocol is locked for ${(lockoutSeconds / 60).ceil()} more minute(s). Contact IT Custodian.',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: () async {
+                                await AdminContinuityService.resetFailedAttempts();
+                                setModalState(() => lockoutSeconds = 0);
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                backgroundColor: Colors.black38,
+                              ),
+                              child: Text(
+                                'Unlock (Test)',
+                                style: GoogleFonts.inter(color: Colors.amberAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -1585,6 +1630,11 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                       'Official Reference Document Number *',
                       style: GoogleFonts.poppins(color: _warmGold, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Enter the authorized HR Memorandum or Incident Certificate on file.',
+                      style: GoogleFonts.inter(color: Colors.white60, fontSize: 11),
+                    ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: referenceController,
@@ -1610,6 +1660,11 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                     Text(
                       'Continuity Security Verification Key *',
                       style: GoogleFonts.poppins(color: _warmGold, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Break-Glass Passphrase held by the IT Custodian (Developer Escrow) or physical sealed envelope.',
+                      style: GoogleFonts.inter(color: Colors.white60, fontSize: 11),
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
@@ -1637,6 +1692,27 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                       ),
                       validator: (v) => v == null || v.trim().isEmpty ? 'Security key is required' : null,
                     ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, color: Colors.amberAccent, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Dual-Control Escrow: Access is logged immutably under IT Governance audit records.',
+                              style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1659,7 +1735,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               ),
             ),
             ElevatedButton(
-              onPressed: isSubmitting
+              onPressed: (isSubmitting || lockoutSeconds > 0)
                   ? null
                   : () async {
                       if (!formKey.currentState!.validate()) return;
@@ -1684,13 +1760,18 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                           // Proceed directly to admin dashboard
                           await _redirectByUserRole(email, 'admin', initiatedName);
                         } else {
-                          setModalState(() => isSubmitting = false);
+                          setModalState(() {
+                            isSubmitting = false;
+                            if (res['is_locked'] == true) {
+                              lockoutSeconds = (res['remaining_seconds'] as int?) ?? (15 * 60);
+                            }
+                          });
                           GlobalMessenger.showError(res['message'] ?? 'Emergency succession failed.');
                         }
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
+                backgroundColor: lockoutSeconds > 0 ? const Color(0xFF475569) : const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1702,7 +1783,9 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
                   : Text(
-                      'Authorize & Take Over as Primary Admin',
+                      lockoutSeconds > 0
+                          ? 'Locked (${(lockoutSeconds / 60).ceil()}m remaining)'
+                          : 'Authorize & Take Over as Primary Admin',
                       style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
             ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../supabase_options.dart';
 
 class StaffService {
   static const String storageKey = 'yang_chow_staff_directory_v2';
@@ -183,6 +184,7 @@ class StaffService {
                     : (status.contains('archive') ? 'archived' : 'active')),
             'phone': (row['phone'] ?? '').toString().isNotEmpty ? row['phone'].toString() : '+63 900 000 0000',
             'image': staffImage,
+            'email': (row['email'] ?? '').toString().trim(),
             'colorHex': _getDeptColorHex(dept),
             'date_hired': (row['created_at'] ?? '').toString().isNotEmpty 
                 ? row['created_at'].toString() 
@@ -313,6 +315,7 @@ class StaffService {
           'image': (s['image'] ?? '').toString().trim(),
           'phone': (s['phone'] ?? '').toString().trim(),
           'dept': (s['dept'] ?? '').toString().trim(),
+          'email': (s['email'] ?? '').toString().trim().toLowerCase(),
         };
 
         final coreRow = {
@@ -466,5 +469,168 @@ class StaffService {
           .toList();
     }
     return servers;
+  }
+
+  /// Maps a staff position/role title into a system login role recognized by StaffLoginPage.
+  ///
+  /// SYSTEM ROLE → PORTAL MAPPING (single source of truth):
+  ///   'admin'          → /admin/dashboard      (Admin Portal - full access)
+  ///   'chef'           → /chef/dashboard       (Kitchen Portal)
+  ///   'cashier'        → /staff/dashboard      (Staff POS Portal)
+  ///   'waitstaff'      → /staff/dashboard      (Staff POS Portal)
+  ///   'staff'          → /staff/dashboard      (Staff POS Portal)
+  ///   'inventory staff'→ /inventory/dashboard  (Inventory Portal)
+  ///   'developer'      → /developer/dashboard  (Developer Console - bypass all)
+  ///
+  /// ⚠️  If you add a new system role here, also update:
+  ///     1. staff_login_page.dart  → _navigateAfterLogin() redirect logic
+  ///     2. main.dart              → AuthGuard allowedRoles for that portal's routes
+  static String mapStaffRoleToSystemRole(String roleTitle) {
+    final r = roleTitle.toLowerCase().trim();
+    // Only the literal 'Admin' staff role title gets full admin portal access.
+    // Manager / Supervisor / Owner are directory-level titles → staff portal.
+    if (r == 'admin') {
+      return 'admin';
+    } else if (r.contains('chef') || r.contains('cook') || r.contains('cutter') || r.contains('prep')) {
+      return 'chef';
+    } else if (r.contains('cashier')) {
+      return 'cashier';
+    } else if (r.contains('inventory') || r.contains('warehouse') || r.contains('stock') || r.contains('pagsanjan')) {
+      return 'inventory staff';
+    } else if (r.contains('server') || r.contains('wait') || r.contains('dine')) {
+      return 'waitstaff';
+    }
+    // manager, supervisor, owner, dishwasher, cleaner, custom roles → staff portal
+    return 'staff';
+  }
+
+  /// Provision a Supabase Auth user and `users` table entry using the service role client.
+  /// This runs completely in isolation and DOES NOT disrupt the active admin session!
+  static Future<Map<String, dynamic>> createStaffAuthAccount({
+    required String email,
+    required String password,
+    required String fullName,
+    required String role,
+    required String phone,
+    required String employeeId,
+  }) async {
+    try {
+      // Use an isolated client with no session persistence so it does NOT
+      // trigger auth state change events on the main singleton client.
+      final adminClient = SupabaseClient(
+        SupabaseOptions.supabaseUrl,
+        SupabaseOptions.supabaseServiceRoleKey,
+        authOptions: const AuthClientOptions(
+          autoRefreshToken: false,
+        ),
+      );
+
+      final trimmedEmail = email.trim().toLowerCase();
+      final nameParts = fullName.trim().split(' ');
+      final firstName = nameParts.first;
+      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      final systemRole = mapStaffRoleToSystemRole(role);
+
+      debugPrint('[StaffService] Provisioning auth user for $trimmedEmail with role: $systemRole');
+
+      // 1. Create in Supabase Auth via Admin API
+      final userResponse = await adminClient.auth.admin.createUser(
+        AdminUserAttributes(
+          email: trimmedEmail,
+          password: password,
+          emailConfirm: true,
+          userMetadata: {
+            'firstname': firstName,
+            'lastname': lastName,
+            'role': systemRole,
+            'phone': phone,
+            'employee_id': employeeId,
+          },
+        ),
+      );
+
+      final authUser = userResponse.user;
+      final userId = authUser?.id;
+
+      // 2. Insert or update in `public.users` table
+      if (userId != null) {
+        await adminClient.from('users').upsert({
+          'id': userId,
+          'email': trimmedEmail,
+          'firstname': firstName,
+          'lastname': lastName,
+          'phone': phone,
+          'role': systemRole,
+          'is_approved': true,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'email');
+        debugPrint('[StaffService] Created user in `users` table for $trimmedEmail');
+      }
+
+      adminClient.dispose();
+
+      return {
+        'success': true,
+        'userId': userId,
+        'systemRole': systemRole,
+      };
+    } catch (e) {
+      debugPrint('[StaffService] createStaffAuthAccount error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Deactivate a staff account in `users` table when archived
+  static Future<void> deactivateStaffAuthAccount(String email) async {
+    if (email.trim().isEmpty) return;
+    SupabaseClient? adminClient;
+    try {
+      adminClient = SupabaseClient(
+        SupabaseOptions.supabaseUrl,
+        SupabaseOptions.supabaseServiceRoleKey,
+        authOptions: const AuthClientOptions(
+          autoRefreshToken: false,
+        ),
+      );
+      await adminClient.from('users').update({
+        'is_approved': false,
+        'role': 'inactive_staff',
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).ilike('email', email.trim());
+      debugPrint('[StaffService] Deactivated staff auth record for $email');
+    } catch (e) {
+      debugPrint('[StaffService] Error deactivating staff auth account: $e');
+    } finally {
+      adminClient?.dispose();
+    }
+  }
+
+  /// Reactivate a staff account in `users` table when restored
+  static Future<void> reactivateStaffAuthAccount(String email, String role) async {
+    if (email.trim().isEmpty) return;
+    SupabaseClient? adminClient;
+    try {
+      adminClient = SupabaseClient(
+        SupabaseOptions.supabaseUrl,
+        SupabaseOptions.supabaseServiceRoleKey,
+        authOptions: const AuthClientOptions(
+          autoRefreshToken: false,
+        ),
+      );
+      final systemRole = mapStaffRoleToSystemRole(role);
+      await adminClient.from('users').update({
+        'is_approved': true,
+        'role': systemRole,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).ilike('email', email.trim());
+      debugPrint('[StaffService] Reactivated staff auth record for $email as $systemRole');
+    } catch (e) {
+      debugPrint('[StaffService] Error reactivating staff auth account: $e');
+    } finally {
+      adminClient?.dispose();
+    }
   }
 }
