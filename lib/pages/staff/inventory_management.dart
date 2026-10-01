@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart' as csv_pkg;
+import 'package:excel/excel.dart' as excel_pkg;
+import 'package:yang_chow/utils/file_download.dart';
+import 'package:yang_chow/utils/global_messenger.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -35,6 +40,7 @@ class _InventoryPageState extends State<InventoryPage> {
   String _selectedCategory = 'All';
   String? _selectedStockStatus;
   bool _isBannerCollapsed = false;
+  List<Map<String, dynamic>> _currentDisplayedItems = [];
 
   static const List<String> categories = [
     'All',
@@ -61,6 +67,32 @@ class _InventoryPageState extends State<InventoryPage> {
     'box',
     'roll',
   ];
+
+  List<Map<String, dynamic>> _filterAndSortItems(List<Map<String, dynamic>> items) {
+    final filtered = items.where((item) {
+      final name = (item['name'] ?? '').toString().toLowerCase();
+      final category = (item['category'] ?? '').toString().toLowerCase();
+      final query = _searchQuery.toLowerCase().trim();
+      final matchesSearch = query.isEmpty || name.contains(query) || category.contains(query);
+      final matchesCategory = _selectedCategory == 'All' ||
+          item['category']?.toString() == _selectedCategory;
+
+      final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+      final itemStockStatus = _getStockStatus(quantity);
+      final matchesStockStatus = _selectedStockStatus == null ||
+          itemStockStatus == _selectedStockStatus;
+
+      return matchesSearch && matchesCategory && matchesStockStatus;
+    }).toList();
+
+    filtered.sort((a, b) {
+      final nameA = (a['name'] ?? '').toString().toLowerCase();
+      final nameB = (b['name'] ?? '').toString().toLowerCase();
+      return nameA.compareTo(nameB);
+    });
+
+    return filtered;
+  }
 
   @override
   void initState() {
@@ -693,7 +725,22 @@ class _InventoryPageState extends State<InventoryPage> {
   // ══════════════════════════════════════════════════════════════════════════
 
   void _showExportOptionsDialog({List<Map<String, dynamic>>? items}) {
+    final effectiveItems = items ?? _currentDisplayedItems;
     final hasCategoryFilter = _selectedCategory != 'All';
+    final hasSearchFilter = _searchQuery.trim().isNotEmpty;
+    final hasStockFilter = _selectedStockStatus != null;
+    final isFiltered = hasCategoryFilter || hasSearchFilter || hasStockFilter;
+
+    final String scopeLabel;
+    if (hasSearchFilter) {
+      scopeLabel = 'Search: "$_searchQuery"';
+    } else if (hasStockFilter) {
+      scopeLabel = '$_selectedStockStatus';
+    } else if (hasCategoryFilter) {
+      scopeLabel = '$_selectedCategory';
+    } else {
+      scopeLabel = 'All Categories';
+    }
 
     showDialog(
       context: context,
@@ -705,7 +752,7 @@ class _InventoryPageState extends State<InventoryPage> {
             Icon(Icons.output_rounded, color: Color(0xFF14332E), size: 22),
             SizedBox(width: 10),
             Text(
-              'Export & Print Inventory',
+              'Export & Count Sheets',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
@@ -714,11 +761,11 @@ class _InventoryPageState extends State<InventoryPage> {
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (hasCategoryFilter) ...[
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -733,57 +780,70 @@ class _InventoryPageState extends State<InventoryPage> {
                     const Icon(Icons.filter_list_rounded, size: 14, color: Color(0xFF14332E)),
                     const SizedBox(width: 6),
                     Text(
-                      'Filtered Category: $_selectedCategory',
+                      'Screen View: $scopeLabel (${effectiveItems.length} items)',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF14332E)),
                     ),
                   ],
                 ),
               ),
+              const Text(
+                'Choose a format for manual inventory, reporting, or downloading count sheets:',
+                style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+              ),
+              const SizedBox(height: 16),
+
+              // Option 1: Download PDF Physical Count Sheet
+              _buildExportOptionTile(
+                icon: Icons.picture_as_pdf_rounded,
+                title: isFiltered ? 'Download Physical Count Sheet (PDF) ($scopeLabel)' : 'Download Physical Count Sheet (PDF)',
+                subtitle: 'Directly saves formatted multi-page PDF to your device (${effectiveItems.length} items, no printer needed)',
+                color: const Color(0xFFDC2626),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _downloadPhysicalInventoryPdf(items: effectiveItems, categoryScope: _selectedCategory);
+                },
+              ),
+              const SizedBox(height: 10),
+
+              // Option 2: Print Physical Count Sheet
+              _buildExportOptionTile(
+                icon: Icons.print_rounded,
+                title: isFiltered ? 'Print Physical Count Sheet ($scopeLabel)' : 'Print Physical Count Sheet (All Categories)',
+                subtitle: 'Send count sheet directly to system printer dialog (${effectiveItems.length} items)',
+                color: const Color(0xFF14332E),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _printPhysicalInventorySheet(items: effectiveItems, categoryScope: _selectedCategory);
+                },
+              ),
+              const SizedBox(height: 10),
+
+              // Option 3: Export Excel
+              _buildExportOptionTile(
+                icon: Icons.table_chart_rounded,
+                title: isFiltered ? 'Export to Excel ($scopeLabel)' : 'Export to Excel (All Categories)',
+                subtitle: 'Download the exact ${effectiveItems.length} items displayed on screen in formatted Excel (.xlsx)',
+                color: const Color(0xFF0D9488),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportInventoryToExcel(items: effectiveItems);
+                },
+              ),
+              const SizedBox(height: 10),
+
+              // Option 4: Download Excel Template
+              _buildExportOptionTile(
+                icon: Icons.download_rounded,
+                title: 'Download Blank Excel Template',
+                subtitle: 'Pre-formatted .xlsx template with sample rows and guidelines for batch encoding',
+                color: const Color(0xFF4F46E5),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _downloadExcelTemplate();
+                },
+              ),
             ],
-            const Text(
-              'Choose an export format for manual inventory, reporting, or printing physical count sheets:',
-              style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
-            ),
-            const SizedBox(height: 16),
-
-            // Option 1: Print / PDF Physical Inventory Sheet
-            _buildExportOptionTile(
-              icon: Icons.print_rounded,
-              title: hasCategoryFilter ? 'Print Physical Count Sheet ($_selectedCategory)' : 'Print Full Physical Count Sheet (All Categories)',
-              subtitle: 'Formatted multi-page sheet with blank write-in boxes for manual audit',
-              color: const Color(0xFF14332E),
-              onTap: () {
-                Navigator.pop(ctx);
-                _printPhysicalInventorySheet(items: items, categoryScope: _selectedCategory);
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Option 2: Export CSV
-            _buildExportOptionTile(
-              icon: Icons.table_chart_rounded,
-              title: hasCategoryFilter ? 'Export to CSV ($_selectedCategory)' : 'Export to CSV (All Categories)',
-              subtitle: 'Download complete inventory spreadsheet for Excel / Google Sheets',
-              color: const Color(0xFF0D9488),
-              onTap: () {
-                Navigator.pop(ctx);
-                _exportInventoryToCsv(items: items);
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Option 3: Download CSV Template
-            _buildExportOptionTile(
-              icon: Icons.download_rounded,
-              title: 'Download Blank CSV Template',
-              subtitle: 'Pre-formatted template with example rows for manual batch encoding',
-              color: const Color(0xFF4F46E5),
-              onTap: () {
-                Navigator.pop(ctx);
-                _downloadCsvTemplate();
-              },
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -853,7 +913,105 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<void> _exportInventoryToCsv({List<Map<String, dynamic>>? items}) async {
+  Future<void> _saveAndDownloadExcel({
+    required Uint8List bytes,
+    required String fileName,
+    required String successMessage,
+  }) async {
+    // 1. Direct Web Download
+    if (kIsWeb) {
+      final downloaded = downloadBinaryFile(
+        bytes,
+        '$fileName.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      if (downloaded) {
+        GlobalMessenger.showSuccess(successMessage);
+        return;
+      }
+    } else {
+      // 2. Direct Desktop Download to Downloads folder
+      try {
+        if (!kIsWeb && Platform.isWindows) {
+          final userProfile = Platform.environment['USERPROFILE'];
+          if (userProfile != null) {
+            final downloadsDir = Directory('$userProfile\\Downloads');
+            if (downloadsDir.existsSync()) {
+              final targetPath = '${downloadsDir.path}\\$fileName.xlsx';
+              final file = File(targetPath);
+              await file.writeAsBytes(bytes);
+              GlobalMessenger.showSuccess('$successMessage (Saved to Downloads)');
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback: FilePicker save dialog
+    final outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save Excel Spreadsheet',
+      fileName: '$fileName.xlsx',
+      type: FileType.custom,
+      allowedExtensions: ['xlsx'],
+      bytes: bytes,
+    );
+
+    if (outputFile != null && mounted) {
+      GlobalMessenger.showSuccess(successMessage);
+    }
+  }
+
+  Future<void> _saveAndDownloadPdf({
+    required Uint8List bytes,
+    required String fileName,
+    required String successMessage,
+  }) async {
+    // 1. Direct Web Download
+    if (kIsWeb) {
+      final downloaded = downloadBinaryFile(
+        bytes,
+        '$fileName.pdf',
+        'application/pdf',
+      );
+      if (downloaded) {
+        GlobalMessenger.showSuccess(successMessage);
+        return;
+      }
+    } else {
+      // 2. Direct Desktop Download to Downloads folder
+      try {
+        if (!kIsWeb && Platform.isWindows) {
+          final userProfile = Platform.environment['USERPROFILE'];
+          if (userProfile != null) {
+            final downloadsDir = Directory('$userProfile\\Downloads');
+            if (downloadsDir.existsSync()) {
+              final targetPath = '${downloadsDir.path}\\$fileName.pdf';
+              final file = File(targetPath);
+              await file.writeAsBytes(bytes);
+              GlobalMessenger.showSuccess('$successMessage (Saved to Downloads)');
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback: FilePicker save dialog
+    final outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save PDF Document',
+      fileName: '$fileName.pdf',
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      bytes: bytes,
+    );
+
+    if (outputFile != null && mounted) {
+      GlobalMessenger.showSuccess(successMessage);
+    }
+  }
+
+  Future<void> _exportInventoryToExcel({List<Map<String, dynamic>>? items}) async {
     try {
       List<Map<String, dynamic>> exportList = items ?? [];
       if (exportList.isEmpty) {
@@ -876,70 +1034,274 @@ class _InventoryPageState extends State<InventoryPage> {
         return;
       }
 
-      List<List<dynamic>> rows = [];
-      rows.add(['YANG CHOW PALACE RESTAURANT - INVENTORY MASTER EXPORT']);
-      rows.add([
-        'Export Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
-        'Total Records: ${exportList.length}',
-      ]);
-      rows.add([]);
-      rows.add([
-        'Item ID',
-        'Item Name',
-        'Category',
-        'Quantity',
-        'Unit',
-        'Storage Room',
-        'Supplier',
-        'Stock Status',
-      ]);
+      GlobalMessenger.showInfo('Generating organized Excel inventory masterlist...');
 
-      for (var item in exportList) {
-        final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-        rows.add([
-          item['id']?.toString() ?? '',
-          item['name']?.toString() ?? '',
-          item['category']?.toString() ?? '',
-          qty,
-          item['unit']?.toString() ?? '',
-          item['storage_room']?.toString() ?? '',
-          item['supplier']?.toString() ?? '',
-          _getStockStatus(qty),
-        ]);
-      }
+      final excel = excel_pkg.Excel.createExcel();
+      excel.delete('Sheet1');
 
-      final csvData = csv_pkg.CsvCodec().encode(rows);
-      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvData));
-      final fileName = 'yangchow_inventory_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-
-      final outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Inventory CSV',
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-        bytes: bytes,
+      final headerStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#14332E'),
+        horizontalAlign: excel_pkg.HorizontalAlign.Left,
+        bold: true,
       );
 
-      if (outputFile != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Exported ${exportList.length} inventory items to CSV!')),
-              ],
-            ),
-            backgroundColor: const Color(0xFF15803D),
-            behavior: SnackBarBehavior.floating,
-          ),
+      final titleStyle = excel_pkg.CellStyle(
+        fontSize: 14,
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#14332E'),
+      );
+
+      final subTitleStyle = excel_pkg.CellStyle(
+        fontSize: 10,
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#475569'),
+      );
+
+      final totalRowStyle = excel_pkg.CellStyle(
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#0F172A'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#E2E8F0'),
+      );
+
+      final zebraStyle = excel_pkg.CellStyle(
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#F8FAFC'),
+      );
+
+      void appendRow(excel_pkg.Sheet sheet, List<excel_pkg.CellValue?> rowValues, {excel_pkg.CellStyle? style}) {
+        sheet.appendRow(rowValues);
+        if (style != null) {
+          final rIndex = sheet.maxRows - 1;
+          for (var c = 0; c < rowValues.length; c++) {
+            final cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: rIndex));
+            cell.cellStyle = style;
+          }
+        }
+      }
+
+      // ────────────────────────────────────────────────────────────────────────
+      // TAB 1: INVENTORY MASTERLIST
+      // Clean 8-column layout matching inventory management needs:
+      //  # | Item Name | Category | Stock Quantity | Unit | Stock Status | Storage Room | Supplier
+      // ────────────────────────────────────────────────────────────────────────
+      final sheet = excel['Inventory Masterlist'];
+      sheet.setColumnWidth(0, 6.0);   // #
+      sheet.setColumnWidth(1, 32.0);  // Item Name
+      sheet.setColumnWidth(2, 18.0);  // Category
+      sheet.setColumnWidth(3, 16.0);  // Stock Quantity
+      sheet.setColumnWidth(4, 10.0);  // Unit
+      sheet.setColumnWidth(5, 16.0);  // Stock Status
+      sheet.setColumnWidth(6, 22.0);  // Storage Room
+      sheet.setColumnWidth(7, 26.0);  // Supplier
+
+      appendRow(sheet, [excel_pkg.TextCellValue('YANG CHOW PALACE RESTAURANT - INVENTORY MASTERLIST')], style: titleStyle);
+      appendRow(sheet, [
+        excel_pkg.TextCellValue(
+          'Export Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())} • Category: $_selectedCategory • Total Items: ${exportList.length}',
+        ),
+      ], style: subTitleStyle);
+      sheet.appendRow([excel_pkg.TextCellValue('')]);
+
+      appendRow(sheet, [
+        excel_pkg.TextCellValue('#'),
+        excel_pkg.TextCellValue('Item Name'),
+        excel_pkg.TextCellValue('Category'),
+        excel_pkg.TextCellValue('Stock Quantity'),
+        excel_pkg.TextCellValue('Unit'),
+        excel_pkg.TextCellValue('Stock Status'),
+        excel_pkg.TextCellValue('Storage Room'),
+        excel_pkg.TextCellValue('Supplier'),
+      ], style: headerStyle);
+
+      num totalStockVolume = 0;
+      final Map<String, int> categoryCounts = {};
+      final Map<String, num> categoryStockTotals = {};
+
+      for (int i = 0; i < exportList.length; i++) {
+        final item = exportList[i];
+        final qty = (item['quantity'] as num?)?.toDouble() ?? 0.0;
+        final qtyInt = qty.toInt();
+        totalStockVolume += qty;
+
+        final cat = (item['category'] ?? 'Uncategorized').toString().trim();
+        categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
+        categoryStockTotals[cat] = (categoryStockTotals[cat] ?? 0) + qty;
+
+        final status = _getStockStatus(qtyInt);
+        final isEven = (i % 2 == 0);
+
+        appendRow(
+          sheet,
+          [
+            excel_pkg.IntCellValue(i + 1),
+            excel_pkg.TextCellValue(item['name']?.toString() ?? ''),
+            excel_pkg.TextCellValue(cat),
+            qty == qtyInt ? excel_pkg.IntCellValue(qtyInt) : excel_pkg.DoubleCellValue(qty),
+            excel_pkg.TextCellValue(item['unit']?.toString() ?? ''),
+            excel_pkg.TextCellValue(status),
+            excel_pkg.TextCellValue(item['storage_room']?.toString() ?? ''),
+            excel_pkg.TextCellValue(item['supplier']?.toString() ?? ''),
+          ],
+          style: isEven ? null : zebraStyle,
         );
       }
+
+      // Total row — 8 columns
+      appendRow(sheet, [
+        excel_pkg.TextCellValue('TOTAL'),
+        excel_pkg.TextCellValue('${exportList.length} Items Listed'),
+        excel_pkg.TextCellValue('-'),
+        totalStockVolume == totalStockVolume.toInt()
+            ? excel_pkg.IntCellValue(totalStockVolume.toInt())
+            : excel_pkg.DoubleCellValue(totalStockVolume.toDouble()),
+        excel_pkg.TextCellValue('Total Units'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+      ], style: totalRowStyle);
+
+      // ────────────────────────────────────────────────────────────────────────
+      // TAB 2: PHYSICAL INVENTORY COUNT SHEET (grouped by category)
+      // Columns: # | Item Name | Unit | System Qty | Physical Count | Storage Room | Stock Status | Notes
+      // ────────────────────────────────────────────────────────────────────────
+      final catSheet = excel['Physical Count Sheet'];
+      catSheet.setColumnWidth(0, 6.0);   // #
+      catSheet.setColumnWidth(1, 32.0);  // Item Name
+      catSheet.setColumnWidth(2, 10.0);  // Unit
+      catSheet.setColumnWidth(3, 16.0);  // System Qty
+      catSheet.setColumnWidth(4, 20.0);  // Physical Count (blank)
+      catSheet.setColumnWidth(5, 22.0);  // Storage Room
+      catSheet.setColumnWidth(6, 16.0);  // Stock Status
+      catSheet.setColumnWidth(7, 30.0);  // Notes
+
+      final categoryHeaderStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#0D9488'),
+        bold: true,
+      );
+
+      final categoryTotalStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#0F172A'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#CCFBF1'),
+        bold: true,
+        italic: true,
+      );
+
+      final nowStr = DateFormat('MMMM dd, yyyy – hh:mm a').format(DateTime.now());
+      appendRow(catSheet, [
+        excel_pkg.TextCellValue('YANG CHOW PALACE RESTAURANT — PHYSICAL INVENTORY COUNT SHEET'),
+      ], style: titleStyle);
+      appendRow(catSheet, [
+        excel_pkg.TextCellValue('Date: $nowStr   •   Checked by: ___________________________   •   Category: $_selectedCategory'),
+      ], style: subTitleStyle);
+      catSheet.appendRow([excel_pkg.TextCellValue('')]);
+
+      // Group items by category (preserve insertion order from exportList)
+      final Map<String, List<Map<String, dynamic>>> groupedByCategory = {};
+      for (final item in exportList) {
+        final cat = (item['category'] ?? 'Uncategorized').toString().trim();
+        groupedByCategory.putIfAbsent(cat, () => []).add(item);
+      }
+
+      // Sort categories alphabetically
+      final sortedCategories = groupedByCategory.keys.toList()..sort();
+
+      int rowNum = 1;
+      for (final cat in sortedCategories) {
+        final items = groupedByCategory[cat]!;
+
+        // Category group header (8 columns)
+        appendRow(catSheet, [
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue('📦  ${cat.toUpperCase()}'),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+        ], style: categoryHeaderStyle);
+
+        // Column headers per group (8 columns)
+        appendRow(catSheet, [
+          excel_pkg.TextCellValue('#'),
+          excel_pkg.TextCellValue('Item Name'),
+          excel_pkg.TextCellValue('Unit'),
+          excel_pkg.TextCellValue('System Qty'),
+          excel_pkg.TextCellValue('Physical Count'),
+          excel_pkg.TextCellValue('Storage Room'),
+          excel_pkg.TextCellValue('Stock Status'),
+          excel_pkg.TextCellValue('Notes'),
+        ], style: headerStyle);
+
+        num catSystemTotal = 0;
+        for (int j = 0; j < items.length; j++) {
+          final item = items[j];
+          final qty = (item['quantity'] as num?)?.toDouble() ?? 0.0;
+          final qtyInt = qty.toInt();
+          catSystemTotal += qty;
+          final status = _getStockStatus(qtyInt);
+          final isEven = (j % 2 == 0);
+
+          appendRow(catSheet, [
+            excel_pkg.IntCellValue(rowNum++),
+            excel_pkg.TextCellValue(item['name']?.toString() ?? ''),
+            excel_pkg.TextCellValue(item['unit']?.toString() ?? ''),
+            qty == qtyInt ? excel_pkg.IntCellValue(qtyInt) : excel_pkg.DoubleCellValue(qty),
+            excel_pkg.TextCellValue(''),   // Physical Count — blank for staff to fill
+            excel_pkg.TextCellValue(item['storage_room']?.toString() ?? ''),
+            excel_pkg.TextCellValue(status),
+            excel_pkg.TextCellValue(''),   // Notes — blank
+          ], style: isEven ? null : zebraStyle);
+        }
+
+        // Category subtotal row (8 columns)
+        appendRow(catSheet, [
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue('${cat.toUpperCase()} SUBTOTAL — ${items.length} item(s)'),
+          excel_pkg.TextCellValue(''),
+          catSystemTotal == catSystemTotal.toInt()
+              ? excel_pkg.IntCellValue(catSystemTotal.toInt())
+              : excel_pkg.DoubleCellValue(catSystemTotal.toDouble()),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+          excel_pkg.TextCellValue(''),
+        ], style: categoryTotalStyle);
+
+        catSheet.appendRow([excel_pkg.TextCellValue('')]); // spacer between categories
+      }
+
+      // Grand total row (8 columns)
+      appendRow(catSheet, [
+        excel_pkg.TextCellValue('GRAND TOTAL'),
+        excel_pkg.TextCellValue('${exportList.length} Items'),
+        excel_pkg.TextCellValue(''),
+        totalStockVolume == totalStockVolume.toInt()
+            ? excel_pkg.IntCellValue(totalStockVolume.toInt())
+            : excel_pkg.DoubleCellValue(totalStockVolume.toDouble()),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+      ], style: totalRowStyle);
+
+      final excelBytes = excel.save();
+      if (excelBytes == null) throw Exception('Excel encoding failed');
+      final Uint8List bytes = Uint8List.fromList(excelBytes);
+
+      final fileName = 'yangchow_inventory_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
+
+      await _saveAndDownloadExcel(
+        bytes: bytes,
+        fileName: fileName,
+        successMessage: 'Exported ${exportList.length} inventory items to Excel spreadsheet!',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export failed: $e'),
+            content: Text('Excel export failed: $e'),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -947,63 +1309,146 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  Future<void> _downloadCsvTemplate() async {
+  Future<void> _downloadExcelTemplate() async {
+    // Fetch real items from the DB to use as sample rows
+    List<Map<String, dynamic>> sampleItems = [];
     try {
-      List<List<dynamic>> rows = [];
-      rows.add([
-        'Item Name',
-        'Category',
-        'Quantity',
-        'Unit',
-        'Storage Room',
-        'Supplier',
-      ]);
-      rows.add([
-        'Fresh Pork Belly',
-        'Fresh',
-        '50',
-        'kilo',
-        'Freezer',
-        'Mega Meat Supply',
-      ]);
-      rows.add([
-        'Soy Sauce Premium',
-        'Sauces',
-        '24',
-        'bot',
-        'Dry Storage',
-        'Golden Dragon Goods',
-      ]);
-      rows.add([
-        'Takeout Box 500ml',
-        'Packaging',
-        '100',
-        'pcs',
-        'Dry Storage',
-        'Eco Pack Trading',
-      ]);
+      final res = await Supabase.instance.client
+          .from('inventory')
+          .select('name, category, quantity, unit, storage_room, supplier')
+          .order('name', ascending: true)
+          .limit(5);
+      sampleItems = List<Map<String, dynamic>>.from(res);
+    } catch (_) {}
+    try {
+      final excel = excel_pkg.Excel.createExcel();
+      excel.delete('Sheet1');
 
-      final csvData = csv_pkg.CsvCodec().encode(rows);
-      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvData));
-      const fileName = 'yangchow_inventory_template.csv';
-
-      final outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Inventory CSV Template',
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-        bytes: bytes,
+      final headerStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#14332E'),
+        horizontalAlign: excel_pkg.HorizontalAlign.Left,
+        bold: true,
       );
 
-      if (outputFile != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Inventory CSV template downloaded successfully!'),
-            backgroundColor: Color(0xFF15803D),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      final titleStyle = excel_pkg.CellStyle(
+        fontSize: 13,
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#14332E'),
+      );
+
+      final guideHeaderStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#0D9488'),
+        horizontalAlign: excel_pkg.HorizontalAlign.Left,
+        bold: true,
+      );
+
+      void appendRow(excel_pkg.Sheet sheet, List<excel_pkg.CellValue?> rowValues, {excel_pkg.CellStyle? style}) {
+        sheet.appendRow(rowValues);
+        if (style != null) {
+          final rIndex = sheet.maxRows - 1;
+          for (var c = 0; c < rowValues.length; c++) {
+            final cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: rIndex));
+            cell.cellStyle = style;
+          }
+        }
       }
+
+      // TAB 1: Template
+      final templateSheet = excel['Inventory Import Template'];
+      templateSheet.setColumnWidth(0, 30.0); // Item Name
+      templateSheet.setColumnWidth(1, 18.0); // Category
+      templateSheet.setColumnWidth(2, 14.0); // Quantity
+      templateSheet.setColumnWidth(3, 12.0); // Unit
+      templateSheet.setColumnWidth(4, 20.0); // Storage Room
+      templateSheet.setColumnWidth(5, 28.0); // Supplier
+
+      appendRow(templateSheet, [
+        excel_pkg.TextCellValue('Item Name'),
+        excel_pkg.TextCellValue('Category'),
+        excel_pkg.TextCellValue('Quantity'),
+        excel_pkg.TextCellValue('Unit'),
+        excel_pkg.TextCellValue('Storage Room'),
+        excel_pkg.TextCellValue('Supplier'),
+      ], style: headerStyle);
+
+      // Sample rows — pulled dynamically from the live inventory database
+      if (sampleItems.isNotEmpty) {
+        for (final item in sampleItems) {
+          final qty = (item['quantity'] as num?)?.toDouble() ?? 0.0;
+          final qtyInt = qty.toInt();
+          appendRow(templateSheet, [
+            excel_pkg.TextCellValue(item['name']?.toString() ?? ''),
+            excel_pkg.TextCellValue(item['category']?.toString() ?? ''),
+            qty == qtyInt ? excel_pkg.IntCellValue(qtyInt) : excel_pkg.DoubleCellValue(qty),
+            excel_pkg.TextCellValue(item['unit']?.toString() ?? 'pcs'),
+            excel_pkg.TextCellValue(item['storage_room']?.toString() ?? 'Dry Storage'),
+            excel_pkg.TextCellValue(item['supplier']?.toString() ?? ''),
+          ]);
+        }
+      } else {
+        // Fallback placeholder if DB is empty
+        appendRow(templateSheet, [
+          excel_pkg.TextCellValue('(Item Name)'),
+          excel_pkg.TextCellValue('(Category)'),
+          excel_pkg.IntCellValue(0),
+          excel_pkg.TextCellValue('pcs'),
+          excel_pkg.TextCellValue('Dry Storage'),
+          excel_pkg.TextCellValue('(Supplier)'),
+        ]);
+      }
+
+      // TAB 2: Guide & Reference
+      final guideSheet = excel['Guidelines & Valid Values'];
+      guideSheet.setColumnWidth(0, 22.0);
+      guideSheet.setColumnWidth(1, 48.0);
+
+      appendRow(guideSheet, [excel_pkg.TextCellValue('YANG CHOW INVENTORY BATCH ENCODING GUIDELINES')], style: titleStyle);
+      guideSheet.appendRow([excel_pkg.TextCellValue('')]);
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Column Field'),
+        excel_pkg.TextCellValue('Accepted Options & Validation Rule'),
+      ], style: guideHeaderStyle);
+
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Item Name'),
+        excel_pkg.TextCellValue('Required. Unique name of the ingredient or item (e.g. Fresh Pork Belly)'),
+      ]);
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Category'),
+        excel_pkg.TextCellValue(
+          categories.where((c) => c != 'All').join(', '),
+        ),
+      ]);
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Quantity'),
+        excel_pkg.TextCellValue('Required. Physical count quantity (whole numbers or decimals like 25 or 12.5)'),
+      ]);
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Unit'),
+        excel_pkg.TextCellValue(unitOptions.join(', ')),
+      ]);
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Storage Room'),
+        excel_pkg.TextCellValue('Freezer, Chiller, Dry Storage, Bar, Kitchen Counter'),
+      ]);
+      appendRow(guideSheet, [
+        excel_pkg.TextCellValue('Supplier'),
+        excel_pkg.TextCellValue('Optional. Vendor or supplier company name'),
+      ]);
+
+      final excelBytes = excel.save();
+      if (excelBytes == null) throw Exception('Excel template encoding failed');
+      final Uint8List bytes = Uint8List.fromList(excelBytes);
+
+      const fileName = 'yangchow_inventory_template';
+
+      await _saveAndDownloadExcel(
+        bytes: bytes,
+        fileName: fileName,
+        successMessage: 'Inventory Excel template downloaded successfully!',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1016,208 +1461,255 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
+  Future<pw.Document?> _generatePhysicalInventoryPdfDoc({
+    List<Map<String, dynamic>>? items,
+    String? categoryScope,
+  }) async {
+    List<Map<String, dynamic>> printList = items ?? [];
+    if (printList.isEmpty) {
+      final query = Supabase.instance.client.from('inventory').select('*');
+      final res = (categoryScope != null && categoryScope != 'All')
+          ? await query.eq('category', categoryScope).order('name', ascending: true)
+          : await query.order('category', ascending: true);
+      printList = List<Map<String, dynamic>>.from(res);
+    }
+
+    if (printList.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No inventory items to export.'),
+            backgroundColor: AppTheme.warningOrange,
+          ),
+        );
+      }
+      return null;
+    }
+
+    // Sort by Category then by Name
+    printList.sort((a, b) {
+      final catA = (a['category'] ?? '').toString();
+      final catB = (b['category'] ?? '').toString();
+      final comp = catA.compareTo(catB);
+      if (comp != 0) return comp;
+      return (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString());
+    });
+
+    final doc = pw.Document();
+    final nowStr = DateFormat('MMMM dd, yyyy - hh:mm a').format(DateTime.now());
+
+    const itemsPerPage = 22;
+    final totalPages = (printList.length / itemsPerPage).ceil();
+
+    for (int pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+      final start = pageIdx * itemsPerPage;
+      final end = (start + itemsPerPage < printList.length) ? start + itemsPerPage : printList.length;
+      final pageItems = printList.sublist(start, end);
+      final isLastPage = (pageIdx == totalPages - 1);
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Restaurant Header
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'YANG CHOW PALACE RESTAURANT',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.teal900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'PHYSICAL INVENTORY COUNT & AUDIT SHEET',
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          (categoryScope != null && categoryScope != 'All')
+                              ? 'Category: $categoryScope (${printList.length} items)'
+                              : 'Scope: All Categories (${printList.length} Total Inventory Items)',
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.teal800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('Date: $nowStr', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                        pw.Text('Page ${pageIdx + 1} of $totalPages', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.Divider(color: PdfColors.teal900, thickness: 1.5),
+                pw.SizedBox(height: 6),
+
+                // Table of items
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(24), // #
+                    1: const pw.FlexColumnWidth(3.0), // Item Name
+                    2: const pw.FlexColumnWidth(1.6), // Category
+                    3: const pw.FlexColumnWidth(1.8), // Storage Room
+                    4: const pw.FixedColumnWidth(42), // Unit
+                    5: const pw.FixedColumnWidth(55), // System Stock
+                    6: const pw.FixedColumnWidth(70), // Physical Count (Blank)
+                    7: const pw.FlexColumnWidth(2.0), // Remarks
+                  },
+                  children: [
+                    // Table Header
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.teal900),
+                      children: [
+                        _buildPdfHeaderCell('#'),
+                        _buildPdfHeaderCell('Item Name'),
+                        _buildPdfHeaderCell('Category'),
+                        _buildPdfHeaderCell('Location'),
+                        _buildPdfHeaderCell('Unit'),
+                        _buildPdfHeaderCell('Sys Qty'),
+                        _buildPdfHeaderCell('Physical Count'),
+                        _buildPdfHeaderCell('Remarks / Notes'),
+                      ],
+                    ),
+                    // Table Rows
+                    ...pageItems.asMap().entries.map((entry) {
+                      final index = start + entry.key + 1;
+                      final item = entry.value;
+                      final isEven = entry.key % 2 == 0;
+                      return pw.TableRow(
+                        decoration: pw.BoxDecoration(
+                          color: isEven ? PdfColors.white : PdfColors.grey100,
+                        ),
+                        children: [
+                          _buildPdfCell(index.toString(), align: pw.TextAlign.center),
+                          _buildPdfCell(item['name']?.toString() ?? '', isBold: true),
+                          _buildPdfCell(item['category']?.toString() ?? ''),
+                          _buildPdfCell(item['storage_room']?.toString() ?? 'Dry Storage'),
+                          _buildPdfCell(item['unit']?.toString() ?? 'pcs', align: pw.TextAlign.center),
+                          _buildPdfCell(item['quantity']?.toString() ?? '0', align: pw.TextAlign.center, isBold: true),
+                          // Blank box for physical count
+                          pw.Container(
+                            height: 18,
+                            margin: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(color: PdfColors.grey500, width: 0.8),
+                              color: PdfColors.white,
+                            ),
+                          ),
+                          _buildPdfCell(''),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+
+                pw.Spacer(),
+
+                // Signatures Footer only on last page
+                if (isLastPage) ...[
+                  pw.SizedBox(height: 12),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Physical Count Conducted By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 18),
+                          pw.Container(width: 180, height: 0.5, color: PdfColors.black),
+                          pw.SizedBox(height: 2),
+                          pw.Text('Staff Signature over Printed Name / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                        ],
+                      ),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Verified & Approved By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 18),
+                          pw.Container(width: 180, height: 0.5, color: PdfColors.black),
+                          pw.SizedBox(height: 2),
+                          pw.Text('Admin / Manager Signature / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      );
+    }
+    return doc;
+  }
+
+  Future<void> _downloadPhysicalInventoryPdf({
+    List<Map<String, dynamic>>? items,
+    String? categoryScope,
+  }) async {
+    try {
+      final doc = await _generatePhysicalInventoryPdfDoc(
+        items: items,
+        categoryScope: categoryScope,
+      );
+      if (doc == null) return;
+
+      final pdfBytes = await doc.save();
+      final dateStr = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final cleanScope = (categoryScope != null && categoryScope != 'All')
+          ? '_${categoryScope.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase()}'
+          : '_all';
+      final fileName = 'yangchow_physical_count_sheet${cleanScope}_$dateStr';
+
+      await _saveAndDownloadPdf(
+        bytes: pdfBytes,
+        fileName: fileName,
+        successMessage: 'Physical count sheet downloaded as PDF successfully!',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF download failed: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _printPhysicalInventorySheet({
     List<Map<String, dynamic>>? items,
     String? categoryScope,
   }) async {
     try {
-      List<Map<String, dynamic>> printList = items ?? [];
-      if (printList.isEmpty) {
-        final query = Supabase.instance.client.from('inventory').select('*');
-        final res = (categoryScope != null && categoryScope != 'All')
-            ? await query.eq('category', categoryScope).order('name', ascending: true)
-            : await query.order('category', ascending: true);
-        printList = List<Map<String, dynamic>>.from(res);
-      }
-
-      if (printList.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No inventory items to print.'),
-              backgroundColor: AppTheme.warningOrange,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Sort by Category then by Name
-      printList.sort((a, b) {
-        final catA = (a['category'] ?? '').toString();
-        final catB = (b['category'] ?? '').toString();
-        final comp = catA.compareTo(catB);
-        if (comp != 0) return comp;
-        return (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString());
-      });
-
-      final doc = pw.Document();
-      final nowStr = DateFormat('MMMM dd, yyyy - hh:mm a').format(DateTime.now());
-
-      const itemsPerPage = 22;
-      final totalPages = (printList.length / itemsPerPage).ceil();
-
-      for (int pageIdx = 0; pageIdx < totalPages; pageIdx++) {
-        final start = pageIdx * itemsPerPage;
-        final end = (start + itemsPerPage < printList.length) ? start + itemsPerPage : printList.length;
-        final pageItems = printList.sublist(start, end);
-        final isLastPage = (pageIdx == totalPages - 1);
-
-        doc.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(24),
-            build: (pw.Context context) {
-              return pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // Restaurant Header
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'YANG CHOW PALACE RESTAURANT',
-                            style: pw.TextStyle(
-                              fontSize: 16,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.teal900,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            'PHYSICAL INVENTORY COUNT & AUDIT SHEET',
-                            style: pw.TextStyle(
-                              fontSize: 11,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.grey800,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            (categoryScope != null && categoryScope != 'All')
-                                ? 'Category: $categoryScope (${printList.length} items)'
-                                : 'Scope: All Categories (${printList.length} Total Inventory Items)',
-                            style: pw.TextStyle(
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.teal800,
-                            ),
-                          ),
-                        ],
-                      ),
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.end,
-                        children: [
-                          pw.Text('Date: $nowStr', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-                          pw.Text('Page ${pageIdx + 1} of $totalPages', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  pw.Divider(color: PdfColors.teal900, thickness: 1.5),
-                  pw.SizedBox(height: 6),
-
-                  // Table of items
-                  pw.Table(
-                    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-                    columnWidths: {
-                      0: const pw.FixedColumnWidth(24), // #
-                      1: const pw.FlexColumnWidth(3.0), // Item Name
-                      2: const pw.FlexColumnWidth(1.6), // Category
-                      3: const pw.FlexColumnWidth(1.8), // Storage Room
-                      4: const pw.FixedColumnWidth(42), // Unit
-                      5: const pw.FixedColumnWidth(55), // System Stock
-                      6: const pw.FixedColumnWidth(70), // Physical Count (Blank)
-                      7: const pw.FlexColumnWidth(2.0), // Remarks
-                    },
-                    children: [
-                      // Table Header
-                      pw.TableRow(
-                        decoration: const pw.BoxDecoration(color: PdfColors.teal900),
-                        children: [
-                          _buildPdfHeaderCell('#'),
-                          _buildPdfHeaderCell('Item Name'),
-                          _buildPdfHeaderCell('Category'),
-                          _buildPdfHeaderCell('Location'),
-                          _buildPdfHeaderCell('Unit'),
-                          _buildPdfHeaderCell('Sys Qty'),
-                          _buildPdfHeaderCell('Physical Count'),
-                          _buildPdfHeaderCell('Remarks / Notes'),
-                        ],
-                      ),
-                      // Table Rows
-                      ...pageItems.asMap().entries.map((entry) {
-                        final index = start + entry.key + 1;
-                        final item = entry.value;
-                        final isEven = entry.key % 2 == 0;
-                        return pw.TableRow(
-                          decoration: pw.BoxDecoration(
-                            color: isEven ? PdfColors.white : PdfColors.grey100,
-                          ),
-                          children: [
-                            _buildPdfCell(index.toString(), align: pw.TextAlign.center),
-                            _buildPdfCell(item['name']?.toString() ?? '', isBold: true),
-                            _buildPdfCell(item['category']?.toString() ?? ''),
-                            _buildPdfCell(item['storage_room']?.toString() ?? 'Dry Storage'),
-                            _buildPdfCell(item['unit']?.toString() ?? 'pcs', align: pw.TextAlign.center),
-                            _buildPdfCell(item['quantity']?.toString() ?? '0', align: pw.TextAlign.center, isBold: true),
-                            // Blank box for physical count
-                            pw.Container(
-                              height: 18,
-                              margin: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              decoration: pw.BoxDecoration(
-                                border: pw.Border.all(color: PdfColors.grey500, width: 0.8),
-                                color: PdfColors.white,
-                              ),
-                            ),
-                            _buildPdfCell(''),
-                          ],
-                        );
-                      }),
-                    ],
-                  ),
-
-                  pw.Spacer(),
-
-                  // Signatures Footer only on last page
-                  if (isLastPage) ...[
-                    pw.SizedBox(height: 12),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('Physical Count Conducted By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                            pw.SizedBox(height: 18),
-                            pw.Container(width: 180, height: 0.5, color: PdfColors.black),
-                            pw.SizedBox(height: 2),
-                            pw.Text('Staff Signature over Printed Name / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
-                          ],
-                        ),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('Verified & Approved By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                            pw.SizedBox(height: 18),
-                            pw.Container(width: 180, height: 0.5, color: PdfColors.black),
-                            pw.SizedBox(height: 2),
-                            pw.Text('Admin / Manager Signature / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-        );
-      }
+      final doc = await _generatePhysicalInventoryPdfDoc(
+        items: items,
+        categoryScope: categoryScope,
+      );
+      if (doc == null) return;
 
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => doc.save(),
@@ -1690,7 +2182,7 @@ class _InventoryPageState extends State<InventoryPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv'],
+        allowedExtensions: ['xlsx', 'xls', 'csv'],
         withData: true,
       );
 
@@ -1700,7 +2192,7 @@ class _InventoryPageState extends State<InventoryPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Could not read the selected CSV file.'),
+              content: Text('Could not read the selected spreadsheet file.'),
               backgroundColor: AppTheme.errorRed,
             ),
           );
@@ -1708,14 +2200,80 @@ class _InventoryPageState extends State<InventoryPage> {
         return;
       }
 
-      final csvString = utf8.decode(file.bytes!);
-      final rawRows = csv_pkg.CsvCodec().decode(csvString.replaceAll('\r\n', '\n').replaceAll('\r', '\n'));
+      List<List<dynamic>> rawRows = [];
+      final ext = file.extension?.toLowerCase() ?? '';
+
+      if (ext == 'xlsx' || ext == 'xls') {
+        try {
+          final excel = excel_pkg.Excel.decodeBytes(file.bytes!);
+          if (excel.tables.isNotEmpty) {
+            excel_pkg.Sheet? targetSheet;
+            final sheetNames = excel.tables.keys.toList();
+
+            excel_pkg.Sheet? physicalSheet;
+            excel_pkg.Sheet? masterSheet;
+            excel_pkg.Sheet? firstSheet;
+
+            for (var name in sheetNames) {
+              final s = excel.tables[name];
+              if (s == null || s.rows.isEmpty) continue;
+              firstSheet ??= s;
+
+              final lower = name.toLowerCase();
+              if (lower.contains('physical') || lower.contains('count sheet') || lower.contains('audit')) {
+                physicalSheet = s;
+              } else if (lower.contains('masterlist') || lower.contains('template') || lower.contains('inventory') || lower.contains('stock')) {
+                masterSheet = s;
+              }
+            }
+
+            // Check if physicalSheet actually has numbers in its Physical Count column (column 4):
+            bool physicalSheetHasEnteredCounts = false;
+            if (physicalSheet != null) {
+              for (int r = 1; r < physicalSheet.rows.length; r++) {
+                final row = physicalSheet.rows[r];
+                if (row.length > 4) {
+                  final val = row[4]?.value?.toString().trim() ?? '';
+                  if (val.isNotEmpty && RegExp(r'[0-9]').hasMatch(val)) {
+                    physicalSheetHasEnteredCounts = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (physicalSheet != null && physicalSheetHasEnteredCounts) {
+              targetSheet = physicalSheet;
+            } else if (masterSheet != null) {
+              targetSheet = masterSheet;
+            } else if (physicalSheet != null) {
+              targetSheet = physicalSheet;
+            } else {
+              targetSheet = firstSheet;
+            }
+
+            if (targetSheet != null) {
+              for (var row in targetSheet.rows) {
+                final rowValues = row.map((cell) => cell?.value?.toString() ?? '').toList();
+                if (rowValues.any((c) => c.trim().isNotEmpty)) {
+                  rawRows.add(rowValues);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          debugPrint('Error decoding Excel file: $err');
+        }
+      } else {
+        final csvString = utf8.decode(file.bytes!);
+        rawRows = csv_pkg.CsvCodec().decode(csvString.replaceAll('\r\n', '\n').replaceAll('\r', '\n'));
+      }
 
       if (rawRows.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('The selected CSV file is empty.'),
+              content: Text('The selected file has no readable data rows.'),
               backgroundColor: AppTheme.warningOrange,
             ),
           );
@@ -1755,34 +2313,62 @@ class _InventoryPageState extends State<InventoryPage> {
       int idCol = -1;
       int nameCol = -1;
       int catCol = -1;
-      int qtyCol = -1;
+      int physicalCountCol = -1;
+      int stockQtyCol = -1;
+      int systemQtyCol = -1;
       int unitCol = -1;
       int storageCol = -1;
       int supplierCol = -1;
 
       for (int i = 0; i < headers.length; i++) {
         final h = headers[i];
-        if (h == 'item id' || h == 'id' || h == 'item_id' || h == 'itemid') {
+        if (h == 'item id' || h == 'id' || h == 'item_id' || h == 'itemid' || h.contains('uuid')) {
           idCol = i;
         } else if (h == 'item name' || h == 'name' || h == 'item_name' || h.contains('item name') || h.contains('product name')) {
           nameCol = i;
-        } else if (h.contains('category') || h.contains('cat')) {
+        } else if (h.contains('category') || h == 'cat') {
           catCol = i;
-        } else if (h.contains('status')) {
-          // Ignore 'Stock Status' column so it does not overwrite Quantity
+        } else if (h.contains('status') ||
+            h.contains('capacity') ||
+            h.contains('%') ||
+            h.contains('percent') ||
+            h.contains('progress') ||
+            h.contains('variance') ||
+            h.contains('diff') ||
+            h.contains('remark') ||
+            h.contains('note') ||
+            h == '#' ||
+            h == 'no' ||
+            h == 'num') {
+          // Explicitly skip status, capacity %, progress, notes, and variance columns
           continue;
+        } else if (h == 'physical count' ||
+            h == 'physical_count' ||
+            h == 'actual count' ||
+            h == 'actual_count' ||
+            h == 'phys count' ||
+            h == 'phys_count' ||
+            h == 'physical stock' ||
+            h == 'counted' ||
+            h == 'physical' ||
+            h == 'actual') {
+          physicalCountCol = i;
+        } else if (h == 'system qty' ||
+            h == 'sys qty' ||
+            h == 'system stock' ||
+            h == 'sys stock' ||
+            h == 'system quantity' ||
+            h == 'sys quantity') {
+          systemQtyCol = i;
         } else if (h == 'quantity' ||
             h == 'qty' ||
+            h == 'stock quantity' ||
+            h == 'stock qty' ||
             h == 'stock' ||
             h == 'count' ||
-            h == 'physical count' ||
-            h == 'physical_count' ||
-            h == 'sys qty' ||
-            h.contains('qty') ||
             h.contains('quantity') ||
-            h.contains('count') ||
-            (h.contains('stock') && !h.contains('status'))) {
-          qtyCol = i;
+            h.contains('qty')) {
+          stockQtyCol = i;
         } else if (h.contains('unit') || h == 'uom') {
           unitCol = i;
         } else if (h.contains('storage') || h.contains('room') || h.contains('location') || h.contains('area')) {
@@ -1806,13 +2392,34 @@ class _InventoryPageState extends State<InventoryPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Invalid CSV format: Missing "Item Name" column.'),
+              content: Text('Invalid CSV/Excel format: Missing "Item Name" column.'),
               backgroundColor: AppTheme.errorRed,
             ),
           );
         }
         return;
       }
+
+      // Check if physicalCountCol actually contains any filled numeric values in the data rows:
+      bool physicalColHasValues = false;
+      if (physicalCountCol != -1) {
+        for (int i = headerRowIndex + 1; i < rawRows.length; i++) {
+          if (physicalCountCol < rawRows[i].length) {
+            final val = rawRows[i][physicalCountCol].toString().trim();
+            if (val.isNotEmpty && RegExp(r'[0-9]').hasMatch(val)) {
+              physicalColHasValues = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // Choose which column represents physical / uploaded quantity:
+      // If physicalCountCol has actual counts entered by user, use it!
+      // Otherwise, fall back to stockQtyCol or systemQtyCol so it reads the actual quantities.
+      final int qtyCol = (physicalCountCol != -1 && physicalColHasValues)
+          ? physicalCountCol
+          : (stockQtyCol != -1 ? stockQtyCol : (systemQtyCol != -1 ? systemQtyCol : physicalCountCol));
 
       // Fetch all current database items
       final existingRes = await Supabase.instance.client
@@ -1843,13 +2450,51 @@ class _InventoryPageState extends State<InventoryPage> {
         final rawName = (nameCol >= 0 && nameCol < row.length) ? row[nameCol].toString().trim() : '';
         if (rawName.isEmpty && rawId.isEmpty) continue;
 
+        final lowerName = rawName.toLowerCase();
+        final firstCol = row[0].toString().trim().toLowerCase();
+
+        // Skip category banners, repeated titles, and sheet headers
+        if (rawName.startsWith('📦') ||
+            rawName.contains('—') ||
+            lowerName.contains('palace restaurant') ||
+            lowerName.contains('physical inventory count') ||
+            lowerName.contains('count sheet') ||
+            lowerName == 'item name' ||
+            lowerName == 'name') {
+          continue;
+        }
+
+        // Skip summary / TOTAL rows
+        if (lowerName == 'total' ||
+            lowerName.startsWith('total ') ||
+            lowerName.contains('items listed') ||
+            lowerName.contains('grand total') ||
+            lowerName.contains('category total') ||
+            lowerName.contains('subtotal') ||
+            firstCol == 'total' ||
+            firstCol.startsWith('total ') ||
+            firstCol == 'subtotal') {
+          continue;
+        }
+
         final rawCat = (catCol >= 0 && catCol < row.length) ? row[catCol].toString().trim() : '';
-        final rawQtyStr = (qtyCol >= 0 && qtyCol < row.length) ? row[qtyCol].toString().trim() : '0';
+        String rawQtyStr = (qtyCol >= 0 && qtyCol < row.length) ? row[qtyCol].toString().trim() : '';
         final rawUnit = (unitCol >= 0 && unitCol < row.length) ? row[unitCol].toString().trim() : 'pcs';
         final rawStorage = (storageCol >= 0 && storageCol < row.length) ? row[storageCol].toString().trim() : 'Dry Storage';
         final rawSupplier = (supplierCol >= 0 && supplierCol < row.length) ? row[supplierCol].toString().trim() : '';
 
-        final parsedQty = int.tryParse(rawQtyStr.replaceAll(RegExp(r'[^0-9]'), ''));
+        // If physical counts were entered for the sheet, but this row was left blank, skip uncounted row
+        if (physicalColHasValues && rawQtyStr.isEmpty) {
+          continue;
+        }
+
+        // If rawQtyStr is empty and we have a system quantity fallback, use it
+        if (rawQtyStr.isEmpty && systemQtyCol != -1 && systemQtyCol < row.length) {
+          rawQtyStr = row[systemQtyCol].toString().trim();
+        }
+        if (rawQtyStr.isEmpty && stockQtyCol != -1 && stockQtyCol < row.length) {
+          rawQtyStr = row[stockQtyCol].toString().trim();
+        }
 
         // Match existing item by ID first, then by normalized Name
         Map<String, dynamic>? existing;
@@ -1862,13 +2507,19 @@ class _InventoryPageState extends State<InventoryPage> {
         }
 
         final finalItemName = existing != null ? (existing['name'] ?? rawName) : rawName;
+        final sysQty = (existing != null) ? ((existing['quantity'] as num?)?.toInt() ?? 0) : 0;
+
+        // Clean and parse quantity (supports decimals e.g. 12.5 -> rounded)
+        final cleanNumStr = rawQtyStr.replaceAll(RegExp(r'[^0-9.]'), '');
+        final parsedDouble = double.tryParse(cleanNumStr);
+        final parsedQty = parsedDouble?.round();
 
         if (parsedQty == null || parsedQty < 0) {
           auditRows.add({
             'status': 'error',
             'name': finalItemName,
             'category': rawCat.isEmpty ? (existing?['category'] ?? 'Groceries') : rawCat,
-            'systemStock': existing?['quantity'] ?? 0,
+            'systemStock': sysQty,
             'physicalCount': 0,
             'variance': 0,
             'unit': rawUnit,
@@ -1878,7 +2529,6 @@ class _InventoryPageState extends State<InventoryPage> {
             'existingId': existing?['id'],
           });
         } else if (existing != null) {
-          final sysQty = (existing['quantity'] as num?)?.toInt() ?? 0;
           final variance = parsedQty - sysQty;
           String status = 'balanced';
           if (variance < 0) {
@@ -1919,7 +2569,7 @@ class _InventoryPageState extends State<InventoryPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('No valid inventory rows found in the CSV file.'),
+              content: Text('No valid inventory rows found in the selected file.'),
               backgroundColor: AppTheme.warningOrange,
             ),
           );
@@ -2435,14 +3085,17 @@ class _InventoryPageState extends State<InventoryPage> {
 
                   const SizedBox(height: 14),
 
-                  // Actions: Print PDF, Export CSV, Close
-                  Row(
+                  // Actions: Download PDF, Print PDF, Export Excel, Close
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      // Download CSV / Excel Variance Button
+                      // Download Excel Variance Button
                       OutlinedButton.icon(
-                        onPressed: () => _exportVarianceToCsv(auditRows, fileName),
-                        icon: const Icon(Icons.table_chart_outlined, size: 16),
-                        label: const Text('Export Variance (CSV)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        onPressed: () => _exportVarianceToExcel(auditRows, fileName),
+                        icon: const Icon(Icons.table_chart_rounded, size: 16),
+                        label: const Text('Export Variance (Excel)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF0D9488),
                           side: const BorderSide(color: Color(0xFF0D9488)),
@@ -2450,23 +3103,33 @@ class _InventoryPageState extends State<InventoryPage> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
-                      const SizedBox(width: 8),
 
-                      // Print Variance PDF Button
+                      // Download Variance PDF Button (Direct Download)
                       ElevatedButton.icon(
-                        onPressed: () => _printVarianceReportPdf(auditRows, fileName),
-                        icon: const Icon(Icons.print_rounded, size: 16),
-                        label: const Text('Print Variance Report (PDF)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        onPressed: () => _downloadVarianceReportPdf(auditRows, fileName),
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                        label: const Text('Download Variance (PDF)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF14332E),
-                          foregroundColor: const Color(0xFFE6C374),
+                          backgroundColor: const Color(0xFFDC2626),
+                          foregroundColor: Colors.white,
                           elevation: 1,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
 
-                      const Spacer(),
+                      // Print Variance PDF Button
+                      OutlinedButton.icon(
+                        onPressed: () => _printVarianceReportPdf(auditRows, fileName),
+                        icon: const Icon(Icons.print_rounded, size: 16),
+                        label: const Text('Print', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF14332E),
+                          side: const BorderSide(color: Color(0xFF14332E)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
 
                       // Close Button
                       TextButton(
@@ -2564,85 +3227,400 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<void> _exportVarianceToCsv(
+  Future<void> _exportVarianceToExcel(
     List<Map<String, dynamic>> auditRows,
     String sourceFile,
   ) async {
     try {
-      List<List<dynamic>> rows = [];
-      rows.add(['YANG CHOW PALACE RESTAURANT - PHYSICAL STOCK AUDIT & VARIANCE REPORT']);
-      rows.add([
-        'Audit Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
-        'Source File: $sourceFile',
-        'Total Items Evaluated: ${auditRows.length}',
-      ]);
-      rows.add([]);
-      rows.add([
-        'Item Name',
-        'Category',
-        'Location / Storage',
-        'Unit',
-        'System Stock',
-        'Physical Count',
-        'Variance (Diff)',
-        'Status',
-        'Supplier',
-        'Remarks',
-      ]);
+      final excel = excel_pkg.Excel.createExcel();
+      excel.delete('Sheet1');
 
-      for (var row in auditRows) {
-        final variance = (row['variance'] as num?)?.toInt() ?? 0;
-        final status = row['status'].toString().toUpperCase();
-        rows.add([
-          row['name'] ?? '',
-          row['category'] ?? '',
-          row['storage_room'] ?? '',
-          row['unit'] ?? '',
-          row['systemStock'] ?? 0,
-          row['physicalCount'] ?? 0,
-          variance > 0 ? '+$variance' : variance.toString(),
-          status,
-          row['supplier'] ?? '',
-          status == 'SHORTAGE'
-              ? 'Lacking by ${variance.abs()} ${row['unit']}'
-              : status == 'SURPLUS'
-                  ? 'Surplus by $variance ${row['unit']}'
-                  : 'Balanced',
-        ]);
-      }
-
-      final csvData = csv_pkg.CsvCodec().encode(rows);
-      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvData));
-      final fileName = 'yangchow_stock_variance_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-
-      final outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Stock Variance CSV',
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-        bytes: bytes,
+      final headerStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#14332E'),
+        horizontalAlign: excel_pkg.HorizontalAlign.Left,
+        bold: true,
       );
 
-      if (outputFile != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Exported Variance Report for ${auditRows.length} items to CSV!')),
-              ],
-            ),
-            backgroundColor: const Color(0xFF15803D),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      final titleStyle = excel_pkg.CellStyle(
+        fontSize: 13,
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#14332E'),
+      );
+
+      final subTitleStyle = excel_pkg.CellStyle(
+        fontSize: 10,
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#475569'),
+      );
+
+      final totalRowStyle = excel_pkg.CellStyle(
+        bold: true,
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#0F172A'),
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#E2E8F0'),
+      );
+
+      final shortageStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#DC2626'),
+        bold: true,
+      );
+
+      final surplusStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#D97706'),
+        bold: true,
+      );
+
+      final balancedStyle = excel_pkg.CellStyle(
+        fontColorHex: excel_pkg.ExcelColor.fromHexString('#16A34A'),
+        bold: true,
+      );
+
+      void appendRow(excel_pkg.Sheet sheet, List<excel_pkg.CellValue?> rowValues, {excel_pkg.CellStyle? style}) {
+        sheet.appendRow(rowValues);
+        if (style != null) {
+          final rIndex = sheet.maxRows - 1;
+          for (var c = 0; c < rowValues.length; c++) {
+            final cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: rIndex));
+            cell.cellStyle = style;
+          }
+        }
       }
+
+      final sheet = excel['Stock Variance Report'];
+      sheet.setColumnWidth(0, 6.0);   // #
+      sheet.setColumnWidth(1, 28.0);  // Item Name
+      sheet.setColumnWidth(2, 16.0);  // Category
+      sheet.setColumnWidth(3, 20.0);  // Storage Room
+      sheet.setColumnWidth(4, 10.0);  // Unit
+      sheet.setColumnWidth(5, 14.0);  // System Stock
+      sheet.setColumnWidth(6, 14.0);  // Physical Count
+      sheet.setColumnWidth(7, 14.0);  // Variance
+      sheet.setColumnWidth(8, 16.0);  // Audit Status
+      sheet.setColumnWidth(9, 24.0);  // Supplier
+      sheet.setColumnWidth(10, 30.0); // Notes / Remarks
+
+      appendRow(sheet, [excel_pkg.TextCellValue('YANG CHOW PALACE RESTAURANT - PHYSICAL STOCK AUDIT & VARIANCE REPORT')], style: titleStyle);
+      appendRow(sheet, [
+        excel_pkg.TextCellValue(
+          'Audit Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())} • Source File: $sourceFile • Total Evaluated: ${auditRows.length} Items',
+        ),
+      ], style: subTitleStyle);
+      sheet.appendRow([excel_pkg.TextCellValue('')]);
+
+      appendRow(sheet, [
+        excel_pkg.TextCellValue('#'),
+        excel_pkg.TextCellValue('Item Name'),
+        excel_pkg.TextCellValue('Category'),
+        excel_pkg.TextCellValue('Storage Location'),
+        excel_pkg.TextCellValue('Unit'),
+        excel_pkg.TextCellValue('System Stock'),
+        excel_pkg.TextCellValue('Physical Count'),
+        excel_pkg.TextCellValue('Variance (Diff)'),
+        excel_pkg.TextCellValue('Audit Status'),
+        excel_pkg.TextCellValue('Supplier'),
+        excel_pkg.TextCellValue('Audit Notes / Remarks'),
+      ], style: headerStyle);
+
+      int shortageCount = 0;
+      int surplusCount = 0;
+      int balancedCount = 0;
+
+      for (int i = 0; i < auditRows.length; i++) {
+        final row = auditRows[i];
+        final variance = (row['variance'] as num?)?.toInt() ?? 0;
+        final status = (row['status'] ?? '').toString().toUpperCase();
+        final unit = (row['unit'] ?? '').toString();
+
+        if (status == 'SHORTAGE') shortageCount++;
+        if (status == 'SURPLUS') surplusCount++;
+        if (status == 'BALANCED') balancedCount++;
+
+        final remarks = status == 'SHORTAGE'
+            ? 'Lacking by ${variance.abs()} $unit'
+            : status == 'SURPLUS'
+                ? 'Surplus by $variance $unit'
+                : 'Balanced';
+
+        appendRow(sheet, [
+          excel_pkg.IntCellValue(i + 1),
+          excel_pkg.TextCellValue(row['name']?.toString() ?? ''),
+          excel_pkg.TextCellValue(row['category']?.toString() ?? ''),
+          excel_pkg.TextCellValue(row['storage_room']?.toString() ?? ''),
+          excel_pkg.TextCellValue(unit),
+          excel_pkg.IntCellValue((row['systemStock'] as num?)?.toInt() ?? 0),
+          excel_pkg.IntCellValue((row['physicalCount'] as num?)?.toInt() ?? 0),
+          excel_pkg.TextCellValue(variance > 0 ? '+$variance' : variance.toString()),
+          excel_pkg.TextCellValue(status),
+          excel_pkg.TextCellValue(row['supplier']?.toString() ?? ''),
+          excel_pkg.TextCellValue(remarks),
+        ]);
+
+        final rowIndex = sheet.maxRows - 1;
+        final statusCell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex));
+        if (status == 'SHORTAGE') statusCell.cellStyle = shortageStyle;
+        if (status == 'SURPLUS') statusCell.cellStyle = surplusStyle;
+        if (status == 'BALANCED') statusCell.cellStyle = balancedStyle;
+      }
+
+      // Summary row
+      appendRow(sheet, [
+        excel_pkg.TextCellValue('TOTAL'),
+        excel_pkg.TextCellValue('${auditRows.length} Items Evaluated'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('Shortages: $shortageCount | Surplus: $surplusCount | Balanced: $balancedCount'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+        excel_pkg.TextCellValue('-'),
+      ], style: totalRowStyle);
+
+      final excelBytes = excel.save();
+      if (excelBytes == null) throw Exception('Excel encoding failed');
+      final Uint8List bytes = Uint8List.fromList(excelBytes);
+
+      final fileName = 'yangchow_stock_variance_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
+
+      await _saveAndDownloadExcel(
+        bytes: bytes,
+        fileName: fileName,
+        successMessage: 'Exported Variance Report for ${auditRows.length} items to Excel!',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to export variance CSV: $e'),
+            content: Text('Failed to export variance Excel: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
+  pw.Document _generateVarianceReportPdfDoc(
+    List<Map<String, dynamic>> auditRows,
+    String sourceFile,
+  ) {
+    final doc = pw.Document();
+    final nowStr = DateFormat('MMMM dd, yyyy - hh:mm a').format(DateTime.now());
+
+    final shortageCount = auditRows.where((r) => r['status'] == 'shortage').length;
+    final surplusCount = auditRows.where((r) => r['status'] == 'surplus').length;
+    final balancedCount = auditRows.where((r) => r['status'] == 'balanced').length;
+
+    const itemsPerPage = 20;
+    final totalPages = (auditRows.length / itemsPerPage).ceil();
+
+    for (int pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+      final start = pageIdx * itemsPerPage;
+      final end = (start + itemsPerPage < auditRows.length) ? start + itemsPerPage : auditRows.length;
+      final pageItems = auditRows.sublist(start, end);
+      final isLastPage = (pageIdx == totalPages - 1);
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Restaurant Header
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'YANG CHOW PALACE RESTAURANT',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.teal900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'PHYSICAL INVENTORY AUDIT & VARIANCE REPORT',
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Source File: $sourceFile  |  Total Items: ${auditRows.length}  |  Shortages: $shortageCount  |  Surpluses: $surplusCount  |  Balanced: $balancedCount',
+                          style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('Date: $nowStr', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                        pw.Text('Page ${pageIdx + 1} of $totalPages', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.Divider(color: PdfColors.teal900, thickness: 1.5),
+                pw.SizedBox(height: 6),
+
+                // Table of items
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(22), // #
+                    1: const pw.FlexColumnWidth(2.8), // Item Name
+                    2: const pw.FlexColumnWidth(1.5), // Category
+                    3: const pw.FlexColumnWidth(1.6), // Location
+                    4: const pw.FixedColumnWidth(38), // Unit
+                    5: const pw.FixedColumnWidth(48), // Sys Stock
+                    6: const pw.FixedColumnWidth(52), // Physical
+                    7: const pw.FixedColumnWidth(50), // Variance
+                    8: const pw.FlexColumnWidth(1.8), // Status/Remarks
+                  },
+                  children: [
+                    // Table Header
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.teal900),
+                      children: [
+                        _buildPdfHeaderCell('#'),
+                        _buildPdfHeaderCell('Item Name'),
+                        _buildPdfHeaderCell('Category'),
+                        _buildPdfHeaderCell('Location'),
+                        _buildPdfHeaderCell('Unit'),
+                        _buildPdfHeaderCell('Sys Qty'),
+                        _buildPdfHeaderCell('Phys Count'),
+                        _buildPdfHeaderCell('Variance'),
+                        _buildPdfHeaderCell('Status / Remarks'),
+                      ],
+                    ),
+                    // Table Rows
+                    ...pageItems.asMap().entries.map((entry) {
+                      final index = start + entry.key + 1;
+                      final item = entry.value;
+                      final isEven = entry.key % 2 == 0;
+                      final variance = (item['variance'] as num?)?.toInt() ?? 0;
+                      final status = item['status'];
+
+                      PdfColor statusColor = PdfColors.black;
+                      String statusDesc = 'Matched';
+                      if (status == 'shortage') {
+                        statusColor = PdfColors.red800;
+                        statusDesc = 'Shortage (${variance.abs()})';
+                      } else if (status == 'surplus') {
+                        statusColor = PdfColors.amber800;
+                        statusDesc = 'Surplus (+$variance)';
+                      } else if (status == 'new') {
+                        statusColor = PdfColors.blue800;
+                        statusDesc = 'New Item';
+                      }
+
+                      return pw.TableRow(
+                        decoration: pw.BoxDecoration(
+                          color: status == 'shortage'
+                              ? PdfColors.red50
+                              : status == 'surplus'
+                                  ? PdfColors.amber50
+                                  : (isEven ? PdfColors.white : PdfColors.grey100),
+                        ),
+                        children: [
+                          _buildPdfCell(index.toString(), align: pw.TextAlign.center),
+                          _buildPdfCell(item['name']?.toString() ?? '', isBold: true),
+                          _buildPdfCell(item['category']?.toString() ?? ''),
+                          _buildPdfCell(item['storage_room']?.toString() ?? 'Dry Storage'),
+                          _buildPdfCell(item['unit']?.toString() ?? 'pcs', align: pw.TextAlign.center),
+                          _buildPdfCell(item['systemStock']?.toString() ?? '0', align: pw.TextAlign.center),
+                          _buildPdfCell(item['physicalCount']?.toString() ?? '0', align: pw.TextAlign.center, isBold: true),
+                          _buildPdfCell(
+                            variance > 0 ? '+$variance' : variance.toString(),
+                            align: pw.TextAlign.center,
+                            isBold: true,
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            child: pw.Text(
+                              statusDesc,
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+
+                pw.Spacer(),
+
+                // Signatures Footer only on last page
+                if (isLastPage) ...[
+                  pw.SizedBox(height: 10),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Physical Count Conducted By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 18),
+                          pw.Container(width: 180, height: 0.5, color: PdfColors.black),
+                          pw.SizedBox(height: 2),
+                          pw.Text('Staff Signature over Printed Name / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                        ],
+                      ),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Variance Audited & Reviewed By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 18),
+                          pw.Container(width: 180, height: 0.5, color: PdfColors.black),
+                          pw.SizedBox(height: 2),
+                          pw.Text('Inventory Manager / Admin Signature / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      );
+    }
+    return doc;
+  }
+
+  Future<void> _downloadVarianceReportPdf(
+    List<Map<String, dynamic>> auditRows,
+    String sourceFile,
+  ) async {
+    try {
+      final doc = _generateVarianceReportPdfDoc(auditRows, sourceFile);
+      final pdfBytes = await doc.save();
+      final dateStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = 'yangchow_stock_variance_report_$dateStr';
+
+      await _saveAndDownloadPdf(
+        bytes: pdfBytes,
+        fileName: fileName,
+        successMessage: 'Stock Variance Report PDF downloaded successfully!',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Variance PDF download failed: $e'),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -2655,201 +3633,7 @@ class _InventoryPageState extends State<InventoryPage> {
     String sourceFile,
   ) async {
     try {
-      final doc = pw.Document();
-      final nowStr = DateFormat('MMMM dd, yyyy - hh:mm a').format(DateTime.now());
-
-      final shortageCount = auditRows.where((r) => r['status'] == 'shortage').length;
-      final surplusCount = auditRows.where((r) => r['status'] == 'surplus').length;
-      final balancedCount = auditRows.where((r) => r['status'] == 'balanced').length;
-
-      const itemsPerPage = 20;
-      final totalPages = (auditRows.length / itemsPerPage).ceil();
-
-      for (int pageIdx = 0; pageIdx < totalPages; pageIdx++) {
-        final start = pageIdx * itemsPerPage;
-        final end = (start + itemsPerPage < auditRows.length) ? start + itemsPerPage : auditRows.length;
-        final pageItems = auditRows.sublist(start, end);
-        final isLastPage = (pageIdx == totalPages - 1);
-
-        doc.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(24),
-            build: (pw.Context context) {
-              return pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // Restaurant Header
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'YANG CHOW PALACE RESTAURANT',
-                            style: pw.TextStyle(
-                              fontSize: 15,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.teal900,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            'PHYSICAL INVENTORY AUDIT & VARIANCE REPORT',
-                            style: pw.TextStyle(
-                              fontSize: 11,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.grey900,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            'Source File: $sourceFile  |  Total Items: ${auditRows.length}  |  Shortages: $shortageCount  |  Surpluses: $surplusCount  |  Balanced: $balancedCount',
-                            style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
-                          ),
-                        ],
-                      ),
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.end,
-                        children: [
-                          pw.Text('Date: $nowStr', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-                          pw.Text('Page ${pageIdx + 1} of $totalPages', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  pw.Divider(color: PdfColors.teal900, thickness: 1.5),
-                  pw.SizedBox(height: 6),
-
-                  // Table of items
-                  pw.Table(
-                    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-                    columnWidths: {
-                      0: const pw.FixedColumnWidth(22), // #
-                      1: const pw.FlexColumnWidth(2.8), // Item Name
-                      2: const pw.FlexColumnWidth(1.5), // Category
-                      3: const pw.FlexColumnWidth(1.6), // Location
-                      4: const pw.FixedColumnWidth(38), // Unit
-                      5: const pw.FixedColumnWidth(48), // Sys Stock
-                      6: const pw.FixedColumnWidth(52), // Physical
-                      7: const pw.FixedColumnWidth(50), // Variance
-                      8: const pw.FlexColumnWidth(1.8), // Status/Remarks
-                    },
-                    children: [
-                      // Table Header
-                      pw.TableRow(
-                        decoration: const pw.BoxDecoration(color: PdfColors.teal900),
-                        children: [
-                          _buildPdfHeaderCell('#'),
-                          _buildPdfHeaderCell('Item Name'),
-                          _buildPdfHeaderCell('Category'),
-                          _buildPdfHeaderCell('Location'),
-                          _buildPdfHeaderCell('Unit'),
-                          _buildPdfHeaderCell('Sys Qty'),
-                          _buildPdfHeaderCell('Phys Count'),
-                          _buildPdfHeaderCell('Variance'),
-                          _buildPdfHeaderCell('Status / Remarks'),
-                        ],
-                      ),
-                      // Table Rows
-                      ...pageItems.asMap().entries.map((entry) {
-                        final index = start + entry.key + 1;
-                        final item = entry.value;
-                        final isEven = entry.key % 2 == 0;
-                        final variance = (item['variance'] as num?)?.toInt() ?? 0;
-                        final status = item['status'];
-
-                        PdfColor statusColor = PdfColors.black;
-                        String statusDesc = 'Matched';
-                        if (status == 'shortage') {
-                          statusColor = PdfColors.red800;
-                          statusDesc = 'Shortage (${variance.abs()})';
-                        } else if (status == 'surplus') {
-                          statusColor = PdfColors.amber800;
-                          statusDesc = 'Surplus (+$variance)';
-                        } else if (status == 'new') {
-                          statusColor = PdfColors.blue800;
-                          statusDesc = 'New Item';
-                        }
-
-                        return pw.TableRow(
-                          decoration: pw.BoxDecoration(
-                            color: status == 'shortage'
-                                ? PdfColors.red50
-                                : status == 'surplus'
-                                    ? PdfColors.amber50
-                                    : (isEven ? PdfColors.white : PdfColors.grey100),
-                          ),
-                          children: [
-                            _buildPdfCell(index.toString(), align: pw.TextAlign.center),
-                            _buildPdfCell(item['name']?.toString() ?? '', isBold: true),
-                            _buildPdfCell(item['category']?.toString() ?? ''),
-                            _buildPdfCell(item['storage_room']?.toString() ?? 'Dry Storage'),
-                            _buildPdfCell(item['unit']?.toString() ?? 'pcs', align: pw.TextAlign.center),
-                            _buildPdfCell(item['systemStock']?.toString() ?? '0', align: pw.TextAlign.center),
-                            _buildPdfCell(item['physicalCount']?.toString() ?? '0', align: pw.TextAlign.center, isBold: true),
-                            _buildPdfCell(
-                              variance > 0 ? '+$variance' : variance.toString(),
-                              align: pw.TextAlign.center,
-                              isBold: true,
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                              child: pw.Text(
-                                statusDesc,
-                                style: pw.TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: statusColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
-                    ],
-                  ),
-
-                  pw.Spacer(),
-
-                  // Signatures Footer only on last page
-                  if (isLastPage) ...[
-                    pw.SizedBox(height: 10),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('Physical Count Conducted By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                            pw.SizedBox(height: 18),
-                            pw.Container(width: 180, height: 0.5, color: PdfColors.black),
-                            pw.SizedBox(height: 2),
-                            pw.Text('Staff Signature over Printed Name / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
-                          ],
-                        ),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('Variance Audited & Reviewed By:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                            pw.SizedBox(height: 18),
-                            pw.Container(width: 180, height: 0.5, color: PdfColors.black),
-                            pw.SizedBox(height: 2),
-                            pw.Text('Inventory Manager / Admin Signature / Date', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-        );
-      }
-
+      final doc = _generateVarianceReportPdfDoc(auditRows, sourceFile);
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => doc.save(),
         name: 'yangchow_stock_variance_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
@@ -3771,7 +4555,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           onSelected: (value) {
                             if (value == 'passcode') _showPasscodeManagerDialog();
                             if (value == 'audit') _handleImportCsv();
-                            if (value == 'export') _showExportOptionsDialog();
+                            if (value == 'export') _showExportOptionsDialog(items: _currentDisplayedItems);
                           },
                           offset: const Offset(0, 44),
                           shape: RoundedRectangleBorder(
@@ -3795,7 +4579,7 @@ class _InventoryPageState extends State<InventoryPage> {
                               child: Row(children: [
                                 Icon(Icons.fact_check_outlined, size: 16, color: Colors.black),
                                 SizedBox(width: 10),
-                                Text('Audit CSV', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black)),
+                                Text('Audit (Excel/CSV)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black)),
                               ]),
                             ),
                             const PopupMenuItem<String>(
@@ -3935,27 +4719,8 @@ class _InventoryPageState extends State<InventoryPage> {
                   }
 
                   final items = snapshot.data ?? [];
-                  final filteredItems = items.where((item) {
-                    final name = (item['name'] ?? '').toString().toLowerCase();
-                    final category = (item['category'] ?? '').toString().toLowerCase();
-                    final query = _searchQuery.toLowerCase();
-                    final matchesSearch = name.contains(query) || category.contains(query);
-                    final matchesCategory = _selectedCategory == 'All' ||
-                        item['category']?.toString() == _selectedCategory;
-
-                    final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-                    final itemStockStatus = _getStockStatus(quantity);
-                    final matchesStockStatus = _selectedStockStatus == null ||
-                        itemStockStatus == _selectedStockStatus;
-
-                    return matchesSearch && matchesCategory && matchesStockStatus;
-                  }).toList();
-
-                  filteredItems.sort((a, b) {
-                    final nameA = (a['name'] ?? '').toString().toLowerCase();
-                    final nameB = (b['name'] ?? '').toString().toLowerCase();
-                    return nameA.compareTo(nameB);
-                  });
+                  final filteredItems = _filterAndSortItems(items);
+                  _currentDisplayedItems = filteredItems;
 
                   if (filteredItems.isEmpty) {
                     return Center(
