@@ -78,8 +78,8 @@ class _PaymentPanelState extends State<PaymentPanel>
   Timer? _pollingTimer;
   // ignore: unused_field
   String? _currentLinkId;
-  String _selectedCashier = 'Tony Stark';
-  String _selectedServer = 'Sanji';
+  String _selectedCashier = 'Staff / Cashier';
+  String _selectedServer = 'Server';
 
   static const _border = Color(0xFFE2E8F0);
   static const _labelGrey = Color(0xFF94A3B8);
@@ -92,10 +92,10 @@ class _PaymentPanelState extends State<PaymentPanel>
   List<String> _dynamicServers = [];
 
   List<String> get _cashierNames =>
-      _dynamicCashiers.isNotEmpty ? _dynamicCashiers : StaffService.defaultStaff.map((s) => s['name'].toString()).toList();
+      _dynamicCashiers.isNotEmpty ? _dynamicCashiers : ['Staff / Cashier'];
 
   List<String> get _serverNames =>
-      _dynamicServers.isNotEmpty ? _dynamicServers : StaffService.defaultStaff.map((s) => s['name'].toString()).toList();
+      _dynamicServers.isNotEmpty ? _dynamicServers : ['Server'];
 
   Future<void> _loadStaffNames() async {
     final cashiers = await StaffService.getActiveCashierNames();
@@ -104,11 +104,15 @@ class _PaymentPanelState extends State<PaymentPanel>
       setState(() {
         _dynamicCashiers = cashiers;
         _dynamicServers = servers;
-        if (!_dynamicCashiers.contains(_selectedCashier) && _dynamicCashiers.isNotEmpty) {
-          _selectedCashier = _dynamicCashiers.first;
+        if (_dynamicCashiers.isNotEmpty) {
+          if (!_dynamicCashiers.contains(_selectedCashier) || _selectedCashier == 'Staff / Cashier') {
+            _selectedCashier = _dynamicCashiers.first;
+          }
         }
-        if (!_dynamicServers.contains(_selectedServer) && _dynamicServers.isNotEmpty) {
-          _selectedServer = _dynamicServers.first;
+        if (_dynamicServers.isNotEmpty) {
+          if (!_dynamicServers.contains(_selectedServer) || _selectedServer == 'Server') {
+            _selectedServer = _dynamicServers.first;
+          }
         }
       });
     }
