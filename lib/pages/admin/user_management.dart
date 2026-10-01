@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:excel/excel.dart' as xl;
 import 'package:yang_chow/services/staff_service.dart';
 import 'package:yang_chow/services/image_storage_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
@@ -21,6 +23,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedDept = 'All';
+  String _sortBy = 'name_asc';
+  bool _isRefreshing = false;
+  bool _isExportingCsv = false;
+
+  // Quick filter from stat tile tap: null = no filter
+  // Values: 'active', 'on-leave', 'inactive', 'managers', 'portal'
+  String? _quickFilter;
 
   // Color constants
   static const _darkBg = Color(0xFF0F172A);
@@ -54,30 +63,42 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _loadStaffData() async {
     try {
       final list = await StaffService.loadStaffList();
-      setState(() {
-        _staff = list;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _staff = list;
+          // Dynamically merge any unique departments from staff records into _departments
+          for (final s in list) {
+            final d = (s['dept'] ?? '').toString().trim();
+            if (d.isNotEmpty && !_departments.contains(d)) {
+              _departments.add(d);
+            }
+          }
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _staff = List<Map<String, dynamic>>.from(StaffService.defaultStaff);
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _staff = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  /// Load persisted custom departments & roles, merge into filter lists
+  /// Load persisted custom departments & roles from Supabase app_settings (with local fallback)
   Future<void> _loadCustomLists() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final depts = prefs.getStringList('yang_custom_departments') ?? [];
-      final roles = prefs.getStringList('yang_custom_roles') ?? [];
-      if (depts.isNotEmpty || roles.isNotEmpty) {
+      final depts = await StaffService.loadCustomDepartments();
+      final roles = await StaffService.loadCustomRoles();
+      if (mounted && (depts.isNotEmpty || roles.isNotEmpty)) {
         setState(() {
           for (final d in depts) {
             if (!_departments.contains(d)) _departments.add(d);
           }
-          _customRoles = roles;
+          for (final r in roles) {
+            if (!_customRoles.contains(r)) _customRoles.add(r);
+          }
         });
       }
     } catch (e) {
@@ -85,23 +106,21 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
-  /// Persist custom departments (everything after the 5 base ones)
+  /// Persist custom departments to Supabase app_settings & local storage
   Future<void> _saveCustomDepartments() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final base = {'All', 'Management', 'Kitchen', 'Service', 'Operations'};
       final custom = _departments.where((d) => !base.contains(d)).toList();
-      await prefs.setStringList('yang_custom_departments', custom);
+      await StaffService.saveCustomDepartments(custom);
     } catch (e) {
       debugPrint('Error saving custom departments: $e');
     }
   }
 
-  /// Persist custom roles
+  /// Persist custom roles to Supabase app_settings & local storage
   Future<void> _saveCustomRoles() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('yang_custom_roles', _customRoles);
+      await StaffService.saveCustomRoles(_customRoles);
     } catch (e) {
       debugPrint('Error saving custom roles: $e');
     }
@@ -122,7 +141,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   List<Map<String, dynamic>> get _filteredStaff {
-    return _staff.where((s) {
+    final list = _staff.where((s) {
       // Exclude archived staff from active directory
       if ((s['status'] ?? 'active').toString().toLowerCase() == 'archived') {
         return false;
@@ -140,8 +159,60 @@ class _UserManagementPageState extends State<UserManagementPage> {
           title.contains(q) ||
           id.contains(q);
       final matchesDept = _selectedDept == 'All' || dept == _selectedDept;
-      return matchesSearch && matchesDept;
+
+      // Quick filter from stat tile
+      bool matchesQuick = true;
+      if (_quickFilter != null) {
+        final status = (s['status'] ?? 'active').toString().toLowerCase();
+        final level = s['level'] is int ? s['level'] as int : int.tryParse(s['level']?.toString() ?? '') ?? 0;
+        final email = (s['email'] ?? '').toString().trim();
+        switch (_quickFilter) {
+          case 'active':
+            matchesQuick = status == 'active';
+            break;
+          case 'on-leave':
+            matchesQuick = status == 'on-leave';
+            break;
+          case 'inactive':
+            matchesQuick = status == 'inactive';
+            break;
+          case 'managers':
+            matchesQuick = level >= 3;
+            break;
+          case 'portal':
+            matchesQuick = email.isNotEmpty;
+            break;
+          default:
+            matchesQuick = true;
+        }
+      }
+
+      return matchesSearch && matchesDept && matchesQuick;
     }).toList();
+
+    list.sort((a, b) {
+      switch (_sortBy) {
+        case 'name_desc':
+          final nameA = (a['name'] ?? a['full_name'] ?? '').toString().toLowerCase();
+          final nameB = (b['name'] ?? b['full_name'] ?? '').toString().toLowerCase();
+          return nameB.compareTo(nameA);
+        case 'newest':
+          final dateA = DateTime.tryParse((a['date_hired'] ?? '').toString()) ?? DateTime(2000);
+          final dateB = DateTime.tryParse((b['date_hired'] ?? '').toString()) ?? DateTime(2000);
+          return dateB.compareTo(dateA);
+        case 'level':
+          final lvlA = a['level'] is int ? a['level'] as int : int.tryParse(a['level']?.toString() ?? '') ?? 0;
+          final lvlB = b['level'] is int ? b['level'] as int : int.tryParse(b['level']?.toString() ?? '') ?? 0;
+          return lvlB.compareTo(lvlA);
+        case 'name_asc':
+        default:
+          final nameA = (a['name'] ?? a['full_name'] ?? '').toString().toLowerCase();
+          final nameB = (b['name'] ?? b['full_name'] ?? '').toString().toLowerCase();
+          return nameA.compareTo(nameB);
+      }
+    });
+
+    return list;
   }
 
   List<Map<String, dynamic>> get _archivedStaff {
@@ -166,10 +237,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final isMobile = ResponsiveUtils.isMobile(context);
     final filtered = _filteredStaff;
 
-    // Count stats
-    final activeCount = _staff.where((s) => s['status'] == 'active').length;
-    final onLeaveCount = _staff.where((s) => s['status'] == 'on-leave').length;
-    final inactiveCount = _staff.where((s) => s['status'] == 'inactive').length;
+    // Count stats — fully dynamic from loaded staff list
+    final activeCount    = _staff.where((s) => s['status'] == 'active').length;
+    final onLeaveCount   = _staff.where((s) => s['status'] == 'on-leave').length;
+    final inactiveCount  = _staff.where((s) => s['status'] == 'inactive').length;
+    final managersCount  = _staff.where((s) {
+      final lvl = s['level'] is int ? s['level'] as int : int.tryParse(s['level']?.toString() ?? '') ?? 0;
+      return lvl >= 3;
+    }).length;
+    final portalCount    = _staff.where((s) => (s['email'] ?? '').toString().trim().isNotEmpty).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -188,8 +264,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   const SizedBox(height: 16),
 
                   // ---- ANALYTICS TILES ----
-                  _buildStatsRow(isMobile, activeCount, onLeaveCount, inactiveCount),
+                  _buildStatsRow(isMobile, activeCount, onLeaveCount, inactiveCount, managersCount, portalCount),
                   const SizedBox(height: 16),
+
 
                   // ---- SEARCH + DEPT FILTER ----
                   _buildSearchAndFilter(isMobile),
@@ -256,6 +333,37 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          // Export CSV Button
+                          OutlinedButton.icon(
+                            onPressed: _isExportingCsv ? null : _exportStaffRosterCsv,
+                            icon: _isExportingCsv
+                                ? const SizedBox(
+                                    width: 13,
+                                    height: 13,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: _emerald),
+                                  )
+                                : const Icon(Icons.file_download_outlined, size: 15, color: _emerald),
+                           label: Text(
+                              isMobile ? 'Excel' : 'Export Excel',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                color: _emerald,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: _emerald.withValues(alpha: 0.4)),
+                              backgroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 10 : 14,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           // â Add Staff Action Button
                           ElevatedButton.icon(
                             onPressed: () => _showAddEditStaffModal(null),
@@ -287,6 +395,53 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   ),
                   const SizedBox(height: 14),
 
+                  // ---- QUICK FILTER ACTIVE CHIP ----
+                  if (_quickFilter != null) ...[
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.filter_alt_rounded, size: 13, color: _emerald),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Filtered: ${_quickFilterLabel(_quickFilter!)}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: _emerald,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => setState(() => _quickFilter = null),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: _emerald.withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.close_rounded, size: 12, color: _emerald),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // ---- STAFF CARDS ----
                   if (filtered.isEmpty)
                     _buildEmptyState()
@@ -310,6 +465,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
   // -------------------------------------------------------------------------
   // HEADER
   // -------------------------------------------------------------------------
+
+  String _quickFilterLabel(String key) {
+    switch (key) {
+      case 'active':    return 'Active Personnel';
+      case 'on-leave':  return 'On Leave';
+      case 'inactive':  return 'Inactive';
+      case 'managers':  return 'Managers (L3+)';
+      case 'portal':    return 'Portal Access';
+      default:          return key;
+    }
+  }
+
   Widget _buildHeader(bool isMobile) {
     return Container(
       padding: EdgeInsets.symmetric(
@@ -358,7 +525,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   children: [
                     Flexible(
                       child: Text(
-                        'Staff Management',
+                        'Employee Management',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: isMobile ? 17 : 20,
                           fontWeight: FontWeight.w800,
@@ -378,7 +545,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         border: Border.all(color: _gold.withValues(alpha: 0.3)),
                       ),
                       child: Text(
-                        'Org Chart',
+                        'Directory',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -390,7 +557,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Manage, add, edit, and organize restaurant staff personnel with real photos',
+                  'Manage, add, edit, and organize restaurant employees, roles, and credentials',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     color: _slate,
@@ -408,95 +575,114 @@ class _UserManagementPageState extends State<UserManagementPage> {
   // -------------------------------------------------------------------------
   // STATS ROW (Responsive Carousel on Mobile)
   // -------------------------------------------------------------------------
-  Widget _buildStatsRow(bool isMobile, int active, int onLeave, int inactive) {
+  Widget _buildStatsRow(
+    bool isMobile,
+    int active,
+    int onLeave,
+    int inactive,
+    int managers,
+    int portalAccess,
+  ) {
+    final total = _staff.length;
+
+    final tiles = [
+      _statTile(
+        label: 'Total Staff',
+        value: total.toString(),
+        icon: Icons.groups_rounded,
+        iconColor: _emerald,
+        filterKey: null,
+      ),
+      _statTile(
+        label: 'Active Personnel',
+        value: active.toString(),
+        icon: Icons.check_circle_rounded,
+        iconColor: const Color(0xFF15803D),
+        filterKey: 'active',
+      ),
+      _statTile(
+        label: 'On Leave',
+        value: onLeave.toString(),
+        icon: Icons.event_busy_rounded,
+        iconColor: const Color(0xFFD97706),
+        filterKey: 'on-leave',
+      ),
+      _statTile(
+        label: 'Inactive',
+        value: inactive.toString(),
+        icon: Icons.person_off_rounded,
+        iconColor: const Color(0xFF64748B),
+        filterKey: 'inactive',
+      ),
+      _statTile(
+        label: 'Managers (L3+)',
+        value: managers.toString(),
+        icon: Icons.manage_accounts_rounded,
+        iconColor: const Color(0xFF0F766E),
+        filterKey: 'managers',
+      ),
+      _statTile(
+        label: 'Portal Access',
+        value: portalAccess.toString(),
+        icon: Icons.key_rounded,
+        iconColor: const Color(0xFF0284C7),
+        filterKey: 'portal',
+      ),
+    ];
+
     if (isMobile) {
       return SizedBox(
-        height: 72,
-        child: ListView(
+        height: 70,
+        child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          children: [
-            Container(
-              width: 155,
-              margin: const EdgeInsets.only(right: 8),
-              child: _statTile(
-                label: 'Total Staff',
-                value: _staff.length.toString(),
-                icon: Icons.groups_rounded,
-                bgTint: const Color(0xFFDCFCE7),
-                iconColor: const Color(0xFF15803D),
-              ),
-            ),
-            Container(
-              width: 155,
-              margin: const EdgeInsets.only(right: 8),
-              child: _statTile(
-                label: 'Active Personnel',
-                value: active.toString(),
-                icon: Icons.verified_rounded,
-                bgTint: const Color(0xFFE0F2FE),
-                iconColor: const Color(0xFF0284C7),
-              ),
-            ),
-            Container(
-              width: 155,
-              margin: const EdgeInsets.only(right: 8),
-              child: _statTile(
-                label: 'On Leave',
-                value: onLeave.toString(),
-                icon: Icons.event_busy_rounded,
-                bgTint: const Color(0xFFFEF3C7),
-                iconColor: const Color(0xFFD97706),
-              ),
-            ),
-            Container(
-              width: 155,
-              margin: const EdgeInsets.only(right: 8),
-              child: _statTile(
-                label: 'Inactive',
-                value: inactive.toString(),
-                icon: Icons.person_off_rounded,
-                bgTint: const Color(0xFFFEE2E2),
-                iconColor: const Color(0xFFDC2626),
-              ),
-            ),
-          ],
+          itemCount: tiles.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (_, i) => SizedBox(width: 155, child: tiles[i]),
         ),
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: _statTile(
-            label: 'Total Staff',
-            value: _staff.length.toString(),
-            icon: Icons.groups_rounded,
-            bgTint: const Color(0xFFDCFCE7),
-            iconColor: const Color(0xFF15803D),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statTile(
-            label: 'Active',
-            value: active.toString(),
-            icon: Icons.verified_rounded,
-            bgTint: const Color(0xFFE0F2FE),
-            iconColor: const Color(0xFF0284C7),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statTile(
-            label: 'On Leave',
-            value: onLeave.toString(),
-            icon: Icons.event_busy_rounded,
-            bgTint: const Color(0xFFFEF3C7),
-            iconColor: const Color(0xFFD97706),
-          ),
-        ),
-      ],
+    // Responsive layout for desktop/tablet:
+    // If wide enough (>= 980px), display all 6 in a single clean row.
+    // Otherwise, 2 neat rows of 3.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 980) {
+          return Row(
+            children: [
+              for (int i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 8),
+                Expanded(child: tiles[1]),
+                const SizedBox(width: 8),
+                Expanded(child: tiles[2]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: tiles[3]),
+                const SizedBox(width: 8),
+                Expanded(child: tiles[4]),
+                const SizedBox(width: 8),
+                Expanded(child: tiles[5]),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -504,62 +690,118 @@ class _UserManagementPageState extends State<UserManagementPage> {
     required String label,
     required String value,
     required IconData icon,
-    required Color bgTint,
     required Color iconColor,
+    required String? filterKey,
+    String? subLabel,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final isTotal = filterKey == null;
+    final isActive = filterKey != null && _quickFilter == filterKey;
+    final isSelectedAll = isTotal && _quickFilter == null;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _slateLight),
-        boxShadow: [
-          BoxShadow(
-            color: _darkBg.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: bgTint,
-              borderRadius: BorderRadius.circular(10),
+        onTap: () => setState(() {
+          if (isTotal) {
+            _quickFilter = null;
+          } else {
+            _quickFilter = (_quickFilter == filterKey) ? null : filterKey;
+          }
+        }),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: (isActive || isSelectedAll)
+                ? _emerald.withValues(alpha: 0.035)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: (isActive || isSelectedAll)
+                  ? _emerald
+                  : const Color(0xFFE2E8F0),
+              width: (isActive || isSelectedAll) ? 1.8 : 1,
             ),
-            child: Icon(icon, color: iconColor, size: 18),
+            boxShadow: [
+              BoxShadow(
+                color: (isActive || isSelectedAll)
+                    ? _emerald.withValues(alpha: 0.08)
+                    : const Color(0xFF0F172A).withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: _darkBg,
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: (isActive || isSelectedAll)
+                      ? _emerald.withValues(alpha: 0.1)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (isActive || isSelectedAll)
+                        ? _emerald.withValues(alpha: 0.25)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
-                Text(
-                  label,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10.5,
-                    color: _slate,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(
+                  icon,
+                  color: (isActive || isSelectedAll) ? _emerald : iconColor,
+                  size: 18,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      value,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: (isActive || isSelectedAll) ? _emerald : const Color(0xFF64748B),
+                        fontWeight: (isActive || isSelectedAll) ? FontWeight.w700 : FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subLabel != null) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        subLabel,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          color: const Color(0xFF94A3B8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -571,43 +813,130 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Search bar
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _slateLight),
-            boxShadow: [
-              BoxShadow(
-                color: _darkBg.withValues(alpha: 0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        // Search bar + Sort + Refresh row
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _slateLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _darkBg.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                  decoration: InputDecoration(
+                    hintText: isMobile ? 'Search staff...' : 'Search staff by name, title, role, or ID...',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 13,
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded, color: _slate, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 18, color: _slate),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (val) => setState(() => _searchQuery = val),
-            decoration: InputDecoration(
-              hintText: 'Search staff by name, title, role, or ID...',
-              hintStyle: GoogleFonts.plusJakartaSans(
-                color: const Color(0xFF94A3B8),
-                fontSize: 13,
-              ),
-              prefixIcon: const Icon(Icons.search_rounded, color: _slate, size: 20),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18, color: _slate),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
-          ),
+            const SizedBox(width: 8),
+
+            // Sort Dropdown
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _slateLight),
+                boxShadow: [
+                  BoxShadow(
+                    color: _darkBg.withValues(alpha: 0.02),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: PopupMenuButton<String>(
+                tooltip: 'Sort Staff',
+                initialValue: _sortBy,
+                onSelected: (val) => setState(() => _sortBy = val),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 14),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.sort_rounded, color: _emerald, size: 20),
+                      if (!isMobile) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          _sortLabel(_sortBy),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF334155),
+                          ),
+                        ),
+                        const Icon(Icons.arrow_drop_down, color: _slate, size: 18),
+                      ],
+                    ],
+                  ),
+                ),
+                itemBuilder: (ctx) => [
+                  _buildSortMenuItem('name_asc', 'Name (A – Z)', Icons.sort_by_alpha_rounded),
+                  _buildSortMenuItem('name_desc', 'Name (Z – A)', Icons.sort_by_alpha_rounded),
+                  _buildSortMenuItem('newest', 'Newest First', Icons.schedule_rounded),
+                  _buildSortMenuItem('level', 'Access Level (L4 – L1)', Icons.shield_rounded),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Refresh Button
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _slateLight),
+                boxShadow: [
+                  BoxShadow(
+                    color: _darkBg.withValues(alpha: 0.02),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                tooltip: 'Refresh staff list',
+                icon: _isRefreshing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: _emerald),
+                      )
+                    : const Icon(Icons.refresh_rounded, color: _emerald, size: 20),
+                onPressed: _isRefreshing ? null : _handleRefresh,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
 
@@ -657,6 +986,77 @@ class _UserManagementPageState extends State<UserManagementPage> {
         ),
       ],
     );
+  }
+
+  String _sortLabel(String sortKey) {
+    switch (sortKey) {
+      case 'name_desc':
+        return 'Sort: Z – A';
+      case 'newest':
+        return 'Sort: Newest';
+      case 'level':
+        return 'Sort: Level (L4–L1)';
+      case 'name_asc':
+      default:
+        return 'Sort: A – Z';
+    }
+  }
+
+  PopupMenuItem<String> _buildSortMenuItem(String value, String title, IconData icon) {
+    final isSelected = _sortBy == value;
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: isSelected ? _emerald : _slate),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? _emerald : const Color(0xFF1E293B),
+              ),
+            ),
+          ),
+          if (isSelected) const Icon(Icons.check_rounded, size: 16, color: _emerald),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isRefreshing = true);
+    try {
+      await _loadStaffData();
+      await _loadCustomLists();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Staff roster refreshed from server.'),
+            backgroundColor: _emerald,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -942,6 +1342,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             _showChangeStatusDialog(staff);
                           } else if (val == 'archive') {
                             _showArchiveDialog(staff);
+                          } else if (val == 'reset_password') {
+                            _showResetPasswordDialog(staff);
                           }
                         },
                         itemBuilder: (ctx) => [
@@ -985,6 +1387,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               ],
                             ),
                           ),
+                          if ((staff['email'] ?? '').toString().trim().isNotEmpty)
+                            PopupMenuItem(
+                              value: 'reset_password',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.lock_reset_rounded, size: 16, color: Color(0xFF7C3AED)),
+                                  const SizedBox(width: 8),
+                                  Text('Reset Portal Password', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF7C3AED))),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ],
@@ -1125,7 +1538,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No Staff Found',
+              'No Employees Found',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -1134,7 +1547,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Try adjusting your search or add a new staff member.',
+              'Try adjusting your search or add a new employee.',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 color: _slate,
@@ -1146,7 +1559,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               onPressed: () => _showAddEditStaffModal(null),
               icon: const Icon(Icons.person_add_rounded, size: 16, color: Colors.white),
               label: Text(
-                'Add Staff Member',
+                'Add New Employee',
                 style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
@@ -1242,6 +1655,29 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 isSelected: selected == 'inactive',
                 onTap: () => setDialogState(() => selected = 'inactive'),
               ),
+              if (selected == 'inactive' && (staff['email'] ?? '').toString().trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Setting to Inactive will prompt you to disable portal login access for this staff member.',
+                          style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF92400E), fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -1251,6 +1687,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ),
             ElevatedButton(
               onPressed: () {
+                final prevStatus = current;
                 setState(() {
                   staff['status'] = selected;
                 });
@@ -1259,11 +1696,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 AuditLogService.logActivity(
                   action: 'STATUS_CHANGE',
                   module: 'Users',
-                  description: 'Changed status for "${staff['name']}" (${staff['id']}) to ${selected.toUpperCase()}',
+                  description: 'Changed status for "${staff['name']}" (${staff['id']}) from ${prevStatus.toUpperCase()} to ${selected.toUpperCase()}',
                   entityId: staff['id']?.toString(),
                   metadata: {
                     'staff_name': staff['name'],
                     'staff_id': staff['id'],
+                    'previous_status': prevStatus,
                     'new_status': selected,
                   },
                 );
@@ -1272,20 +1710,171 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Updated ${staff['name']}\'s status to: ${selected.toUpperCase()}'),
-                    backgroundColor: _emerald,
+                    backgroundColor: selected == 'inactive' ? const Color(0xFFDC2626) : _emerald,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 );
+
+                final email = (staff['email'] ?? '').toString().trim();
+                if (selected == 'inactive' && email.isNotEmpty) {
+                  _showDeactivatePortalPrompt(staff);
+                } else if (prevStatus == 'inactive' && selected == 'active' && email.isNotEmpty) {
+                  _showReactivatePortalPrompt(staff);
+                }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _emerald,
+                backgroundColor: selected == 'inactive' ? const Color(0xFFDC2626) : _emerald,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: Text('Update Status', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeactivatePortalPrompt(Map<String, dynamic> staff) {
+    final email = (staff['email'] ?? '').toString().trim();
+    if (email.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.lock_person_rounded, color: Color(0xFFDC2626), size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Disable Portal Login?',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Text(
+          '${staff['name']} has been set to Inactive.\n\nWould you also like to disable their portal login access ($email)? They will no longer be able to log in until reactivated.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Keep Access', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await StaffService.deactivateStaffAuthAccount(email);
+              AuditLogService.logActivity(
+                action: 'DEACTIVATE_PORTAL',
+                module: 'Users',
+                description: 'Deactivated portal login for "${staff['name']}" ($email)',
+                entityId: staff['id']?.toString(),
+                metadata: {
+                  'staff_name': staff['name'],
+                  'staff_id': staff['id'],
+                  'email': email,
+                },
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Portal login disabled for ${staff['name']}.'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Disable Portal', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReactivatePortalPrompt(Map<String, dynamic> staff) {
+    final email = (staff['email'] ?? '').toString().trim();
+    if (email.isEmpty) return;
+    final role = (staff['role'] ?? 'Staff').toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _emerald.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.vpn_key_rounded, color: _emerald, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Re-enable Portal Login?',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Text(
+          '${staff['name']} has been set back to Active.\n\nWould you like to restore their portal login access ($email)?',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Keep Disabled', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await StaffService.reactivateStaffAuthAccount(email, role);
+              AuditLogService.logActivity(
+                action: 'REACTIVATE_PORTAL',
+                module: 'Users',
+                description: 'Reactivated portal login for "${staff['name']}" ($email)',
+                entityId: staff['id']?.toString(),
+                metadata: {
+                  'staff_name': staff['name'],
+                  'staff_id': staff['id'],
+                  'email': email,
+                  'role': role,
+                },
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Portal login re-enabled for ${staff['name']}.'),
+                    backgroundColor: _emerald,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _emerald,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Re-enable Portal', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -1754,10 +2343,14 @@ Text(
                                         elevation: 0,
                                       ),
                                     ),
-                                    if (currentPhoto != null && currentPhoto!.isNotEmpty) ...[
+                                    if ((currentPhoto != null && currentPhoto!.isNotEmpty) || pendingPhotoBytes != null) ...[
                                       const SizedBox(width: 8),
                                       TextButton(
-                                        onPressed: () => setDialogState(() => currentPhoto = null),
+                                        onPressed: () => setDialogState(() {
+                                          currentPhoto = null;
+                                          pendingPhotoBytes = null;
+                                          pendingPhotoExt = null;
+                                        }),
                                         child: Text(
                                           'Remove',
                                           style: GoogleFonts.plusJakartaSans(
@@ -2711,6 +3304,16 @@ Text(
                                      phone: formattedPhone,
                                      employeeId: empId,
                                    );
+                                 } else if (isEditing && (email.isNotEmpty || existingEmail.isNotEmpty)) {
+                                   // Synchronize profile changes to `public.users` & Supabase Auth metadata
+                                   await StaffService.syncStaffUserAccount(
+                                     currentEmail: email,
+                                     previousEmail: existingEmail,
+                                     fullName: name,
+                                     phone: formattedPhone,
+                                     role: selectedRole,
+                                     employeeId: empId,
+                                   );
                                  }
 
                                  AuditLogService.logActivity(
@@ -3471,6 +4074,135 @@ Text(
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(8),
                                           side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Delete Button
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        final confirmed = await showDialog<bool>(
+                                          context: context,
+                                          builder: (dCtx) => AlertDialog(
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                            title: Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: const Icon(Icons.delete_forever_rounded, color: Color(0xFFDC2626), size: 20),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Permanently Delete?',
+                                                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            content: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'You are about to permanently delete "${s['name']}" ($empId) from the system.',
+                                                  style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Container(
+                                                  padding: const EdgeInsets.all(10),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFFEE2E2),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'This action cannot be undone. All records for this staff member will be removed permanently.',
+                                                          style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF991B1B)),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(dCtx, false),
+                                                child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+                                              ),
+                                              ElevatedButton.icon(
+                                                onPressed: () => Navigator.pop(dCtx, true),
+                                                icon: const Icon(Icons.delete_forever_rounded, size: 15, color: Colors.white),
+                                                label: Text('Delete Permanently', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: Colors.white)),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFFDC2626),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+
+                                        if (confirmed == true) {
+                                          // Remove from Supabase staff table
+                                          if (empId.isNotEmpty) {
+                                            await StaffService.deleteStaffMember(empId);
+                                          }
+                                          // Remove from local list
+                                          setState(() {
+                                            _staff.removeWhere((m) =>
+                                              (m['id'] ?? m['employee_id'] ?? '').toString() == empId);
+                                          });
+                                          await _saveStaffData();
+                                          setModalState(() {});
+
+                                          AuditLogService.logActivity(
+                                            action: 'DELETE',
+                                            module: 'Users',
+                                            description: 'Permanently deleted archived staff member "${s['name']}" ($empId)',
+                                            entityId: empId,
+                                            metadata: {'staff_name': s['name'], 'staff_id': empId},
+                                          );
+
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Row(
+                                                  children: [
+                                                    const Icon(Icons.delete_forever_rounded, color: Colors.white, size: 18),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: Text('${s['name']} permanently deleted.')),
+                                                  ],
+                                                ),
+                                                backgroundColor: const Color(0xFFDC2626),
+                                                behavior: SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      icon: const Icon(Icons.delete_forever_rounded, size: 14, color: Color(0xFFDC2626)),
+                                      label: Text(
+                                        'Delete',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFDC2626)),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        backgroundColor: const Color(0xFFFEE2E2),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          side: const BorderSide(color: Color(0xFFFCA5A5)),
                                         ),
                                       ),
                                     ),
@@ -4255,5 +4987,547 @@ Text(
         ],
       ),
     );
+  }
+
+  // ─── Step 4: Reset Portal Password Dialog ───────────────────────────────────
+
+  void _showResetPasswordDialog(Map<String, dynamic> staff) {
+    final email = (staff['email'] ?? '').toString().trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'This staff member has no email set. Please edit their profile and add an email first.',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFD97706),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    final pwController = TextEditingController();
+    bool obscure = false;
+    bool loading = false;
+    String? errorMsg;
+
+    // Generate a random temporary password
+    String _generateTempPassword() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#\$';
+      final rand = Random.secure();
+      return List.generate(12, (_) => chars[rand.nextInt(chars.length)]).join();
+    }
+
+    pwController.text = _generateTempPassword();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.lock_reset_rounded, color: Color(0xFF7C3AED), size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Reset Portal Password',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set a new login password for ${staff['name'] ?? 'this staff member'} ($email).',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'NEW TEMPORARY PASSWORD',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF94A3B8),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: pwController,
+                    obscureText: obscure,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600),
+                    decoration: InputDecoration(
+                      hintText: 'Enter new password',
+                      hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFFCBD5E1)),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Copy password',
+                            icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF7C3AED)),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: pwController.text));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Password copied to clipboard!'),
+                                  backgroundColor: const Color(0xFF7C3AED),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 2),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            tooltip: obscure ? 'Show password' : 'Hide password',
+                            icon: Icon(
+                              obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              size: 18,
+                              color: const Color(0xFF94A3B8),
+                            ),
+                            onPressed: () => setStateDialog(() => obscure = !obscure),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () {
+                      setStateDialog(() {
+                        pwController.text = _generateTempPassword();
+                        errorMsg = null;
+                      });
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 15, color: Color(0xFF7C3AED)),
+                    label: Text(
+                      'Generate new password',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF7C3AED),
+                      ),
+                    ),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  ),
+                  if (errorMsg != null) ...
+                    [
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          errorMsg!,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () {
+                  pwController.dispose();
+                  Navigator.pop(ctx);
+                },
+                child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+              ),
+              ElevatedButton.icon(
+                onPressed: loading
+                    ? null
+                    : () async {
+                        final newPw = pwController.text.trim();
+                        if (newPw.length < 8) {
+                          setStateDialog(() => errorMsg = 'Password must be at least 8 characters.');
+                          return;
+                        }
+                        setStateDialog(() {
+                          loading = true;
+                          errorMsg = null;
+                        });
+
+                        final result = await StaffService.resetStaffPassword(
+                          email: email,
+                          newPassword: newPw,
+                        );
+
+                        if (!ctx.mounted) return;
+
+                        if (result['success'] == true) {
+                          // Log to audit
+                          final empId = (staff['id'] ?? staff['employee_id'] ?? '').toString();
+                          AuditLogService.logActivity(
+                            action: 'RESET_PASSWORD',
+                            module: 'Users',
+                            description: 'Reset portal password for "${staff['name']}" ($email)',
+                            entityId: empId,
+                            metadata: {'email': email, 'staff_id': empId},
+                          );
+
+                          pwController.dispose();
+                          Navigator.pop(ctx);
+
+                          _showResetSuccessDialog(
+                            (staff['name'] ?? 'Staff').toString(),
+                            email,
+                            newPw,
+                          );
+                        } else {
+                          setStateDialog(() {
+                            loading = false;
+                            errorMsg = result['error']?.toString() ?? 'Failed to reset password. Please try again.';
+                          });
+                        }
+                      },
+                icon: loading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.lock_reset_rounded, size: 16),
+                label: Text(
+                  loading ? 'Resetting...' : 'Reset Password',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showResetSuccessDialog(String staffName, String email, String newPassword) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Password Reset Complete!',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The login password for $staffName ($email) has been updated.',
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'NEW LOGIN CREDENTIALS',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF94A3B8),
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            email,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: const Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            newPassword,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF7C3AED),
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Copy password',
+                      icon: const Icon(Icons.copy_rounded, color: Color(0xFF7C3AED), size: 20),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: newPassword));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Password copied to clipboard!'),
+                            backgroundColor: const Color(0xFF7C3AED),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Please share this temporary password with the staff member. They can change it anytime once logged in.',
+                style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: Text('Done', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Helper: format a raw ISO date string to a human-readable form like "Apr 29, 2026"
+  String _formatDateHired(String raw) {
+    if (raw.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      return DateFormat('MMM d, yyyy').format(dt);
+    } catch (_) {
+      return raw.split('T').first;
+    }
+  }
+
+  /// Helper: return the actual phone or empty string if it's the placeholder default
+  String _cleanPhone(String phone) {
+    const placeholder = '+63 900 000 0000';
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    // Placeholder digits: 639000000000
+    if (phone.trim() == placeholder || digits == '639000000000' || digits == '9000000000') {
+      return '';
+    }
+    return phone;
+  }
+
+  Future<void> _exportStaffRosterCsv() async {
+    if (_staff.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No staff records to export.'),
+          backgroundColor: const Color(0xFFD97706),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isExportingCsv = true);
+
+    try {
+      // ── Build Excel workbook ──────────────────────────────────────────────
+      final excel = xl.Excel.createExcel();
+      final sheet = excel['Staff Roster'];
+      // Remove the default 'Sheet1'
+      excel.delete('Sheet1');
+
+      // Header row (bold)
+      const headers = [
+        'Employee ID', 'Full Name', 'Role', 'Title', 'Department',
+        'Access Level', 'Status', 'Work Email', 'Phone', 'Date Hired',
+      ];
+      for (int col = 0; col < headers.length; col++) {
+        final cell = sheet.cell(
+          xl.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
+        );
+        cell.value = xl.TextCellValue(headers[col]);
+        cell.cellStyle = xl.CellStyle(
+          bold: true,
+          backgroundColorHex: xl.ExcelColor.fromHexString('FF14332E'),
+          fontColorHex: xl.ExcelColor.fromHexString('FFFFFFFF'),
+        );
+      }
+
+      // Data rows
+      for (int i = 0; i < _staff.length; i++) {
+        final s = _staff[i];
+        final rowIndex = i + 1;
+
+        final id    = (s['id'] ?? s['employee_id'] ?? '').toString();
+        final name  = (s['name'] ?? s['full_name'] ?? '').toString();
+        final role  = (s['role'] ?? '').toString();
+        final title = (s['title'] ?? '').toString();
+        final dept  = (s['dept'] ?? '').toString();
+        final level = 'L${s['level'] ?? 2}';
+        final status = (s['status'] ?? 'active').toString().toUpperCase();
+        final email = (s['email'] ?? '').toString();
+        final phone = _cleanPhone((s['phone'] ?? '').toString());
+        final dateHired = _formatDateHired((s['date_hired'] ?? '').toString());
+
+        final rowData = [id, name, role, title, dept, level, status, email, phone, dateHired];
+        for (int col = 0; col < rowData.length; col++) {
+          final cell = sheet.cell(
+            xl.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex),
+          );
+          cell.value = xl.TextCellValue(rowData[col]);
+          // Alternate row shading
+          if (i % 2 == 1) {
+            cell.cellStyle = xl.CellStyle(
+              backgroundColorHex: xl.ExcelColor.fromHexString('FFF1F5F9'),
+            );
+          }
+        }
+      }
+
+      // Set column widths
+      final colWidths = [12.0, 22.0, 20.0, 20.0, 14.0, 12.0, 10.0, 26.0, 18.0, 14.0];
+      for (int i = 0; i < colWidths.length; i++) {
+        sheet.setColumnWidth(i, colWidths[i]);
+      }
+
+      // Encode to bytes
+      final excelBytes = excel.encode();
+      if (excelBytes == null) throw Exception('Failed to encode Excel file.');
+      final bytes = Uint8List.fromList(excelBytes);
+
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = 'yang_chow_staff_roster_$timestamp.xlsx';
+
+      final outputFilePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Staff Roster Excel Export',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+        bytes: bytes,
+      );
+
+      if (outputFilePath != null && mounted) {
+        AuditLogService.logActivity(
+          action: 'EXPORT_STAFF_EXCEL',
+          module: 'Users',
+          description: 'Exported ${_staff.length} staff records to Excel ($fileName)',
+          metadata: {
+            'file_name': fileName,
+            'total_exported': _staff.length,
+          },
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Exported ${_staff.length} staff records to Excel!')),
+              ],
+            ),
+            backgroundColor: const Color(0xFF15803D),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export Excel: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingCsv = false);
+    }
   }
 }

@@ -8,126 +8,14 @@ class StaffService {
   static const String storageKey = 'yang_chow_staff_directory_v2';
   static const String supabaseSettingKey = 'staff_directory_list';
 
-  // Realistic portrait photos of restaurant staff
-  static final List<Map<String, dynamic>> defaultStaff = [
-    {
-      'title': 'Restaurant Manager',
-      'name': 'Tony Stark',
-      'full_name': 'Tony Stark',
-      'role': 'Manager',
-      'dept': 'Management',
-      'level': 4,  // L4 = Executive (top)
-      'colorHex': 0xFF14332E,
-      'image': 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP001',
-      'status': 'active',
-      'phone': '+63 912 345 6789',
-      'date_hired': '2024-01-15T00:00:00.000',
-    },
-    {
-      'title': 'Operations Supervisor',
-      'name': 'Steve Rogers',
-      'full_name': 'Steve Rogers',
-      'role': 'Supervisor',
-      'dept': 'Management',
-      'level': 3,  // L3 = Senior Manager
-      'colorHex': 0xFF0284C7,
-      'image': 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP002',
-      'status': 'active',
-      'phone': '+63 917 234 5678',
-      'date_hired': '2024-02-01T00:00:00.000',
-    },
-    {
-      'title': 'Head Chef',
-      'name': 'Gordon Ramsay',
-      'full_name': 'Gordon Ramsay',
-      'role': 'Cook',
-      'dept': 'Kitchen',
-      'level': 2,  // L2 = Staff
-      'colorHex': 0xFFD97706,
-      'image': 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP003',
-      'status': 'active',
-      'phone': '+63 922 111 2222',
-      'date_hired': '2024-03-10T00:00:00.000',
-    },
-    {
-      'title': 'Sous Chef',
-      'name': 'Jamie Oliver',
-      'full_name': 'Jamie Oliver',
-      'role': 'Cook',
-      'dept': 'Kitchen',
-      'level': 2,  // L2 = Staff
-      'colorHex': 0xFFD97706,
-      'image': 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP004',
-      'status': 'active',
-      'phone': '+63 933 456 7890',
-      'date_hired': '2024-03-15T00:00:00.000',
-    },
-    {
-      'title': 'Cashier',
-      'name': 'Maria Santos',
-      'full_name': 'Maria Santos',
-      'role': 'Cashier & Food Server',
-      'dept': 'Operations',
-      'level': 2,  // L2 = Staff
-      'colorHex': 0xFF7C3AED,
-      'image': 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP005',
-      'status': 'active',
-      'phone': '+63 961 890 1234',
-      'date_hired': '2024-04-01T00:00:00.000',
-    },
-    {
-      'title': 'Food Server',
-      'name': 'Ana Reyes',
-      'full_name': 'Ana Reyes',
-      'role': 'Cashier & Food Server',
-      'dept': 'Service',
-      'level': 2,  // L2 = Staff
-      'colorHex': 0xFF0891B2,
-      'image': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP006',
-      'status': 'active',
-      'phone': '+63 972 901 2345',
-      'date_hired': '2024-05-20T00:00:00.000',
-    },
-    {
-      'title': 'Waitstaff',
-      'name': 'Sanji Vinsmoke',
-      'full_name': 'Sanji Vinsmoke',
-      'role': 'Dine-in Food Server',
-      'dept': 'Service',
-      'level': 2,  // L2 = Staff
-      'colorHex': 0xFF0891B2,
-      'image': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP007',
-      'status': 'active',
-      'phone': '+63 983 012 3456',
-      'date_hired': '2024-06-10T00:00:00.000',
-    },
-    {
-      'title': 'Waitstaff',
-      'name': 'Clark Kent',
-      'full_name': 'Clark Kent',
-      'role': 'Dine-in Food Server',
-      'dept': 'Service',
-      'level': 2,  // L2 = Staff
-      'colorHex': 0xFF0891B2,
-      'image': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
-      'id': 'EMP008',
-      'status': 'active',
-      'phone': '+63 905 234 5678',
-      'date_hired': '2024-06-15T00:00:00.000',
-    },
-  ];
+  // Default fallback staff list (kept empty for clean production initialization)
+  static final List<Map<String, dynamic>> defaultStaff = [];
 
   /// Load all staff from Supabase DB or persistent storage fallback
   static Future<List<Map<String, dynamic>>> loadStaffList() async {
-    // 0. Pre-load local cached staff to preserve images if DB table lacks the image column
+    // 0. Pre-load local cached staff to preserve images and emails if DB table lacks those columns
     final Map<String, String> cachedImages = {};
+    final Map<String, String> cachedEmails = {};
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? raw = prefs.getString(storageKey);
@@ -136,8 +24,12 @@ class StaffService {
         for (final item in decoded) {
           final id = (item['id'] ?? item['employee_id'] ?? '').toString().trim().toUpperCase();
           final img = (item['image'] ?? '').toString().trim();
+          final em = (item['email'] ?? '').toString().trim().toLowerCase();
           if (id.isNotEmpty && img.isNotEmpty) {
             cachedImages[id] = img;
+          }
+          if (id.isNotEmpty && em.isNotEmpty) {
+            cachedEmails[id] = em;
           }
         }
       }
@@ -152,6 +44,30 @@ class StaffService {
           .order('employee_id', ascending: true);
 
       if (dbRows.isNotEmpty) {
+        // Pre-fetch auth users from `public.users` to link work emails by name, phone, or employee_id
+        final Map<String, String> nameToEmail = {};
+        final Map<String, String> phoneToEmail = {};
+        try {
+          final List<dynamic> userRows = await supabase
+              .from('users')
+              .select('email, firstname, lastname, phone');
+          for (final u in userRows) {
+            final email = (u['email'] ?? '').toString().trim().toLowerCase();
+            if (email.isEmpty) continue;
+            final fn = (u['firstname'] ?? '').toString().trim().toLowerCase();
+            final ln = (u['lastname'] ?? '').toString().trim().toLowerCase();
+            final fullName = ln.isNotEmpty ? '$fn $ln' : fn;
+            if (fullName.isNotEmpty) nameToEmail[fullName] = email;
+            if (fn.isNotEmpty) nameToEmail[fn] = email;
+            final ph = (u['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+            if (ph.isNotEmpty && ph.length >= 10) {
+              phoneToEmail[ph.substring(ph.length - 10)] = email;
+            }
+          }
+        } catch (userErr) {
+          debugPrint('[StaffService] Note loading public.users for email linking: $userErr');
+        }
+
         final list = dbRows.map((row) {
           final empId = (row['employee_id'] ?? row['id'] ?? '').toString().trim();
           final role = (row['role'] ?? '').toString();
@@ -161,10 +77,32 @@ class StaffService {
           final int level = levelRaw is int ? levelRaw : int.tryParse(levelRaw?.toString() ?? '2') ?? 2;
           final status = (row['status'] ?? 'Active').toString().toLowerCase();
 
-          // If db table row has an image, use it; otherwise preserve image from local cache
-          String staffImage = (row['image'] ?? '').toString().trim();
-          if (staffImage.isEmpty && cachedImages.containsKey(empId.toUpperCase())) {
+          // If DB table has 'image' column, trust DB value directly.
+          // IMPORTANT: Do NOT resurrect deleted photo if DB has the column and value is null or empty.
+          // Only fallback to cache if DB table has no 'image' column in schema at all.
+          String staffImage;
+          if (row.containsKey('image')) {
+            staffImage = (row['image'] ?? '').toString().trim();
+          } else if (cachedImages.containsKey(empId.toUpperCase())) {
             staffImage = cachedImages[empId.toUpperCase()]!;
+          } else {
+            staffImage = '';
+          }
+
+          // Resolve work email: check row first, then local cache, then match with public.users
+          final nameClean = (row['name'] ?? '').toString().trim().toLowerCase();
+          final phoneDigits = (row['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+          final phoneKey = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
+
+          String resolvedEmail = (row['email'] ?? '').toString().trim().toLowerCase();
+          if (resolvedEmail.isEmpty && cachedEmails.containsKey(empId.toUpperCase())) {
+            resolvedEmail = cachedEmails[empId.toUpperCase()]!;
+          }
+          if (resolvedEmail.isEmpty && nameToEmail.containsKey(nameClean)) {
+            resolvedEmail = nameToEmail[nameClean]!;
+          }
+          if (resolvedEmail.isEmpty && phoneKey.isNotEmpty && phoneToEmail.containsKey(phoneKey)) {
+            resolvedEmail = phoneToEmail[phoneKey]!;
           }
 
           return {
@@ -184,7 +122,7 @@ class StaffService {
                     : (status.contains('archive') ? 'archived' : 'active')),
             'phone': (row['phone'] ?? '').toString().isNotEmpty ? row['phone'].toString() : '+63 900 000 0000',
             'image': staffImage,
-            'email': (row['email'] ?? '').toString().trim(),
+            'email': resolvedEmail,
             'colorHex': _getDeptColorHex(dept),
             'date_hired': (row['created_at'] ?? '').toString().isNotEmpty 
                 ? row['created_at'].toString() 
@@ -195,7 +133,7 @@ class StaffService {
         // Cache to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(storageKey, jsonEncode(list));
-        debugPrint('[StaffService] Successfully loaded ${list.length} staff records from Supabase "staff" table');
+        debugPrint('[StaffService] Successfully loaded ${list.length} staff records from Supabase "staff" table (emails linked)');
         return list;
       }
     } catch (e) {
@@ -315,7 +253,6 @@ class StaffService {
           'image': (s['image'] ?? '').toString().trim(),
           'phone': (s['phone'] ?? '').toString().trim(),
           'dept': (s['dept'] ?? '').toString().trim(),
-          'email': (s['email'] ?? '').toString().trim().toLowerCase(),
         };
 
         final coreRow = {
@@ -325,6 +262,9 @@ class StaffService {
           'role': (s['role'] ?? '').toString().trim(),
           'level': s['level'] is int ? s['level'] : int.tryParse(s['level']?.toString() ?? '2') ?? 2,
           'status': statusStr,
+          'image': (s['image'] ?? '').toString().trim(),
+          'phone': (s['phone'] ?? '').toString().trim(),
+          'dept': (s['dept'] ?? '').toString().trim(),
         };
 
         // Try insert/update into `staff` table
@@ -631,6 +571,309 @@ class StaffService {
       debugPrint('[StaffService] Error reactivating staff auth account: $e');
     } finally {
       adminClient?.dispose();
+    }
+  }
+
+  /// Synchronize staff profile changes (name, phone, role, email) to `public.users` table and Supabase Auth.
+  static Future<bool> syncStaffUserAccount({
+    required String currentEmail,
+    String? previousEmail,
+    required String fullName,
+    required String phone,
+    required String role,
+    required String employeeId,
+  }) async {
+    final cleanCurrentEmail = currentEmail.trim().toLowerCase();
+    final cleanPreviousEmail = (previousEmail ?? '').trim().toLowerCase();
+    final targetEmail = cleanCurrentEmail.isNotEmpty ? cleanCurrentEmail : cleanPreviousEmail;
+    if (targetEmail.isEmpty) return false;
+
+    SupabaseClient? adminClient;
+    try {
+      adminClient = SupabaseClient(
+        SupabaseOptions.supabaseUrl,
+        SupabaseOptions.supabaseServiceRoleKey,
+        authOptions: const AuthClientOptions(
+          autoRefreshToken: false,
+        ),
+      );
+
+      final nameParts = fullName.trim().split(' ');
+      final firstName = nameParts.first;
+      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      final systemRole = mapStaffRoleToSystemRole(role);
+
+      // 1. Check if user exists in `public.users` by current or previous email
+      Map<String, dynamic>? existingUser;
+      if (cleanPreviousEmail.isNotEmpty) {
+        existingUser = await adminClient
+            .from('users')
+            .select('id, email')
+            .ilike('email', cleanPreviousEmail)
+            .maybeSingle();
+      }
+      if (existingUser == null && cleanCurrentEmail.isNotEmpty) {
+        existingUser = await adminClient
+            .from('users')
+            .select('id, email')
+            .ilike('email', cleanCurrentEmail)
+            .maybeSingle();
+      }
+
+      if (existingUser != null) {
+        final userId = existingUser['id']?.toString();
+        final Map<String, dynamic> updateFields = {
+          'firstname': firstName,
+          'lastname': lastName,
+          'phone': phone,
+          'role': systemRole,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        };
+
+        if (cleanCurrentEmail.isNotEmpty && cleanCurrentEmail != existingUser['email']?.toString().toLowerCase()) {
+          updateFields['email'] = cleanCurrentEmail;
+        }
+
+        if (userId != null && userId.isNotEmpty) {
+          await adminClient
+              .from('users')
+              .update(updateFields)
+              .eq('id', userId);
+
+          // Also update Auth user metadata & email if user ID is present
+          try {
+            final adminUserAttrs = AdminUserAttributes(
+              email: cleanCurrentEmail.isNotEmpty ? cleanCurrentEmail : null,
+              userMetadata: {
+                'firstname': firstName,
+                'lastname': lastName,
+                'phone': phone,
+                'role': systemRole,
+                'employee_id': employeeId,
+              },
+            );
+            await adminClient.auth.admin.updateUserById(userId, attributes: adminUserAttrs);
+          } catch (authErr) {
+            debugPrint('[StaffService] Note updating Auth admin metadata: $authErr');
+          }
+        }
+
+        debugPrint('[StaffService] Successfully synced staff user record for $targetEmail ($systemRole)');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[StaffService] Error syncing staff user account: $e');
+      return false;
+    } finally {
+      adminClient?.dispose();
+    }
+  }
+
+  /// Reset a staff member's password in Supabase Auth via Admin Client
+  static Future<Map<String, dynamic>> resetStaffPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty) {
+      return {'success': false, 'error': 'Staff email is required for password reset.'};
+    }
+
+    SupabaseClient? adminClient;
+    try {
+      adminClient = SupabaseClient(
+        SupabaseOptions.supabaseUrl,
+        SupabaseOptions.supabaseServiceRoleKey,
+        authOptions: const AuthClientOptions(
+          autoRefreshToken: false,
+        ),
+      );
+
+      // Find user ID from `users` table
+      final userRow = await adminClient
+          .from('users')
+          .select('id')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
+
+      if (userRow == null || userRow['id'] == null) {
+        return {
+          'success': false,
+          'error': 'No authentication account found for $cleanEmail. You can provision one by editing the staff profile.',
+        };
+      }
+
+      final userId = userRow['id'].toString();
+      await adminClient.auth.admin.updateUserById(
+        userId,
+        attributes: AdminUserAttributes(password: newPassword),
+      );
+
+      debugPrint('[StaffService] Reset password successfully for staff $cleanEmail');
+      return {'success': true};
+    } catch (e) {
+      debugPrint('[StaffService] resetStaffPassword error: $e');
+      return {'success': false, 'error': e.toString()};
+    } finally {
+      adminClient?.dispose();
+    }
+  }
+
+  static const String supabaseCustomDeptsKey = 'staff_custom_departments';
+  static const String supabaseCustomRolesKey = 'staff_custom_roles';
+  static const String prefsCustomDeptsKey = 'yang_custom_departments';
+  static const String prefsCustomRolesKey = 'yang_custom_roles';
+
+  /// Load custom departments from Supabase app_settings with local storage fallback
+  static Future<List<String>> loadCustomDepartments() async {
+    final List<String> result = [];
+    // 1. Try loading from Supabase app_settings
+    try {
+      final supabase = Supabase.instance.client;
+      final res = await supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', supabaseCustomDeptsKey)
+          .maybeSingle();
+
+      if (res != null && res['setting_value'] != null) {
+        final raw = res['setting_value'].toString();
+        if (raw.isNotEmpty) {
+          final List<dynamic> decoded = jsonDecode(raw);
+          for (final item in decoded) {
+            final str = item.toString().trim();
+            if (str.isNotEmpty && !result.contains(str)) {
+              result.add(str);
+            }
+          }
+          debugPrint('[StaffService] Loaded ${result.length} custom departments from Supabase app_settings');
+        }
+      }
+    } catch (e) {
+      debugPrint('[StaffService] Supabase loadCustomDepartments note: $e');
+    }
+
+    // 2. Fallback / merge with local SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final local = prefs.getStringList(prefsCustomDeptsKey) ?? [];
+      for (final d in local) {
+        final str = d.trim();
+        if (str.isNotEmpty && !result.contains(str)) {
+          result.add(str);
+        }
+      }
+      if (result.isNotEmpty) {
+        await prefs.setStringList(prefsCustomDeptsKey, result);
+      }
+    } catch (e) {
+      debugPrint('[StaffService] Local loadCustomDepartments error: $e');
+    }
+
+    return result;
+  }
+
+  /// Save custom departments to local SharedPreferences and Supabase app_settings
+  static Future<void> saveCustomDepartments(List<String> customDepts) async {
+    final cleanList = customDepts.map((d) => d.trim()).where((d) => d.isNotEmpty).toSet().toList();
+    // 1. Save locally
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(prefsCustomDeptsKey, cleanList);
+    } catch (e) {
+      debugPrint('[StaffService] Local saveCustomDepartments error: $e');
+    }
+
+    // 2. Sync to Supabase app_settings
+    try {
+      final supabase = Supabase.instance.client;
+      final encoded = jsonEncode(cleanList);
+      await supabase.from('app_settings').upsert({
+        'setting_key': supabaseCustomDeptsKey,
+        'setting_value': encoded,
+        'setting_type': 'json',
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'setting_key');
+      debugPrint('[StaffService] Synced ${cleanList.length} custom departments to Supabase app_settings');
+    } catch (e) {
+      debugPrint('[StaffService] Supabase saveCustomDepartments error: $e');
+    }
+  }
+
+  /// Load custom roles from Supabase app_settings with local storage fallback
+  static Future<List<String>> loadCustomRoles() async {
+    final List<String> result = [];
+    // 1. Try loading from Supabase app_settings
+    try {
+      final supabase = Supabase.instance.client;
+      final res = await supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', supabaseCustomRolesKey)
+          .maybeSingle();
+
+      if (res != null && res['setting_value'] != null) {
+        final raw = res['setting_value'].toString();
+        if (raw.isNotEmpty) {
+          final List<dynamic> decoded = jsonDecode(raw);
+          for (final item in decoded) {
+            final str = item.toString().trim();
+            if (str.isNotEmpty && !result.contains(str)) {
+              result.add(str);
+            }
+          }
+          debugPrint('[StaffService] Loaded ${result.length} custom roles from Supabase app_settings');
+        }
+      }
+    } catch (e) {
+      debugPrint('[StaffService] Supabase loadCustomRoles note: $e');
+    }
+
+    // 2. Fallback / merge with local SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final local = prefs.getStringList(prefsCustomRolesKey) ?? [];
+      for (final r in local) {
+        final str = r.trim();
+        if (str.isNotEmpty && !result.contains(str)) {
+          result.add(str);
+        }
+      }
+      if (result.isNotEmpty) {
+        await prefs.setStringList(prefsCustomRolesKey, result);
+      }
+    } catch (e) {
+      debugPrint('[StaffService] Local loadCustomRoles error: $e');
+    }
+
+    return result;
+  }
+
+  /// Save custom roles to local SharedPreferences and Supabase app_settings
+  static Future<void> saveCustomRoles(List<String> customRoles) async {
+    final cleanList = customRoles.map((r) => r.trim()).where((r) => r.isNotEmpty).toSet().toList();
+    // 1. Save locally
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(prefsCustomRolesKey, cleanList);
+    } catch (e) {
+      debugPrint('[StaffService] Local saveCustomRoles error: $e');
+    }
+
+    // 2. Sync to Supabase app_settings
+    try {
+      final supabase = Supabase.instance.client;
+      final encoded = jsonEncode(cleanList);
+      await supabase.from('app_settings').upsert({
+        'setting_key': supabaseCustomRolesKey,
+        'setting_value': encoded,
+        'setting_type': 'json',
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'setting_key');
+      debugPrint('[StaffService] Synced ${cleanList.length} custom roles to Supabase app_settings');
+    } catch (e) {
+      debugPrint('[StaffService] Supabase saveCustomRoles error: $e');
     }
   }
 }
