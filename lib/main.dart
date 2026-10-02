@@ -39,6 +39,7 @@ import 'pages/request_account_deletion_page.dart';
 import 'pages/otp_password_reset.dart';
 
 import 'pages/landing_page.dart';
+import 'pages/customer/customer_reviews_page.dart';
 
 import 'pages/customer/customer_dashboard.dart';
 
@@ -164,6 +165,9 @@ class YangChowApp extends StatelessWidget {
         '/privacy': (context) => const PrivacyPolicyPage(),
         '/request-account-deletion': (context) => const RequestAccountDeletionPage(),
         '/delete-account': (context) => const RequestAccountDeletionPage(),
+
+        '/feedback': (context) => const CustomerReviewsPage(isPublicAccess: true),
+        '/review': (context) => const CustomerReviewsPage(isPublicAccess: true),
 
         '/otp-password-reset': (context) {
           final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
@@ -358,12 +362,12 @@ class YangChowApp extends StatelessWidget {
         '/customer/order-list': (context) => const AuthGuard(
           allowedRoles: ['customer'],
           redirectRoute: '/login',
-          child: CustomerDashboardPage(initialIndex: 4),
+          child: CustomerDashboardPage(openOrderList: true),
         ),
         '/customer/profile': (context) => const AuthGuard(
           allowedRoles: ['customer'],
           redirectRoute: '/login',
-          child: CustomerDashboardPage(initialIndex: 5),
+          child: CustomerDashboardPage(initialIndex: 4),
         ),
 
         // ==========================================

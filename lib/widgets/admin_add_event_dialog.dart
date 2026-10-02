@@ -224,6 +224,21 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
 
     setState(() {
       _totalDurationHours = base;
+      if (_startTimeController.text.isNotEmpty) {
+        final timeParts = _startTimeController.text.trim().split(RegExp(r'[\s:]+'));
+        int hour = int.tryParse(timeParts[0]) ?? 10;
+        final isPM = _startTimeController.text.toUpperCase().contains('PM');
+        final isAM = _startTimeController.text.toUpperCase().contains('AM');
+        if (isPM && hour < 12) hour += 12;
+        if (isAM && hour == 12) hour = 0;
+        if (hour + _totalDurationHours > 20) {
+          _startTimeController.clear();
+          _showToast(
+            'Selected time reset because it exceeds closing time (8:00 PM) with the new duration.',
+            isError: true,
+          );
+        }
+      }
     });
   }
 
@@ -305,71 +320,6 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
     }
   }
 
-  Future<void> _pickTime() async {
-    const startHour = 10;
-    const endHour = 19;
-
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 10, minute: 0),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: _emerald,
-              onPrimary: Colors.white,
-              onSurface: _darkBg,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked == null) return;
-
-    // Check operating hours: 10:00 AM to 7:00 PM (19:00)
-    if (picked.hour < startHour ||
-        picked.hour > endHour ||
-        (picked.hour == endHour && picked.minute > 0)) {
-      _showToast(
-        'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
-        isError: true,
-      );
-      return;
-    }
-
-    final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
-    final hourOfPeriod = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
-    final minuteStr = picked.minute.toString().padLeft(2, '0');
-    final formattedTime = '$hourOfPeriod:$minuteStr $period';
-
-    if (_dateController.text.isNotEmpty) {
-      try {
-        final parsedDate = DateFormat('MMMM d, yyyy').parse(_dateController.text.trim());
-        final dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
-        final overlap = await _reservationService.isTimeSlotOverlapping(
-          eventDate: dateStr,
-          startTime: formattedTime,
-          durationHours: _totalDurationHours,
-        );
-        if (overlap && mounted) {
-          _showToast(
-            'This time slot ($formattedTime) is unavailable. A 2-hour interval is required between events (max 2 events/day).',
-            isError: true,
-          );
-          return;
-        }
-      } catch (e) {
-        debugPrint('Error validating time overlap: $e');
-      }
-    }
-
-    setState(() {
-      _startTimeController.text = formattedTime;
-    });
-  }
-
   /// Handles time slot selection from the Venue Availability Preview widget
   void _handleAvailabilityTimeSelected(String selectedTime) async {
     // Parse the selected time string (e.g., "10:00 AM", "6:00 PM")
@@ -382,12 +332,12 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
     if (isAM && hour == 12) hour = 0;
 
     const startHour = 10;
-    const endHour = 19;
+    const endHour = 20;
 
-    // Validate operating hours
-    if (hour < startHour || hour > endHour || (hour == endHour && minute > 0)) {
+    // Validate operating hours and that event completes before closing
+    if (hour < startHour || (hour + _totalDurationHours) > endHour) {
       _showToast(
-        'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
+        'Selected time exceeds restaurant closing hours (10:00 AM – 8:00 PM). Please select an earlier slot.',
         isError: true,
       );
       return;
@@ -775,7 +725,7 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
                         _buildSectionHeader(
                           icon: Icons.calendar_today_rounded,
                           title: 'DATE & TIME',
-                          subtitle: 'Select reservation schedule (Operating Hours: 10 AM – 7 PM)',
+                          subtitle: 'Select reservation schedule (Operating Hours: 10 AM – 8 PM)',
                           isRequired: true,
                         ),
                         const SizedBox(height: 8),
@@ -791,7 +741,6 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
                             onTimeSelected: (selectedTime) {
                               _handleAvailabilityTimeSelected(selectedTime);
                             },
-                            onPickCustomTime: () => _pickTime(),
                           ),
                         const SizedBox(height: 22),
 
@@ -1435,7 +1384,13 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
         );
 
         final timeButton = InkWell(
-          onTap: _pickTime,
+          onTap: () {
+            if (_dateController.text.isEmpty) {
+              _showToast('Please select an event date first to view available time slots.', isError: false);
+            } else {
+              _showToast('Please select an available time slot from the Venue Availability section below.', isError: false);
+            }
+          },
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -1461,7 +1416,7 @@ class _AdminAddEventDialogState extends State<AdminAddEventDialog> {
                     children: [
                       Text('Start Time', style: GoogleFonts.plusJakartaSans(fontSize: 10, color: _slate, fontWeight: FontWeight.w700)),
                       Text(
-                        _startTimeController.text.isNotEmpty ? _startTimeController.text : 'Select Time',
+                        _startTimeController.text.isNotEmpty ? _startTimeController.text : 'Select slot below',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12.5,
                           color: _startTimeController.text.isNotEmpty ? _darkBg : _slate,

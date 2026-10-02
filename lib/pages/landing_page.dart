@@ -19,6 +19,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:yang_chow/pages/customer/customer_reviews_page.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -438,16 +439,41 @@ class _LandingPageState extends State<LandingPage>
                 final fullName = '$fname $lname'.trim();
                 newReview['name'] = fullName.isNotEmpty ? fullName : 'Customer';
                 newReview['avatar_url'] = user['avatar_url'];
+              } else {
+                final guestName = (r['customer_name'] ?? r['name'] ?? r['guest_name'])?.toString();
+                if (guestName != null && guestName.trim().isNotEmpty) {
+                  newReview['name'] = guestName.trim();
+                } else if (email != null && email.isNotEmpty && !email.contains('@yangchow.guest')) {
+                  newReview['name'] = email.split('@').first;
+                } else {
+                  newReview['name'] = 'Guest Customer';
+                }
               }
               return newReview;
             }).toList();
           } else {
-            enrichedReviews = List<Map<String, dynamic>>.from(reviewsResponse);
+            enrichedReviews = reviewsResponse.map((r) {
+              final newReview = Map<String, dynamic>.from(r);
+              final guestName = (r['customer_name'] ?? r['name'] ?? r['guest_name'])?.toString();
+              if (guestName != null && guestName.trim().isNotEmpty) {
+                newReview['name'] = guestName.trim();
+              } else {
+                newReview['name'] = 'Guest Customer';
+              }
+              return newReview;
+            }).toList();
           }
         }
       } catch (e) {
         debugPrint('Error enriching reviews with profiles: $e');
-        enrichedReviews = List<Map<String, dynamic>>.from(reviewsResponse);
+        enrichedReviews = reviewsResponse.map((r) {
+          final newReview = Map<String, dynamic>.from(r);
+          final guestName = (r['customer_name'] ?? r['name'] ?? r['guest_name'])?.toString();
+          if (guestName != null && guestName.trim().isNotEmpty) {
+            newReview['name'] = guestName.trim();
+          }
+          return newReview;
+        }).toList();
       }
 
       final allRatingsResponse = await Supabase.instance.client
@@ -4722,24 +4748,64 @@ class _LandingPageState extends State<LandingPage>
 
               const SizedBox(height: 20),
 
-              // View All Verified Reviews Button
-              OutlinedButton.icon(
-                onPressed: () => _showAllReviewsDialog(context, displayReviews),
-                icon: const Icon(Icons.rate_review_rounded, color: darkGreyText, size: 18),
-                label: Text(
-                  'View All Verified Reviews (${_totalReviewCount > 0 ? _totalReviewCount : defaultReviews.length})',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13.5,
-                    color: darkGreyText,
+              // Review Action Buttons (View All, Leave Review, Scan QR)
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  // View All Verified Reviews Button
+                  OutlinedButton.icon(
+                    onPressed: () => _showAllReviewsDialog(context, displayReviews),
+                    icon: const Icon(Icons.rate_review_rounded, color: darkGreyText, size: 18),
+                    label: Text(
+                      'View All Reviews (${_totalReviewCount > 0 ? _totalReviewCount : defaultReviews.length})',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        color: darkGreyText,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      side: BorderSide(color: warmGold.withValues(alpha: 0.8), width: 1.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      backgroundColor: Colors.white,
+                    ),
                   ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                  side: BorderSide(color: warmGold.withValues(alpha: 0.8), width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  backgroundColor: Colors.white,
-                ),
+
+                  // Leave Review Button (Primary CTA)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CustomerReviewsPage(isPublicAccess: true),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 19),
+                    label: Text(
+                      'Leave a Review',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: forestGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: warmGold.withValues(alpha: 0.6), width: 1.2),
+                      ),
+                      elevation: 3,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -8265,12 +8331,24 @@ class _LandingReviewCardState extends State<_LandingReviewCard> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    final name = widget.review['name'] ?? 'Verified Customer';
+    final name = widget.review['name'] ??
+        widget.review['customer_name'] ??
+        widget.review['guest_name'] ??
+        'Verified Customer';
     final comment =
         widget.review['comment'] ?? widget.review['review_text'] ?? 'Great food!';
     final rating = (widget.review['rating'] as num?)?.toDouble() ?? 5.0;
-    final date = widget.review['date'] ?? 'Verified Guest';
-    final dish = widget.review['dish'] ?? 'Signature Dish';
+    final date = widget.review['date'] ??
+        (widget.review['created_at'] != null
+            ? DateFormat('MMM dd, yyyy').format(
+                DateTime.tryParse(widget.review['created_at'].toString())
+                        ?.toLocal() ??
+                    DateTime.now())
+            : 'Verified Guest');
+    final dish = (widget.review['dish'] != null &&
+            widget.review['dish'].toString().isNotEmpty)
+        ? widget.review['dish'].toString()
+        : 'Signature Dish';
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -8549,6 +8627,33 @@ class _AllReviewsDialogState extends State<_AllReviewsDialog> {
                         ],
                       ),
                     ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CustomerReviewsPage(isPublicAccess: true),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit_note_rounded, size: 16, color: _darkRed),
+                      label: Text(
+                        'Leave Review',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _darkRed,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _gold,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close_rounded,
@@ -8736,12 +8841,24 @@ class _ReviewListTileState extends State<_ReviewListTile> {
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.review['name'] ?? 'Verified Customer';
+    final name = widget.review['name'] ??
+        widget.review['customer_name'] ??
+        widget.review['guest_name'] ??
+        'Verified Customer';
     final comment =
         widget.review['comment'] ?? widget.review['review_text'] ?? '';
     final rating = (widget.review['rating'] as num?)?.toDouble() ?? 5.0;
-    final date = widget.review['date'] ?? 'Verified Guest';
-    final dish = widget.review['dish'] ?? '';
+    final date = widget.review['date'] ??
+        (widget.review['created_at'] != null
+            ? DateFormat('MMM dd, yyyy').format(
+                DateTime.tryParse(widget.review['created_at'].toString())
+                        ?.toLocal() ??
+                    DateTime.now())
+            : 'Verified Guest');
+    final dish = (widget.review['dish'] != null &&
+            widget.review['dish'].toString().isNotEmpty)
+        ? widget.review['dish'].toString()
+        : 'Signature Dining';
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
