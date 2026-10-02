@@ -54,7 +54,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   @override
   void initState() {
     super.initState();
-    final rawMenu = MenuService.getMenu();
+    final rawMenu = MenuService.getCustomerMenu();
     if (_isEventPlace) {
       // For Event Place reservations, only Yangchow Family Bundles are eligible
       menu = {};
@@ -438,7 +438,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       ? menu.keys.map((cat) => _buildCategoryChip(cat)).toList()
                       : [
                           _buildCategoryChip('All'),
-                          ...MenuService.categories.map((cat) => _buildCategoryChip(cat)),
+                          ...MenuService.customerCategories.map((cat) => _buildCategoryChip(cat)),
                         ],
                 ),
                 if (_canScrollCategoryLeft)
@@ -640,6 +640,8 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       );
     }
 
+    final groupedList = GroupedMenuItem.groupItems(items);
+
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -648,19 +650,22 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
-      itemCount: items.length,
+      itemCount: groupedList.length,
       itemBuilder: (context, index) {
-        final item = items[index];
-        final quantity = selectedItems[item.name] ?? 0;
-        return _buildMenuItemCard(item, quantity);
+        final gItem = groupedList[index];
+        return _buildGroupedMenuItemCard(gItem);
       },
     );
   }
 
-  Widget _buildMenuItemCard(MenuItem item, int quantity) {
+  Widget _buildGroupedMenuItemCard(GroupedMenuItem item) {
+    final totalQuantity = item.variants
+        .map((v) => selectedItems[v.name] ?? 0)
+        .fold(0, (a, b) => a + b);
+
     return Container(
       decoration: AppTheme.foodCardDecoration().copyWith(
-        border: quantity > 0 
+        border: totalQuantity > 0
             ? Border.all(color: AppTheme.goldenAmber, width: 2)
             : Border.all(color: Colors.transparent),
       ),
@@ -674,8 +679,8 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Stack(
                 children: [
-                  _buildImageWidget(item),
-                  if (quantity > 0)
+                  _buildImageWidget(item.primaryItem),
+                  if (totalQuantity > 0)
                     Positioned(
                       top: 8,
                       right: 8,
@@ -693,7 +698,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                           ],
                         ),
                         child: Text(
-                          '$quantity',
+                          '$totalQuantity',
                           style: GoogleFonts.inter(
                             color: Colors.black,
                             fontSize: 12,
@@ -712,7 +717,9 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '₱${_fmt.format(item.price)}',
+                        item.hasVariants
+                            ? 'From ₱${_fmt.format(item.minPrice)}'
+                            : '₱${_fmt.format(item.minPrice)}',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 11,
@@ -725,7 +732,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               ),
             ),
           ),
-          
+
           // Content Section
           Expanded(
             flex: 2,
@@ -736,7 +743,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    item.name,
+                    item.baseName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
@@ -748,44 +755,84 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      AnimatedTapScale(
-                        onTap: () => _removeFromSelection(item),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: quantity > 0 ? AppTheme.primaryColor.withValues(alpha: 0.12) : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.remove,
-                            size: 16,
-                            color: quantity > 0 ? AppTheme.primaryColor : Colors.grey,
+                      if (item.hasVariants) ...[
+                        Expanded(
+                          child: AnimatedTapScale(
+                            onTap: () => _showVariantSelectionSheet(item),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                gradient: totalQuantity > 0 ? AppTheme.goldGradient : null,
+                                color: totalQuantity > 0 ? null : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: totalQuantity > 0 ? AppTheme.goldenAmber : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.tune_rounded,
+                                    size: 14,
+                                    color: totalQuantity > 0 ? Colors.black : Colors.grey.shade700,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    totalQuantity > 0 ? 'Sizes ($totalQuantity)' : 'Select Size',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: totalQuantity > 0 ? Colors.black : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      Text(
-                        '$quantity',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          color: AppTheme.darkGrey,
-                        ),
-                      ),
-                      AnimatedTapScale(
-                        onTap: () => _addToSelection(item),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.goldGradient,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            size: 16,
-                            color: Colors.black,
+                      ] else ...[
+                        AnimatedTapScale(
+                          onTap: () => _removeFromSelection(item.primaryItem),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: totalQuantity > 0
+                                  ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                                  : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.remove,
+                              size: 16,
+                              color: totalQuantity > 0 ? AppTheme.primaryColor : Colors.grey,
+                            ),
                           ),
                         ),
-                      ),
+                        Text(
+                          '$totalQuantity',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                        AnimatedTapScale(
+                          onTap: () => _addToSelection(item.primaryItem),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.goldGradient,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              size: 16,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -794,6 +841,173 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           ),
         ],
       ),
+    );
+  }
+
+  void _showVariantSelectionSheet(GroupedMenuItem gItem) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          gItem.baseName,
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select size and quantity for reservation:',
+                    style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  ...gItem.variants.map((v) {
+                    final label = GroupedMenuItem.extractVariantLabel(v.name);
+                    final displayLabel = label.isNotEmpty ? label : v.name;
+                    final qty = selectedItems[v.name] ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: qty > 0 ? AppTheme.primaryColor : const Color(0xFFE2E8F0),
+                            width: qty > 0 ? 1.5 : 1,
+                          ),
+                          color: qty > 0
+                              ? AppTheme.primaryColor.withValues(alpha: 0.04)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayLabel,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₱${_fmt.format(v.price)}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Stepper
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: qty > 0
+                                      ? () {
+                                          _removeFromSelection(v);
+                                          setModalState(() {});
+                                        }
+                                      : null,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: qty > 0
+                                          ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                                          : Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 16,
+                                      color: qty > 0 ? AppTheme.primaryColor : Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    '$qty',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    _addToSelection(v);
+                                    setModalState(() {});
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      gradient: AppTheme.goldGradient,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      size: 16,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

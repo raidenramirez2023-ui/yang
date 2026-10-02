@@ -93,6 +93,7 @@ Widget buildCartIcon({
 void showMenuItemSheet({
   required BuildContext context,
   required MenuItem item,
+  List<MenuItem>? variants,
   required Map<String, int> selectedMenuItems,
   required VoidCallback onAdded,
   VoidCallback? onCartUpdated,
@@ -103,6 +104,7 @@ void showMenuItemSheet({
     backgroundColor: Colors.transparent,
     builder: (ctx) => _DishCustomizationSheet(
       item: item,
+      variants: variants,
       selectedMenuItems: selectedMenuItems,
       onAdded: onAdded,
       onCartUpdated: onCartUpdated,
@@ -112,6 +114,7 @@ void showMenuItemSheet({
 
 class _DishCustomizationSheet extends StatefulWidget {
   final MenuItem item;
+  final List<MenuItem>? variants;
   final Map<String, int> selectedMenuItems;
   final VoidCallback onAdded;
   final VoidCallback? onCartUpdated;
@@ -119,6 +122,7 @@ class _DishCustomizationSheet extends StatefulWidget {
   const _DishCustomizationSheet({
     Key? key,
     required this.item,
+    this.variants,
     required this.selectedMenuItems,
     required this.onAdded,
     this.onCartUpdated,
@@ -131,13 +135,47 @@ class _DishCustomizationSheet extends StatefulWidget {
 class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
   int _quantity = 1;
+  late MenuItem _selectedItem;
+  late List<MenuItem> _variants;
 
-  double get _totalPrice => widget.item.price * _quantity;
+  @override
+  void initState() {
+    super.initState();
+    _selectedItem = widget.item;
+    if (widget.variants != null && widget.variants!.isNotEmpty) {
+      _variants = List.from(widget.variants!);
+      _variants.sort((a, b) => a.price.compareTo(b.price));
+      _selectedItem = _variants.firstWhere(
+        (it) => it.name == widget.item.name,
+        orElse: () => _variants.first,
+      );
+    } else {
+      final baseName = GroupedMenuItem.extractBaseName(widget.item.name);
+      final allCategoryItems = (MenuService.getCustomerMenu()[widget.item.category] ??
+          MenuService.getMenu()[widget.item.category] ??
+          []);
+      final matching = allCategoryItems
+          .where((it) => GroupedMenuItem.extractBaseName(it.name) == baseName)
+          .toList();
+      if (matching.isNotEmpty) {
+        matching.sort((a, b) => a.price.compareTo(b.price));
+        _variants = matching;
+        _selectedItem = matching.firstWhere(
+          (it) => it.name == widget.item.name,
+          orElse: () => matching.first,
+        );
+      } else {
+        _variants = [widget.item];
+      }
+    }
+  }
+
+  double get _totalPrice => _selectedItem.price * _quantity;
 
   @override
   Widget build(BuildContext context) {
     final String imageUrl = MenuService.resolveImageUrl(
-      widget.item.customImagePath ?? widget.item.fallbackImagePath,
+      _selectedItem.customImagePath ?? _selectedItem.fallbackImagePath,
     );
 
     return Container(
@@ -251,7 +289,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
-                                        widget.item.category.toUpperCase(),
+                                        _selectedItem.category.toUpperCase(),
                                         style: GoogleFonts.inter(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
@@ -372,7 +410,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
 
                   // Dish Title & Pricing Section
                   Text(
-                    widget.item.name,
+                    GroupedMenuItem.extractBaseName(_selectedItem.name),
                     style: GoogleFonts.lora(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -398,7 +436,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                       ),
                       const SizedBox(width: 2),
                       Text(
-                        _fmt.format(widget.item.price),
+                        _fmt.format(_selectedItem.price),
                         style: GoogleFonts.lora(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
@@ -417,7 +455,11 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                           ),
                         ),
                         child: Text(
-                          'Per order',
+                          _variants.length > 1
+                              ? (GroupedMenuItem.extractVariantLabel(_selectedItem.name).isNotEmpty
+                                  ? GroupedMenuItem.extractVariantLabel(_selectedItem.name)
+                                  : 'Per order')
+                              : 'Per order',
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -428,18 +470,98 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                     ],
                   ),
 
+                  // Size / Portion Selector (if multiple variants exist)
+                  if (_variants.length > 1) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      'SELECT PORTION / SERVING SIZE',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _variants.map((v) {
+                        final isSelected = v.name == _selectedItem.name;
+                        final label = GroupedMenuItem.extractVariantLabel(v.name);
+                        final displayLabel = label.isNotEmpty ? label : v.name;
+                        return AnimatedTapScale(
+                          onTap: () {
+                            setState(() {
+                              _selectedItem = v;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF0E533C) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFF0E533C) : const Color(0xFFCBD5E1),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF0E533C).withValues(alpha: 0.2),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                  size: 15,
+                                  color: isSelected ? const Color(0xFFFFD56B) : const Color(0xFF94A3B8),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  displayLabel,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                    color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '₱${_fmt.format(v.price)}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: isSelected ? const Color(0xFFFFD56B) : const Color(0xFF0E533C),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
                   const SizedBox(height: 12),
 
                   // Description or Culinary Tagline
                   Text(
-                    (widget.item.description != null && widget.item.description!.trim().isNotEmpty)
-                        ? widget.item.description!
+                    (_selectedItem.description != null && _selectedItem.description!.trim().isNotEmpty)
+                        ? _selectedItem.description!
                         : 'Prepared fresh to order using Yang Chow\'s authentic culinary techniques and premium hand-selected ingredients.',
                     style: GoogleFonts.inter(
                       fontSize: 13.5,
                       color: const Color(0xFF64748B),
                       height: 1.5,
-                      fontStyle: (widget.item.description == null || widget.item.description!.trim().isEmpty)
+                      fontStyle: (_selectedItem.description == null || _selectedItem.description!.trim().isEmpty)
                           ? FontStyle.italic
                           : FontStyle.normal,
                     ),
@@ -593,7 +715,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                   child: AnimatedTapScale(
                     onTap: () {
                       Navigator.pop(context);
-                      final itemName = widget.item.name;
+                      final itemName = _selectedItem.name;
                       widget.selectedMenuItems[itemName] = (widget.selectedMenuItems[itemName] ?? 0) + _quantity;
                       widget.onCartUpdated?.call();
                       widget.onAdded();
@@ -617,7 +739,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Added $_quantity × ${widget.item.name} • ₱${_fmt.format(_totalPrice)}',
+                                  'Added $_quantity × ${_selectedItem.name} • ₱${_fmt.format(_totalPrice)}',
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,

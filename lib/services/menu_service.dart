@@ -24,7 +24,50 @@ class MenuService {
 
   static List<String> get categories => _cachedCategories.isNotEmpty ? _cachedCategories : _defaultCategories;
 
+  /// Returns whether a category is restricted to POS only (hidden from customer views)
+  static bool isPosOnlyCategory(String category) {
+    return category.trim().toLowerCase() == 'drinks';
+  }
 
+  /// Categories for customer-facing views (excludes POS-only categories like Drinks)
+  static List<String> get customerCategories =>
+      categories.where((cat) => !isPosOnlyCategory(cat)).toList();
+
+  /// Filters a menu map to exclude POS-only categories and items
+  static Map<String, List<MenuItem>> filterCustomerMenu(Map<String, List<MenuItem>> rawMenu) {
+    final Map<String, List<MenuItem>> filtered = {};
+    rawMenu.forEach((category, items) {
+      if (!isPosOnlyCategory(category)) {
+        filtered[category] = items.where((item) => !isPosOnlyCategory(item.category)).toList();
+      }
+    });
+    return filtered;
+  }
+
+  /// Menu items for customer-facing views (excludes POS-only categories like Drinks)
+  static Map<String, List<MenuItem>> getCustomerMenu() {
+    return filterCustomerMenu(getMenu());
+  }
+
+  /// Returns category -> list of GroupedMenuItem for Customer-facing views
+  static Map<String, List<GroupedMenuItem>> getGroupedCustomerMenu() {
+    final raw = getCustomerMenu();
+    final Map<String, List<GroupedMenuItem>> grouped = {};
+    raw.forEach((cat, items) {
+      grouped[cat] = GroupedMenuItem.groupItems(items);
+    });
+    return grouped;
+  }
+
+  /// Returns category -> list of GroupedMenuItem for POS view (includes Drinks)
+  static Map<String, List<GroupedMenuItem>> getGroupedPosMenu() {
+    final raw = getMenu();
+    final Map<String, List<GroupedMenuItem>> grouped = {};
+    raw.forEach((cat, items) {
+      grouped[cat] = GroupedMenuItem.groupItems(items);
+    });
+    return grouped;
+  }
 
   static Map<String, List<MenuItem>> getMenu() {
 
@@ -60,7 +103,7 @@ class MenuService {
 
 
 
-      if (response == null || (response as List).isEmpty) {
+      if (response.isEmpty) {
 
         debugPrint('Supabase menu_items table is empty or blocked by RLS. Returning empty menu.');
 
@@ -322,7 +365,7 @@ class MenuService {
     'Seafood',
     'Hot Pot Specialties',
     'Vegetables',
-    'Catering Packages',
+    'Drinks',
   ];
 
 

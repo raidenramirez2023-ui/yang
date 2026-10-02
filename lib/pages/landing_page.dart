@@ -316,7 +316,7 @@ class _LandingPageState extends State<LandingPage>
             }
 
             // Match with MenuService for image/metadata
-            final allMenu = await MenuService.fetchMenu();
+            final allMenu = MenuService.filterCustomerMenu(await MenuService.fetchMenu());
             final allItems = <MenuItem>[];
             for (var list in allMenu.values) {
               allItems.addAll(list);
@@ -353,7 +353,7 @@ class _LandingPageState extends State<LandingPage>
   }
 
   Future<void> _populateFallbackFeaturedDishes() async {
-    final allMenu = await MenuService.fetchMenu();
+    final allMenu = MenuService.filterCustomerMenu(await MenuService.fetchMenu());
     final items = _getTopSellingItems(allMenu);
     if (mounted) {
       setState(() {
@@ -468,7 +468,7 @@ class _LandingPageState extends State<LandingPage>
       final totalReviews = ratingsList.length;
 
       // 4. Fetch live menu from Supabase
-      final allMenu = await MenuService.fetchMenu();
+      final allMenu = MenuService.filterCustomerMenu(await MenuService.fetchMenu());
       final allMenuItems = <MenuItem>[];
       for (var list in allMenu.values) {
         allMenuItems.addAll(list);
@@ -489,7 +489,7 @@ class _LandingPageState extends State<LandingPage>
           }
           _reviews = enrichedReviews;
           _menuData = allMenu;
-          _menuCategories = ['All', ...MenuService.categories];
+          _menuCategories = ['All', ...MenuService.customerCategories];
           _isLoadingData = false;
         });
       }
@@ -3662,15 +3662,15 @@ class _LandingPageState extends State<LandingPage>
     final isSmallMobile = screenWidth < 360;
 
     // Filter items based on category & search query
-    List<MenuItem> displayedItems = [];
+    List<MenuItem> rawItems = [];
     if (_menuSelectedCategory == 'All') {
-      _menuData.forEach((_, items) => displayedItems.addAll(items));
+      _menuData.forEach((_, items) => rawItems.addAll(items));
     } else {
-      displayedItems = _menuData[_menuSelectedCategory] ?? [];
+      rawItems = _menuData[_menuSelectedCategory] ?? [];
     }
 
     if (_menuSearchQuery.isNotEmpty) {
-      displayedItems = displayedItems
+      rawItems = rawItems
           .where((item) =>
               item.name.toLowerCase().contains(_menuSearchQuery.toLowerCase()) ||
               (item.description != null &&
@@ -3679,6 +3679,8 @@ class _LandingPageState extends State<LandingPage>
                       .contains(_menuSearchQuery.toLowerCase())))
           .toList();
     }
+
+    final displayedItems = GroupedMenuItem.groupItems(rawItems);
 
     return Container(
       width: double.infinity,
@@ -4049,7 +4051,7 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildMenuCard(BuildContext context, MenuItem item,
+  Widget _buildMenuCard(BuildContext context, GroupedMenuItem item,
       {bool isMobile = false}) {
     return _LandingMenuCard(
       item: item,
@@ -4058,12 +4060,13 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  void _showMenuItemDetailsDialog(BuildContext context, MenuItem item) {
+  void _showMenuItemDetailsDialog(BuildContext context, GroupedMenuItem item) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveUtils.isMobile(context);
     final isSmallMobile = screenWidth < 360;
+    final primary = item.primaryItem;
     final imageUrl =
-        MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+        MenuService.resolveImageUrl(primary.customImagePath ?? primary.fallbackImagePath);
     showDialog(
       context: context,
       builder: (context) {
@@ -4087,7 +4090,7 @@ class _LandingPageState extends State<LandingPage>
                     children: [
                       Expanded(
                         child: Text(
-                          item.name,
+                          item.baseName,
                           style: GoogleFonts.playfairDisplay(
                             fontSize: isMobile ? 18 : 22,
                             fontWeight: FontWeight.bold,
@@ -4143,26 +4146,79 @@ class _LandingPageState extends State<LandingPage>
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: warmGold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: primaryGold.withValues(alpha: 0.3),
+                      if (!item.hasVariants)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: warmGold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: primaryGold.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            '₱${NumberFormat('#,##0.00').format(primary.price)}',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: forestGreen,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
-                        child: Text(
-                          '₱${NumberFormat('#,##0.00').format(item.price)}',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: forestGreen,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
+                  if (item.hasVariants) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Available Sizes / Portions',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: darkGreyText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: item.variants.map((v) {
+                        final sizeLabel = GroupedMenuItem.extractVariantLabel(v.name);
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: forestGreen.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: forestGreen.withValues(alpha: 0.22),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                sizeLabel,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: forestGreen,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '₱${NumberFormat('#,##0.00').format(v.price)}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: darkGreyText,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Text(
                     'Description',
@@ -4174,7 +4230,7 @@ class _LandingPageState extends State<LandingPage>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    item.description ??
+                    primary.description ??
                         'Authentic Yang Chow recipe, prepared with fresh ingredients and our secret blend of spices.',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
@@ -4196,7 +4252,7 @@ class _LandingPageState extends State<LandingPage>
                     future: Supabase.instance.client
                         .from('recipe_ingredients')
                         .select()
-                        .eq('menu_item_name', item.name),
+                        .inFilter('menu_item_name', item.variants.map((v) => v.name).toList()),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Padding(
@@ -4220,7 +4276,14 @@ class _LandingPageState extends State<LandingPage>
                               color: Colors.grey.shade500, fontSize: 13),
                         );
                       }
-                      final ingredientsList = snapshot.data!;
+                      final rawList = snapshot.data!;
+                      final seen = <String>{};
+                      final ingredientsList = rawList.where((ing) {
+                        final name = (ing['name'] ?? '').toString().trim().toLowerCase();
+                        if (name.isEmpty || seen.contains(name)) return false;
+                        seen.add(name);
+                        return true;
+                      }).toList();
                       return Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -7885,7 +7948,7 @@ class _MenuScrollArrow extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LandingMenuCard extends StatefulWidget {
-  final MenuItem item;
+  final GroupedMenuItem item;
   final bool isMobile;
   final VoidCallback onDetailsTap;
 
@@ -7905,11 +7968,12 @@ class _LandingMenuCardState extends State<_LandingMenuCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final primary = item.primaryItem;
     final isMobile = widget.isMobile;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallMobile = screenWidth < 360;
     final imageUrl =
-        MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+        MenuService.resolveImageUrl(primary.customImagePath ?? primary.fallbackImagePath);
 
     return MouseRegion(
       onEnter: (_) {
@@ -8061,7 +8125,7 @@ class _LandingMenuCardState extends State<_LandingMenuCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.name,
+                            item.baseName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.plusJakartaSans(
@@ -8073,8 +8137,8 @@ class _LandingMenuCardState extends State<_LandingMenuCard> {
                           ),
                           SizedBox(height: isMobile ? 3 : 5),
                           Text(
-                            item.description?.trim().isNotEmpty == true
-                                ? item.description!
+                            primary.description?.trim().isNotEmpty == true
+                                ? primary.description!
                                 : 'Authentic Yang Chow recipe prepared fresh daily.',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -8096,29 +8160,39 @@ class _LandingMenuCardState extends State<_LandingMenuCard> {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
-                              child: RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: '₱',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        color: _LandingPageState.forestGreen,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 13.5),
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: NumberFormat('#,##0.00').format(item.price),
+                              child: item.hasVariants
+                                  ? Text(
+                                      item.priceRangeDisplay,
                                       style: GoogleFonts.plusJakartaSans(
                                         color: _LandingPageState.forestGreen,
                                         fontWeight: FontWeight.w800,
-                                        fontSize: isSmallMobile ? 13 : (isMobile ? 14 : 16.5),
+                                        fontSize: isSmallMobile ? 11.5 : (isMobile ? 12.5 : 14.5),
                                         letterSpacing: -0.3,
                                       ),
+                                    )
+                                  : RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '₱',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: _LandingPageState.forestGreen,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 13.5),
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text: NumberFormat('#,##0.00').format(primary.price),
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: _LandingPageState.forestGreen,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: isSmallMobile ? 13 : (isMobile ? 14 : 16.5),
+                                              letterSpacing: -0.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
                           const SizedBox(width: 6),

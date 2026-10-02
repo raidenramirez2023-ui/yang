@@ -519,9 +519,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     
 
-    if (MenuService.categories.isNotEmpty) {
+    if (MenuService.customerCategories.isNotEmpty) {
 
-      _selectedCategory = MenuService.categories.first;
+      _selectedCategory = MenuService.customerCategories.first;
 
     }
 
@@ -635,7 +635,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       if (_heroPageController.hasClients) {
 
-        final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+        final Map<String, List<MenuItem>> allMenu = MenuService.getCustomerMenu();
 
         final List<MenuItem> items = _getTopSellingItems(allMenu);
 
@@ -1110,9 +1110,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final isMobile = MediaQuery.of(context).size.width < 768;
     final threshold = isMobile ? 120.0 : 200.0;
 
-    for (var i = MenuService.categories.length - 1; i >= 0; i--) {
+    for (var i = MenuService.customerCategories.length - 1; i >= 0; i--) {
 
-      final category = MenuService.categories[i];
+      final category = MenuService.customerCategories[i];
 
       final key = _categoryKeys[category];
 
@@ -4146,7 +4146,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   Widget _buildHeroCarousel() {
-    final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+    final Map<String, List<MenuItem>> allMenu = MenuService.getCustomerMenu();
     final List<MenuItem> items = _getTopSellingItems(allMenu);
 
     if (items.isEmpty) return const SizedBox.shrink();
@@ -5322,7 +5322,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   Widget _buildHomeSection() {
-    final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+    final Map<String, List<MenuItem>> allMenu = MenuService.getCustomerMenu();
     final hour = DateTime.now().hour;
     final greeting = hour < 12
         ? 'Good morning'
@@ -5689,7 +5689,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ...MenuService.categories.map((category) {
+              ...MenuService.customerCategories.map((category) {
                 final items = allMenu[category] ?? [];
                 if (items.isEmpty) return const SizedBox.shrink();
                 return _buildMenuCategoryBlock(category, items);
@@ -10401,9 +10401,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: MenuService.categories.length,
+            itemCount: MenuService.customerCategories.length,
             itemBuilder: (context, index) {
-              final category = MenuService.categories[index];
+              final category = MenuService.customerCategories[index];
               final isActive = _selectedCategory == category;
               final catIcon = CategoryIconHelper.getIcon(category);
 
@@ -10548,6 +10548,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   Widget _buildMenuCategoryBlock(String category, List<MenuItem> items) {
     final catIcon = CategoryIconHelper.getIcon(category);
+    final groupedItems = GroupedMenuItem.groupItems(items);
 
     return Column(
       key: _getCategoryKey(category),
@@ -10596,7 +10597,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '${items.length} dishes',
+                  '${groupedItems.length} dishes',
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -10631,10 +10632,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             crossAxisSpacing: 12,
             mainAxisSpacing: 14,
           ),
-          itemCount: items.length,
+          itemCount: groupedItems.length,
           itemBuilder: (context, index) {
-            final item = items[index];
-            return _buildProductCard(item);
+            final item = groupedItems[index];
+            return _buildGroupedProductCard(item);
           },
         ),
         const SizedBox(height: 20),
@@ -10725,7 +10726,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             }
 
             // Match with MenuService for image/metadata
-            final allMenu = MenuService.getMenu();
+            final allMenu = MenuService.getCustomerMenu();
             final allItems = <MenuItem>[];
             for (var list in allMenu.values) {
               allItems.addAll(list);
@@ -10763,7 +10764,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   void _populateFallbackFeaturedDishes() {
-    final allMenu = MenuService.getMenu();
+    final allMenu = MenuService.getCustomerMenu();
     final items = _getTopSellingItems(allMenu);
     final fallbackList = items.take(10).map((item) => {
           'name': item.name,
@@ -11148,6 +11149,207 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGroupedProductCard(GroupedMenuItem item) {
+    return AnimatedTapScale(
+      onTap: () => _showGroupedMenuItemDetailsDialog(item),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEDE8DE), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: const Color(0xFF16302A).withValues(alpha: 0.02),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Section
+            Expanded(
+              flex: 4,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildImageWidget(item.primaryItem),
+                    // Gradient scrim at bottom of image for depth
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 36,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.38),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Price Badge: Frosted dark forest green with gold border & gold text
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0C241F).withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppTheme.warmGold.withValues(alpha: 0.4),
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          item.hasVariants
+                              ? 'From ₱${_fmt.format(item.minPrice)}'
+                              : '₱${_fmt.format(item.minPrice)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFFFD56B),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Info Section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Dish title - base name without size suffix
+                  SizedBox(
+                    height: 34,
+                    child: Text(
+                      item.baseName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E293B),
+                        height: 1.25,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // Bottom row: Clean culinary tag & modern quick-add button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16302A).withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.restaurant_menu_rounded,
+                                size: 10,
+                                color: AppTheme.forestGreen.withValues(alpha: 0.8),
+                              ),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  item.category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
+                                    color: const Color(0xFF16302A),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Styled Quick Add / Options Button
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppTheme.forestGreen,
+                              Color(0xFF0F2B23),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.forestGreen.withValues(alpha: 0.28),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          item.hasVariants ? Icons.tune_rounded : Icons.add_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGroupedMenuItemDetailsDialog(GroupedMenuItem gItem) {
+    showMenuItemSheet(
+      context: context,
+      item: gItem.primaryItem,
+      variants: gItem.variants,
+      selectedMenuItems: _preOrderCart,
+      onAdded: () => setState(() {}),
+      onCartUpdated: _handleCartUpdated,
     );
   }
 
