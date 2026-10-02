@@ -4705,11 +4705,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     }
 
-
+    final groupedItems = GroupedMenuItem.groupItems(items);
 
     return GridView.builder(
 
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
 
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
 
@@ -4723,9 +4723,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       ),
 
-      itemCount: items.length,
+      itemCount: groupedItems.length,
 
-      itemBuilder: (_, i) => _foodCard(items[i]),
+      itemBuilder: (_, i) => _foodCard(groupedItems[i]),
 
     );
 
@@ -4733,27 +4733,27 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-  Widget _foodCard(MenuItem item) {
+  Widget _foodCard(GroupedMenuItem item) {
 
-    final cartItem = cart.firstWhere(
+    final totalInCart = cart
+        .where((ci) => GroupedMenuItem.extractBaseName(ci.item.name) == item.baseName)
+        .fold<int>(0, (sum, ci) => sum + ci.quantity);
 
-      (ci) => ci.item.name == item.name,
-
-      orElse: () => CartItem(item, 0),
-
-    );
-
-    final quantity = cartItem.quantity;
-
-    final inCart = quantity > 0;
+    final inCart = totalInCart > 0;
 
 
 
     return GestureDetector(
 
-      onTap: () => addToCart(item),
+      onTap: () {
+        if (item.hasVariants) {
+          _showVariantDialog(item);
+        } else {
+          addToCart(item.primaryItem);
+        }
+      },
 
-      onLongPress: () => _showIngredientsDialog(item),
+      onLongPress: () => _showIngredientsDialog(item.primaryItem),
 
       child: Container(
 
@@ -4801,7 +4801,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
               // ── Full-bleed image ────────────────────────────────────────
 
-              _buildImageWidget(item),
+              _buildImageWidget(item.primaryItem),
 
 
 
@@ -4853,7 +4853,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                       Text(
 
-                        item.name,
+                        item.baseName,
 
                         style: const TextStyle(
 
@@ -4885,7 +4885,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                           Text(
 
-                            'P${NumberFormat('#,##0.00', 'en_US').format(item.price)}',
+                            item.hasVariants
+                                ? item.priceRangeDisplay
+                                : 'P${NumberFormat('#,##0.00', 'en_US').format(item.minPrice)}',
 
                             style: const TextStyle(
 
@@ -4941,7 +4943,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                       child: Text(
 
-                        '$quantity',
+                        '$totalInCart',
 
                         style: const TextStyle(
 
@@ -5009,6 +5011,131 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     );
 
+  }
+
+  void _showVariantDialog(GroupedMenuItem gItem) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      gItem.baseName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Select portion size:',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 16),
+              ...gItem.variants.map((v) {
+                final label = GroupedMenuItem.extractVariantLabel(v.name);
+                final displayLabel = label.isNotEmpty ? label : v.name;
+                final inCart = cart
+                    .where((c) => c.item.name == v.name)
+                    .fold<int>(0, (s, c) => s + c.quantity);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      addToCart(v);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: inCart > 0 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+                          width: inCart > 0 ? 1.5 : 1,
+                        ),
+                        color: inCart > 0
+                            ? const Color(0xFF14332E).withValues(alpha: 0.04)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              displayLabel,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Text(
+                            'P${NumberFormat('#,##0.00', 'en_US').format(v.price)}',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF14332E),
+                            ),
+                          ),
+                          if (inCart > 0) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF14332E),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$inCart in cart',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
   }
 
 }

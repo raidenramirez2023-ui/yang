@@ -23,8 +23,8 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: MenuService.categories.length, vsync: this);
-    menu = MenuService.getMenu();
+    _tabController = TabController(length: MenuService.customerCategories.length, vsync: this);
+    menu = MenuService.getCustomerMenu();
   }
 
   @override
@@ -84,14 +84,14 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
-              tabs: MenuService.categories.map((cat) => Tab(text: cat)).toList(),
+              tabs: MenuService.customerCategories.map((cat) => Tab(text: cat)).toList(),
             ),
           ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: MenuService.categories.map((cat) {
+        children: MenuService.customerCategories.map((cat) {
           final items = menu[cat] ?? [];
           return _buildCategoryGrid(items);
         }).toList(),
@@ -108,6 +108,8 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
       );
     }
 
+    final groupedItems = GroupedMenuItem.groupItems(items);
+
     return GridView.builder(
       padding: const EdgeInsets.all(20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -116,9 +118,9 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
         crossAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 14,
         mainAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 14,
       ),
-      itemCount: items.length,
+      itemCount: groupedItems.length,
       itemBuilder: (context, index) {
-        final item = items[index];
+        final item = groupedItems[index];
         return AnimatedTapScale(
           child: _buildProductCard(item),
         );
@@ -126,7 +128,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
     );
   }
 
-  Widget _buildProductCard(MenuItem item) {
+  Widget _buildProductCard(GroupedMenuItem item) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -156,7 +158,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _buildImageWidget(item),
+                  _buildImageWidget(item.primaryItem),
                   // Bottom gradient scrim
                   Positioned(
                     bottom: 0,
@@ -198,10 +200,12 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                         ],
                       ),
                       child: Text(
-                        '₱${_fmt.format(item.price)}',
+                        item.hasVariants
+                            ? 'From ₱${_fmt.format(item.minPrice)}'
+                            : '₱${_fmt.format(item.minPrice)}',
                         style: GoogleFonts.inter(
                           color: const Color(0xFFFFD56B),
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,
                         ),
@@ -223,7 +227,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    item.name,
+                    item.baseName,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
