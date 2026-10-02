@@ -1655,7 +1655,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                       
                                       setDialogState(() {
                                         ing['name'] = selection;
-                                        ing['quantity'] = 1.0;
+                                        ing['quantity'] = (ing['quantity'] as num?)?.toDouble() ?? 1.0;
                                         final unitVal = selectedItem['unit'] as String? ?? 'pcs';
                                         ing['unit'] = unitOptions.contains(unitVal) ? unitVal : 'pcs';
                                       });
@@ -1680,19 +1680,47 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                 
                                 // Quantity
                                 SizedBox(
-                                  width: 55,
+                                  width: 65,
                                   child: TextFormField(
-                                    key: ValueKey('qty_${ing['_uid']}_${ing['name']}'),
-                                    initialValue: ing['quantity'].toString(),
-                                    enabled: false,
-                                    readOnly: true,
+                                    key: ValueKey('qty_${ing['_uid']}'),
+                                    initialValue: () {
+                                      final num q = (ing['quantity'] as num?) ?? 1;
+                                      return q % 1 == 0 ? q.toInt().toString() : q.toString();
+                                    }(),
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                                    ],
                                     decoration: const InputDecoration(
                                       labelText: 'Qty',
                                       isDense: true,
                                       contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
                                       border: OutlineInputBorder(),
+                                      errorStyle: TextStyle(height: 0, fontSize: 0),
                                     ),
                                     style: const TextStyle(fontSize: 12),
+                                    onChanged: (val) {
+                                      final trimmed = val.trim();
+                                      if (trimmed.isEmpty) {
+                                        ing['quantity'] = 0.0;
+                                      } else {
+                                        final parsed = double.tryParse(trimmed);
+                                        if (parsed != null) {
+                                          ing['quantity'] = parsed;
+                                        }
+                                      }
+                                    },
+                                    validator: (val) {
+                                      final ingName = (ing['name'] as String).trim();
+                                      if (ingName.isEmpty && (val == null || val.trim().isEmpty)) {
+                                        return null;
+                                      }
+                                      final d = double.tryParse(val?.trim() ?? '');
+                                      if (d == null || d <= 0) {
+                                        return '';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -1739,6 +1767,23 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                       ? null
                       : () async {
                           if (formKey.currentState!.validate()) {
+                            // Check recipe ingredients quantities
+                            for (final ing in ingredients) {
+                              final ingName = (ing['name'] as String).trim();
+                              if (ingName.isNotEmpty) {
+                                final q = (ing['quantity'] as num?)?.toDouble() ?? 0.0;
+                                if (q <= 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Please enter a valid quantity greater than 0 for "$ingName".'),
+                                      backgroundColor: AppTheme.errorRed,
+                                    ),
+                                  );
+                                  return;
+                                }
+                              }
+                            }
+
                             // Show confirmation dialog before saving
                             final bool? confirmSave = await showDialog<bool>(
                               context: context,

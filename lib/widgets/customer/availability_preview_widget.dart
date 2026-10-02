@@ -21,7 +21,6 @@ class AvailabilityPreviewWidget extends StatefulWidget {
   final int operatingHoursStart;
   final int operatingHoursEnd;
   final ValueChanged<String> onTimeSelected;
-  final VoidCallback? onPickCustomTime;
 
   const AvailabilityPreviewWidget({
     super.key,
@@ -31,7 +30,6 @@ class AvailabilityPreviewWidget extends StatefulWidget {
     this.operatingHoursStart = 10,
     this.operatingHoursEnd = 20,
     required this.onTimeSelected,
-    this.onPickCustomTime,
   });
 
   @override
@@ -405,7 +403,7 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
 
                   const SizedBox(height: 10),
 
-                  // ── Compact Confirmation Footer & Custom Time Button ──
+                  // ── Compact Confirmation Footer ──
                   _buildSelectedFeedbackFooter(isCompact, isFullyBooked),
                 ],
               ),
@@ -1062,58 +1060,26 @@ class _AvailabilityPreviewWidgetState extends State<AvailabilityPreviewWidget> {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Icon(
+            hasSelected ? Icons.check_circle_rounded : Icons.touch_app_rounded,
+            size: 14,
+            color: hasSelected ? const Color(0xFF16A34A) : AppTheme.primaryColor,
+          ),
+          const SizedBox(width: 6),
           Expanded(
-            child: Row(
-              children: [
-                Icon(
-                  hasSelected ? Icons.check_circle_rounded : Icons.touch_app_rounded,
-                  size: 14,
-                  color: hasSelected ? const Color(0xFF16A34A) : AppTheme.primaryColor,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    hasSelected
-                        ? 'Confirmed: ${widget.selectedStartTime} ✓'
-                        : 'Tap any slot above to set time',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: hasSelected ? FontWeight.w800 : FontWeight.w600,
-                      color: hasSelected ? const Color(0xFF166534) : AppTheme.darkGrey,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            child: Text(
+              hasSelected
+                  ? 'Confirmed: ${widget.selectedStartTime} ✓'
+                  : 'Tap any slot above to set time',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: hasSelected ? FontWeight.w800 : FontWeight.w600,
+                color: hasSelected ? const Color(0xFF166534) : AppTheme.darkGrey,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (widget.onPickCustomTime != null) ...[
-            const SizedBox(width: 6),
-            InkWell(
-              onTap: widget.onPickCustomTime,
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.schedule_rounded, size: 12, color: AppTheme.primaryColor),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Custom Time',
-                      style: GoogleFonts.inter(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );

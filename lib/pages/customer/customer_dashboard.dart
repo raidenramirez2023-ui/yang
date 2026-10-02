@@ -42,8 +42,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
   final int initialIndex;
+  final bool openOrderList;
 
-  const CustomerDashboardPage({super.key, this.initialIndex = 0});
+  const CustomerDashboardPage({
+    super.key,
+    this.initialIndex = 0,
+    this.openOrderList = false,
+  });
 
   @override
   State<CustomerDashboardPage> createState() => _CustomerDashboardPageState();
@@ -93,7 +98,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     '/customer/reservations',
     '/customer/transactions',
     '/customer/activity',
-    '/customer/order-list',
     '/customer/profile',
   ];
 
@@ -428,6 +432,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   String _reservationType = 'Event Place';
 
   String _advanceOrderType = 'Dine In';
+  List<Map<String, dynamic>> _activeEventsOnSelectedDate = [];
 
 
 
@@ -488,11 +493,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     _syncUrl();
     _loadActiveDeletionRequest();
     _cancelPopState = UrlSyncHelper.listenPopState((path) {
+      if (path == '/customer/order-list') {
+        _showOrderListModal();
+        return;
+      }
       final idx = _tabUrls.indexOf(path);
       if (idx != -1 && idx != _selectedIndex && mounted) {
         setState(() => _selectedIndex = idx);
       }
     });
+
+    if (widget.openOrderList) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showOrderListModal();
+        }
+      });
+    }
 
     _scrollController = ScrollController()..addListener(_onMenuScroll);
     _categoryScrollController.addListener(_categoryScrollListener);
@@ -6490,13 +6507,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 );
 
                                 if (pickedDate != null) {
+                                  final dateStr = DateFormat('yyyy-MM-dd').format(pickedDate);
                                   setState(() {
                                     _dateController.text = DateFormat('MMMM d, yyyy').format(pickedDate);
                                   });
 
+                                  if (_reservationType == 'Advance Order') {
+                                    final events = await _reservationService.getBookingsForDate(dateStr);
+                                    if (mounted) {
+                                      setState(() {
+                                        _activeEventsOnSelectedDate = events;
+                                      });
+                                    }
+
+                                    if (_startTimeController.text.isNotEmpty) {
+                                      final conflict = await _reservationService.checkAdvanceOrderEventConflict(
+                                        orderDate: dateStr,
+                                        orderTime: _startTimeController.text.trim(),
+                                        isDineIn: _advanceOrderType == 'Dine In',
+                                      );
+                                      if (conflict != null && mounted) {
+                                        final eventStart = conflict['eventStart'] ?? '';
+                                        final eventEnd = conflict['eventEnd'] ?? '';
+                                        final availableAfter = conflict['availableAfter'] ?? '';
+                                        _showSnackBar(
+                                          'Selected time (${_startTimeController.text}) conflicts with a Private Event ($eventStart – $eventEnd). Available after $availableAfter.',
+                                          Colors.orange,
+                                        );
+                                        setState(() {
+                                          _startTimeController.clear();
+                                        });
+                                      }
+                                    }
+                                  }
+
                                   if (_reservationType == 'Event Place' && _startTimeController.text.isNotEmpty) {
                                     final duration = double.tryParse(_durationController.text) ?? 2.0;
-                                    final dateStr = DateFormat('yyyy-MM-dd').format(pickedDate);
                                     final isOverlapping = await _reservationService.isTimeSlotOverlapping(
                                       eventDate: dateStr,
                                       startTime: _startTimeController.text.trim(),
@@ -6583,6 +6629,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                             final timeTile = AnimatedTapScale(
                               onTap: () async {
+                                if (_reservationType == 'Event Place') {
+                                  if (_dateController.text.isEmpty) {
+                                    _showSnackBar(
+                                      'Please select a date first to view available time slots.',
+                                      AppTheme.primaryColor,
+                                    );
+                                  } else {
+                                    _showSnackBar(
+                                      'Please select an available time slot from the Venue Availability section below.',
+                                      AppTheme.primaryColor,
+                                    );
+                                  }
+                                  return;
+                                }
+
                                 final startHour = 10;
                                 final endHour = effectiveEndHour;
 
@@ -6639,7 +6700,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                           ),
                                           const SizedBox(height: 1),
                                           Text(
-                                            hasTime ? _startTimeController.text : '-- : --',
+                                            hasTime
+                                                ? _startTimeController.text
+                                                : (_reservationType == 'Event Place' ? 'Select slot below' : '-- : --'),
                                             style: GoogleFonts.inter(
                                               fontSize: isSmallScreen ? 12 : 13,
                                               fontWeight: hasTime ? FontWeight.w700 : FontWeight.w500,
@@ -6677,6 +6740,54 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         ),
                         const SizedBox(height: 18),
 
+                        // Event Notice for Advance Order when private events exist on that date
+                        if (_reservationType == 'Advance Order' && _activeEventsOnSelectedDate.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7).withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.event_busy_rounded, color: Color(0xFFD97706), size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Notice: Private Event Scheduled on this Date',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF92400E),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'The hall is booked for event(s): ${_activeEventsOnSelectedDate.map((e) {
+                                          final st = e['start_time'] ?? '';
+                                          final dur = (e['duration_hours'] as num?)?.toDouble() ?? 2.0;
+                                          return '$st (${dur.toInt()} hrs)';
+                                        }).join(', ')}. Advance orders (Dine-in / Pick-up) are only available before the event or 2 hours after it ends.',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: const Color(0xFFB45309),
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
                         // Availability Preview (Shows real-time booked vs available slots for selected date)
                         if (_reservationType == 'Event Place') ...[
                           Builder(
@@ -6703,15 +6814,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                   final pickedTime = TimeOfDay(hour: hour, minute: minute);
                                   _handleTimeSelection(pickedTime, _operatingHoursStart, effectiveEndHour);
                                 },
-                                onPickCustomTime: () async {
-                                  final TimeOfDay? pickedTime = await showTimePicker(
-                                    context: context,
-                                    initialTime: const TimeOfDay(hour: 10, minute: 0),
-                                  );
-                                  if (pickedTime != null) {
-                                    _handleTimeSelection(pickedTime, _operatingHoursStart, effectiveEndHour);
-                                  }
-                                },
                               );
                             },
                           ),
@@ -6731,6 +6833,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               setState(() {
                                 _selectedBaseDuration = val;
                                 _updateDurationText();
+
+                                if (_startTimeController.text.isNotEmpty) {
+                                  final duration = double.tryParse(_durationController.text) ?? 2.0;
+                                  final timeParts = _startTimeController.text.trim().split(RegExp(r'[\s:]+'));
+                                  int hour = int.tryParse(timeParts[0]) ?? 10;
+                                  final isPM = _startTimeController.text.toUpperCase().contains('PM');
+                                  final isAM = _startTimeController.text.toUpperCase().contains('AM');
+                                  if (isPM && hour < 12) hour += 12;
+                                  if (isAM && hour == 12) hour = 0;
+                                  final endHour = _operatingHoursEnd < 20
+                                      ? AppConstants.defaultOperatingHoursEnd
+                                      : _operatingHoursEnd;
+                                  if (hour + duration > endHour) {
+                                    _startTimeController.clear();
+                                    _showSnackBar(
+                                      'Selected time was reset because it exceeds closing hours with the new duration.',
+                                      Colors.orange,
+                                    );
+                                  }
+                                }
                               });
                             },
                           ),
@@ -7493,6 +7615,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               return;
             }
           }
+
+          // Check if selected time conflicts with any active Event Place reservations
+          final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+          final conflict = await _reservationService.checkAdvanceOrderEventConflict(
+            orderDate: formattedDate,
+            orderTime: pickedTime.format(context),
+            isDineIn: _advanceOrderType == 'Dine In',
+          );
+
+          if (conflict != null) {
+            final eventStart = conflict['eventStart'] ?? '';
+            final eventEnd = conflict['eventEnd'] ?? '';
+            final availableAfter = conflict['availableAfter'] ?? '';
+            _showSnackBar(
+              'This time slot is unavailable due to an active Private Event ($eventStart – $eventEnd). Advance orders are available after $availableAfter.',
+              Colors.red,
+            );
+            return;
+          }
         } catch (e) {
           debugPrint('Error validating lead time: $e');
         }
@@ -7516,6 +7657,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           _showSnackBar(
             'This time slot ($formattedTime) is already booked on this date. Please choose a different time.',
             Colors.orange,
+          );
+          return;
+        }
+
+        // Check that event finish time doesn't exceed closing hours
+        final finishMinutes = pickedTime.hour * 60 + pickedTime.minute + (duration * 60).toInt();
+        if (finishMinutes > endHour * 60) {
+          _showSnackBar(
+            'The selected event duration would exceed closing hours ($endHour:00). Please select an earlier slot.',
+            Colors.red,
           );
           return;
         }
@@ -7544,6 +7695,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     _paymentOption = null;
     _selectedPaymentMethod = null;
     _selectedIdImage = null;
+    _activeEventsOnSelectedDate.clear();
     for (final key in _selectedMenuItems.keys) {
       _preOrderCart.remove(key);
     }
@@ -8211,6 +8363,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => TransactionsPage(initialTransactions: customerReservations),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                      _buildSettingsTile(
+                        icon: Icons.rate_review_rounded,
+                        iconBgColor: const Color(0xFFFEF3C7),
+                        iconColor: const Color(0xFFD97706),
+                        title: 'Leave a Review',
+                        subtitle: 'Share your dining feedback and ratings',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const CustomerReviewsPage(),
                             ),
                           );
                         },
@@ -18183,11 +18350,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-    // Capacity Check
-
+    // Capacity & Event Conflict Check
     if (_reservationType == 'Advance Order') {
-
       try {
+        final conflict = await _reservationService.checkAdvanceOrderEventConflict(
+          orderDate: formattedDate,
+          orderTime: startTime,
+          isDineIn: _advanceOrderType == 'Dine In',
+        );
+        if (conflict != null) {
+          final eventStart = conflict['eventStart'] ?? '';
+          final eventEnd = conflict['eventEnd'] ?? '';
+          final availableAfter = conflict['availableAfter'] ?? '';
+          _showSnackBar(
+            'Cannot submit order: The restaurant is reserved for an event ($eventStart – $eventEnd). Advance orders are available after $availableAfter.',
+            Colors.red,
+          );
+          return;
+        }
 
         final parsedDate = DateFormat('MMMM d, yyyy').parse(date);
 
@@ -18269,38 +18449,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-    // Check for time slot overlap
-
-    setState(() => _isLoading = true);
-
-    bool isOverlapping = await _reservationService.isTimeSlotOverlapping(
-
-      eventDate: formattedDate,
-
-      startTime: startTime,
-
-      durationHours: totalDuration,
-
-    );
-
-    setState(() => _isLoading = false);
-
-
-
-    if (isOverlapping) {
-
-      _showSnackBar(
-
-        'This time slot is already booked. Please choose a different time or date.',
-
-        Colors.orange,
-
+    // Check for time slot overlap (Event Place only)
+    if (_reservationType == 'Event Place') {
+      setState(() => _isLoading = true);
+      bool isOverlapping = await _reservationService.isTimeSlotOverlapping(
+        eventDate: formattedDate,
+        startTime: startTime,
+        durationHours: totalDuration,
       );
+      setState(() => _isLoading = false);
 
-
-
-      return;
-
+      if (isOverlapping) {
+        _showSnackBar(
+          'This time slot is already booked. Please choose a different time or date.',
+          Colors.orange,
+        );
+        return;
+      }
     }
 
 
@@ -20930,6 +21095,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   void _showOrderListModal() {
+    UrlSyncHelper.updateUrl('/customer/order-list');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -20940,7 +21106,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           onBrowseMenu: () => setState(() => _selectedIndex = 0),
         ),
       ),
-    );
+    ).then((_) {
+      if (mounted) {
+        _syncUrl();
+      }
+    });
   }
 
 

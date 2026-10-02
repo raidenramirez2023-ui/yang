@@ -3,13 +3,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/reservation_service.dart';
-import 'package:yang_chow/pages/customer/customer_dashboard.dart';
 
-/// Page for customers to leave reviews and ratings for completed reservations
+/// Page for customers and guests to leave reviews and ratings
 class CustomerReviewsPage extends StatefulWidget {
   final String? reservationId;
+  final bool isPublicAccess;
 
-  const CustomerReviewsPage({super.key, this.reservationId});
+  const CustomerReviewsPage({
+    super.key,
+    this.reservationId,
+    this.isPublicAccess = false,
+  });
 
   @override
   State<CustomerReviewsPage> createState() => _CustomerReviewsPageState();
@@ -30,6 +34,13 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
   int _responsivenessRate = 0;
   final TextEditingController _reviewTextController = TextEditingController();
 
+  // Guest inputs
+  bool _isGuest = false;
+  final TextEditingController _guestNameController = TextEditingController();
+  final TextEditingController _guestContactController = TextEditingController();
+  String _diningType = 'Dine-In';
+  String? _loggedInCustomerName;
+
   bool _isLoading = true;
   bool _isSubmitting = false;
 
@@ -46,27 +57,54 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     _loadPastReservations();
   }
 
+  @override
+  void dispose() {
+    _guestNameController.dispose();
+    _guestContactController.dispose();
+    _reviewTextController.dispose();
+    super.dispose();
+  }
+
   void _loadPastReservations() async {
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) {
+        // Unregistered / Guest mode
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User not authenticated')),
-          );
+          setState(() {
+            _isGuest = true;
+            _isLoading = false;
+          });
         }
         return;
       }
+
+      // Try fetching user name for verified display
+      try {
+        final profile = await Supabase.instance.client
+            .from('users')
+            .select('firstname, lastname')
+            .eq('email', currentUser.email!)
+            .maybeSingle();
+        if (profile != null) {
+          final fn = profile['firstname'] ?? '';
+          final ln = profile['lastname'] ?? '';
+          final fullName = '$fn $ln'.trim();
+          if (fullName.isNotEmpty) {
+            _loggedInCustomerName = fullName;
+          }
+        }
+      } catch (_) {}
 
       final reservations = await _reservationService.getCustomerReservations(
         currentUser.email!,
       );
 
-      // Allow all reservations (pending, confirmed, ready, completed, cancelled, etc.) to be rated and reviewed
       final pastReservations = reservations;
 
       if (mounted) {
         setState(() {
+          _isGuest = false;
           _pastReservations = pastReservations;
           _isLoading = false;
 
@@ -91,9 +129,6 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading reservations: $e')),
-        );
       }
     }
   }
@@ -140,16 +175,24 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
   }
 
   Future<void> _handleSubmitPressed() async {
-    if (_selectedReservation == null || _selectedReservation!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a reservation')),
-      );
-      return;
+    if (_isGuest) {
+      if (_guestNameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your Full Name'),
+            backgroundColor: Color(0xFF8C1414),
+          ),
+        );
+        return;
+      }
     }
 
     if (_overallRating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide an overall rating')),
+        const SnackBar(
+          content: Text('Please provide an overall rating'),
+          backgroundColor: Color(0xFF8C1414),
+        ),
       );
       return;
     }
@@ -253,7 +296,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                           elevation: 2,
                         ),
                         child: Text(
-                          'Yes',
+                          'Yes, Submit',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -281,11 +324,20 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
 
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser == null) throw Exception('User not authenticated');
+      final String authorName = _isGuest
+          ? _guestNameController.text.trim()
+          : (_loggedInCustomerName ?? currentUser?.email?.split('@').first ?? 'Valued Customer');
 
-      await _reservationService.upsertReview(
-        reservationId: _selectedReservation!['id'],
-        customerEmail: currentUser.email!,
+      final String? authorEmail = _isGuest
+          ? (_guestContactController.text.trim().isNotEmpty ? _guestContactController.text.trim() : null)
+          : currentUser?.email;
+
+      final String? resId = _selectedReservation != null ? _selectedReservation!['id']?.toString() : null;
+
+      await _reservationService.submitGuestOrCustomerReview(
+        reservationId: resId,
+        customerEmail: authorEmail,
+        customerName: authorName,
         overallRating: _overallRating,
         foodQuality: _foodQuality,
         serviceQuality: _serviceQuality,
@@ -293,21 +345,26 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
         turnaroundTime: _turnaroundTime,
         responsivenessRate: _responsivenessRate,
         reviewText: _reviewTextController.text.trim(),
+        diningType: _isGuest
+            ? _diningType
+            : (_selectedReservation != null
+                ? 'Reservation #${resId != null && resId.length > 6 ? resId.substring(0, 6) : (resId ?? '')}'
+                : 'Dine-In Customer'),
+        isGuest: _isGuest,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Thank you for your review!'),
-            backgroundColor: Colors.green,
+            content: Text('Thank you for your valuable feedback!'),
+            backgroundColor: Color(0xFF14332E),
           ),
         );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const CustomerDashboardPage(initialIndex: 0),
-          ),
-          (route) => false,
-        );
+        if (widget.isPublicAccess || _isGuest || !Navigator.canPop(context)) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        } else {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -361,7 +418,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                                 constraints: BoxConstraints(
                                   maxWidth: isDesktop ? 1100 : (isTablet ? 780 : 540),
                                 ),
-                                child: _pastReservations.isEmpty
+                                child: (_pastReservations.isEmpty && !_isGuest && !widget.isPublicAccess && widget.reservationId != null)
                                     ? _buildEmptyState()
                                     : (isDesktop
                                         ? _buildDesktopLayout()
@@ -493,7 +550,13 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                 color: Color(0xFFFFE8B2),
                 size: 18,
               ),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  Navigator.pushReplacementNamed(context, '/');
+                }
+              },
             ),
           ),
           const SizedBox(width: 12),
@@ -1124,9 +1187,298 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     );
   }
 
+  // Guest Diner Info Card (Full Name & Optional Contact)
+  Widget _buildGuestInfoCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _primaryGold.withValues(alpha: 0.45),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _forestGreen.withValues(alpha: 0.08),
+                      border: Border.all(color: _primaryGold.withValues(alpha: 0.4)),
+                    ),
+                    child: const Icon(Icons.person_pin_rounded, color: _primaryGold, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'GUEST DINER INFORMATION',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.6,
+                                color: const Color(0xFF1E293B),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                'Guest Mode',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Your full name will be shown on verified testimonials',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Full Name field
+              Text(
+                'Full Name *',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _guestNameController,
+                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1E293B)),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Maria Santos',
+                  hintStyle: GoogleFonts.poppins(fontSize: 12.5, color: Colors.grey.shade400),
+                  prefixIcon: const Icon(Icons.person_outline_rounded, color: _primaryGold, size: 20),
+                  filled: true,
+                  fillColor: const Color(0xFFFAFAF9),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _primaryGold, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Optional Contact field
+              Text(
+                'Email or Mobile Number (Optional)',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _guestContactController,
+                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1E293B)),
+                decoration: InputDecoration(
+                  hintText: 'e.g. maria@gmail.com or 09171234567',
+                  hintStyle: GoogleFonts.poppins(fontSize: 12.5, color: Colors.grey.shade400),
+                  prefixIcon: const Icon(Icons.alternate_email_rounded, color: Colors.grey, size: 20),
+                  filled: true,
+                  fillColor: const Color(0xFFFAFAF9),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _primaryGold, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Dining Type Selection
+              Text(
+                'Dining Experience Type',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: ['Dine-In', 'Takeout / Pick-Up', 'Special Celebration', 'Walk-in'].map((type) {
+                  final isSelected = _diningType == type;
+                  return ChoiceChip(
+                    label: Text(type),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (selected) setState(() => _diningType = type);
+                    },
+                    selectedColor: _primaryGold.withValues(alpha: 0.2),
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    labelStyle: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? _forestGreen : Colors.grey.shade700,
+                    ),
+                    side: BorderSide(
+                      color: isSelected ? _primaryGold : Colors.transparent,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Verified Customer Showcase Card
+  Widget _buildVerifiedCustomerCard() {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final displayName = _loggedInCustomerName ?? currentUser?.email?.split('@').first ?? 'Valued Customer';
+    final email = currentUser?.email ?? '';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _primaryGold.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: _forestGreen,
+                child: Text(
+                  displayName.isNotEmpty ? displayName[0].toUpperCase() : 'C',
+                  style: GoogleFonts.poppins(
+                    color: _warmGold,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14.5,
+                              color: const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: Color(0xFF10B981),
+                          size: 15,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // Compact Booking Event Selector
   Widget _buildCompactEventSelector() {
-    if (_selectedReservation == null) return const SizedBox.shrink();
+    if (_isGuest) {
+      return _buildGuestInfoCard();
+    }
+
+    if (_selectedReservation == null) {
+      return _buildVerifiedCustomerCard();
+    }
 
     final eventType = _selectedReservation!['event_type'] ?? 'Dining Reservation';
     final date = _selectedReservation!['event_date'] ?? '';
@@ -1349,11 +1701,5 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _reviewTextController.dispose();
-    super.dispose();
   }
 }
