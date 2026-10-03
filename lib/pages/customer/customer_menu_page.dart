@@ -200,9 +200,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                         ],
                       ),
                       child: Text(
-                        item.hasVariants
-                            ? 'From ₱${_fmt.format(item.minPrice)}'
-                            : '₱${_fmt.format(item.minPrice)}',
+                        '₱${_fmt.format(item.minPrice)}',
                         style: GoogleFonts.inter(
                           color: const Color(0xFFFFD56B),
                           fontSize: 11,

@@ -180,10 +180,10 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFFFBFDFB),
+        color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
@@ -210,7 +210,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Hero Image Banner with Badges
+                  // Hero Image Banner (Clean & Unobstructed)
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(22),
@@ -229,82 +229,14 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                           imageUrl.isNotEmpty
                               ? Image.network(
                                   imageUrl,
-                                  height: 225,
+                                  height: 235,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _imagePlaceholder(),
                                 )
                               : _imagePlaceholder(),
 
-                          // Ambient Gradient Overlay
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  stops: const [0.0, 0.35, 0.65, 1.0],
-                                  colors: [
-                                    Colors.black.withValues(alpha: 0.45),
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.15),
-                                    Colors.black.withValues(alpha: 0.70),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Category Badge (Top-Left) with Frosted Glass
-                          Positioned(
-                            top: 12,
-                            left: 12,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: BackdropFilter(
-                                filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5.5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0C241F).withValues(alpha: 0.85),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFFD9A441).withValues(alpha: 0.75),
-                                      width: 1.2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.2),
-                                        blurRadius: 6,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.restaurant_menu_rounded,
-                                        color: Color(0xFFD9A441),
-                                        size: 13,
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        _selectedItem.category.toUpperCase(),
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: const Color(0xFFD9A441),
-                                          letterSpacing: 0.9,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Close Button (Top-Right) with Frosted Glass
+                          // Discreet Frosted Close Button (Top-Right)
                           Positioned(
                             top: 12,
                             right: 12,
@@ -314,12 +246,12 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                                 child: BackdropFilter(
                                   filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                                   child: Container(
-                                    padding: const EdgeInsets.all(7),
+                                    padding: const EdgeInsets.all(7.5),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.45),
+                                      color: const Color(0xFF14332E).withValues(alpha: 0.65),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.35),
+                                        color: const Color(0xFFD9A441).withValues(alpha: 0.5),
                                         width: 1,
                                       ),
                                     ),
@@ -333,95 +265,69 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                               ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                          // Overlaid Bottom Highlights on Image
-                          Positioned(
-                            bottom: 12,
-                            left: 12,
-                            right: 12,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.55),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.25),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.stars_rounded,
-                                        color: Color(0xFFD9A441),
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 4.5),
-                                      Text(
-                                        'Authentic Yang Chow',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF16A34A).withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.check_circle_rounded,
-                                        color: Colors.white,
-                                        size: 12,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Made to Order',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                  // Category Badge (Brand Emerald & Gold Accent)
+                  if (_selectedItem.category.trim().isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14332E),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFD9A441).withValues(alpha: 0.55),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF14332E).withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.restaurant_menu_rounded,
+                            size: 13,
+                            color: Color(0xFFD9A441),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _selectedItem.category.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFF5EEDB),
+                              letterSpacing: 0.8,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
+                    const SizedBox(height: 8),
+                  ],
 
                   // Dish Title & Pricing Section
                   Text(
                     GroupedMenuItem.extractBaseName(_selectedItem.name),
                     style: GoogleFonts.lora(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF142420),
                       letterSpacing: -0.4,
-                      height: 1.2,
+                      height: 1.25,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
-                  // Price Bar with Base Tag
+                  // Price Bar with Portion Tag
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
@@ -429,7 +335,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                       Text(
                         '₱',
                         style: GoogleFonts.lora(
-                          fontSize: 18,
+                          fontSize: 19,
                           fontWeight: FontWeight.w900,
                           color: const Color(0xFF0E533C),
                         ),
@@ -438,20 +344,20 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                       Text(
                         _fmt.format(_selectedItem.price),
                         style: GoogleFonts.lora(
-                          fontSize: 26,
+                          fontSize: 27,
                           fontWeight: FontWeight.w900,
                           color: const Color(0xFF0E533C),
                           letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0E533C).withValues(alpha: 0.08),
+                          color: const Color(0xFF0E533C).withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: const Color(0xFF0E533C).withValues(alpha: 0.22),
+                            color: const Color(0xFF0E533C).withValues(alpha: 0.25),
                           ),
                         ),
                         child: Text(
@@ -462,7 +368,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                               : 'Per order',
                           style: GoogleFonts.inter(
                             fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: const Color(0xFF0E533C),
                           ),
                         ),
@@ -472,7 +378,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
 
                   // Size / Portion Selector (if multiple variants exist)
                   if (_variants.length > 1) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     Text(
                       'SELECT PORTION / SERVING SIZE',
                       style: GoogleFonts.inter(
@@ -500,16 +406,23 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF0E533C) : Colors.white,
+                              gradient: isSelected
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF0C241F), Color(0xFF164E40)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              color: isSelected ? null : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected ? const Color(0xFF0E533C) : const Color(0xFFCBD5E1),
+                                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
                                 width: isSelected ? 1.5 : 1,
                               ),
                               boxShadow: isSelected
                                   ? [
                                       BoxShadow(
-                                        color: const Color(0xFF0E533C).withValues(alpha: 0.2),
+                                        color: const Color(0xFF0C241F).withValues(alpha: 0.2),
                                         blurRadius: 6,
                                         offset: const Offset(0, 2),
                                       ),
@@ -537,7 +450,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                                 Text(
                                   '₱${_fmt.format(v.price)}',
                                   style: GoogleFonts.inter(
-                                    fontSize: 12,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w800,
                                     color: isSelected ? const Color(0xFFFFD56B) : const Color(0xFF0E533C),
                                   ),
@@ -550,24 +463,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                     ),
                   ],
 
-                  const SizedBox(height: 12),
-
-                  // Description or Culinary Tagline
-                  Text(
-                    (_selectedItem.description != null && _selectedItem.description!.trim().isNotEmpty)
-                        ? _selectedItem.description!
-                        : 'Prepared fresh to order using Yang Chow\'s authentic culinary techniques and premium hand-selected ingredients.',
-                    style: GoogleFonts.inter(
-                      fontSize: 13.5,
-                      color: const Color(0xFF64748B),
-                      height: 1.5,
-                      fontStyle: (_selectedItem.description == null || _selectedItem.description!.trim().isEmpty)
-                          ? FontStyle.italic
-                          : FontStyle.normal,
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
 
                   // Culinary Experience Chips (3-Column Badges)
                   Row(
@@ -623,7 +519,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: const Color(0xFF92400E),
-                              height: 1.4,
+                              height: 1.45,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -845,7 +741,7 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(14),
@@ -853,7 +749,14 @@ class _DishCustomizationSheetState extends State<_DishCustomizationSheet> {
       ),
       child: Column(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF0E533C)),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E533C).withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 17, color: const Color(0xFF0E533C)),
+          ),
           const SizedBox(height: 5),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -2007,8 +1910,8 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
         maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2016,11 +1919,11 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
           // ── Drag Handle ────────────────────────────────────────────────
           Center(
             child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 2),
-              width: 36, height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 44, height: 4.5,
               decoration: BoxDecoration(
                 color: const Color(0xFFCBD5E1),
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
           ),
@@ -2036,9 +1939,24 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF0C241F),
                     borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFD9A441).withValues(alpha: 0.45),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0C241F).withValues(alpha: 0.16),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: const Center(
-                    child: Text('📝', style: TextStyle(fontSize: 22)),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      color: Color(0xFFD9A441),
+                      size: 24,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -2049,10 +1967,10 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                       Text(
                         'Set Up Your Order',
                         style: GoogleFonts.inter(
-                          fontSize: isSmall ? 17 : 19,
+                          fontSize: isSmall ? 18 : 20,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF0F172A),
-                          letterSpacing: -0.5,
+                          letterSpacing: -0.4,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -2061,7 +1979,7 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           color: const Color(0xFF64748B),
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -2069,17 +1987,22 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                 ),
                 // Step pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0C241F).withValues(alpha: 0.08),
+                    color: const Color(0xFF0C241F),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFD9A441).withValues(alpha: 0.45),
+                      width: 1,
+                    ),
                   ),
                   child: Text(
                     'Step $currentStep / $totalSteps',
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0C241F),
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFFFD56B),
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
@@ -2096,7 +2019,7 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                 return Expanded(
                   child: Container(
                     margin: EdgeInsets.only(right: i < totalSteps - 1 ? 6 : 0),
-                    height: 3,
+                    height: 3.5,
                     decoration: BoxDecoration(
                       color: active ? const Color(0xFF0C241F) : const Color(0xFFE2E8F0),
                       borderRadius: BorderRadius.circular(2),
@@ -2107,8 +2030,8 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
             ),
           ),
 
-          const SizedBox(height: 4),
-          const Divider(color: Color(0xFFF1F5F9), thickness: 1, height: 20),
+          const SizedBox(height: 6),
+          const Divider(color: Color(0xFFF1F5F9), thickness: 1, height: 22),
 
           // ── Body ────────────────────────────────────────────────
           Flexible(
@@ -2123,15 +2046,15 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                   _sectionLabel('1. What type of order?'),
                   const SizedBox(height: 10),
                   _selectionRow(
-                    options: [
+                    options: const [
                       _OptionData(
-                        emoji: '🛍️',
+                        icon: Icons.schedule_send_rounded,
                         label: 'Advance Order',
                         description: 'Pre-order food for dine-in or pick-up',
                         value: 'Advance Order',
                       ),
                       _OptionData(
-                        emoji: '🎉',
+                        icon: Icons.celebration_rounded,
                         label: 'Event Place',
                         description: 'Book a venue for a special occasion',
                         value: 'Event Place',
@@ -2146,7 +2069,7 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                       margin: const EdgeInsets.only(top: 8, bottom: 4),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFFDE68A)),
                       ),
@@ -2176,15 +2099,15 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                     _sectionLabel('2. How will you receive it?'),
                     const SizedBox(height: 10),
                     _selectionRow(
-                      options: [
+                      options: const [
                         _OptionData(
-                          emoji: '🍽️',
+                          icon: Icons.table_restaurant_rounded,
                           label: 'Dine In',
                           description: 'Eat at the restaurant with table service',
                           value: 'Dine In',
                         ),
                         _OptionData(
-                          emoji: '🥡',
+                          icon: Icons.takeout_dining_rounded,
                           label: 'Pick Up',
                           description: 'We\'ll have it ready when you arrive',
                           value: 'Pick Up',
@@ -2203,28 +2126,32 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
 
           // ── Confirm Button ───────────────────────────────────────────
           Container(
-            padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPad + 20),
+            padding: EdgeInsets.fromLTRB(20, 14, 20, bottomPad + 16),
             decoration: const BoxDecoration(
-              color: Color(0xFFF9FAFB),
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.2)),
             ),
             child: AnimatedTapScale(
               onTap: _confirm,
               child: Container(
                 width: double.infinity,
-                height: 56,
+                height: 52,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF0C241F), Color(0xFF164438)],
+                    colors: [Color(0xFF0C241F), Color(0xFF194E42)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFD9A441).withValues(alpha: 0.5),
+                    width: 1.2,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0C241F).withValues(alpha: 0.30),
+                      color: const Color(0xFF0C241F).withValues(alpha: 0.35),
                       blurRadius: 14,
-                      offset: const Offset(0, 5),
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -2235,13 +2162,13 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                       'Continue',
                       style: GoogleFonts.inter(
                         fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        letterSpacing: 0.1,
+                        letterSpacing: 0.2,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward_rounded, color: Color(0xFFD9A441), size: 20),
+                    const Icon(Icons.arrow_forward_rounded, color: Color(0xFFD9A441), size: 19),
                   ],
                 ),
               ),
@@ -2257,9 +2184,9 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
   Widget _sectionLabel(String label) => Text(
         label,
         style: GoogleFonts.inter(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF374151),
+          fontSize: 13.5,
+          fontWeight: FontWeight.w800,
+          color: const Color(0xFF0F172A),
           letterSpacing: 0.1,
         ),
       );
@@ -2279,44 +2206,62 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.only(bottom: 10),
+            margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF0C241F) : Colors.white,
+              gradient: isSelected
+                  ? const LinearGradient(
+                      colors: [Color(0xFF0C241F), Color(0xFF164E40)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: isSelected ? null : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE5E7EB),
-                width: isSelected ? 1.5 : 1,
+                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE2E8F0),
+                width: isSelected ? 1.5 : 1.2,
               ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: const Color(0xFF0C241F).withValues(alpha: 0.18),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
+                        color: const Color(0xFF0C241F).withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ]
                   : [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
+                        blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
                     ],
             ),
             child: Row(
               children: [
-                // Emoji container
+                // Icon container
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Colors.white.withValues(alpha: 0.10)
-                        : const Color(0xFFF3F4F6),
+                        ? const Color(0xFF1E5649)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFFD9A441).withValues(alpha: 0.4)
+                          : const Color(0xFFE2E8F0),
+                      width: 1,
+                    ),
                   ),
                   child: Center(
-                    child: Text(opt.emoji, style: const TextStyle(fontSize: 24)),
+                    child: Icon(
+                      opt.icon,
+                      color: isSelected ? const Color(0xFFFFD56B) : const Color(0xFF0C241F),
+                      size: 24,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -2328,9 +2273,9 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                       Text(
                         opt.label,
                         style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : const Color(0xFF111827),
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: isSelected ? Colors.white : const Color(0xFF0F172A),
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -2340,29 +2285,31 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           color: isSelected
-                              ? Colors.white.withValues(alpha: 0.55)
-                              : const Color(0xFF6B7280),
+                              ? Colors.white.withValues(alpha: 0.7)
+                              : const Color(0xFF64748B),
                           height: 1.3,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 // Radio indicator
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 22, height: 22,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isSelected ? const Color(0xFFD9A441) : Colors.transparent,
                     border: Border.all(
-                      color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFD1D5DB),
+                      color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFCBD5E1),
                       width: 2,
                     ),
                   ),
                   child: isSelected
-                      ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                      ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
                       : null,
                 ),
               ],
@@ -2376,13 +2323,13 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
 
 // ── Option Data Model ──────────────────────────────────────────────────
 class _OptionData {
-  final String emoji;
+  final IconData icon;
   final String label;
   final String description;
   final String value;
 
   const _OptionData({
-    required this.emoji,
+    required this.icon,
     required this.label,
     required this.description,
     required this.value,

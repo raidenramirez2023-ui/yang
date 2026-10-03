@@ -1360,7 +1360,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       child: Scaffold(
 
-        backgroundColor: (isDesktop || isTablet) ? AppTheme.backgroundColor : AppTheme.navColor,
+        backgroundColor: AppTheme.backgroundColor,
 
 
 
@@ -1787,563 +1787,746 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
     final currentUser = Supabase.instance.client.auth.currentUser;
     _loadCustomerRestrictionInfo();
-    if (currentUser?.email != null) {
-      NotificationService.markAllAsRead(currentUser!.email!);
-    }
 
-    if (notifications.isNotEmpty) {
-      final unreadIds = notifications
-          .where((n) => n['is_read'] == false)
-          .map((n) => n['id'].toString())
-          .toList();
-
-      if (unreadIds.isNotEmpty) {
-        NotificationService.markVisibleAsRead(unreadIds);
-      }
-    }
-
-
+    // Create a local mutable copy of notifications list
+    final List<Map<String, dynamic>> localList =
+        notifications.map((e) => Map<String, dynamic>.from(e)).toList();
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        backgroundColor: Colors.white,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        elevation: 16,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 480,
-            maxHeight: MediaQuery.of(context).size.height * 0.82,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Header Banner with Emerald Gradient ──
-              Container(
-                padding: const EdgeInsets.fromLTRB(18, 18, 14, 16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0D3B2E), Color(0xFF164E3D)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+      builder: (dialogContext) {
+        bool showOnlyUnread = true;
+        bool isMarking = false;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final unreadList =
+                localList.where((n) => n['is_read'] == false).toList();
+            final displayedList = showOnlyUnread ? unreadList : localList;
+
+            Future<void> handleMarkAllAsRead() async {
+              if (unreadList.isEmpty || isMarking) return;
+              setModalState(() => isMarking = true);
+
+              try {
+                if (currentUser?.email != null) {
+                  await NotificationService.markAllAsRead(currentUser!.email!);
+                }
+                final unreadIds = unreadList
+                    .map((n) => n['id']?.toString() ?? '')
+                    .where((id) => id.isNotEmpty)
+                    .toList();
+                if (unreadIds.isNotEmpty) {
+                  await NotificationService.markVisibleAsRead(unreadIds);
+                }
+
+                // Immediately update local state so they disappear from unread list
+                setModalState(() {
+                  for (final item in localList) {
+                    item['is_read'] = true;
+                  }
+                  isMarking = false;
+                });
+              } catch (e) {
+                debugPrint('Error marking notifications as read: $e');
+                setModalState(() => isMarking = false);
+              }
+            }
+
+            Future<void> handleMarkSingleAsRead(Map<String, dynamic> item) async {
+              final id = item['id']?.toString();
+              if (id == null) return;
+              try {
+                await NotificationService.markVisibleAsRead([id]);
+                setModalState(() {
+                  item['is_read'] = true;
+                });
+              } catch (e) {
+                debugPrint('Error marking single notification as read: $e');
+              }
+            }
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              clipBehavior: Clip.antiAlias,
+              backgroundColor: Colors.white,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              elevation: 16,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 480,
+                  maxHeight: MediaQuery.of(context).size.height * 0.82,
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    // ── Header Banner (Clean & Elegant) ──
                     Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1E5846), Color(0xFF123B2F)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFD9A441).withValues(alpha: 0.6),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                      padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                       ),
-                      child: const Icon(
-                        Icons.notifications_active_rounded,
-                        color: Color(0xFFFFD56B),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Notifications',
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                  color: Colors.white,
-                                  letterSpacing: -0.3,
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.notifications_none_rounded,
+                              color: Color(0xFF0C241F),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Notifications',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16.5,
+                                        color: const Color(0xFF0F172A),
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                    if (unreadList.isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0C241F),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          '${unreadList.length} new',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ),
-                              if (notifications.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFD9A441).withValues(alpha: 0.22),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: const Color(0xFFD9A441).withValues(alpha: 0.5),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${notifications.length}',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFFFFD56B),
-                                    ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Your reservation & dining updates',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                    color: const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
-                            ],
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Your reservation & dining updates',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white.withValues(alpha: 0.75),
+                          Material(
+                            color: const Color(0xFFF8FAFC),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => Navigator.pop(context),
+                              child: const Padding(
+                                padding: EdgeInsets.all(7),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Material(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => Navigator.pop(context),
-                        child: const Padding(
-                          padding: EdgeInsets.all(7),
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 19,
-                            color: Colors.white70,
+                    const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+
+                    // ── Filter Segment Bar (Unread vs All) ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8FAFC),
+                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+                      ),
+                      child: Row(
+                        children: [
+                          // Unread tab
+                          InkWell(
+                            onTap: () => setModalState(() => showOnlyUnread = true),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: showOnlyUnread ? const Color(0xFF0C241F) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Unread',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: showOnlyUnread ? Colors.white : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  if (unreadList.isNotEmpty) ...[
+                                    const SizedBox(width: 5),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: showOnlyUnread
+                                            ? Colors.white.withValues(alpha: 0.25)
+                                            : const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${unreadList.length}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: showOnlyUnread ? Colors.white : const Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
+                          const SizedBox(width: 6),
+                          // All tab
+                          InkWell(
+                            onTap: () => setModalState(() => showOnlyUnread = false),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: !showOnlyUnread ? const Color(0xFF0C241F) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'All (${localList.length})',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: !showOnlyUnread ? Colors.white : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          // Mark all as read button
+                          if (unreadList.isNotEmpty)
+                            TextButton.icon(
+                              onPressed: isMarking ? null : handleMarkAllAsRead,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: isMarking
+                                  ? const SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.8,
+                                        color: Color(0xFF0C241F),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.done_all_rounded,
+                                      size: 15,
+                                      color: Color(0xFF0C241F),
+                                    ),
+                              label: Text(
+                                'Mark all read',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF0C241F),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Notifications Body ──
+                    Flexible(
+                      child: displayedList.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 58,
+                                    height: 58,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF0FDF4),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFBBF7D0),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.done_all_rounded,
+                                      size: 26,
+                                      color: Color(0xFF16A34A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    showOnlyUnread ? 'All Caught Up!' : 'No Notifications',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      color: const Color(0xFF0F172A),
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    showOnlyUnread
+                                        ? 'You have no unread notifications. Old notifications have been cleared from this view.'
+                                        : 'You have no notifications yet.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF64748B),
+                                      fontSize: 12.5,
+                                      height: 1.45,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: false,
+                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                              itemCount: displayedList.length,
+                              separatorBuilder: (context, index) => const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final n = displayedList[index];
+                                final isItemUnread = n['is_read'] == false;
+                                final date = DateTime.parse(n['created_at']).toLocal();
+                                final timeStr = DateFormat('MMM d, h:mm a').format(date);
+
+                                IconData icon;
+                                String statusBadge;
+                                Color dotColor;
+                                Color badgeBg;
+                                Color badgeText;
+
+                                switch (n['action_type']) {
+                                  case 'created':
+                                    icon = Icons.add_circle_outline_rounded;
+                                    statusBadge = 'Received';
+                                    dotColor = const Color(0xFF2563EB);
+                                    badgeBg = const Color(0xFFF8FAFC);
+                                    badgeText = const Color(0xFF334155);
+                                    break;
+                                  case 'approved':
+                                  case 'completed':
+                                    icon = Icons.check_circle_outline_rounded;
+                                    statusBadge = 'Confirmed';
+                                    dotColor = const Color(0xFF16A34A);
+                                    badgeBg = const Color(0xFFF0FDF4);
+                                    badgeText = const Color(0xFF166534);
+                                    break;
+                                  case 'cancelled':
+                                  case 'rejected':
+                                  case 'deleted':
+                                    icon = Icons.cancel_outlined;
+                                    statusBadge = 'Cancelled';
+                                    dotColor = const Color(0xFFDC2626);
+                                    badgeBg = const Color(0xFFFEF2F2);
+                                    badgeText = const Color(0xFF991B1B);
+                                    break;
+                                  case 'updated':
+                                    icon = Icons.update_rounded;
+                                    statusBadge = 'Updated';
+                                    dotColor = const Color(0xFFD97706);
+                                    badgeBg = const Color(0xFFFFFBEB);
+                                    badgeText = const Color(0xFF92400E);
+                                    break;
+                                  case 'paid':
+                                  case 'deposit_paid':
+                                  case 'fully_paid':
+                                  case 'balance_cleared':
+                                    icon = Icons.credit_card_outlined;
+                                    statusBadge = 'Paid';
+                                    dotColor = const Color(0xFF16A34A);
+                                    badgeBg = const Color(0xFFF0FDF4);
+                                    badgeText = const Color(0xFF166534);
+                                    break;
+                                  case 'balance_payment_link':
+                                    icon = Icons.payment_rounded;
+                                    statusBadge = 'Payment Link';
+                                    dotColor = const Color(0xFF0284C7);
+                                    badgeBg = const Color(0xFFF0F9FF);
+                                    badgeText = const Color(0xFF0369A1);
+                                    break;
+                                  case 'reschedule_approved':
+                                    icon = Icons.event_available_rounded;
+                                    statusBadge = 'Rescheduled';
+                                    dotColor = const Color(0xFF16A34A);
+                                    badgeBg = const Color(0xFFF0FDF4);
+                                    badgeText = const Color(0xFF166534);
+                                    break;
+                                  case 'reschedule_rejected':
+                                    icon = Icons.event_busy_rounded;
+                                    statusBadge = 'Rejected';
+                                    dotColor = const Color(0xFFDC2626);
+                                    badgeBg = const Color(0xFFFEF2F2);
+                                    badgeText = const Color(0xFF991B1B);
+                                    break;
+                                  case 'refund_approved':
+                                  case 'refund_processed':
+                                    icon = Icons.currency_exchange_rounded;
+                                    statusBadge = 'Refunded';
+                                    dotColor = const Color(0xFF2563EB);
+                                    badgeBg = const Color(0xFFEFF6FF);
+                                    badgeText = const Color(0xFF1E40AF);
+                                    break;
+                                  case 'refund_rejected':
+                                    icon = Icons.highlight_off_rounded;
+                                    statusBadge = 'Refund Declined';
+                                    dotColor = const Color(0xFFDC2626);
+                                    badgeBg = const Color(0xFFFEF2F2);
+                                    badgeText = const Color(0xFF991B1B);
+                                    break;
+                                  case 'account_warning':
+                                  case 'warning':
+                                    icon = Icons.warning_amber_rounded;
+                                    statusBadge = 'Warning';
+                                    dotColor = const Color(0xFFD97706);
+                                    badgeBg = const Color(0xFFFFFBEB);
+                                    badgeText = const Color(0xFF92400E);
+                                    break;
+                                  case 'account_restriction':
+                                  case 'restriction':
+                                    icon = Icons.block_rounded;
+                                    statusBadge = 'Restricted';
+                                    dotColor = const Color(0xFFDC2626);
+                                    badgeBg = const Color(0xFFFEF2F2);
+                                    badgeText = const Color(0xFF991B1B);
+                                    break;
+                                  case 'account_unrestricted':
+                                    icon = Icons.verified_user_outlined;
+                                    statusBadge = 'Active';
+                                    dotColor = const Color(0xFF16A34A);
+                                    badgeBg = const Color(0xFFF0FDF4);
+                                    badgeText = const Color(0xFF166534);
+                                    break;
+                                  default:
+                                    icon = Icons.notifications_none_rounded;
+                                    statusBadge = 'Update';
+                                    dotColor = const Color(0xFF64748B);
+                                    badgeBg = const Color(0xFFF8FAFC);
+                                    badgeText = const Color(0xFF475569);
+                                }
+
+                                String? checkoutUrl;
+                                if (n['event_type'] != null && n['event_type'].toString().contains('http')) {
+                                  final match = RegExp(r'https?://[^\s]+').firstMatch(n['event_type'].toString());
+                                  if (match != null) {
+                                    checkoutUrl = match.group(0);
+                                  }
+                                }
+
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isItemUnread
+                                          ? const Color(0xFF0C241F).withValues(alpha: 0.35)
+                                          : const Color(0xFFE2E8F0),
+                                      width: isItemUnread ? 1.4 : 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.02),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(14),
+                                      onTap: () async {
+                                        if (isItemUnread) {
+                                          handleMarkSingleAsRead(n);
+                                        }
+                                        if (checkoutUrl != null) {
+                                          final uri = Uri.parse(checkoutUrl);
+                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              width: 36,
+                                              height: 36,
+                                              decoration: BoxDecoration(
+                                                color: isItemUnread
+                                                    ? const Color(0xFF0C241F).withValues(alpha: 0.08)
+                                                    : const Color(0xFFF8FAFC),
+                                                borderRadius: BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: const Color(0xFFE2E8F0),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Icon(icon, color: const Color(0xFF475569), size: 18),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          _getNotificationTitle(n),
+                                                          style: GoogleFonts.inter(
+                                                            fontWeight: isItemUnread ? FontWeight.w700 : FontWeight.w600,
+                                                            fontSize: 13.5,
+                                                            color: const Color(0xFF0F172A),
+                                                            letterSpacing: -0.2,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 7,
+                                                          vertical: 2.5,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: badgeBg,
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(
+                                                            color: dotColor.withValues(alpha: 0.15),
+                                                            width: 0.8,
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Container(
+                                                              width: 5,
+                                                              height: 5,
+                                                              decoration: BoxDecoration(
+                                                                color: dotColor,
+                                                                shape: BoxShape.circle,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 4),
+                                                            Text(
+                                                              statusBadge,
+                                                              style: GoogleFonts.inter(
+                                                                fontSize: 10,
+                                                                fontWeight: FontWeight.w600,
+                                                                color: badgeText,
+                                                                letterSpacing: 0.1,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    _getNotificationSubtitle(n),
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w400,
+                                                      color: const Color(0xFF475569),
+                                                      height: 1.35,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Flexible(
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            const Icon(
+                                                              Icons.schedule_rounded,
+                                                              size: 11.5,
+                                                              color: Color(0xFF94A3B8),
+                                                            ),
+                                                            const SizedBox(width: 4),
+                                                            Flexible(
+                                                              child: Text(
+                                                                timeStr,
+                                                                maxLines: 1,
+                                                                overflow: TextOverflow.ellipsis,
+                                                                style: GoogleFonts.inter(
+                                                                  fontSize: 11,
+                                                                  color: const Color(0xFF94A3B8),
+                                                                  fontWeight: FontWeight.w400,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      if (checkoutUrl != null) ...[
+                                                        const SizedBox(width: 8),
+                                                        ElevatedButton.icon(
+                                                          onPressed: () async {
+                                                            if (isItemUnread) {
+                                                              handleMarkSingleAsRead(n);
+                                                            }
+                                                            final uri = Uri.parse(checkoutUrl!);
+                                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                                          },
+                                                          icon: const Icon(
+                                                            Icons.payment_rounded,
+                                                            size: 13,
+                                                            color: Colors.white,
+                                                          ),
+                                                          label: Text(
+                                                            'Pay Balance',
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 11,
+                                                              fontWeight: FontWeight.w600,
+                                                              color: Colors.white,
+                                                            ),
+                                                          ),
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor: const Color(0xFF0C241F),
+                                                            padding: const EdgeInsets.symmetric(
+                                                              horizontal: 10,
+                                                              vertical: 4,
+                                                            ),
+                                                            minimumSize: Size.zero,
+                                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(6),
+                                                            ),
+                                                            elevation: 0,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    // ── Footer Action Bar ──
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
                         ),
+                      ),
+                      child: Row(
+                        children: [
+                          if (unreadList.isNotEmpty) ...[
+                            Expanded(
+                              child: SizedBox(
+                                height: 40,
+                                child: OutlinedButton.icon(
+                                  onPressed: isMarking ? null : handleMarkAllAsRead,
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    backgroundColor: const Color(0xFFF8FAFC),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.done_all_rounded,
+                                    size: 16,
+                                    color: Color(0xFF0C241F),
+                                  ),
+                                  label: Text(
+                                    'Mark all read',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12.5,
+                                      color: const Color(0xFF0C241F),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: SizedBox(
+                              height: 40,
+                              child: ElevatedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 0,
+                                  backgroundColor: const Color(0xFF0C241F),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Close',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              // Golden accent dividing line
-              Container(
-                height: 2.5,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFFD9A441),
-                      Color(0xFFFFE082),
-                      Color(0xFFD9A441),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── Notifications Body ──
-              Flexible(
-                child: notifications.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 76,
-                              height: 76,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFAF7F0),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFFD9A441).withValues(alpha: 0.35),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.notifications_none_rounded,
-                                size: 36,
-                                color: Color(0xFFD9A441),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              'All Caught Up!',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 17,
-                                color: const Color(0xFF1E293B),
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'You have no new notifications. We\'ll notify you here whenever there is activity on your reservations or orders.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF64748B),
-                                fontSize: 13,
-                                height: 1.45,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        shrinkWrap: false,
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                        itemCount: notifications.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final n = notifications[index];
-                          final date = DateTime.parse(n['created_at']).toLocal();
-                          final timeStr = DateFormat('MMM d, h:mm a').format(date);
-
-                          IconData icon;
-                          Color color;
-                          String statusBadge;
-                          Color badgeBg;
-                          Color badgeText;
-
-                          switch (n['action_type']) {
-                            case 'created':
-                              icon = Icons.add_circle_outline_rounded;
-                              color = const Color(0xFF2563EB);
-                              statusBadge = 'Received';
-                              badgeBg = const Color(0xFFDBEAFE);
-                              badgeText = const Color(0xFF1D4ED8);
-                              break;
-                            case 'approved':
-                            case 'completed':
-                              icon = Icons.check_circle_rounded;
-                              color = const Color(0xFF16A34A);
-                              statusBadge = 'Confirmed';
-                              badgeBg = const Color(0xFFDCFCE7);
-                              badgeText = const Color(0xFF15803D);
-                              break;
-                            case 'cancelled':
-                            case 'rejected':
-                            case 'deleted':
-                              icon = Icons.cancel_outlined;
-                              color = const Color(0xFFDC2626);
-                              statusBadge = 'Cancelled';
-                              badgeBg = const Color(0xFFFEE2E2);
-                              badgeText = const Color(0xFFB91C1C);
-                              break;
-                            case 'updated':
-                              icon = Icons.update_rounded;
-                              color = const Color(0xFFD97706);
-                              statusBadge = 'Updated';
-                              badgeBg = const Color(0xFFFEF3C7);
-                              badgeText = const Color(0xFFB45309);
-                              break;
-                            case 'paid':
-                            case 'deposit_paid':
-                            case 'fully_paid':
-                            case 'balance_cleared':
-                              icon = Icons.credit_card_rounded;
-                              color = const Color(0xFF059669);
-                              statusBadge = 'Paid';
-                              badgeBg = const Color(0xFFD1FAE5);
-                              badgeText = const Color(0xFF047857);
-                              break;
-                            case 'balance_payment_link':
-                              icon = Icons.payment_rounded;
-                              color = const Color(0xFF0284C7);
-                              statusBadge = 'Payment Link';
-                              badgeBg = const Color(0xFFE0F2FE);
-                              badgeText = const Color(0xFF0369A1);
-                              break;
-                            case 'reschedule_approved':
-                              icon = Icons.event_available_rounded;
-                              color = const Color(0xFF16A34A);
-                              statusBadge = 'Rescheduled';
-                              badgeBg = const Color(0xFFDCFCE7);
-                              badgeText = const Color(0xFF15803D);
-                              break;
-                            case 'reschedule_rejected':
-                              icon = Icons.event_busy_rounded;
-                              color = const Color(0xFFDC2626);
-                              statusBadge = 'Rejected';
-                              badgeBg = const Color(0xFFFEE2E2);
-                              badgeText = const Color(0xFFB91C1C);
-                              break;
-                            case 'refund_approved':
-                            case 'refund_processed':
-                              icon = Icons.currency_exchange_rounded;
-                              color = const Color(0xFF2563EB);
-                              statusBadge = 'Refunded';
-                              badgeBg = const Color(0xFFDBEAFE);
-                              badgeText = const Color(0xFF1D4ED8);
-                              break;
-                            case 'refund_rejected':
-                              icon = Icons.highlight_off_rounded;
-                              color = const Color(0xFFDC2626);
-                              statusBadge = 'Refund Declined';
-                              badgeBg = const Color(0xFFFEE2E2);
-                              badgeText = const Color(0xFFB91C1C);
-                              break;
-                            case 'account_warning':
-                            case 'warning':
-                              icon = Icons.warning_amber_rounded;
-                              color = const Color(0xFFD97706);
-                              statusBadge = 'Account Warning';
-                              badgeBg = const Color(0xFFFEF3C7);
-                              badgeText = const Color(0xFFB45309);
-                              break;
-                            case 'account_restriction':
-                            case 'restriction':
-                              icon = Icons.block_rounded;
-                              color = const Color(0xFFDC2626);
-                              statusBadge = 'Account Restricted';
-                              badgeBg = const Color(0xFFFEE2E2);
-                              badgeText = const Color(0xFFB91C1C);
-                              break;
-                            case 'account_unrestricted':
-                              icon = Icons.verified_user_rounded;
-                              color = const Color(0xFF16A34A);
-                              statusBadge = 'Restriction Lifted';
-                              badgeBg = const Color(0xFFDCFCE7);
-                              badgeText = const Color(0xFF15803D);
-                              break;
-                            default:
-                              icon = Icons.notifications_none_rounded;
-                              color = const Color(0xFF64748B);
-                              statusBadge = 'Update';
-                              badgeBg = const Color(0xFFF1F5F9);
-                              badgeText = const Color(0xFF475569);
-                          }
-
-                          String? checkoutUrl;
-                          if (n['event_type'] != null && n['event_type'].toString().contains('http')) {
-                            final match = RegExp(r'https?://[^\s]+').firstMatch(n['event_type'].toString());
-                            if (match != null) {
-                              checkoutUrl = match.group(0);
-                            }
-                          }
-
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFCFCFD),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                                width: 1.1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.03),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: checkoutUrl != null
-                                    ? () async {
-                                        final uri = Uri.parse(checkoutUrl!);
-                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                      }
-                                    : null,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 38,
-                                        height: 38,
-                                        decoration: BoxDecoration(
-                                          color: color.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(11),
-                                          border: Border.all(
-                                            color: color.withValues(alpha: 0.25),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Icon(icon, color: color, size: 20),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    _getNotificationTitle(n),
-                                                    style: GoogleFonts.inter(
-                                                      fontWeight: FontWeight.w700,
-                                                      fontSize: 14,
-                                                      color: const Color(0xFF0F172A),
-                                                      letterSpacing: -0.2,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 7,
-                                                    vertical: 2.5,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: badgeBg,
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
-                                                  child: Text(
-                                                    statusBadge,
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w700,
-                                                      color: badgeText,
-                                                      letterSpacing: 0.2,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 5),
-                                            Text(
-                                              _getNotificationSubtitle(n),
-                                              style: GoogleFonts.inter(
-                                                fontSize: 12.5,
-                                                fontWeight: FontWeight.w500,
-                                                color: const Color(0xFF475569),
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Flexible(
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.schedule_rounded,
-                                                        size: 12,
-                                                        color: Color(0xFF94A3B8),
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Flexible(
-                                                        child: Text(
-                                                          timeStr,
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: GoogleFonts.inter(
-                                                            fontSize: 11,
-                                                            color: const Color(0xFF94A3B8),
-                                                            fontWeight: FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                if (checkoutUrl != null) ...[
-                                                  const SizedBox(width: 8),
-                                                  ElevatedButton.icon(
-                                                    onPressed: () async {
-                                                      final uri = Uri.parse(checkoutUrl!);
-                                                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                                    },
-                                                    icon: const Icon(
-                                                      Icons.payment_rounded,
-                                                      size: 13,
-                                                      color: AppTheme.darkBrownText,
-                                                    ),
-                                                    label: Text(
-                                                      'Pay Balance',
-                                                      style: GoogleFonts.inter(
-                                                        fontSize: 11.5,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: AppTheme.darkBrownText,
-                                                      ),
-                                                    ),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: const Color(0xFFFFD56B),
-                                                      padding: const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4,
-                                                      ),
-                                                      minimumSize: Size.zero,
-                                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
-                                                      elevation: 2,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-
-              // ── Footer Action Bar ──
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8FAFC),
-                  border: Border(
-                    top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-                  ),
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 42,
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF334155),
-                    ),
-                    child: Text(
-                      'Close',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
-
   }
-
-
 
   /// Generate role-specific and context-aware notification subtitle
 
@@ -3787,7 +3970,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         Expanded(
 
-          child: RefreshIndicator(
+          child: Container(
+
+            color: AppTheme.backgroundColor,
+
+            width: double.infinity,
+
+            height: double.infinity,
+
+            child: RefreshIndicator(
 
               onRefresh: _handleRefresh,
 
@@ -3802,6 +3993,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               ),
 
             ),
+
+          ),
 
         ),
 
@@ -3944,6 +4137,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   Widget _buildContent() {
 
     return Container(
+
+      width: double.infinity,
 
       color: AppTheme.backgroundColor,
 
@@ -8260,7 +8455,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         value: '${customerReservations.length}',
                         label: 'Total Bookings',
                         icon: Icons.event_available_rounded,
-                        gradientColors: const [Color(0xFF059669), Color(0xFF10B981)],
+                        iconColor: const Color(0xFF0C241F),
+                        iconBgColor: const Color(0xFFF1F5F9),
+                        badgeColor: const Color(0xFF10B981),
                         badgeText: 'Active',
                       ),
                     ),
@@ -8270,7 +8467,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         value: DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toUtc().toIso8601String())),
                         label: 'Member Since',
                         icon: Icons.calendar_month_rounded,
-                        gradientColors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+                        iconColor: const Color(0xFFB45309),
+                        iconBgColor: const Color(0xFFFFFBEB),
+                        badgeColor: const Color(0xFFB45309),
                         badgeText: 'Verified',
                       ),
                     ),
@@ -8305,13 +8504,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 5),
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -8320,8 +8519,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     children: [
                       _buildSettingsTile(
                         icon: Icons.person_rounded,
-                        iconBgColor: const Color(0xFFEEF2FF),
-                        iconColor: const Color(0xFF4F46E5),
                         title: 'Edit Profile',
                         subtitle: 'Update your personal details and photo',
                         onTap: () async {
@@ -8332,31 +8529,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           }
                         },
                       ),
+                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 0.8, color: Color(0xFFF1F5F9)),
                       if (_hasSetPassword) ...[
                         _buildSettingsTile(
                           icon: Icons.lock_reset_rounded,
-                          iconBgColor: const Color(0xFFFFFBEB),
-                          iconColor: const Color(0xFFD97706),
                           title: 'Change Password',
                           subtitle: 'Manage your password credentials',
                           onTap: _showChangePasswordDialog,
                         ),
-                        const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                        const Divider(height: 1, indent: 70, endIndent: 18, thickness: 0.8, color: Color(0xFFF1F5F9)),
                       ] else ...[
                         _buildSettingsTile(
                           icon: Icons.lock_outline_rounded,
-                          iconBgColor: const Color(0xFFFFFBEB),
-                          iconColor: const Color(0xFFD97706),
                           title: 'Set Password',
                           subtitle: 'Manage your password credentials',
                           onTap: _showSetPasswordDialog,
                         ),
-                        const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                        const Divider(height: 1, indent: 70, endIndent: 18, thickness: 0.8, color: Color(0xFFF1F5F9)),
                       ],
                       _buildSettingsTile(
                         icon: Icons.receipt_long_rounded,
-                        iconBgColor: const Color(0xFFECFDF5),
-                        iconColor: const Color(0xFF059669),
                         title: 'Transaction History',
                         subtitle: 'View booking history and receipts',
                         onTap: () {
@@ -8367,11 +8559,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           );
                         },
                       ),
-                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 0.8, color: Color(0xFFF1F5F9)),
                       _buildSettingsTile(
                         icon: Icons.rate_review_rounded,
-                        iconBgColor: const Color(0xFFFEF3C7),
-                        iconColor: const Color(0xFFD97706),
                         title: 'Leave a Review',
                         subtitle: 'Share your dining feedback and ratings',
                         onTap: () {
@@ -8382,13 +8572,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           );
                         },
                       ),
-                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 1, color: Color(0xFFF1F5F9)),
+                      const Divider(height: 1, indent: 70, endIndent: 18, thickness: 0.8, color: Color(0xFFF1F5F9)),
                       _buildSettingsTile(
                         icon: _activeDeletionRequest != null
                             ? Icons.hourglass_top_rounded
                             : Icons.person_remove_rounded,
-                        iconBgColor: const Color(0xFFFFF1F2),
-                        iconColor: const Color(0xFFE11D48),
                         title: _activeDeletionRequest != null
                             ? 'Account Deletion Status'
                             : 'Request Account Deletion',
@@ -8404,16 +8592,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 // ── Log Out Action Tile ──
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFFECDD3), width: 1.2),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFE11D48).withValues(alpha: 0.04),
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
                         blurRadius: 14,
                         offset: const Offset(0, 4),
                       ),
@@ -8472,14 +8660,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     required String value,
     required String label,
     required IconData icon,
-    required List<Color> gradientColors,
     required String badgeText,
+    Color? iconColor,
+    Color? iconBgColor,
+    Color? badgeColor,
   }) {
+    final effectiveIconColor = iconColor ?? const Color(0xFF0C241F);
+    final effectiveIconBg = iconBgColor ?? const Color(0xFFF1F5F9);
+    final effectiveBadgeColor = badgeColor ?? const Color(0xFF059669);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
         boxShadow: [
           BoxShadow(
@@ -8499,36 +8693,41 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: gradientColors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: effectiveIconBg,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradientColors.first.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+                  border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
                 ),
-                child: Icon(icon, size: 18, color: Colors.white),
+                child: Icon(icon, size: 18, color: effectiveIconColor),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: gradientColors.first.withValues(alpha: 0.08),
+                  color: effectiveBadgeColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: effectiveBadgeColor.withValues(alpha: 0.25), width: 0.8),
                 ),
-                child: Text(
-                  badgeText,
-                  style: GoogleFonts.inter(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: gradientColors.first,
-                    letterSpacing: 0.3,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: effectiveBadgeColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      badgeText,
+                      style: GoogleFonts.inter(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: effectiveBadgeColor,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -8570,11 +8769,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     bool isDestructive = false,
   }) {
     final effectiveIconBg = isDestructive
-        ? const Color(0xFFFFE4E6)
-        : (iconBgColor ?? AppTheme.forestGreen.withValues(alpha: 0.08));
+        ? const Color(0xFFFEF2F2)
+        : (iconBgColor ?? const Color(0xFFF8FAFC));
     final effectiveIconColor = isDestructive
-        ? const Color(0xFFE11D48)
-        : (iconColor ?? AppTheme.forestGreen);
+        ? const Color(0xFFDC2626)
+        : (iconColor ?? const Color(0xFF0C241F));
 
     return Material(
       color: Colors.transparent,
@@ -8585,15 +8784,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: effectiveIconBg,
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDestructive
+                        ? const Color(0xFFFEE2E2)
+                        : const Color(0xFFE2E8F0),
+                    width: 0.8,
+                  ),
                 ),
                 child: Icon(
                   icon,
-                  size: 19,
+                  size: 18,
                   color: effectiveIconColor,
                 ),
               ),
@@ -8606,9 +8811,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     Text(
                       title,
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: isDestructive ? const Color(0xFFE11D48) : AppTheme.darkGrey,
+                        color: isDestructive ? const Color(0xFFDC2626) : const Color(0xFF0F172A),
                         letterSpacing: -0.2,
                       ),
                     ),
@@ -8618,7 +8823,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                         subtitle,
                         style: GoogleFonts.inter(
                           fontSize: 11.5,
-                          color: isDestructive ? const Color(0xFFFDA4AF) : const Color(0xFF64748B),
+                          color: const Color(0xFF64748B),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -8630,17 +8835,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 width: 26,
                 height: 26,
                 decoration: BoxDecoration(
-                  color: isDestructive
-                      ? const Color(0xFFFFF1F2)
-                      : const Color(0xFFF8FAFC),
+                  color: isDestructive ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDestructive ? const Color(0xFFFEE2E2) : const Color(0xFFE2E8F0),
+                    width: 0.8,
+                  ),
                 ),
                 child: Icon(
                   Icons.arrow_forward_ios_rounded,
                   color: isDestructive
-                      ? const Color(0xFFFDA4AF)
+                      ? const Color(0xFFEF4444)
                       : const Color(0xFF94A3B8),
-                  size: 12,
+                  size: 11,
                 ),
               ),
             ],
@@ -14006,10 +14213,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           : (_activityFilter == 'confirmed' ? 'Completed & Ready Orders' : 'Active & Recent Bookings');
     }
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+    return Container(
+      width: double.infinity,
+      color: AppTheme.backgroundColor,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -15254,6 +15464,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               ),
           ],
         ),
+      ),
       ),
     );
   }
