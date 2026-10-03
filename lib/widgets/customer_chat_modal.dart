@@ -267,24 +267,9 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
               ),
             ),
           ),
-          // Floating chat button to toggle when desktop open
-          Positioned(
-            left: constrainedPosition.dx + modalWidth - 58,
-            top: constrainedPosition.dy + modalHeight + 14,
-            child: GestureDetector(
-              onPanStart: (_) => setState(() => _isDragging = true),
-              onPanUpdate: (details) {
-                setState(() {
-                  _position = Offset(
-                    _position.dx + details.delta.dx,
-                    _position.dy + details.delta.dy,
-                  );
-                });
-              },
-              onPanEnd: (_) => setState(() => _isDragging = false),
-              child: _buildChatButton(),
-            ),
-          ),
+          // NOTE: No duplicate floating button here — the header bar X button
+          // handles closing the modal. A second button below the modal
+          // would overlap page content and may go off-screen.
         ],
       );
     }

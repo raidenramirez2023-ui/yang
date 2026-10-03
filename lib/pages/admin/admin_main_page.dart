@@ -3673,267 +3673,19 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   void _showAdminNotificationsDialog(List<Map<String, dynamic>> notifications) {
-    NotificationService.markAllAsRead('', forAdmin: true);
-    if (notifications.isNotEmpty) {
-      final unreadIds = notifications
-          .where((n) => n['is_read'] == false)
-          .map((n) => n['id'].toString())
-          .toList();
-      if (unreadIds.isNotEmpty) {
-        NotificationService.markVisibleAsRead(unreadIds);
-      }
-    }
-
-
-
-
-
-
-
     showDialog(
-
-
-
       context: context,
-
-
-
-      builder: (context) => AlertDialog(
-
-
-
-        title: const Text('Admin Notifications'),
-
-
-
-        content: SizedBox(
-
-
-
-          width: 400,
-
-
-
-          height: 500,
-
-
-
-          child: notifications.isEmpty
-
-
-
-              ? const Center(child: Text('No new activity'))
-
-
-
-              : ListView.separated(
-
-
-
-                  itemCount: notifications.length,
-
-
-
-                  separatorBuilder: (context, index) => const Divider(),
-
-
-
-                  itemBuilder: (context, index) {
-
-
-
-                    final n = notifications[index];
-
-
-
-                    final date = DateTime.parse(n['created_at']).toLocal();
-
-
-
-                    final timeStr = DateFormat('MMM d, h:mm a').format(date);
-
-
-
-
-
-
-
-                    return ListTile(
-
-
-
-                      leading: CircleAvatar(
-
-
-
-                        backgroundColor: AppTheme.adminChatButton.withValues(
-
-
-
-                          alpha: 0.1,
-
-
-
-                        ),
-
-
-
-                        child: Icon(
-
-
-
-                          _getIconForAction(n['action_type']),
-
-
-
-                          color: AppTheme.adminChatButton,
-
-
-
-                          size: 20,
-
-
-
-                        ),
-
-
-
-                      ),
-
-
-
-                      title: Text(
-
-
-
-                        _getAdminNotificationTitle(n),
-
-
-
-                        style: const TextStyle(
-
-
-
-                          fontWeight: FontWeight.bold,
-
-
-
-                          fontSize: 14,
-
-
-
-                        ),
-
-
-
-                      ),
-
-
-
-                      subtitle: Column(
-
-
-
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
-                        children: [
-
-
-
-                          Text(
-
-                            _getAdminNotificationSubtitle(n),
-
-                          ),
-
-
-
-                          Text(
-
-
-
-                            timeStr,
-
-
-
-                            style: const TextStyle(
-
-
-
-                              fontSize: 10,
-
-
-
-                              color: Colors.grey,
-
-
-
-                            ),
-
-
-
-                          ),
-
-
-
-                        ],
-
-
-
-                      ),
-
-
-
-                    );
-
-
-
-                  },
-
-
-
-                ),
-
-
-
-        ),
-
-
-
-        actions: [
-
-
-
-          TextButton(
-
-
-
-            onPressed: () => Navigator.pop(context),
-
-
-
-            child: const Text('Close'),
-
-
-
-          ),
-
-
-
-        ],
-
-
-
+      barrierDismissible: true,
+      builder: (context) => _AdminNotificationCenterDialog(
+        notifications: notifications,
+        onNavigateTab: (tabIndex) {
+          _onSelectTab(tabIndex);
+        },
       ),
-
-
-
-    );
-
-
-
+    ).then((_) {
+      // Mark notifications as read after the dialog is closed
+      NotificationService.markAllAsRead('', forAdmin: true);
+    });
   }
 
 
@@ -3942,47 +3694,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-  IconData _getIconForAction(String action) {
 
-    switch (action) {
-
-      case 'stock_request':
-
-        return Icons.inventory_2;
-
-      case 'stock_alert':
-
-        return Icons.warning_amber_rounded;
-
-      case 'pos_order':
-
-        return Icons.shopping_cart;
-
-      case 'created':
-
-        return Icons.add_circle;
-
-      case 'cancelled':
-
-      case 'deleted':
-
-        return Icons.cancel;
-
-      case 'paid':
-
-        return Icons.payments;
-
-      case 'updated':
-
-        return Icons.edit;
-
-      default:
-
-        return Icons.notifications;
-
-    }
-
-  }
 
 
 
@@ -4058,6 +3770,818 @@ class _AdminMainPageState extends State<AdminMainPage> {
     }
   }
 
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ADMIN NOTIFICATION CENTER (EXECUTIVE DIALOG)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Grouped notification item to collapse duplicate alerts cleanly
+class _GroupedAdminNotification {
+  final Map<String, dynamic> raw;
+  final String actionType;
+  final String eventType;
+  final String actorName;
+  final DateTime latestCreatedAt;
+  final int count;
+  final bool hasUnread;
+  final List<String> allIds;
+
+  _GroupedAdminNotification({
+    required this.raw,
+    required this.actionType,
+    required this.eventType,
+    required this.actorName,
+    required this.latestCreatedAt,
+    required this.count,
+    required this.hasUnread,
+    required this.allIds,
+  });
+}
+
+class _AdminNotificationCenterDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> notifications;
+  final Function(int tabIndex) onNavigateTab;
+
+  const _AdminNotificationCenterDialog({
+    required this.notifications,
+    required this.onNavigateTab,
+  });
+
+  @override
+  State<_AdminNotificationCenterDialog> createState() => _AdminNotificationCenterDialogState();
+}
+
+class _AdminNotificationCenterDialogState extends State<_AdminNotificationCenterDialog> {
+  int _selectedFilter = 0; // 0: All, 1: Reservations, 2: Payments, 3: Customers, 4: History
+  late List<Map<String, dynamic>> _notifications;
+  bool _markedAllAsRead = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifications = List<Map<String, dynamic>>.from(widget.notifications);
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inSeconds < 45) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d, h:mm a').format(dt);
+  }
+
+  List<_GroupedAdminNotification> _groupNotifications(List<Map<String, dynamic>> rawList) {
+    final Map<String, _GroupedAdminNotification> groupMap = {};
+    final List<String> groupOrder = [];
+
+    for (final n in rawList) {
+      final actionType = n['action_type']?.toString() ?? 'general';
+      final eventType = n['event_type']?.toString() ?? '';
+      final actorName = n['actor_name']?.toString() ?? '';
+
+      DateTime dt = DateTime.now();
+      try {
+        if (n['created_at'] != null) {
+          dt = DateTime.parse(n['created_at'].toString()).toLocal();
+        }
+      } catch (_) {}
+
+      // Group identical notifications on the same calendar day
+      final dateKey = '${dt.year}-${dt.month}-${dt.day}';
+      final key = '${actionType}_${eventType}_${actorName}_$dateKey';
+
+      final id = n['id']?.toString() ?? '';
+      final isRead = n['is_read'] == true;
+
+      if (!groupMap.containsKey(key)) {
+        groupMap[key] = _GroupedAdminNotification(
+          raw: n,
+          actionType: actionType,
+          eventType: eventType,
+          actorName: actorName,
+          latestCreatedAt: dt,
+          count: 1,
+          hasUnread: !isRead,
+          allIds: id.isNotEmpty ? [id] : [],
+        );
+        groupOrder.add(key);
+      } else {
+        final existing = groupMap[key]!;
+        final newLatest = dt.isAfter(existing.latestCreatedAt) ? dt : existing.latestCreatedAt;
+        final newHasUnread = existing.hasUnread || !isRead;
+        final newIds = List<String>.from(existing.allIds);
+        if (id.isNotEmpty && !newIds.contains(id)) newIds.add(id);
+
+        groupMap[key] = _GroupedAdminNotification(
+          raw: existing.raw,
+          actionType: actionType,
+          eventType: eventType,
+          actorName: actorName,
+          latestCreatedAt: newLatest,
+          count: existing.count + 1,
+          hasUnread: newHasUnread,
+          allIds: newIds,
+        );
+      }
+    }
+
+    return groupOrder.map((k) => groupMap[k]!).toList();
+  }
+
+  IconData _getIconForAction(String action, String eventType) {
+    if (action == 'created') return Icons.event_available_rounded;
+    if (action == 'cancelled' || action == 'deleted') return Icons.event_busy_rounded;
+    if (action == 'deposit_paid' ||
+        action == 'balance_cleared' ||
+        action == 'fully_paid' ||
+        action == 'paid') {
+      return Icons.payments_rounded;
+    }
+    if (action == 'balance_payment_link') return Icons.send_rounded;
+    if (action == 'updated') return Icons.edit_calendar_rounded;
+    if (eventType.toLowerCase().contains('customer') || action == 'customer_approval') {
+      return Icons.person_add_rounded;
+    }
+    if (action.contains('refund')) return Icons.currency_exchange_rounded;
+    if (action.contains('reschedule')) return Icons.schedule_rounded;
+    return Icons.notifications_rounded;
+  }
+
+  Color _getColorForAction(String action, String eventType) {
+    if (action == 'created') return const Color(0xFF0284C7); // Sky blue
+    if (action == 'deposit_paid' ||
+        action == 'balance_cleared' ||
+        action == 'fully_paid' ||
+        action == 'paid') {
+      return const Color(0xFF10B981); // Emerald green
+    }
+    if (eventType.toLowerCase().contains('customer') || action == 'customer_approval') {
+      return const Color(0xFF8B5CF6); // Indigo / Purple
+    }
+    if (action == 'cancelled' || action == 'deleted') {
+      return const Color(0xFFEF4444); // Crimson red
+    }
+    if (action == 'updated') {
+      return const Color(0xFFF59E0B); // Amber
+    }
+    if (action.contains('refund') || action.contains('reschedule')) {
+      return const Color(0xFFF97316); // Orange
+    }
+    return const Color(0xFF14332E);
+  }
+
+  String _getTitleForAction(String action, String eventType) {
+    if (action == 'created') return 'New Reservation';
+    if (action == 'cancelled') return 'Reservation Cancelled';
+    if (action == 'deleted') return 'Reservation Deleted';
+    if (action == 'deposit_paid') return 'Deposit Payment Received';
+    if (action == 'balance_cleared') return 'Remaining Balance Paid';
+    if (action == 'fully_paid') return 'Full Payment Received';
+    if (action == 'paid') return 'Payment Received';
+    if (action == 'balance_payment_link') return 'Payment Link Sent';
+    if (action == 'updated') return 'Reservation Modified';
+    if (eventType.toLowerCase().contains('customer_approval') || action == 'customer_approval') {
+      return 'Customer Registration Request';
+    }
+    if (action.contains('refund')) return 'Refund Request';
+    if (action.contains('reschedule')) return 'Reschedule Request';
+    return 'Admin Activity Alert';
+  }
+
+  String _getSubtitleForAction(Map<String, dynamic> raw, String action, String eventType) {
+    final actorName = raw['actor_name'] ?? 'Customer';
+    final cleanEventType = eventType.replaceAll(
+      RegExp(r'^\((?:Deposit Paid|Fully Paid|Remaining Balance Paid)\)\s*', caseSensitive: false),
+      '',
+    ).trim();
+
+    if (eventType.toLowerCase().contains('customer_approval') || action == 'customer_approval') {
+      return 'New customer registration submitted for admin approval';
+    }
+    if (action == 'balance_cleared') {
+      return '$actorName paid remaining balance for $cleanEventType';
+    }
+    if (action == 'deposit_paid') {
+      return '$actorName paid deposit for $cleanEventType';
+    }
+    if (action == 'fully_paid') {
+      return '$actorName completed full payment for $cleanEventType';
+    }
+    if (action == 'paid') {
+      return '$actorName paid for $cleanEventType';
+    }
+    if (action == 'created') {
+      return '$actorName submitted new reservation for $cleanEventType';
+    }
+    if (action == 'cancelled') {
+      return '$actorName cancelled reservation for $cleanEventType';
+    }
+    if (action == 'updated') {
+      return 'Reservation updated for $cleanEventType';
+    }
+
+    if (eventType.startsWith('System:')) {
+      return eventType.replaceFirst('System:', '').trim();
+    }
+
+    return eventType.isNotEmpty ? eventType : 'System activity update logged.';
+  }
+
+  int _getDestinationTab(String action, String eventType) {
+    if (action == 'created' || action == 'updated' || action == 'cancelled' || action == 'deleted') {
+      return 5; // Reservations (/admin/reservations)
+    }
+    if (action == 'deposit_paid' ||
+        action == 'balance_cleared' ||
+        action == 'fully_paid' ||
+        action == 'paid' ||
+        action == 'balance_payment_link') {
+      return 6; // Payment Management (/admin/payment-management)
+    }
+    if (eventType.toLowerCase().contains('customer') || action == 'customer_approval') {
+      return 8; // Customers & Reviews (/admin/customers-reviews)
+    }
+    if (action.contains('refund') || action.contains('reschedule')) {
+      return 13; // Refunds & Reschedules (/admin/refunds-reschedules)
+    }
+    if (action == 'deletion') {
+      return 9; // Deletion Requests (/admin/deletion-requests)
+    }
+    return 0; // Dashboard Overview
+  }
+
+  String _getActionHint(String action, String eventType) {
+    if (action == 'created' || action == 'updated' || action == 'cancelled' || action == 'deleted') {
+      return 'View in Reservations';
+    }
+    if (action == 'deposit_paid' ||
+        action == 'balance_cleared' ||
+        action == 'fully_paid' ||
+        action == 'paid' ||
+        action == 'balance_payment_link') {
+      return 'View in Payment Management';
+    }
+    if (eventType.toLowerCase().contains('customer') || action == 'customer_approval') {
+      return 'Manage in Customers & Reviews';
+    }
+    if (action.contains('refund') || action.contains('reschedule')) {
+      return 'View in Refunds & Reschedules';
+    }
+    return 'Open in Dashboard';
+  }
+
+  Future<void> _markAllAsRead() async {
+    final allIds = _notifications
+        .map((n) => n['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (allIds.isNotEmpty) {
+      await NotificationService.markVisibleAsRead(allIds);
+    }
+    await NotificationService.markAllAsRead('', forAdmin: true);
+    if (mounted) {
+      setState(() {
+        _markedAllAsRead = true;
+        for (var item in _notifications) {
+          item['is_read'] = true;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All notifications marked as read and moved to History'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF14332E),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final dialogWidth = screenWidth > 720 ? 640.0 : screenWidth * 0.95;
+    final dialogHeight = screenHeight > 700 ? 620.0 : screenHeight * 0.88;
+
+    final allGrouped = _groupNotifications(_notifications);
+    final reservationsList = allGrouped.where((n) =>
+        n.actionType == 'created' ||
+        n.actionType == 'updated' ||
+        n.actionType == 'cancelled' ||
+        n.actionType == 'deleted').toList();
+    final paymentsList = allGrouped.where((n) =>
+        n.actionType == 'deposit_paid' ||
+        n.actionType == 'balance_cleared' ||
+        n.actionType == 'fully_paid' ||
+        n.actionType == 'paid' ||
+        n.actionType == 'balance_payment_link').toList();
+    final customerApprovalsList = allGrouped.where((n) =>
+        n.actionType == 'customer_approval' ||
+        n.eventType.toLowerCase().contains('customer')).toList();
+    final unreadList = allGrouped.where((n) => n.hasUnread).toList();
+
+    List<_GroupedAdminNotification> displayedList;
+    if (_selectedFilter == 4) {
+      // Tab 4: History tab always preserves all notifications
+      displayedList = allGrouped;
+    } else if (_markedAllAsRead) {
+      // When "Mark all as read" is clicked, active views are cleared
+      displayedList = [];
+    } else {
+      // Active tabs only display unread notifications
+      switch (_selectedFilter) {
+        case 1:
+          displayedList = reservationsList.where((n) => n.hasUnread).toList();
+          break;
+        case 2:
+          displayedList = paymentsList.where((n) => n.hasUnread).toList();
+          break;
+        case 3:
+          displayedList = customerApprovalsList.where((n) => n.hasUnread).toList();
+          break;
+        default:
+          displayedList = unreadList;
+      }
+    }
+
+    final filters = [
+      'All',
+      'Reservations',
+      'Payments',
+      'Customer Approvals',
+      'History',
+    ];
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: dialogWidth,
+        height: dialogHeight,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 32,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // ── Modal Header: Deep Forest Emerald Gradient ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0B211D), Color(0xFF133831)],
+                ),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                border: Border(bottom: BorderSide(color: Color(0x33E6C374), width: 1.5)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6C374).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.4)),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_active_rounded,
+                      color: Color(0xFFE6C374),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'ADMIN NOTIFICATION HUB',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            if (!_markedAllAsRead && unreadList.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${unreadList.length} new',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Live activity feed for reservations, payments & customer requests',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFFCBD5E1),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                    tooltip: 'Close',
+                    splashRadius: 18,
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Filter Pills Bar (No Numbers) ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: List.generate(filters.length, (idx) {
+                    final isSelected = _selectedFilter == idx;
+                    final name = filters[idx];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => setState(() => _selectedFilter = idx),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF0B211D) : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFFE6C374) : const Color(0xFFCBD5E1),
+                                width: isSelected ? 1.4 : 1,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF0B211D).withValues(alpha: 0.15),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (idx == 4) ...[
+                                  Icon(
+                                    Icons.history_rounded,
+                                    size: 14,
+                                    color: isSelected ? const Color(0xFFE6C374) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Text(
+                                  name,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: isSelected ? const Color(0xFFE6C374) : const Color(0xFF475569),
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+
+            // ── Notifications Content List ──
+            Expanded(
+              child: displayedList.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: _selectedFilter != 4
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                                    : const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _selectedFilter != 4
+                                    ? Icons.done_all_rounded
+                                    : Icons.history_rounded,
+                                size: 38,
+                                color: _selectedFilter != 4
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              _selectedFilter != 4
+                                  ? 'All Caught Up!'
+                                  : 'No notification history yet',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF1E293B),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              _selectedFilter != 4
+                                  ? 'No unread notifications. All past notifications are safely kept in your History tab.'
+                                  : 'Past activity, approvals, and payments will appear here.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF64748B),
+                                fontSize: 12,
+                                height: 1.4,
+                              ),
+                            ),
+                            if (_selectedFilter != 4) ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedFilter = 4; // Switch to History
+                                  });
+                                },
+                                icon: const Icon(Icons.history_rounded, size: 16),
+                                label: const Text('View All History'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF14332E),
+                                  foregroundColor: const Color(0xFFE6C374),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      itemCount: displayedList.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = displayedList[index];
+                        final iconColor = _getColorForAction(item.actionType, item.eventType);
+                        final iconData = _getIconForAction(item.actionType, item.eventType);
+                        final title = _getTitleForAction(item.actionType, item.eventType);
+                        final subtitle = _getSubtitleForAction(item.raw, item.actionType, item.eventType);
+                        final actionHint = _getActionHint(item.actionType, item.eventType);
+                        final destTab = _getDestinationTab(item.actionType, item.eventType);
+
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (item.hasUnread && item.allIds.isNotEmpty) {
+                                NotificationService.markVisibleAsRead(item.allIds);
+                              }
+                              widget.onNavigateTab(destTab);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: item.hasUnread
+                                    ? iconColor.withValues(alpha: 0.04)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: item.hasUnread
+                                      ? iconColor.withValues(alpha: 0.35)
+                                      : const Color(0xFFE2E8F0),
+                                  width: item.hasUnread ? 1.3 : 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (item.hasUnread)
+                                    Container(
+                                      width: 3.5,
+                                      height: 38,
+                                      margin: const EdgeInsets.only(right: 10),
+                                      decoration: BoxDecoration(
+                                        color: iconColor,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  Container(
+                                    padding: const EdgeInsets.all(9),
+                                    decoration: BoxDecoration(
+                                      color: iconColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(iconData, color: iconColor, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      title,
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        color: const Color(0xFF0F172A),
+                                                        fontWeight: FontWeight.w800,
+                                                        fontSize: 13,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              _formatTimeAgo(item.latestCreatedAt),
+                                              style: GoogleFonts.plusJakartaSans(
+                                                color: const Color(0xFF94A3B8),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          subtitle,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            color: const Color(0xFF475569),
+                                            fontSize: 12,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              actionHint,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: iconColor,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.arrow_forward_rounded,
+                                              size: 12,
+                                              color: iconColor,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 18,
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            // ── Modal Footer Toolbar ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: Row(
+                children: [
+                  if (_markedAllAsRead || unreadList.isEmpty)
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'All marked as read',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed: _markAllAsRead,
+                      icon: const Icon(Icons.done_all_rounded, size: 16, color: Color(0xFF64748B)),
+                      label: Text(
+                        'Mark all as read',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14332E),
+                      foregroundColor: const Color(0xFFE6C374),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Animated Top Toast Notification Banner for Admin

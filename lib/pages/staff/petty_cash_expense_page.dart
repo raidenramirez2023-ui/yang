@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,8 +28,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
   String? _selectedStatusFilter; // null means 'All Active', or 'pending', 'approved', 'reimbursed', 'rejected', 'archived'
-  bool _isBannerCollapsed = false;
-  bool _isTableView = false; // Toggle between Manage Inventory Cards and Table view
+  bool _isTableView = true; // Toggle between Manage Inventory Cards and Table view
   String _selectedSort = 'newest'; // 'newest', 'oldest', 'highest', 'lowest'
   int _currentPage = 1;
   int _rowsPerPage = 25;
@@ -119,32 +119,67 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ══════════════════════════════════════════════════════════════════════════
-            // 1. TOP: REAL-TIME PETTY CASH TREASURY MONITOR BANNER (COLLAPSIBLE)
-            // Matching Manage Inventory's Live Monitor Banner
-            // ══════════════════════════════════════════════════════════════════════════
-            _buildTreasuryMonitorBanner(isMobile),
+            // ══════════════════════════════════════════════════════════════════
+            // 1. EXECUTIVE TOP HEADER (TITLE & PRIMARY ACTION BUTTON)
+            // ══════════════════════════════════════════════════════════════════
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 20,
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 20,
+                0,
+              ),
+              child: _buildExecutiveHeader(isMobile),
+            ),
 
-            // ══════════════════════════════════════════════════════════════════════════
-            // 2. SEARCH AND CATEGORY FILTER CARD
-            // Matching Manage Inventory's Search & Horizontal Category Pills Bar
-            // ══════════════════════════════════════════════════════════════════════════
-            _buildSearchAndFilterCard(isMobile),
+            // ══════════════════════════════════════════════════════════════════
+            // 2. TELEMETRY KPI METRIC CARDS (INTERACTIVE STATUS FILTERS)
+            // ══════════════════════════════════════════════════════════════════
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 20,
+                10,
+                isMobile ? 12 : 20,
+                0,
+              ),
+              child: _buildTelemetryCards(isMobile, isTablet),
+            ),
+
+            // ══════════════════════════════════════════════════════════════════
+            // 3. UNIFIED SEARCH & CATEGORY FILTER TOOLBAR
+            // ══════════════════════════════════════════════════════════════════
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 20,
+                10,
+                isMobile ? 12 : 20,
+                0,
+              ),
+              child: _buildFilterToolbar(isMobile),
+            ),
 
             if (_selectedStatusFilter != null || _selectedCategory != 'All' || _searchQuery.isNotEmpty)
-              _buildActiveFilterStrip(isMobile),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isMobile ? 12 : 20,
+                  6,
+                  isMobile ? 12 : 20,
+                  0,
+                ),
+                child: _buildActiveFilterStrip(isMobile),
+              ),
 
-            const SizedBox(height: 4),
-
-            // ══════════════════════════════════════════════════════════════════════════
-            // 3. EXPENSES STREAM VIEW (INVENTORY-STYLE CARDS GRID OR TABLE)
-            // ══════════════════════════════════════════════════════════════════════════
+            // ══════════════════════════════════════════════════════════════════
+            // 4. EXPENSES STREAM & SECTION HEADER (LEDGER + VIEW SWITCHER)
+            // ══════════════════════════════════════════════════════════════════
             Expanded(
               child: StreamBuilder<List<PettyCashExpense>>(
                 stream: _pettyCashService.streamExpenses(),
@@ -217,11 +252,8 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                   // Sort: Ensure newly requested petty cash appears first
                   filtered.sort((a, b) {
                     if (_selectedSort == 'newest') {
-                      // Primary: Submission time (createdAt) descending
-                      // Guarantees newly requested petty cash ("now nag request") is ALWAYS at the top!
                       final createdComp = b.createdAt.compareTo(a.createdAt);
                       if (createdComp != 0) return createdComp;
-                      // Secondary: expenseDate
                       return b.expenseDate.compareTo(a.expenseDate);
                     } else if (_selectedSort == 'newest_date') {
                       final expComp = b.expenseDate.compareTo(a.expenseDate);
@@ -243,15 +275,28 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                     return 0;
                   });
 
-                  if (filtered.isEmpty) {
-                    return _buildEmptyState(myExpenses.isEmpty);
-                  }
+                  final totalSum = filtered.fold<double>(0.0, (s, e) => s + e.amount);
 
-                  if (_isTableView && !isMobile) {
-                    return _buildTableView(filtered);
-                  }
-
-                  return _buildCardsGridView(filtered);
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isMobile ? 12 : 20,
+                          10,
+                          isMobile ? 12 : 20,
+                          4,
+                        ),
+                        child: _buildSectionHeader(filtered.length, totalSum, isMobile),
+                      ),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? _buildEmptyState(myExpenses.isEmpty)
+                            : (_isTableView && !isMobile)
+                                ? _buildTableView(filtered)
+                                : _buildCardsGridView(filtered),
+                      ),
+                    ],
+                  );
                 },
               ),
             ),
@@ -262,451 +307,451 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── 1. COLLAPSIBLE REAL-TIME TREASURY MONITOR BANNER ──────────────────────
-  // Identical gradient, typography, gold accents, and collapsible cards
+  // ── 1. EXECUTIVE TOP HEADER ───────────────────────────────────────────────
+  // Clean white surface, distinct icon, hierarchy, and prominent CTA button
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildTreasuryMonitorBanner(bool isMobile) {
-    return GestureDetector(
-      onTap: () => setState(() => _isBannerCollapsed = !_isBannerCollapsed),
-      child: Container(
-        margin: EdgeInsets.all(
-          isMobile ? 12 : 16,
-        ),
-        padding: EdgeInsets.all(
-          isMobile ? 12 : 16,
-        ),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F2C27),
-              Color(0xFF14332E),
-              Color(0xFF1D4A41),
-            ],
+  Widget _buildExecutiveHeader(bool isMobile) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 14 : 20,
+        vertical: isMobile ? 12 : 16,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF28564D),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F2C27).withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Banner Header (acts as collapse toggle)
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE6C374).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.account_balance_wallet_rounded,
-                    color: Color(0xFFE6C374),
-                    size: 18,
-                  ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Left Icon Accent Container
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF14332E),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF14332E)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.20),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Live Petty Cash Treasury Monitor',
-                        style: TextStyle(
-                          fontSize: 15,
+              ],
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Title & Description
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Petty Cash Treasury',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: isMobile ? 15 : 18,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.2,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.3,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        'Real-time automated treasury balance, claims & disbursement overview',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFFB0C8C3),
-                          height: 1.15,
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
-                  ),
-                ),
-                if (_selectedStatusFilter != null && !_isBannerCollapsed) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => setState(() => _selectedStatusFilter = null),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.filter_alt_off_rounded, size: 14, color: Color(0xFFE6C374)),
-                          SizedBox(width: 4),
-                          Text(
-                            'Reset Filter',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFFE6C374),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'DISBURSEMENT',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF475569),
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isMobile
+                      ? 'Request disbursements, track approvals & receipts.'
+                      : 'Real-time automated treasury balance, expense claims submission, approvals & disbursement overview.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-                const SizedBox(width: 8),
-                // Collapse / expand chevron
-                AnimatedRotation(
-                  turns: _isBannerCollapsed ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 220),
-                  child: const Icon(
-                    Icons.expand_less_rounded,
-                    color: Color(0xFFE6C374),
-                    size: 22,
-                  ),
+                  maxLines: isMobile ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
+          ),
 
-            // Collapsible stats section
-            AnimatedCrossFade(
-              firstChild: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  StreamBuilder<PettyCashFund?>(
-                    stream: _pettyCashService.streamPettyCashFund(),
-                    builder: (context, fundSnap) {
-                      return StreamBuilder<List<PettyCashExpense>>(
-                        stream: _pettyCashService.streamExpenses(),
-                        builder: (context, expSnap) {
-                          final fund = fundSnap.data;
-                          final allExpenses = expSnap.data ?? [];
-                          final user = Supabase.instance.client.auth.currentUser;
-                          final myExpenses = allExpenses.where((e) => e.purchasedBy == user?.email).toList();
+          const SizedBox(width: 12),
 
-                          final balance = fund?.currentBalance ?? 0.0;
-                          final activeExpenses = myExpenses.where((e) => !e.isArchived).toList();
-                          final archivedExpenses = myExpenses.where((e) => e.isArchived).toList();
-
-                          final pendingExpenses = activeExpenses.where((e) => e.status == 'pending').toList();
-                          final approvedExpenses = activeExpenses.where((e) => e.status == 'approved').toList();
-                          final reimbursedExpenses = activeExpenses.where((e) => e.status == 'reimbursed').toList();
-                          final rejectedExpenses = activeExpenses.where((e) => e.status == 'rejected').toList();
-
-                          final pendingCount = pendingExpenses.length;
-                          final approvedCount = approvedExpenses.length;
-                          final reimbursedCount = reimbursedExpenses.length;
-                          final rejectedCount = rejectedExpenses.length;
-                          final archivedCount = archivedExpenses.length;
-
-                          if (isMobile) {
-                            return Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    _buildRealisticStatCard(
-                                      label: 'AVAILABLE FUND',
-                                      count: '₱${NumberFormat('#,##0').format(balance)}',
-                                      statusKey: null,
-                                      accentColor: const Color(0xFF10B981),
-                                      icon: Icons.account_balance_wallet_rounded,
-                                      subtitle: fund?.isLowBalance == true ? 'Refill required' : 'Ready for cash',
-                                      isCurrency: true,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    _buildRealisticStatCard(
-                                      label: 'PENDING CLAIMS',
-                                      count: pendingCount.toString(),
-                                      statusKey: 'pending',
-                                      accentColor: const Color(0xFFF59E0B),
-                                      icon: Icons.warning_amber_rounded,
-                                      subtitle: 'Awaiting review',
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    _buildRealisticStatCard(
-                                      label: 'APPROVED',
-                                      count: approvedCount.toString(),
-                                      statusKey: 'approved',
-                                      accentColor: const Color(0xFF3B82F6),
-                                      icon: Icons.check_circle_rounded,
-                                      subtitle: 'Verified claims',
-                                    ),
-                                    const SizedBox(width: 8),
-                                    _buildRealisticStatCard(
-                                      label: 'REIMBURSED',
-                                      count: reimbursedCount.toString(),
-                                      statusKey: 'reimbursed',
-                                      accentColor: const Color(0xFF0D9488),
-                                      icon: Icons.verified_rounded,
-                                      subtitle: 'Settled payout',
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    _buildRealisticStatCard(
-                                      label: 'REJECTED',
-                                      count: rejectedCount.toString(),
-                                      statusKey: 'rejected',
-                                      accentColor: const Color(0xFFEF4444),
-                                      icon: Icons.cancel_outlined,
-                                      subtitle: 'Declined claims',
-                                    ),
-                                    const SizedBox(width: 8),
-                                    _buildRealisticStatCard(
-                                      label: 'ARCHIVED',
-                                      count: archivedCount.toString(),
-                                      statusKey: 'archived',
-                                      accentColor: const Color(0xFF64748B),
-                                      icon: Icons.archive_outlined,
-                                      subtitle: 'Archived records',
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            children: [
-                              _buildRealisticStatCard(
-                                label: 'AVAILABLE FUND',
-                                count: '₱${NumberFormat('#,##0.00').format(balance)}',
-                                statusKey: null,
-                                accentColor: const Color(0xFF10B981),
-                                icon: Icons.account_balance_wallet_rounded,
-                                subtitle: fund?.isLowBalance == true ? '⚠️ Refill required' : '🟢 Ready for cash',
-                                isCurrency: true,
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRealisticStatCard(
-                                label: 'PENDING REVIEW',
-                                count: pendingCount.toString(),
-                                statusKey: 'pending',
-                                accentColor: const Color(0xFFF59E0B),
-                                icon: Icons.warning_amber_rounded,
-                                subtitle: 'Waiting approval',
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRealisticStatCard(
-                                label: 'APPROVED CLAIMS',
-                                count: approvedCount.toString(),
-                                statusKey: 'approved',
-                                accentColor: const Color(0xFF3B82F6),
-                                icon: Icons.check_circle_rounded,
-                                subtitle: 'Ready for release',
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRealisticStatCard(
-                                label: 'REIMBURSED',
-                                count: reimbursedCount.toString(),
-                                statusKey: 'reimbursed',
-                                accentColor: const Color(0xFF0D9488),
-                                icon: Icons.verified_rounded,
-                                subtitle: 'Settled records',
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRealisticStatCard(
-                                label: 'REJECTED CLAIMS',
-                                count: rejectedCount.toString(),
-                                statusKey: 'rejected',
-                                accentColor: const Color(0xFFEF4444),
-                                icon: Icons.cancel_outlined,
-                                subtitle: 'Declined claims',
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRealisticStatCard(
-                                label: 'ARCHIVED',
-                                count: archivedCount.toString(),
-                                statusKey: 'archived',
-                                accentColor: const Color(0xFF64748B),
-                                icon: Icons.archive_outlined,
-                                subtitle: 'Archived records',
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
+          // Primary CTA Button: Record Expense
+          ElevatedButton.icon(
+            onPressed: _showAddExpenseDialog,
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.white),
+            label: Text(
+              isMobile ? 'Record' : 'Record Expense',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+                color: Colors.white,
               ),
-              secondChild: const SizedBox.shrink(),
-              crossFadeState: _isBannerCollapsed
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 220),
             ),
-          ],
-        ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF14332E),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 16,
+                vertical: isMobile ? 10 : 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildRealisticStatCard({
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── 2. TELEMETRY KPI METRIC CARDS ─────────────────────────────────────────
+  // Clean white cards matching Spoilage & Wastage, with active selection states
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildTelemetryCards(bool isMobile, bool isTablet) {
+    return StreamBuilder<PettyCashFund?>(
+      stream: _pettyCashService.streamPettyCashFund(),
+      builder: (context, fundSnap) {
+        return StreamBuilder<List<PettyCashExpense>>(
+          stream: _pettyCashService.streamExpenses(),
+          builder: (context, expSnap) {
+            final fund = fundSnap.data;
+            final allExpenses = expSnap.data ?? [];
+            final user = Supabase.instance.client.auth.currentUser;
+            final myExpenses = allExpenses.where((e) => e.purchasedBy == user?.email).toList();
+
+            final balance = fund?.currentBalance ?? 0.0;
+            final activeExpenses = myExpenses.where((e) => !e.isArchived).toList();
+            final archivedExpenses = myExpenses.where((e) => e.isArchived).toList();
+
+            final pendingCount = activeExpenses.where((e) => e.status == 'pending').length;
+            final approvedCount = activeExpenses.where((e) => e.status == 'approved').length;
+            final reimbursedCount = activeExpenses.where((e) => e.status == 'reimbursed').length;
+            final rejectedCount = activeExpenses.where((e) => e.status == 'rejected').length;
+            final archivedCount = archivedExpenses.length;
+
+            const Color emeraldColor = Color(0xFF059669);
+            const Color emeraldBg = Color(0xFFECFDF5);
+            const Color emeraldBorder = Color(0xFFA7F3D0);
+
+            const Color amberColor = Color(0xFFD97706);
+            const Color amberBg = Color(0xFFFFFBEB);
+            const Color amberBorder = Color(0xFFFDE68A);
+
+            const Color slateColor = Color(0xFF64748B);
+            const Color slateBg = Color(0xFFF1F5F9);
+            const Color slateBorder = Color(0xFFE2E8F0);
+
+            final cards = [
+              _buildSingleMetricCard(
+                label: 'AVAILABLE FUND',
+                value: '₱${NumberFormat('#,##0.00').format(balance)}',
+                subtitle: fund?.isLowBalance == true ? 'Refill required' : 'Ready for cash',
+                icon: Icons.account_balance_wallet_rounded,
+                accentColor: emeraldColor,
+                bgTint: emeraldBg,
+                borderTint: emeraldBorder,
+                statusKey: null,
+                isCurrency: true,
+              ),
+              _buildSingleMetricCard(
+                label: 'PENDING REVIEW',
+                value: '$pendingCount claim${pendingCount == 1 ? '' : 's'}',
+                subtitle: 'Awaiting review',
+                icon: Icons.hourglass_top_rounded,
+                accentColor: amberColor,
+                bgTint: amberBg,
+                borderTint: amberBorder,
+                statusKey: 'pending',
+              ),
+              _buildSingleMetricCard(
+                label: 'APPROVED CLAIMS',
+                value: '$approvedCount claim${approvedCount == 1 ? '' : 's'}',
+                subtitle: 'Ready for release',
+                icon: Icons.check_circle_outline_rounded,
+                accentColor: emeraldColor,
+                bgTint: emeraldBg,
+                borderTint: emeraldBorder,
+                statusKey: 'approved',
+              ),
+              _buildSingleMetricCard(
+                label: 'REIMBURSED',
+                value: '$reimbursedCount settled',
+                subtitle: 'Disbursed payout',
+                icon: Icons.payments_outlined,
+                accentColor: emeraldColor,
+                bgTint: emeraldBg,
+                borderTint: emeraldBorder,
+                statusKey: 'reimbursed',
+              ),
+              _buildSingleMetricCard(
+                label: 'REJECTED CLAIMS',
+                value: '$rejectedCount declined',
+                subtitle: 'Review reasons',
+                icon: Icons.cancel_outlined,
+                accentColor: slateColor,
+                bgTint: slateBg,
+                borderTint: slateBorder,
+                statusKey: 'rejected',
+              ),
+              _buildSingleMetricCard(
+                label: 'ARCHIVED',
+                value: '$archivedCount record${archivedCount == 1 ? '' : 's'}',
+                subtitle: 'Archived records',
+                icon: Icons.archive_outlined,
+                accentColor: slateColor,
+                bgTint: slateBg,
+                borderTint: slateBorder,
+                statusKey: 'archived',
+              ),
+            ];
+
+            if (isMobile) {
+              return SizedBox(
+                height: 82,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: cards.length,
+                  separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                  itemBuilder: (ctx, i) => SizedBox(
+                    width: 195,
+                    child: cards[i],
+                  ),
+                ),
+              );
+            }
+
+            if (isTablet) {
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: cards[0]),
+                      const SizedBox(width: 10),
+                      Expanded(child: cards[1]),
+                      const SizedBox(width: 10),
+                      Expanded(child: cards[2]),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: cards[3]),
+                      const SizedBox(width: 10),
+                      Expanded(child: cards[4]),
+                      const SizedBox(width: 10),
+                      Expanded(child: cards[5]),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            // Desktop: 6 Columns
+            return Row(
+              children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 10),
+                Expanded(child: cards[1]),
+                const SizedBox(width: 10),
+                Expanded(child: cards[2]),
+                const SizedBox(width: 10),
+                Expanded(child: cards[3]),
+                const SizedBox(width: 10),
+                Expanded(child: cards[4]),
+                const SizedBox(width: 10),
+                Expanded(child: cards[5]),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSingleMetricCard({
     required String label,
-    required String count,
-    required String? statusKey,
-    required Color accentColor,
-    required IconData icon,
+    required String value,
     required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required Color bgTint,
+    required Color borderTint,
+    required String? statusKey,
     bool isCurrency = false,
   }) {
     final isSelected = statusKey != null && _selectedStatusFilter == statusKey;
 
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: statusKey == null
-              ? null
-              : () {
-                  setState(() {
-                    if (_selectedStatusFilter == statusKey) {
-                      _selectedStatusFilter = null;
-                    } else {
-                      _selectedStatusFilter = statusKey;
-                      if (statusKey == 'pending') {
-                        _selectedSort = 'newest';
-                      }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: statusKey == null
+            ? null
+            : () {
+                setState(() {
+                  if (_selectedStatusFilter == statusKey) {
+                    _selectedStatusFilter = null;
+                  } else {
+                    _selectedStatusFilter = statusKey;
+                    if (statusKey == 'pending') {
+                      _selectedSort = 'newest';
                     }
-                  });
-                },
-          borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: EdgeInsets.symmetric(
-              horizontal: ResponsiveUtils.isMobile(context) ? 8 : 10,
-              vertical: ResponsiveUtils.isMobile(context) ? 6 : 8,
+                  }
+                  _currentPage = 1;
+                });
+              },
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? accentColor.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? accentColor : const Color(0xFFE2E8F0),
+              width: isSelected ? 1.6 : 1.0,
             ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isSelected
-                    ? [
-                        accentColor.withValues(alpha: 0.28),
-                        accentColor.withValues(alpha: 0.12),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.08),
-                        Colors.white.withValues(alpha: 0.03),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelected
-                    ? accentColor
-                    : Colors.white.withValues(alpha: 0.12),
-                width: isSelected ? 1.8 : 1.0,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: accentColor.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 6 : 8),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: isSelected ? 0.25 : 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: accentColor.withValues(alpha: 0.4),
-                      width: 1,
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.16),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isSelected ? accentColor : bgTint,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected ? accentColor : borderTint,
+                    width: 1.0,
                   ),
-                  child: Icon(icon, color: accentColor, size: ResponsiveUtils.isMobile(context) ? 14 : 18),
                 ),
-                SizedBox(width: ResponsiveUtils.isMobile(context) ? 8 : 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              count,
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : accentColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            label,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9.0,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected ? accentColor : const Color(0xFF64748B),
+                              letterSpacing: 0.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSelected)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: accentColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'ACTIVE',
                               style: TextStyle(
-                                fontSize: isCurrency
-                                    ? (ResponsiveUtils.isMobile(context) ? 12 : 14)
-                                    : (ResponsiveUtils.isMobile(context) ? 15 : 18),
-                                fontWeight: FontWeight.w900,
-                                color: isCurrency ? const Color(0xFFE6C374) : Colors.white,
-                                letterSpacing: -0.3,
+                                fontSize: 7.0,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (isSelected) ...[
-                            const SizedBox(width: 5),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: accentColor,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'ACTIVE',
-                                style: TextStyle(
-                                  fontSize: ResponsiveUtils.isMobile(context) ? 7 : 8,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: isCurrency ? 13.5 : 15,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF0F172A),
+                        letterSpacing: -0.3,
                       ),
-                      const SizedBox(height: 1),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.isMobile(context) ? 9.5 : 10,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : const Color(0xFFC7D6D3),
-                          letterSpacing: 0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 9.5,
+                        color: const Color(0xFF94A3B8),
+                        fontWeight: FontWeight.w500,
                       ),
-                    ],
-                  ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -714,26 +759,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── 2. SEARCH AND CATEGORY FILTER CARD ────────────────────────────────────
-  // Identical container styling, search bar, and horizontal category pills
+  // ── 3. SEARCH & CATEGORY FILTER TOOLBAR ───────────────────────────────────
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildSearchAndFilterCard(bool isMobile) {
+  Widget _buildFilterToolbar(bool isMobile) {
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 16,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.black,
-          width: 1.2,
-        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 10,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -741,273 +779,203 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search Row + Actions
+          // Row 1: Search Input + Sort Dropdown + Reset Button (if active)
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  style: const TextStyle(fontSize: 13, color: Colors.black),
-                  decoration: InputDecoration(
-                    hintText: 'Search expenses by description, supplier, item, or receipt #...',
-                    hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      color: Colors.black,
-                      size: 20,
-                    ),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, color: Colors.black, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                  ),
-                ),
-              ),
-
-              // View Toggle Button (Cards vs Table) & Actions Menu
-              const SizedBox(width: 8),
-              if (!isMobile) ...[
-                // View Mode Toggle Button
-                InkWell(
-                  onTap: () => setState(() => _isTableView = !_isTableView),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _isTableView ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.black, width: 1.0),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _isTableView ? Icons.grid_view_rounded : Icons.table_chart_rounded,
-                          size: 16,
-                          color: _isTableView ? Colors.white : Colors.black,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _isTableView ? 'Card View' : 'Table View',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _isTableView ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-
-              // Actions dropdown menu (matching Manage Inventory Actions button)
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'newest' || value == 'newest_date' || value == 'oldest' || value == 'highest' || value == 'lowest') {
-                    setState(() => _selectedSort = value);
-                  } else if (value == 'add') {
-                    _showAddExpenseDialog();
-                  } else if (value == 'filter_rejected') {
-                    setState(() {
-                      _selectedStatusFilter = 'rejected';
-                      _currentPage = 1;
-                    });
-                  } else if (value == 'filter_archive') {
-                    setState(() {
-                      _selectedStatusFilter = 'archived';
-                      _currentPage = 1;
-                    });
-                  } else if (value == 'reset') {
-                    setState(() {
-                      _searchController.clear();
-                      _searchQuery = '';
-                      _selectedCategory = 'All';
-                      _selectedStatusFilter = null;
-                      _selectedSort = 'newest';
-                    });
-                  }
-                },
-                offset: const Offset(0, 44),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                color: Colors.white,
-                elevation: 8,
-                itemBuilder: (context) => [
-                  const PopupMenuItem<String>(
-                    value: 'add',
-                    child: Row(children: [
-                      Icon(Icons.add_rounded, size: 16, color: Color(0xFF14332E)),
-                      SizedBox(width: 10),
-                      Text('Record New Expense', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                    ]),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
-                    value: 'filter_rejected',
-                    child: Row(children: [
-                      Icon(Icons.cancel_outlined, size: 16, color: Color(0xFFEF4444)),
-                      SizedBox(width: 10),
-                      Text('Filter: Rejected Claims', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
-                    ]),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'filter_archive',
-                    child: Row(children: [
-                      Icon(Icons.archive_outlined, size: 16, color: Color(0xFF64748B)),
-                      SizedBox(width: 10),
-                      Text('Filter: Archived Records', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    ]),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
-                    value: 'newest',
-                    child: Row(children: [
-                      Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF14332E)),
-                      SizedBox(width: 10),
-                      Text('Sort: Newest Request First', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                    ]),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'newest_date',
-                    child: Row(children: [
-                      Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF64748B)),
-                      SizedBox(width: 10),
-                      Text('Sort: Expense Date', style: TextStyle(fontSize: 13)),
-                    ]),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'highest',
-                    child: Row(children: [
-                      Icon(Icons.trending_up_rounded, size: 16, color: Color(0xFF64748B)),
-                      SizedBox(width: 10),
-                      Text('Sort: Amount (High to Low)', style: TextStyle(fontSize: 13)),
-                    ]),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'lowest',
-                    child: Row(children: [
-                      Icon(Icons.trending_down_rounded, size: 16, color: Color(0xFF64748B)),
-                      SizedBox(width: 10),
-                      Text('Sort: Amount (Low to High)', style: TextStyle(fontSize: 13)),
-                    ]),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
-                    value: 'reset',
-                    child: Row(children: [
-                      Icon(Icons.filter_alt_off_rounded, size: 16, color: Color(0xFFDC2626)),
-                      SizedBox(width: 10),
-                      Text('Reset All Filters', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFDC2626))),
-                    ]),
-                  ),
-                ],
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF14332E),
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.black, width: 1.0),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.tune_rounded, size: 16, color: Colors.white),
-                      SizedBox(width: 6),
-                      Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_drop_down_rounded, size: 18, color: Colors.white),
-                    ],
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() {
+                      _searchQuery = v;
+                      _currentPage = 1;
+                    }),
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: const Color(0xFF0F172A)),
+                    decoration: InputDecoration(
+                      hintText: isMobile
+                          ? 'Search expenses, item, or receipt #...'
+                          : 'Search expenses by description, supplier, item, or receipt #...',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 17, color: Color(0xFF64748B)),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? InkWell(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                  _currentPage = 1;
+                                });
+                              },
+                              child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
+              const SizedBox(width: 10),
 
-          // Horizontal Category Pills (1:1 with Manage Inventory)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: categories.map((category) {
-                final isSelected = _selectedCategory == category;
-                final catIcon = _getCategoryIcon(category);
+              // Sort Dropdown
+              Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedSort,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'newest',
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF14332E)),
+                            SizedBox(width: 6),
+                            Text('Newest Request', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'newest_date',
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
+                            SizedBox(width: 6),
+                            Text('Expense Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'highest',
+                        child: Row(
+                          children: [
+                            Icon(Icons.trending_up_rounded, size: 14, color: Color(0xFF64748B)),
+                            SizedBox(width: 6),
+                            Text('Amount (High)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'lowest',
+                        child: Row(
+                          children: [
+                            Icon(Icons.trending_down_rounded, size: 14, color: Color(0xFF64748B)),
+                            SizedBox(width: 6),
+                            Text('Amount (Low)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => _selectedSort = v);
+                      }
+                    },
+                  ),
+                ),
+              ),
 
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
+              if (_selectedStatusFilter != null || _selectedCategory != 'All' || _searchQuery.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'Reset All Filters',
                   child: InkWell(
                     onTap: () {
                       setState(() {
-                        _selectedCategory = category;
+                        _selectedStatusFilter = null;
+                        _selectedCategory = 'All';
+                        _searchQuery = '';
+                        _searchController.clear();
+                        _selectedSort = 'newest';
                         _currentPage = 1;
                       });
                     },
                     borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.filter_alt_off_rounded, size: 14, color: Color(0xFF475569)),
+                          SizedBox(width: 5),
+                          Text(
+                            'Reset',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Row 2: Category Pills
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: categories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                final icon = _getCategoryIcon(cat);
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => setState(() {
+                      _selectedCategory = cat;
+                      _currentPage = 1;
+                    }),
+                    borderRadius: BorderRadius.circular(8),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFF14332E)
-                            : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(10),
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Colors.black,
-                          width: 1.0,
+                          color: isSelected ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
                         ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: const Color(0xFF14332E).withValues(alpha: 0.25),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            catIcon,
-                            size: 14,
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.black,
+                            icon,
+                            size: 13,
+                            color: isSelected ? Colors.white : const Color(0xFF64748B),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            category,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: isSelected
-                                  ? Colors.white
-                                  : Colors.black,
+                            cat,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? Colors.white : const Color(0xFF334155),
                             ),
                           ),
                         ],
@@ -1023,10 +991,117 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── 4. SECTION HEADER (TITLE, BADGES, AND SEGMENTED VIEW SWITCHER) ────────
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildSectionHeader(int totalItems, double totalSum, bool isMobile) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Expense Claims Ledger',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: isMobile ? 14.5 : 16.5,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                '$totalItems record${totalItems == 1 ? '' : 's'}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+            ),
+            if (totalSum > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.payments_rounded, size: 12, color: Color(0xFF059669)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Total: ₱${NumberFormat('#,##0.00').format(totalSum)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF065F46),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+
+        // View Mode Toggle (Table vs Cards) for tablet/desktop
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Table Ledger View',
+                  icon: Icon(
+                    Icons.table_rows_rounded,
+                    size: 16,
+                    color: _isTableView ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+                  ),
+                  onPressed: () => setState(() => _isTableView = true),
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
+                ),
+                Container(width: 1, height: 16, color: const Color(0xFFE2E8F0)),
+                IconButton(
+                  tooltip: 'Cards View',
+                  icon: Icon(
+                    Icons.grid_view_rounded,
+                    size: 16,
+                    color: !_isTableView ? const Color(0xFF14332E) : const Color(0xFF94A3B8),
+                  ),
+                  onPressed: () => setState(() => _isTableView = false),
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── 5. ACTIVE FILTER NOTIFICATION STRIP ───────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildActiveFilterStrip(bool isMobile) {
     final isPending = _selectedStatusFilter == 'pending';
     final isRejected = _selectedStatusFilter == 'rejected';
-    final isArchive = _selectedStatusFilter == 'archive';
+    final isArchive = _selectedStatusFilter == 'archived' || _selectedStatusFilter == 'archive';
     final statusLabel = _selectedStatusFilter != null
         ? (_selectedStatusFilter == 'pending'
             ? 'Pending Review'
@@ -1034,18 +1109,13 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                 ? 'Approved Claims'
                 : _selectedStatusFilter == 'rejected'
                     ? 'Rejected Claims'
-                    : _selectedStatusFilter == 'archive'
-                        ? 'Archived Records (>30 Days)'
+                    : isArchive
+                        ? 'Archived Records'
                         : 'Reimbursed / Settled')
         : null;
 
-    final bgColor = isPending
-        ? const Color(0xFFFEF3C7)
-        : isRejected
-            ? const Color(0xFFFEE2E2)
-            : const Color(0xFFF1F5F9);
     final iconData = isPending
-        ? Icons.pending_actions_rounded
+        ? Icons.hourglass_empty_rounded
         : isRejected
             ? Icons.cancel_outlined
             : isArchive
@@ -1053,22 +1123,18 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                 : Icons.filter_alt_rounded;
 
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 16,
-        vertical: 4,
-      ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black, width: 1.0),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
       ),
       child: Row(
         children: [
           Icon(
             iconData,
             size: 15,
-            color: Colors.black,
+            color: const Color(0xFF475569),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1083,7 +1149,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
               style: const TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: Color(0xFF1E293B),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1097,6 +1163,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                 _searchQuery = '';
                 _searchController.clear();
                 _selectedSort = 'newest';
+                _currentPage = 1;
               });
             },
             child: Container(
@@ -1104,16 +1171,16 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.black, width: 0.8),
+                border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.close_rounded, size: 12, color: Colors.black),
+                  Icon(Icons.close_rounded, size: 12, color: Color(0xFF64748B)),
                   SizedBox(width: 3),
                   Text(
                     'Reset',
-                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.black),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                   ),
                 ],
               ),
@@ -1152,9 +1219,11 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
         final double childAspectRatio = cardWidth / targetHeight;
 
         return Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: ResponsiveUtils.isMobile(context) ? 12 : 16,
-            vertical: 10,
+          padding: EdgeInsets.fromLTRB(
+            ResponsiveUtils.isMobile(context) ? 12 : 20,
+            0,
+            ResponsiveUtils.isMobile(context) ? 12 : 20,
+            12,
           ),
           child: GridView.builder(
             physics: const BouncingScrollPhysics(),
@@ -1197,12 +1266,12 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.black,
-          width: 1.2,
+          color: const Color(0xFFE2E8F0),
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -1231,7 +1300,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.8),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1264,7 +1333,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFD97706).withValues(alpha: 0.28),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.6), width: 0.8),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1292,7 +1361,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 0.8),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1319,7 +1388,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: Colors.black, width: 0.8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 0.8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1455,9 +1524,9 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.black, width: 0.8),
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                             ),
-                            child: Icon(categoryIcon, size: 17, color: Colors.black),
+                            child: Icon(categoryIcon, size: 17, color: const Color(0xFF475569)),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -1470,7 +1539,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 13.5,
-                                    color: Colors.black,
+                                    color: Color(0xFF0F172A),
                                     letterSpacing: -0.2,
                                   ),
                                   maxLines: 1,
@@ -1485,7 +1554,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                           'Vendor: $supplier',
                                           style: const TextStyle(
                                             fontSize: 11,
-                                            color: Colors.black,
+                                            color: Color(0xFF64748B),
                                             fontWeight: FontWeight.w600,
                                           ),
                                           maxLines: 1,
@@ -1493,7 +1562,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                         ),
                                       ),
                                       const SizedBox(width: 5),
-                                      const Text('•', style: TextStyle(color: Colors.black, fontSize: 10)),
+                                      const Text('•', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10)),
                                       const SizedBox(width: 5),
                                     ],
                                     Flexible(
@@ -1503,7 +1572,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                             : DateFormat('MMM d, yyyy').format(expense.createdAt),
                                         style: TextStyle(
                                           fontSize: 10.5,
-                                          color: Colors.black,
+                                          color: const Color(0xFF64748B),
                                           fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                                         ),
                                         maxLines: 1,
@@ -1523,7 +1592,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF14332E),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.black, width: 1.0),
+                              border: Border.all(color: const Color(0x33E6C374), width: 1.0),
                               boxShadow: [
                                 BoxShadow(
                                   color: const Color(0xFF14332E).withValues(alpha: 0.2),
@@ -1540,7 +1609,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                      color: Colors.white70,
                                     ),
                                   ),
                                   TextSpan(
@@ -1548,7 +1617,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w900,
-                                      color: Colors.white,
+                                      color: Color(0xFFE6C374),
                                       letterSpacing: -0.2,
                                     ),
                                   ),
@@ -1570,19 +1639,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(5),
-                                border: Border.all(color: Colors.black, width: 0.8),
+                                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.inventory_2_rounded, size: 10, color: Colors.black),
+                                  const Icon(Icons.inventory_2_rounded, size: 10, color: Color(0xFF64748B)),
                                   const SizedBox(width: 3),
                                   Text(
                                     '${item.itemName} ×${item.quantity}',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.black,
+                                      color: Color(0xFF334155),
                                     ),
                                   ),
                                 ],
@@ -1596,19 +1665,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: Colors.black, width: 0.8),
+                            border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.inventory_2_rounded, size: 11, color: Colors.black),
+                              const Icon(Icons.inventory_2_rounded, size: 11, color: Color(0xFF64748B)),
                               const SizedBox(width: 4),
                               Text(
                                 '${expense.inventoryItemName!} ×${expense.quantityPurchased ?? 1}',
                                 style: const TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.black,
+                                  color: Color(0xFF334155),
                                 ),
                               ),
                             ],
@@ -1621,7 +1690,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                               : 'Disbursed by ${expense.purchasedBy.split('@').first}',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: Colors.black,
+                            color: Color(0xFF64748B),
                             fontStyle: FontStyle.italic,
                           ),
                           maxLines: 1,
@@ -1636,14 +1705,14 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               receiptNum?.isNotEmpty == true ? Icons.receipt_outlined : Icons.calendar_today_outlined,
                               size: 12,
-                              color: Colors.black,
+                              color: const Color(0xFF64748B),
                             ),
                             const SizedBox(width: 5),
                             Expanded(
@@ -1655,7 +1724,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                         : 'Expense Date: ${DateFormat('EEE, MMM d, yyyy').format(expense.expenseDate)}'),
                                 style: const TextStyle(
                                   fontSize: 10.5,
-                                  color: Colors.black,
+                                  color: Color(0xFF475569),
                                   fontWeight: FontWeight.w600,
                                 ),
                                 maxLines: 1,
@@ -1671,19 +1740,19 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF0D9488).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.black, width: 0.8),
+                                    border: Border.all(color: const Color(0xFF0D9488).withValues(alpha: 0.3), width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.photo_rounded, size: 10, color: Colors.black),
+                                      Icon(Icons.photo_rounded, size: 10, color: Color(0xFF0D9488)),
                                       SizedBox(width: 3),
                                       Text(
                                         'PHOTO',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Colors.black,
+                                          color: Color(0xFF0D9488),
                                         ),
                                       ),
                                     ],
@@ -1699,21 +1768,21 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                    color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: Colors.black, width: 0.8),
+                                    border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.edit_rounded, size: 10, color: Colors.black),
+                                      Icon(Icons.edit_rounded, size: 10, color: Color(0xFF334155)),
                                       SizedBox(width: 3),
                                       Text(
                                         'EDIT',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Colors.black,
+                                          color: Color(0xFF334155),
                                         ),
                                       ),
                                     ],
@@ -1727,21 +1796,21 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                                    color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: Colors.black, width: 0.8),
+                                    border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.unarchive_rounded, size: 10, color: Colors.black),
+                                      Icon(Icons.unarchive_rounded, size: 10, color: Color(0xFF334155)),
                                       SizedBox(width: 3),
                                       Text(
                                         'RESTORE',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Colors.black,
+                                          color: Color(0xFF334155),
                                         ),
                                       ),
                                     ],
@@ -1755,21 +1824,21 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF64748B).withValues(alpha: 0.1),
+                                    color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: Colors.black, width: 0.8),
+                                    border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.archive_outlined, size: 10, color: Colors.black),
+                                      Icon(Icons.archive_outlined, size: 10, color: Color(0xFF475569)),
                                       SizedBox(width: 3),
                                       Text(
                                         'ARCHIVE',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w800,
-                                          color: Colors.black,
+                                          color: Color(0xFF475569),
                                         ),
                                       ),
                                     ],
@@ -1850,739 +1919,803 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
       startIndex < totalItems ? startIndex : 0,
       endIndex <= totalItems ? endIndex : totalItems,
     );
-    final totalSum = expenses.fold<double>(0.0, (s, e) => s + e.amount);
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.fromLTRB(
+        isMobile ? 12 : 20,
+        0,
+        isMobile ? 12 : 20,
+        12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black, width: 1.2),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // ── 1. TABLE SUMMARY TOP BAR ──
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-              border: Border(bottom: BorderSide(color: Colors.black, width: 0.8)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '$totalItems Record${totalItems == 1 ? '' : 's'} Listed',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Colors.black),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE2E8F0),
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: Colors.black, width: 0.8),
-                      ),
-                      child: Text(
-                        'Page $_currentPage of $totalPages',
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.black),
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF14332E),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black, width: 1.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF14332E).withValues(alpha: 0.18),
-                        blurRadius: 5,
-                        offset: const Offset(0, 1.5),
-                      ),
-                    ],
-                  ),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        const TextSpan(
-                          text: 'Total: ',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '₱${NumberFormat('#,##0.00').format(totalSum)}',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── 2. SCROLLABLE LEDGER WITH COLUMN HEADERS ──
-          Expanded(
-            child: Scrollbar(
-              controller: _tableHorizontalScrollController,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          children: [
+            // ── SCROLLABLE LEDGER WITH COLUMN HEADERS ──
+            Expanded(
+              child: Scrollbar(
                 controller: _tableHorizontalScrollController,
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: SizedBox(
-                  width: 1260,
-                  child: Column(
-                    children: [
-                      // ── STICKY COLUMN HEADERS ROW ──
-                      Container(
-                        height: 40,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: const BoxDecoration(
-                          color: Colors.transparent,
-                          border: Border(
-                            bottom: BorderSide(color: Colors.black, width: 1.0),
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _tableHorizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: 1260,
+                    child: Column(
+                      children: [
+                        // ── STICKY COLUMN HEADERS ROW ──
+                        Container(
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            border: Border(
+                              bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
+                            ),
+                          ),
+                          child: const Row(
+                            children: [
+                              SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'EXPENSE DATE',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 150,
+                                child: Text(
+                                  'CATEGORY',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 260,
+                                child: Text(
+                                  'PARTICULARS / ITEM',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 160,
+                                child: Text(
+                                  'MERCHANT / STORE',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'OR / RECEIPT #',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 130,
+                                child: Text(
+                                  'AMOUNT',
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'STATUS',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 100,
+                                child: Text(
+                                  'ACTIONS',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: const Row(
-                          children: [
-                            SizedBox(
-                              width: 140,
-                              child: Text(
-                                'EXPENSE DATE',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 150,
-                              child: Text(
-                                'CATEGORY',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 260,
-                              child: Text(
-                                'PARTICULARS / ITEM',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 160,
-                              child: Text(
-                                'MERCHANT / STORE',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 140,
-                              child: Text(
-                                'OR / RECEIPT #',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 130,
-                              child: Text(
-                                'AMOUNT',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 140,
-                              child: Text(
-                                'STATUS',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 90,
-                              child: Text(
-                                'ACTIONS',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
-                      // ── LEDGER DATA ROWS ──
-                      Expanded(
-                        child: ListView.separated(
-                          controller: _tableVerticalScrollController,
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.only(bottom: 70),
-                          itemCount: paginated.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black),
-                          itemBuilder: (context, index) {
-                            final item = paginated[index];
-                            final status = item.status.toLowerCase().trim();
-                            final statusIcon = _getStatusIcon(status, isAbono: item.isAbono);
-                            final categoryIcon = _getCategoryIcon(item.categoryDisplay);
-                            final now = DateTime.now();
-                            final isItemToday = item.createdAt.year == now.year &&
-                                item.createdAt.month == now.month &&
-                                item.createdAt.day == now.day;
-                            final isItemRecent = isItemToday || now.difference(item.createdAt).inHours < 24;
+                        // ── LEDGER DATA ROWS ──
+                        Expanded(
+                          child: ListView.separated(
+                            controller: _tableVerticalScrollController,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 70),
+                            itemCount: paginated.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            itemBuilder: (context, index) {
+                              final item = paginated[index];
+                              final status = item.status.toLowerCase().trim();
+                              final statusIcon = _getStatusIcon(status, isAbono: item.isAbono);
+                              final categoryIcon = _getCategoryIcon(item.categoryDisplay);
+                              final now = DateTime.now();
+                              final isItemToday = item.createdAt.year == now.year &&
+                                  item.createdAt.month == now.month &&
+                                  item.createdAt.day == now.day;
+                              final isItemRecent = isItemToday || now.difference(item.createdAt).inHours < 24;
 
-                            // Status title and styling
-                            String statusTitle;
-                            Color statusBg;
-                            Color statusText;
-                            switch (status) {
-                              case 'reimbursed':
-                                statusTitle = item.isAbono ? 'REIMBURSED TO STAFF' : 'REIMBURSED';
-                                statusBg = const Color(0xFFF0FDFA);
-                                statusText = const Color(0xFF0F766E);
-                                break;
-                              case 'approved':
-                                statusTitle = item.isAbono ? 'WAITING CASH' : 'APPROVED';
-                                statusBg = const Color(0xFFECFDF5);
-                                statusText = const Color(0xFF047857);
-                                break;
-                              case 'rejected':
-                                statusTitle = 'REJECTED';
-                                statusBg = const Color(0xFFFEF2F2);
-                                statusText = const Color(0xFFB91C1C);
-                                break;
-                              case 'pending':
-                              default:
-                                statusTitle = 'PENDING REVIEW';
-                                statusBg = const Color(0xFFFFFBEB);
-                                statusText = const Color(0xFFB45309);
-                                break;
-                            }
+                              // Status title and styling
+                              String statusTitle;
+                              Color statusBg;
+                              Color statusText;
+                              Color statusBorder;
+                              switch (status) {
+                                case 'reimbursed':
+                                  statusTitle = item.isAbono ? 'REIMBURSED TO STAFF' : 'REIMBURSED';
+                                  statusBg = const Color(0xFFF0FDFA);
+                                  statusText = const Color(0xFF0F766E);
+                                  statusBorder = const Color(0xFF99F6E4);
+                                  break;
+                                case 'approved':
+                                  statusTitle = item.isAbono ? 'WAITING CASH' : 'APPROVED';
+                                  statusBg = const Color(0xFFECFDF5);
+                                  statusText = const Color(0xFF047857);
+                                  statusBorder = const Color(0xFFA7F3D0);
+                                  break;
+                                case 'rejected':
+                                  statusTitle = 'REJECTED';
+                                  statusBg = const Color(0xFFFEF2F2);
+                                  statusText = const Color(0xFFB91C1C);
+                                  statusBorder = const Color(0xFFFECACA);
+                                  break;
+                                case 'pending':
+                                default:
+                                  statusTitle = 'PENDING REVIEW';
+                                  statusBg = const Color(0xFFFFFBEB);
+                                  statusText = const Color(0xFFB45309);
+                                  statusBorder = const Color(0xFFFDE68A);
+                                  break;
+                              }
 
-                            final hasSupplier = item.supplier != null && item.supplier!.trim().isNotEmpty;
-                            final hasReceipt = item.receiptNumber != null && item.receiptNumber!.trim().isNotEmpty;
+                              final hasSupplier = item.supplier != null && item.supplier!.trim().isNotEmpty;
+                              final hasReceipt = item.receiptNumber != null && item.receiptNumber!.trim().isNotEmpty;
 
-                            return Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _showExpenseDetailsModal(item),
-                                hoverColor: const Color(0xFFF1F5F9),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  child: Row(
-                                    children: [
-                                      // 1. Expense Date
-                                      SizedBox(
-                                        width: 140,
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  DateFormat('MMM d, yyyy').format(item.expenseDate),
-                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black),
-                                                ),
-                                                if (status == 'pending' && isItemRecent) ...[
-                                                  const SizedBox(width: 4),
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white,
-                                                      borderRadius: BorderRadius.circular(4),
-                                                      border: Border.all(color: Colors.black, width: 0.8),
-                                                    ),
-                                                    child: const Text(
-                                                      'NEW',
-                                                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.black),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.schedule_rounded,
-                                                  size: 11,
-                                                  color: Colors.black,
-                                                ),
-                                                const SizedBox(width: 3),
-                                                Text(
-                                                  isItemToday
-                                                      ? 'Req: Today, ${DateFormat('h:mm a').format(item.createdAt)}'
-                                                      : 'Req: ${DateFormat('MMM d, h:mm a').format(item.createdAt)}',
-                                                  style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.black,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // 2. Category
-                                      SizedBox(
-                                        width: 150,
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF1F5F9),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: Colors.black, width: 0.8),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _showExpenseDetailsModal(item),
+                                  hoverColor: const Color(0xFFF8FAFC),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        // 1. Expense Date
+                                        SizedBox(
+                                          width: 140,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Row(
                                                 children: [
-                                                  Icon(categoryIcon, size: 11.5, color: Colors.black),
-                                                  const SizedBox(width: 4),
                                                   Text(
-                                                    item.categoryDisplay,
-                                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
-                                                    overflow: TextOverflow.ellipsis,
+                                                    DateFormat('MMM d, yyyy').format(item.expenseDate),
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
                                                   ),
+                                                  if (status == 'pending' && isItemRecent) ...[
+                                                    const SizedBox(width: 5),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFEFF6FF),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                        border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
+                                                      ),
+                                                      child: const Text(
+                                                        'NEW',
+                                                        style: TextStyle(
+                                                          fontSize: 8.5,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: Color(0xFF1D4ED8),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ],
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // 3. Particulars / Description
-                                      SizedBox(
-                                        width: 260,
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              item.description,
-                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                            ),
-                                            if (item.isMultiItemExpense && item.inventoryItems != null && item.inventoryItems!.isNotEmpty) ...[
                                               const SizedBox(height: 2),
-                                              Text(
-                                                '📦 ${item.inventoryItems!.length} item(s): ${item.inventoryItems!.first.itemName}',
-                                                style: const TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w600),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
-                                              ),
-                                            ] else if (item.inventoryItemName != null) ...[
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Item: ${item.inventoryItemName!} ×${item.quantityPurchased ?? 1}',
-                                                style: const TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w600),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
-                                              ),
-                                            ] else if (item.notes?.isNotEmpty == true) ...[
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Note: ${item.notes!}',
-                                                style: const TextStyle(fontSize: 10.5, color: Colors.black, fontStyle: FontStyle.italic),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.schedule_rounded,
+                                                    size: 11,
+                                                    color: Color(0xFF94A3B8),
+                                                  ),
+                                                  const SizedBox(width: 3.5),
+                                                  Text(
+                                                    isItemToday
+                                                        ? 'Req: Today, ${DateFormat('h:mm a').format(item.createdAt)}'
+                                                        : 'Req: ${DateFormat('MMM d, h:mm a').format(item.createdAt)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: Color(0xFF64748B),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
-                                          ],
+                                          ),
                                         ),
-                                      ),
 
-                                      // 4. Merchant / Store
-                                      SizedBox(
-                                        width: 160,
-                                        child: hasSupplier
-                                            ? Row(
-                                                children: [
-                                                  const Icon(Icons.storefront_outlined, size: 13, color: Colors.black),
-                                                  const SizedBox(width: 5),
-                                                  Expanded(
-                                                    child: Text(
-                                                      item.supplier!,
-                                                      style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w600),
+                                        // 2. Category
+                                        SizedBox(
+                                          width: 150,
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF1F5F9),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(categoryIcon, size: 11.5, color: const Color(0xFF475569)),
+                                                    const SizedBox(width: 4.5),
+                                                    Text(
+                                                      item.categoryDisplay,
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Color(0xFF334155),
+                                                      ),
                                                       overflow: TextOverflow.ellipsis,
                                                     ),
-                                                  ),
-                                                ],
-                                              )
-                                            : const Row(
-                                                children: [
-                                                  Icon(Icons.storefront_outlined, size: 12, color: Colors.black),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Direct Purchase',
-                                                    style: TextStyle(fontSize: 11, color: Colors.black, fontStyle: FontStyle.italic),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
-                                      ),
+                                            ],
+                                          ),
+                                        ),
 
-                                      // 5. OR / Receipt #
-                                      SizedBox(
-                                        width: 140,
-                                        child: hasReceipt
-                                            ? Row(
-                                                children: [
-                                                  Flexible(
-                                                    child: Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFFF1F5F9),
-                                                        borderRadius: BorderRadius.circular(4),
-                                                        border: Border.all(color: Colors.black, width: 0.8),
-                                                      ),
+                                        // 3. Particulars / Description
+                                        SizedBox(
+                                          width: 260,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                item.description,
+                                                style: const TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF0F172A),
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                              if (item.isMultiItemExpense && item.inventoryItems != null && item.inventoryItems!.isNotEmpty) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '📦 ${item.inventoryItems!.length} item(s): ${item.inventoryItems!.first.itemName}',
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    color: Color(0xFF475569),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                ),
+                                              ] else if (item.inventoryItemName != null) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Item: ${item.inventoryItemName!} ×${item.quantityPurchased ?? 1}',
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    color: Color(0xFF475569),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                ),
+                                              ] else if (item.notes?.isNotEmpty == true) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Note: ${item.notes!}',
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    color: Color(0xFF64748B),
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+
+                                        // 4. Merchant / Store
+                                        SizedBox(
+                                          width: 160,
+                                          child: hasSupplier
+                                              ? Row(
+                                                  children: [
+                                                    const Icon(Icons.storefront_outlined, size: 13, color: Color(0xFF64748B)),
+                                                    const SizedBox(width: 5),
+                                                    Expanded(
                                                       child: Text(
-                                                        item.isNonOr ? '🏷️ Non-OR #${item.receiptNumber}' : '#${item.receiptNumber}',
+                                                        item.supplier!,
                                                         style: const TextStyle(
-                                                          fontSize: 10.5,
-                                                          color: Colors.black,
-                                                          fontWeight: FontWeight.w700,
+                                                          fontSize: 11.5,
+                                                          color: Color(0xFF1E293B),
+                                                          fontWeight: FontWeight.w600,
                                                         ),
                                                         overflow: TextOverflow.ellipsis,
                                                       ),
                                                     ),
-                                                  ),
-                                                  if (item.receiptImageUrl != null) ...[
-                                                    const SizedBox(width: 4),
-                                                    InkWell(
-                                                      onTap: () => _showReceiptLightbox(item.receiptImageUrl!),
-                                                      child: const Icon(Icons.photo_library_outlined, size: 13, color: Colors.black),
+                                                  ],
+                                                )
+                                              : const Row(
+                                                  children: [
+                                                    Icon(Icons.storefront_outlined, size: 12, color: Color(0xFF94A3B8)),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'Direct Purchase',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Color(0xFF94A3B8),
+                                                        fontStyle: FontStyle.italic,
+                                                      ),
                                                     ),
                                                   ],
-                                                ],
-                                              )
-                                            : const Text(
-                                                'No Receipt #',
-                                                style: TextStyle(fontSize: 11, color: Colors.black, fontStyle: FontStyle.italic),
-                                              ),
-                                      ),
+                                                ),
+                                        ),
 
-                                      // 6. Amount
-                                      SizedBox(
-                                        width: 130,
-                                        child: Text(
-                                          '₱${NumberFormat('#,##0.00').format(item.amount)}',
-                                          textAlign: TextAlign.right,
-                                          style: const TextStyle(
-                                            fontSize: 13.5,
-                                            fontWeight: FontWeight.w900,
-                                            color: Colors.black,
-                                            letterSpacing: -0.2,
+                                        // 5. OR / Receipt #
+                                        SizedBox(
+                                          width: 140,
+                                          child: hasReceipt
+                                              ? Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFFF8FAFC),
+                                                          borderRadius: BorderRadius.circular(4),
+                                                          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                                                        ),
+                                                        child: Text(
+                                                          item.isNonOr ? '🏷️ Non-OR #${item.receiptNumber}' : '#${item.receiptNumber}',
+                                                          style: const TextStyle(
+                                                            fontSize: 10.5,
+                                                            color: Color(0xFF475569),
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (item.receiptImageUrl != null) ...[
+                                                      const SizedBox(width: 5),
+                                                      InkWell(
+                                                        onTap: () => _showReceiptLightbox(item.receiptImageUrl!),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                        child: const Padding(
+                                                          padding: EdgeInsets.all(2),
+                                                          child: Icon(Icons.photo_library_outlined, size: 14, color: Color(0xFF14332E)),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                )
+                                              : const Text(
+                                                  'No Receipt #',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Color(0xFF94A3B8),
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                ),
+                                        ),
+
+                                        // 6. Amount
+                                        SizedBox(
+                                          width: 130,
+                                          child: Text(
+                                            '₱${NumberFormat('#,##0.00').format(item.amount)}',
+                                            textAlign: TextAlign.right,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF0F172A),
+                                              letterSpacing: -0.2,
+                                            ),
                                           ),
                                         ),
-                                      ),
 
-                                      // 7. Status
-                                      SizedBox(
-                                        width: 140,
-                                        child: Center(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: statusBg,
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(color: Colors.black, width: 0.8),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(statusIcon, size: 10.5, color: statusText),
-                                                const SizedBox(width: 3.5),
-                                                Flexible(
-                                                  child: Text(
-                                                    statusTitle,
-                                                    textAlign: TextAlign.center,
-                                                    style: TextStyle(
-                                                      fontSize: 9,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: statusText,
-                                                      letterSpacing: 0.2,
+                                        // 7. Status
+                                        SizedBox(
+                                          width: 140,
+                                          child: Center(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                              decoration: BoxDecoration(
+                                                color: statusBg,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: statusBorder, width: 1.0),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(statusIcon, size: 10.5, color: statusText),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      statusTitle,
+                                                      textAlign: TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontSize: 9.5,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: statusText,
+                                                        letterSpacing: 0.2,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
-                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+
+                                        // 8. Actions
+                                        SizedBox(
+                                          width: 100,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              // Inspect Details
+                                              Tooltip(
+                                                message: 'Inspect Claim',
+                                                child: InkWell(
+                                                  onTap: () => _showExpenseDetailsModal(item),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  child: Container(
+                                                    width: 28,
+                                                    height: 28,
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFF8FAFC),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.visibility_outlined,
+                                                      size: 15,
+                                                      color: Color(0xFF475569),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              // Edit if pending
+                                              if (status == 'pending') ...[
+                                                Tooltip(
+                                                  message: 'Edit Claim',
+                                                  child: InkWell(
+                                                    onTap: () => _editExpense(item),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    child: Container(
+                                                      width: 28,
+                                                      height: 28,
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFF8FAFC),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.edit_outlined,
+                                                        size: 14,
+                                                        color: Color(0xFF475569),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else if (item.isArchived) ...[
+                                                Tooltip(
+                                                  message: 'Restore from Archive',
+                                                  child: InkWell(
+                                                    onTap: () => _toggleArchiveExpense(item),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    child: Container(
+                                                      width: 28,
+                                                      height: 28,
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFF8FAFC),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.unarchive_rounded,
+                                                        size: 14,
+                                                        color: Color(0xFF475569),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else if (status == 'approved' || status == 'reimbursed') ...[
+                                                Tooltip(
+                                                  message: 'Archive Record',
+                                                  child: InkWell(
+                                                    onTap: () => _toggleArchiveExpense(item),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    child: Container(
+                                                      width: 28,
+                                                      height: 28,
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFF8FAFC),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.archive_outlined,
+                                                        size: 14,
+                                                        color: Color(0xFF475569),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else ...[
+                                                Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFF8FAFC),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.lock_outline_rounded,
+                                                    size: 13,
+                                                    color: Color(0xFF94A3B8),
                                                   ),
                                                 ),
                                               ],
-                                            ),
+                                            ],
                                           ),
                                         ),
-                                      ),
-
-                                      // 8. Actions
-                                      SizedBox(
-                                        width: 100,
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            // Inspect Details
-                                            IconButton(
-                                              icon: const Icon(Icons.visibility_outlined, size: 16, color: Colors.black),
-                                              tooltip: 'Inspect Claim',
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              onPressed: () => _showExpenseDetailsModal(item),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            // Edit if pending
-                                            if (status == 'pending') ...[
-                                              IconButton(
-                                                icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.black),
-                                                tooltip: 'Edit Claim',
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                onPressed: () => _editExpense(item),
-                                              ),
-                                            ] else if (item.isArchived) ...[
-                                              IconButton(
-                                                icon: const Icon(Icons.unarchive_rounded, size: 16, color: Colors.black),
-                                                tooltip: 'Restore from Archive',
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                onPressed: () => _toggleArchiveExpense(item),
-                                              ),
-                                            ] else if (status == 'approved' || status == 'reimbursed') ...[
-                                              IconButton(
-                                                icon: const Icon(Icons.archive_outlined, size: 16, color: Colors.black),
-                                                tooltip: 'Archive Record',
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                onPressed: () => _toggleArchiveExpense(item),
-                                              ),
-                                            ] else ...[
-                                              const Icon(Icons.lock_outline_rounded, size: 15, color: Colors.black),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── 3. ENTERPRISE PAGINATION & FOOTER TOOLBAR ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
+              ),
+              child: Row(
+                children: [
+                  // Record count status
+                  Text(
+                    'Showing ${startIndex + 1}–$endIndex of $totalItems expenses',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Rows per page selector
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Rows: ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── 3. ENTERPRISE PAGINATION & FOOTER TOOLBAR ──
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              border: Border(top: BorderSide(color: Colors.black, width: 0.8)),
-            ),
-            child: Row(
-              children: [
-                // Record count status
-                Text(
-                  'Showing ${startIndex + 1}–$endIndex of $totalItems expenses',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const Spacer(),
-                // Rows per page selector
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Rows: ', style: TextStyle(fontSize: 11, color: Colors.black, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 4),
-                    ...[15, 25, 50].map((size) {
-                      final isSelected = _rowsPerPage == size;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _rowsPerPage = size;
-                              _currentPage = 1;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF14332E) : Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.black, width: 1.0),
-                            ),
-                            child: Text(
-                              size.toString(),
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: isSelected ? Colors.white : Colors.black,
+                      const SizedBox(width: 4),
+                      ...[15, 25, 50].map((size) {
+                        final isSelected = _rowsPerPage == size;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _rowsPerPage = size;
+                                _currentPage = 1;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(5),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFF14332E) : Colors.white,
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFF14332E) : const Color(0xFFCBD5E1),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Text(
+                                size.toString(),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                // Pagination controls: Prev / Next
-                InkWell(
-                  onTap: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _currentPage > 1 ? Colors.white : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.black, width: 1.0),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chevron_left_rounded,
-                          size: 16,
-                          color: _currentPage > 1 ? Colors.black : const Color(0xFF94A3B8),
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          'Prev',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _currentPage > 1 ? Colors.black : const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ],
-                    ),
+                        );
+                      }),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                  const SizedBox(width: 14),
+                  // Pagination controls: Prev / Next
+                  InkWell(
+                    onTap: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.black, width: 1.0),
-                  ),
-                  child: Text(
-                    '$_currentPage / $totalPages',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _currentPage < totalPages ? Colors.white : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.black, width: 1.0),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Next',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _currentPage < totalPages ? Colors.black : const Color(0xFF94A3B8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                      decoration: BoxDecoration(
+                        color: _currentPage > 1 ? Colors.white : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _currentPage > 1 ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.chevron_left_rounded,
+                            size: 16,
+                            color: _currentPage > 1 ? const Color(0xFF334155) : const Color(0xFF94A3B8),
                           ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: _currentPage < totalPages ? Colors.black : const Color(0xFF94A3B8),
-                        ),
-                      ],
+                          const SizedBox(width: 2),
+                          Text(
+                            'Prev',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _currentPage > 1 ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+                    ),
+                    child: Text(
+                      '$_currentPage / $totalPages',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                      decoration: BoxDecoration(
+                        color: _currentPage < totalPages ? Colors.white : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _currentPage < totalPages ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Next',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _currentPage < totalPages ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: _currentPage < totalPages ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

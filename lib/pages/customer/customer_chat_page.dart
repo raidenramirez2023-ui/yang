@@ -12,6 +12,11 @@ import 'package:yang_chow/services/chat_faq_service.dart';
 import 'package:yang_chow/services/concierge_live_bot_service.dart';
 import 'package:image_picker/image_picker.dart';
 
+bool _isStoreOpen() {
+  final now = DateTime.now();
+  return now.hour >= 10 && now.hour < 20;
+}
+
 class CustomerChatPage extends StatefulWidget {
   const CustomerChatPage({super.key});
 
@@ -38,6 +43,8 @@ class _CustomerChatPageState extends State<CustomerChatPage>
   // Selected quick emoji reactions store (local state for realistic feel)
   final Map<String, String> _messageReactions = {};
   final List<Map<String, dynamic>> _botMessages = [];
+  // Track last seen message count to only auto-scroll when new messages arrive
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
@@ -60,6 +67,23 @@ class _CustomerChatPageState extends State<CustomerChatPage>
         currentUser.userMetadata?['name'] ??
         currentUser.email?.split('@')[0] ??
         'Customer';
+
+    // Fetch dynamic profile name from users table
+    try {
+      final userRow = await Supabase.instance.client
+          .from('users')
+          .select('full_name, name')
+          .eq('email', currentUser.email!)
+          .maybeSingle();
+      if (userRow != null) {
+        final dbName = (userRow['full_name'] ?? userRow['name'])?.toString().trim();
+        if (dbName != null && dbName.isNotEmpty) {
+          _currentUserName = dbName;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching customer profile name: $e');
+    }
 
     setState(() => _isLoading = true);
 
@@ -243,8 +267,9 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     } catch (e) {
       debugPrint('Error persisting automated bot reply: $e');
     } finally {
-      // Clean up temporary local bot message after syncing with realtime stream
-      Future.delayed(const Duration(milliseconds: 1200), () {
+      // Retain temporary local bot message until stream delivers it,
+      // with a safety timeout of 15s in case stream is disconnected
+      Future.delayed(const Duration(seconds: 15), () {
         if (mounted) {
           setState(() {
             _botMessages.removeWhere((m) => m['id'] == botTempId);
@@ -363,21 +388,39 @@ class _CustomerChatPageState extends State<CustomerChatPage>
 
                         // Combine database stream messages and local bot responses without duplication
                         final combinedMessages = <Map<String, dynamic>>[...dbMessages];
+                        final List<String> toPruneBotIds = [];
                         for (final botMsg in _botMessages) {
                           final botText = botMsg['message']?.toString().trim();
                           final botId = botMsg['id']?.toString();
+                          final botCreatedAt = DateTime.tryParse(botMsg['created_at']?.toString() ?? '') ?? DateTime.now();
 
                           final existsInDb = dbMessages.any((m) {
                             final mId = m['id']?.toString();
                             final mText = m['message']?.toString().trim();
                             if (mId != null && botId != null && mId == botId) return true;
-                            if (mText != null && botText != null && mText == botText) return true;
+                            if (mText != null && botText != null && mText == botText) {
+                              final mDate = DateTime.tryParse(m['created_at']?.toString() ?? '');
+                              if (mDate != null && mDate.difference(botCreatedAt).abs().inSeconds < 45) {
+                                return true;
+                              }
+                            }
                             return false;
                           });
 
-                          if (!existsInDb) {
+                          if (existsInDb) {
+                            if (botId != null) toPruneBotIds.add(botId);
+                          } else {
                             combinedMessages.add(botMsg);
                           }
+                        }
+                        if (toPruneBotIds.isNotEmpty) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() {
+                                _botMessages.removeWhere((m) => toPruneBotIds.contains(m['id']));
+                              });
+                            }
+                          });
                         }
 
                         // Sort chronologically
@@ -391,32 +434,16 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                           return _buildRealisticEmptyState();
                         }
 
-                        DateTime firstDate = DateTime.now();
-                        if (combinedMessages.isNotEmpty) {
-                          final firstDateStr = combinedMessages.first['created_at']?.toString();
-                          if (firstDateStr != null && firstDateStr.isNotEmpty) {
-                            firstDate = DateTime.tryParse(firstDateStr) ?? DateTime.now();
-                          }
+                        final List<Map<String, dynamic>> messages = combinedMessages;
+
+                        // Only auto-scroll when a new message actually arrives
+                        final currentCount = messages.length;
+                        if (currentCount > _lastMessageCount) {
+                          _lastMessageCount = currentCount;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _scrollToBottom();
+                          });
                         }
-
-                        final List<Map<String, dynamic>> messages = [
-                          {
-                            'id': 'welcome_msg_static',
-                            'message':
-                                'Hello! 👋 Welcome to Yang Chow Customer Care. How can we make your dining or ordering experience great today?',
-                            'is_from_customer': false,
-                            'is_read': true,
-                            'created_at': firstDate
-                                .subtract(const Duration(seconds: 1))
-                                .toUtc()
-                                .toIso8601String(),
-                          },
-                          ...combinedMessages,
-                        ];
-
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          _scrollToBottom();
-                        });
 
                         return ListView.builder(
                           controller: _scrollController,
@@ -516,7 +543,7 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                   ),
                 ),
               ),
-              // Glowing Live Online Dot
+              // Glowing Live Online Dot (Green when open, Amber when closed/bot only)
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -524,12 +551,12 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                   width: 13,
                   height: 13,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
+                    color: _isStoreOpen() ? const Color(0xFF10B981) : const Color(0xFFD9A441),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF10B981).withOpacity(0.5),
+                        color: (_isStoreOpen() ? const Color(0xFF10B981) : const Color(0xFFD9A441)).withOpacity(0.5),
                         blurRadius: 4,
                         offset: const Offset(0, 1),
                       ),
@@ -575,16 +602,18 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
+                      decoration: BoxDecoration(
+                        color: _isStoreOpen() ? const Color(0xFF10B981) : const Color(0xFFD9A441),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Flexible(
+                    Flexible(
                       child: Text(
-                        'Active now • Replies in 2m',
-                        style: TextStyle(
+                        _isStoreOpen()
+                            ? 'Support Online • Store Open (10 AM–8 PM)'
+                            : 'Store Closed (Opens 10 AM) • Bot Concierge Active',
+                        style: const TextStyle(
                           fontSize: 11.5,
                           color: Color(0xFF64748B),
                           fontWeight: FontWeight.w500,
@@ -690,17 +719,14 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     int index,
     List<Map<String, dynamic>> allMessages,
   ) {
-    final rawIsFromCustomer = message['is_from_customer'] ?? true;
-    final isBot = message['customer_name']?.toString().contains('Concierge') == true ||
-                  message['customer_name']?.toString().contains('Bot') == true ||
-                  message['message']?.toString().startsWith('📅 **How to Book') == true ||
-                  message['message']?.toString().startsWith('💳 **Payment') == true ||
-                  message['message']?.toString().startsWith('💸 **Live Refund') == true ||
-                  message['message']?.toString().startsWith('🔄 **Live Reschedule') == true ||
-                  message['message']?.toString().startsWith('📅 **Live Reservation') == true ||
-                  message['message']?.toString().startsWith('💸 **Cancellation') == true ||
-                  message['message']?.toString().startsWith('📊 **Tracking Status') == true;
-    final isFromCustomer = rawIsFromCustomer && !isBot;
+    final senderName = (message['customer_name'] ?? '').toString().toLowerCase();
+    final isBotOrStaffSender = senderName.contains('concierge') ||
+        senderName.contains('bot') ||
+        senderName.contains('support') ||
+        senderName.contains('admin') ||
+        senderName.contains('staff');
+    final rawIsFromCustomer = message['is_from_customer'] == true;
+    final isFromCustomer = rawIsFromCustomer && !isBotOrStaffSender;
     final messageText = message['message'] ?? '';
     final imageUrl = message['image_url'] as String?;
     final isRead = message['is_read'] ?? false;
@@ -810,7 +836,7 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                           : CrossAxisAlignment.start,
                       children: [
                         // Image attachment if present
-                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        if (!isUnsent && imageUrl != null && imageUrl.isNotEmpty) ...[
                           GestureDetector(
                             onTap: () => _openFullscreenImage(imageUrl),
                             child: ClipRRect(
@@ -956,7 +982,7 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                               Icon(
                                 isRead
                                     ? Icons.done_all_rounded
-                                    : Icons.done_all_rounded,
+                                    : Icons.done_rounded,
                                 size: 14,
                                 color: isRead
                                     ? const Color(0xFF67E8F9)
@@ -1451,9 +1477,47 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                 ],
               ),
             ),
+            const SizedBox(height: 18),
+            const Text(
+              'Quick Questions & FAQ:',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildStarterChip('📅 How to Book', 'How does the reservation and pre-ordering process work?'),
+                _buildStarterChip('💳 GCash Payment', 'How do I pay using GCash QR or PayMongo?'),
+                _buildStarterChip('🔄 Reschedule Help', 'How do I request to reschedule my reservation date or time?'),
+                _buildStarterChip('💸 Refund Policy', 'What is the cancellation and refund policy?'),
+              ],
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStarterChip(String label, String message) {
+    return ActionChip(
+      backgroundColor: Colors.white,
+      side: const BorderSide(color: Color(0xFFE2E8F0)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF14332E),
+        ),
+      ),
+      onPressed: () => _sendMessage(message),
     );
   }
 
@@ -2013,7 +2077,7 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
         ),
         const SizedBox(height: 16),
 
-        // Hours banner
+        // Dynamic Hours banner
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
@@ -2022,17 +2086,29 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Row(
-            children: const [
-              Icon(Icons.schedule_rounded, color: Color(0xFF14332E), size: 18),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.schedule_rounded, color: Color(0xFF14332E), size: 18),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Operating Hours: 9:00 AM – 9:00 PM Daily',
-                  style: TextStyle(
+                  _isStoreOpen()
+                      ? 'Operating Hours: 10:00 AM – 8:00 PM Daily (Open Now)'
+                      : 'Operating Hours: 10:00 AM – 8:00 PM Daily (Currently Closed)',
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF334155),
                   ),
+                ),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _isStoreOpen()
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFF94A3B8),
+                  shape: BoxShape.circle,
                 ),
               ),
             ],

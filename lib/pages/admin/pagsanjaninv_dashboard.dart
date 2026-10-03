@@ -783,69 +783,91 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     IconData icon, {
     String? hint,
   }) {
+    const labelColor = Color(0xFF64748B);
+    const valueColor = Color(0xFF0F172A);
+    const hintColor = Color(0xFF94A3B8);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black, width: 1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6EAEF), width: 1),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(icon, size: 17, color: color),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
+            child: Row(
               children: [
-                Text(
-                  label.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black,
-                    letterSpacing: 0.6,
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(icon, size: 18, color: color),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: -0.5,
-                    height: 1.1,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        label.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: labelColor,
+                          letterSpacing: 0.8,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            value,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: valueColor,
+                              letterSpacing: -0.6,
+                              height: 1.05,
+                            ),
+                          ),
+                          if (hint != null) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                hint,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: hintColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                if (hint != null)
-                  Text(
-                    hint,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
               ],
             ),
           ),
@@ -865,13 +887,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       _buildFlatActionButton(
         'Inventory',
         Icons.edit_note_rounded,
-        const Color(0xFF0284C7),
+        const Color(0xFF475569),
         () => _onItemTapped(2),
       ),
       _buildFlatActionButton(
         'Storage',
         Icons.warehouse_rounded,
-        const Color(0xFFD97706),
+        const Color(0xFF475569),
         () => _onItemTapped(3),
       ),
     ];
@@ -903,23 +925,40 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   Widget _buildFlatActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    // Primary action uses the brand fill; secondary actions stay neutral.
+    final isPrimary = color == const Color(0xFF14332E);
+    final fg = isPrimary ? Colors.white : const Color(0xFF0F172A);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        borderRadius: BorderRadius.circular(11),
+        hoverColor: isPrimary
+            ? Colors.white.withValues(alpha: 0.06)
+            : const Color(0xFF14332E).withValues(alpha: 0.04),
+        splashColor: const Color(0xFF14332E).withValues(alpha: 0.08),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black),
+            color: isPrimary ? null : Colors.white,
+            gradient: isPrimary
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1E4A42), Color(0xFF14332E)],
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(
+              color: isPrimary ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: (isPrimary ? const Color(0xFF14332E) : const Color(0xFF0F172A))
+                    .withValues(alpha: isPrimary ? 0.20 : 0.04),
+                blurRadius: isPrimary ? 10 : 6,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -930,24 +969,29 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: isPrimary
+                      ? Colors.white.withValues(alpha: 0.14)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
-                child: Icon(icon, size: 14, color: Colors.black),
+                child: Icon(icon, size: 14, color: isPrimary ? Colors.white : color),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 9),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle(
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  color: fg,
                   letterSpacing: 0.1,
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right_rounded, size: 14, color: Colors.black),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 13,
+                color: isPrimary ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF94A3B8),
+              ),
             ],
           ),
         ),
@@ -960,102 +1004,111 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+        border: Border.all(color: const Color(0xFFE6EAEF), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Enterprise Alert Header Bar ──
+          // ── Alert Header Bar ──
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                topRight: Radius.circular(15),
-              ),
               border: Border(
-                bottom: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1),
               ),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 3.5,
-                  height: 32,
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(2),
+                    color: const Color(0xFFD97706).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(7),
                   ),
+                  child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 15),
                 ),
                 const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
+                const Text(
+                  'Stock Attention Required',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.1,
                   ),
-                  child: const Icon(Icons.warning_amber_rounded, color: Colors.black, size: 16),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_criticalItems.length}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF14332E),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Critical Stock Attention Required',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black,
-                          letterSpacing: -0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Live alerts triggered by automatic threshold triggers',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  child: Text(
+                    'Items below minimum stock threshold',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 8),
-                TextButton.icon(
+                TextButton(
                   onPressed: _showAllCriticalItemsModal,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 12, color: Colors.black),
-                  label: Text(
-                    'View All (${_criticalItems.length})',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    minimumSize: const Size(0, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF14332E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Colors.black, width: 1.0),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All (${_criticalItems.length})',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF14332E),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_rounded, size: 13, color: Color(0xFF14332E)),
+                    ],
                   ),
                 ),
               ],
@@ -1063,9 +1116,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           ),
           // ── Critical Item Cards ──
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             child: SizedBox(
-              height: 80,
+              height: 36,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -1074,59 +1127,50 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   final item = _criticalItems[index];
                   final qty = (item['quantity'] as num?)?.toInt() ?? 0;
                   final isOut = qty == 0;
-                  final tagBg = isOut
-                      ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                      : const Color(0xFFF59E0B).withValues(alpha: 0.12);
+                  final name = (item['name'] ?? 'Unknown').toString();
+                  final tagColor = isOut ? const Color(0xFFDC2626) : const Color(0xFFD97706);
 
                   return Container(
-                    width: 190,
-                    margin: const EdgeInsets.only(right: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    width: 210,
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: const Color(0xFFE6EAEF)),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Row(
                       children: [
-                        Text(
-                          item['name'] ?? 'Unknown',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12.5,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                          decoration: BoxDecoration(
-                            color: tagBg,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
-                          ),
+                        Expanded(
                           child: Text(
-                            isOut ? '✕  OUT OF STOCK' : '⚠  Only $qty left',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
-                            ),
+                            name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              color: Color(0xFF0F172A),
+                            ),
                           ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: tagColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isOut ? 'Out of Stock' : 'Only $qty left',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
                         ),
                       ],
                     ),
@@ -3782,9 +3826,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           color: isSelected ? accentColor : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: Colors.black,
-            width: 1,
+            color: isSelected ? accentColor : const Color(0xFFE2E8F0),
+            width: 1.5,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3792,16 +3845,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withValues(alpha: 0.25) : accentColor.withValues(alpha: 0.12),
+                color: isSelected ? Colors.white.withValues(alpha: 0.22) : accentColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.black, width: 0.8),
               ),
               child: Text(
                 '$count',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: isSelected ? Colors.white : Colors.black,
+                  color: isSelected ? Colors.white : accentColor,
                 ),
               ),
             ),
@@ -3811,7 +3863,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.black,
+                color: isSelected ? Colors.white : const Color(0xFF334155),
               ),
             ),
           ],
@@ -3840,18 +3892,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       categoryIcon = Icons.local_drink_rounded;
     }
 
+    final statusColor = isOutOfStock ? const Color(0xFFDC2626) : const Color(0xFFD97706);
+    final statusBg = isOutOfStock ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB);
+    final statusBorder = isOutOfStock ? const Color(0xFFFECACA) : const Color(0xFFFDE68A);
+    final iconBg = isOutOfStock
+        ? const Color(0xFFFEF2F2)
+        : const Color(0xFFF8FAFC);
+    final iconColor = isOutOfStock ? const Color(0xFFDC2626) : const Color(0xFF475569);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.black,
+          color: isOutOfStock ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -3861,15 +3921,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         children: [
           // Category Icon badge
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: iconBg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.black, width: 0.8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Icon(categoryIcon, color: Colors.black, size: 18),
+            child: Icon(categoryIcon, color: iconColor, size: 18),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
 
           // Name & Details
           Expanded(
@@ -3880,39 +3940,39 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   name,
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: Colors.black,
+                    fontSize: 13.5,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.2,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Wrap(
-                  spacing: 4,
+                  spacing: 5,
                   runSpacing: 2,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.black, width: 0.8),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
                         category,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF475569),
                         ),
                       ),
                     ),
                     Text(
                       '• Min: ${minQty.toStringAsFixed(0)} $unit',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10,
-                        color: Colors.black,
+                        fontSize: 10.5,
+                        color: const Color(0xFF94A3B8),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -3921,20 +3981,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
 
           // Status Badge + Quick Restock Action
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isOutOfStock ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: Colors.black,
-                  ),
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: statusBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3942,43 +4001,48 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     Container(
                       width: 5,
                       height: 5,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
+                      decoration: BoxDecoration(
+                        color: statusColor,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Text(
                       isOutOfStock ? 'OUT OF STOCK' : statusText,
                       style: GoogleFonts.plusJakartaSans(
-                        color: Colors.black,
+                        color: statusColor,
                         fontWeight: FontWeight.w800,
                         fontSize: 10,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 3),
-              InkWell(
+              const SizedBox(height: 5),
+              GestureDetector(
                 onTap: () {
                   Navigator.of(context).pop();
                   _onItemTapped(2); // Go to inventory tab
                 },
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.add_shopping_cart_rounded, size: 11, color: Colors.black),
-                      const SizedBox(width: 2),
+                      const Icon(Icons.add_shopping_cart_rounded, size: 11, color: Color(0xFF10B981)),
+                      const SizedBox(width: 4),
                       Text(
                         'Restock',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black,
+                          color: const Color(0xFF0F172A),
                         ),
                       ),
                     ],
@@ -3998,6 +4062,27 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   // -------------------------------------------------------------
   // KITCHEN REQUESTS PAGE (MODERN HYBRID & COMPACT LAYOUT)
   // -------------------------------------------------------------
+  // ── KDS COLOR SYSTEM ──
+  // Primary   : brand forest green — the ONLY fill color for actions & selected states.
+  // Neutrals  : slate scale — text hierarchy, borders, surfaces (no pure black).
+  // Semantic  : muted status hues — used sparingly as icons, dots & soft tints only.
+  static const Color _kdsPrimary = Color(0xFF14332E);
+  static const Color _kdsPrimarySoft = Color(0xFFE8EFED);
+  static const Color _kdsTextPrimary = Color(0xFF0F172A);
+  static const Color _kdsTextSecondary = Color(0xFF334155);
+  static const Color _kdsTextTertiary = Color(0xFF64748B);
+  static const Color _kdsTextMuted = Color(0xFF94A3B8);
+  static const Color _kdsBorder = Color(0xFFE2E8F0);
+  static const Color _kdsBorderStrong = Color(0xFFCBD5E1);
+  static const Color _kdsSurface = Color(0xFFF8FAFC);
+  static const Color _kdsSurfaceAlt = Color(0xFFF1F5F9);
+  static const Color _kdsSuccess = Color(0xFF15803D);
+  static const Color _kdsWarning = Color(0xFFB45309);
+  static const Color _kdsDanger = Color(0xFFB91C1C);
+  static const List<BoxShadow> _kdsSegmentShadow = [
+    BoxShadow(color: Color(0x140F172A), blurRadius: 3, offset: Offset(0, 1)),
+  ];
+
   Widget _buildKitchenRequestsPage() {
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
@@ -4102,7 +4187,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                    border: Border.all(color: _kdsBorder, width: 1.0),
                   ),
                   child: Column(
                     children: [
@@ -4118,23 +4203,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 children: List.generate(_requestFilterLabels.length, (index) {
                                   final isSelected = _requestFilter == index;
                                   int count;
-                                  Color tabColor;
                                   switch (index) {
                                     case 1:
                                       count = pendingCount;
-                                      tabColor = const Color(0xFFD97706);
                                       break;
                                     case 2:
                                       count = approvedCount;
-                                      tabColor = const Color(0xFF059669);
                                       break;
                                     case 3:
                                       count = rejectedCount;
-                                      tabColor = const Color(0xFFDC2626);
                                       break;
                                     default:
                                       count = requests.length;
-                                      tabColor = const Color(0xFF14332E);
                                   }
 
                                   return Padding(
@@ -4151,10 +4231,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                         duration: const Duration(milliseconds: 180),
                                         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? tabColor : Colors.white,
+                                          color: isSelected ? _kdsPrimary : Colors.white,
                                           borderRadius: BorderRadius.circular(9),
                                           border: Border.all(
-                                            color: isSelected ? Colors.black : Colors.black.withValues(alpha: 0.20),
+                                            color: isSelected ? _kdsPrimary : _kdsBorder,
                                             width: 1.0,
                                           ),
                                         ),
@@ -4164,8 +4244,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             Text(
                                               _requestFilterLabels[index],
                                               style: TextStyle(
-                                                color: isSelected ? Colors.white : Colors.black,
-                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                color: isSelected ? Colors.white : _kdsTextSecondary,
+                                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                                                 fontSize: 11.5,
                                               ),
                                             ),
@@ -4174,19 +4254,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                               decoration: BoxDecoration(
                                                 color: isSelected
-                                                    ? Colors.white.withValues(alpha: 0.25)
-                                                    : const Color(0xFFF1F5F9),
+                                                    ? Colors.white.withValues(alpha: 0.18)
+                                                    : _kdsSurfaceAlt,
                                                 borderRadius: BorderRadius.circular(7),
-                                                border: Border.all(
-                                                  color: isSelected ? Colors.transparent : Colors.black.withValues(alpha: 0.20),
-                                                  width: 0.8,
-                                                ),
                                               ),
                                               child: Text(
                                                 '$count',
                                                 style: TextStyle(
-                                                  color: isSelected ? Colors.white : Colors.black,
-                                                  fontWeight: FontWeight.w900,
+                                                  color: isSelected ? Colors.white : _kdsTextTertiary,
+                                                  fontWeight: FontWeight.w700,
                                                   fontSize: 10.5,
                                                 ),
                                               ),
@@ -4207,9 +4283,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           Container(
                             padding: const EdgeInsets.all(2.5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
+                              color: _kdsSurfaceAlt,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                              border: Border.all(color: _kdsBorder, width: 1.0),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -4224,7 +4300,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       decoration: BoxDecoration(
                                         color: !isTableView ? Colors.white : Colors.transparent,
                                         borderRadius: BorderRadius.circular(6),
-                                        border: !isTableView ? Border.all(color: Colors.black, width: 1.0) : null,
+                                        boxShadow: !isTableView ? _kdsSegmentShadow : null,
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -4232,7 +4308,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           Icon(
                                             Icons.dashboard_customize_rounded,
                                             size: 14,
-                                            color: !isTableView ? Colors.black : Colors.black54,
+                                            color: !isTableView ? _kdsTextPrimary : _kdsTextTertiary,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
@@ -4240,7 +4316,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: !isTableView ? Colors.black : Colors.black54,
+                                              color: !isTableView ? _kdsTextPrimary : _kdsTextTertiary,
                                             ),
                                           ),
                                         ],
@@ -4258,7 +4334,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       decoration: BoxDecoration(
                                         color: isTableView ? Colors.white : Colors.transparent,
                                         borderRadius: BorderRadius.circular(6),
-                                        border: isTableView ? Border.all(color: Colors.black, width: 1.0) : null,
+                                        boxShadow: isTableView ? _kdsSegmentShadow : null,
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -4266,7 +4342,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           Icon(
                                             Icons.table_rows_rounded,
                                             size: 14,
-                                            color: isTableView ? Colors.black : Colors.black54,
+                                            color: isTableView ? _kdsTextPrimary : _kdsTextTertiary,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
@@ -4274,7 +4350,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: isTableView ? Colors.black : Colors.black54,
+                                              color: isTableView ? _kdsTextPrimary : _kdsTextTertiary,
                                             ),
                                           ),
                                         ],
@@ -4291,18 +4367,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           // Bulk Actions (Approve All & Reject All)
                           ElevatedButton.icon(
                             onPressed: (_isLoading || pendingCount == 0) ? null : _approveAllRequests,
-                            icon: const Icon(Icons.done_all_rounded, size: 13, color: Colors.black),
+                            icon: const Icon(Icons.done_all_rounded, size: 14),
                             label: Text(
                               pendingCount > 0 ? 'Approve All ($pendingCount)' : 'Approve All',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Colors.black),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
-                              foregroundColor: Colors.black,
-                              disabledBackgroundColor: const Color(0xFFE2E8F0),
-                              disabledForegroundColor: const Color(0xFF94A3B8),
-                              side: const BorderSide(color: Colors.black, width: 1.0),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              backgroundColor: _kdsPrimary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: _kdsSurfaceAlt,
+                              disabledForegroundColor: _kdsTextMuted,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               elevation: 0,
                             ),
@@ -4310,12 +4385,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
                             onPressed: (_isLoading || pendingCount == 0) ? null : _rejectAllRequests,
-                            icon: const Icon(Icons.cancel_outlined, size: 13, color: Colors.black),
-                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Colors.black)),
+                            icon: const Icon(Icons.close_rounded, size: 14),
+                            label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11)),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              side: const BorderSide(color: Colors.black, width: 1.0),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              foregroundColor: _kdsTextSecondary,
+                              disabledForegroundColor: _kdsTextMuted,
+                              side: const BorderSide(color: _kdsBorderStrong, width: 1.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
@@ -4338,14 +4414,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     _currentPage = 1;
                                   });
                                 },
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black),
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _kdsTextPrimary),
                                 decoration: InputDecoration(
                                   hintText: 'Search by ingredient, recipe note, chef, or unit...',
-                                  hintStyle: const TextStyle(fontSize: 11.5, color: Colors.black54),
-                                  prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Colors.black),
+                                  hintStyle: const TextStyle(fontSize: 11.5, color: _kdsTextMuted),
+                                  prefixIcon: const Icon(Icons.search_rounded, size: 16, color: _kdsTextTertiary),
                                   suffixIcon: _kitchenSearchQuery.isNotEmpty
                                       ? IconButton(
-                                          icon: const Icon(Icons.close_rounded, size: 14, color: Colors.black),
+                                          icon: const Icon(Icons.close_rounded, size: 14, color: _kdsTextTertiary),
                                           onPressed: () {
                                             _kitchenSearchCtrl.clear();
                                             setState(() {
@@ -4360,15 +4436,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                                    borderSide: const BorderSide(color: _kdsBorder, width: 1.0),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                                    borderSide: const BorderSide(color: _kdsBorder, width: 1.0),
                                   ),
                                   focusedBorder: const OutlineInputBorder(
                                     borderRadius: BorderRadius.all(Radius.circular(8)),
-                                    borderSide: BorderSide(color: Colors.black, width: 1.5),
+                                    borderSide: BorderSide(color: _kdsPrimary, width: 1.5),
                                   ),
                                 ),
                               ),
@@ -4378,9 +4454,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: _kdsSurface,
                               borderRadius: BorderRadius.circular(7),
-                              border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                              border: Border.all(color: _kdsBorder, width: 1.0),
                             ),
                             child: Text(
                               filteredRequests.isEmpty
@@ -4388,8 +4464,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   : 'Showing ${startIndex + 1}–$endIndex of ${filteredRequests.length}',
                               style: const TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
+                                fontWeight: FontWeight.w600,
+                                color: _kdsTextTertiary,
                               ),
                             ),
                           ),
@@ -4418,14 +4494,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+                        border: Border.all(color: _kdsBorder, width: 1.0),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Showing ${startIndex + 1} to $endIndex of ${filteredRequests.length} requisitions',
-                            style: const TextStyle(fontSize: 11.5, color: Colors.black, fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontSize: 11.5, color: _kdsTextTertiary, fontWeight: FontWeight.w500),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -4433,7 +4509,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               IconButton(
                                 onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
                                 icon: const Icon(Icons.chevron_left_rounded),
-                                color: Colors.black,
+                                color: _kdsTextSecondary,
                                 iconSize: 18,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -4442,20 +4518,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: _kdsSurface,
                                   borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
+                                  border: Border.all(color: _kdsBorder, width: 0.8),
                                 ),
                                 child: Text(
                                   'Page $_currentPage of $totalPages',
-                                  style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black, fontSize: 11.5),
+                                  style: const TextStyle(fontWeight: FontWeight.w700, color: _kdsTextPrimary, fontSize: 11.5),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               IconButton(
                                 onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
                                 icon: const Icon(Icons.chevron_right_rounded),
-                                color: Colors.black,
+                                color: _kdsTextSecondary,
                                 iconSize: 18,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -4489,15 +4565,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF0F2C27),
-            Color(0xFF14332E),
-            Color(0xFF1E4A42),
+            Color(0xFF12302B),
+            _kdsPrimary,
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black, width: 1.0),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -4509,11 +4583,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: Colors.white.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.black, width: 0.8),
                 ),
-                child: const Icon(Icons.soup_kitchen_rounded, color: Color(0xFFE6C374), size: 18),
+                child: const Icon(Icons.soup_kitchen_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 10),
               Column(
@@ -4526,30 +4599,34 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         'KDS OPERATIONS HUB',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
                           letterSpacing: 0.5,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.22),
+                          color: Colors.white.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.wifi_tethering_rounded, size: 9, color: Color(0xFF34D399)),
-                            SizedBox(width: 3),
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(color: Color(0xFF4ADE80), shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 4),
                             Text(
                               'LIVE',
                               style: TextStyle(
-                                color: Color(0xFF34D399),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 8.5,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
                               ),
                             ),
                           ],
@@ -4560,9 +4637,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   const SizedBox(height: 1),
                   Text(
                     'Real-time kitchen order fulfillment • $totalRequests total requisitions',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10.5,
-                      color: Color(0xFFD1E0DC),
+                      color: Colors.white.withValues(alpha: 0.65),
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -4579,26 +4656,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               _buildCommandChip(
                 label: 'Pending',
                 count: pendingCount,
-                color: const Color(0xFFF59E0B),
+                color: const Color(0xFFFBBF24),
                 icon: Icons.hourglass_top_rounded,
               ),
               _buildCommandChip(
                 label: 'Approved',
                 count: approvedCount,
-                color: const Color(0xFF10B981),
+                color: const Color(0xFF4ADE80),
                 icon: Icons.check_circle_rounded,
               ),
               _buildCommandChip(
                 label: 'Declined',
                 count: rejectedCount,
-                color: const Color(0xFFEF4444),
+                color: const Color(0xFFF87171),
                 icon: Icons.cancel_rounded,
               ),
               if (urgentCount > 0)
                 _buildCommandChip(
                   label: 'Urgent',
                   count: urgentCount,
-                  color: const Color(0xFFEF4444),
+                  color: const Color(0xFFF87171),
                   icon: Icons.local_fire_department_rounded,
                   isHighEmphasis: true,
                 ),
@@ -4639,41 +4716,48 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isHighEmphasis
-            ? color.withValues(alpha: 0.25)
-            : Colors.white.withValues(alpha: 0.1),
+            ? color.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.black,
-          width: 0.8,
+          color: isHighEmphasis ? color.withValues(alpha: 0.45) : Colors.white.withValues(alpha: 0.12),
+          width: 1.0,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          // Semantic hue is confined to a small indicator; label & count stay neutral.
+          if (isHighEmphasis)
+            Icon(icon, size: 12, color: color)
+          else
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+          const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.85),
             ),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.3),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: Colors.black, width: 0.8),
             ),
             child: Text(
               '$count',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-                color: isHighEmphasis ? Colors.white : color,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ),
@@ -4689,33 +4773,32 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+        border: Border.all(color: _kdsBorder, width: 1.0),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
+            decoration: const BoxDecoration(
+              color: _kdsSurfaceAlt,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
             ),
-            child: const Icon(Icons.soup_kitchen_outlined, size: 40, color: Colors.black),
+            child: const Icon(Icons.soup_kitchen_outlined, size: 40, color: _kdsTextTertiary),
           ),
           const SizedBox(height: 12),
           Text(
             _kitchenSearchQuery.isNotEmpty
                 ? 'No requisitions matching "$_kitchenSearchQuery"'
                 : 'Kitchen Station In Sync',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kdsTextPrimary),
           ),
           const SizedBox(height: 4),
           Text(
             _kitchenSearchQuery.isNotEmpty
                 ? 'Try searching with different keywords or clearing the search bar.'
                 : 'All kitchen ingredient requisitions have been fulfilled and dispatched.',
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
+            style: const TextStyle(fontSize: 12, color: _kdsTextTertiary),
             textAlign: TextAlign.center,
           ),
           if (_kitchenSearchQuery.isNotEmpty || _requestFilter != 0) ...[
@@ -4732,9 +4815,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               icon: const Icon(Icons.refresh_rounded, size: 14),
               label: const Text('Show All Requisitions', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF14332E),
+                backgroundColor: _kdsPrimary,
                 foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.black, width: 1.0),
+                elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -4758,7 +4841,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 1.0),
+            border: Border.all(color: _kdsBorder, width: 1.0),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
@@ -4772,10 +4855,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     // Table Header Row
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
+                      decoration: const BoxDecoration(
+                        color: _kdsSurface,
                         border: Border(
-                          bottom: BorderSide(color: Colors.black.withValues(alpha: 0.20), width: 1),
+                          bottom: BorderSide(color: _kdsBorder, width: 1),
                         ),
                       ),
                       child: const Row(
@@ -4784,49 +4867,49 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             flex: 28,
                             child: Text(
                               'INGREDIENT & CHEF NOTE',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                           Expanded(
                             flex: 12,
                             child: Text(
                               'INV STOCK / NEEDED',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                           Expanded(
                             flex: 11,
                             child: Text(
                               'URGENCY',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                           Expanded(
                             flex: 19,
                             child: Text(
                               'STATION / CHEF',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                           Expanded(
                             flex: 14,
                             child: Text(
                               'ORDER TIME',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                           Expanded(
                             flex: 12,
                             child: Text(
                               'STATUS',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                           Expanded(
                             flex: 18,
                             child: Text(
                               'ACTIONS & FULFILLMENT',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _kdsTextTertiary, letterSpacing: 0.6),
                             ),
                           ),
                         ],
@@ -4838,7 +4921,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: requests.length,
-                      separatorBuilder: (context, index) => Divider(height: 1, color: Colors.black.withValues(alpha: 0.12), thickness: 1),
+                      separatorBuilder: (context, index) => const Divider(height: 1, color: _kdsBorder, thickness: 1),
                       itemBuilder: (context, index) {
                         final request = requests[index];
                         final status = request['status']?.toString() ?? 'Pending';
@@ -4858,15 +4941,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         IconData statusIcon;
                         switch (status) {
                           case 'Approved':
-                            statusColor = const Color(0xFF10B981);
+                            statusColor = _kdsSuccess;
                             statusIcon = Icons.check_circle_rounded;
                             break;
                           case 'Rejected':
-                            statusColor = const Color(0xFFEF4444);
+                            statusColor = _kdsDanger;
                             statusIcon = Icons.cancel_rounded;
                             break;
                           default:
-                            statusColor = const Color(0xFFF59E0B);
+                            statusColor = _kdsWarning;
                             statusIcon = Icons.hourglass_top_rounded;
                         }
 
@@ -4895,11 +4978,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     Container(
                                       padding: const EdgeInsets.all(7),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: _kdsSurfaceAlt,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                                       ),
-                                      child: const Icon(Icons.restaurant_rounded, size: 15, color: Colors.black),
+                                      child: const Icon(Icons.restaurant_rounded, size: 15, color: _kdsTextTertiary),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -4910,9 +4992,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           Text(
                                             itemName,
                                             style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
+                                              fontWeight: FontWeight.w700,
                                               fontSize: 13,
-                                              color: Colors.black,
+                                              color: _kdsTextPrimary,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -4922,14 +5004,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.white,
+                                                color: _kdsSurface,
                                                 borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
+                                                border: Border.all(color: _kdsBorder, width: 0.8),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.sticky_note_2_outlined, size: 10.5, color: Colors.black),
+                                                  const Icon(Icons.sticky_note_2_outlined, size: 10.5, color: _kdsTextMuted),
                                                   const SizedBox(width: 4),
                                                   Flexible(
                                                     child: Text(
@@ -4937,8 +5019,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                                       style: const TextStyle(
                                                         fontSize: 10,
                                                         fontStyle: FontStyle.italic,
-                                                        color: Colors.black,
-                                                        fontWeight: FontWeight.w600,
+                                                        color: _kdsTextTertiary,
+                                                        fontWeight: FontWeight.w500,
                                                       ),
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
@@ -4973,16 +5055,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             text: '$invStockDisplay / $quantity ',
                                             style: const TextStyle(
                                               fontSize: 13,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.black,
+                                              fontWeight: FontWeight.w700,
+                                              color: _kdsTextPrimary,
                                             ),
                                           ),
                                           TextSpan(
                                             text: unit,
                                             style: const TextStyle(
                                               fontSize: 9.5,
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.black,
+                                              fontWeight: FontWeight.w600,
+                                              color: _kdsTextTertiary,
                                               letterSpacing: 0.2,
                                             ),
                                           ),
@@ -5002,21 +5084,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       ? Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                            color: _kdsDanger.withValues(alpha: 0.08),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: Colors.black, width: 0.8),
                                           ),
                                           child: const Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(Icons.local_fire_department_rounded, size: 11, color: Color(0xFFEF4444)),
+                                              Icon(Icons.local_fire_department_rounded, size: 11, color: _kdsDanger),
                                               SizedBox(width: 3),
                                               Text(
                                                 'URGENT',
                                                 style: TextStyle(
-                                                  color: Colors.black,
+                                                  color: _kdsDanger,
                                                   fontSize: 9.5,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontWeight: FontWeight.w700,
                                                   letterSpacing: 0.3,
                                                 ),
                                               ),
@@ -5027,16 +5108,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                           ? Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                               decoration: BoxDecoration(
-                                                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                                                color: _kdsWarning.withValues(alpha: 0.08),
                                                 borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: Colors.black, width: 0.8),
                                               ),
                                               child: const Text(
                                                 'HIGH',
                                                 style: TextStyle(
-                                                  color: Colors.black,
+                                                  color: _kdsWarning,
                                                   fontSize: 9.5,
-                                                  fontWeight: FontWeight.w800,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                               ),
                                             )
@@ -5047,7 +5127,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                                   width: 6,
                                                   height: 6,
                                                   decoration: const BoxDecoration(
-                                                    color: Colors.black,
+                                                    color: _kdsBorderStrong,
                                                     shape: BoxShape.circle,
                                                   ),
                                                 ),
@@ -5055,9 +5135,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                                 Text(
                                                   priority,
                                                   style: const TextStyle(
-                                                    color: Colors.black,
+                                                    color: _kdsTextTertiary,
                                                     fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
                                               ],
@@ -5072,13 +5152,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   children: [
                                     CircleAvatar(
                                       radius: 12,
-                                      backgroundColor: const Color(0xFFF1F5F9),
+                                      backgroundColor: _kdsPrimarySoft,
                                       child: Text(
                                         initial,
                                         style: const TextStyle(
                                           fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.black,
+                                          fontWeight: FontWeight.w700,
+                                          color: _kdsPrimary,
                                         ),
                                       ),
                                     ),
@@ -5092,8 +5172,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             displayChef,
                                             style: const TextStyle(
                                               fontSize: 11.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.black,
+                                              fontWeight: FontWeight.w600,
+                                              color: _kdsTextPrimary,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -5102,8 +5182,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             requestedBy.contains('@') ? requestedBy : 'Kitchen Station',
                                             style: const TextStyle(
                                               fontSize: 9.5,
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.w500,
+                                              color: _kdsTextTertiary,
+                                              fontWeight: FontWeight.w400,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -5126,21 +5206,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                          color: _kdsDanger.withValues(alpha: 0.08),
                                           borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: Colors.black, width: 0.8),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.alarm_rounded, size: 10.5, color: Color(0xFFDC2626)),
+                                            const Icon(Icons.alarm_rounded, size: 10.5, color: _kdsDanger),
                                             const SizedBox(width: 3),
                                             Text(
                                               _formatElapsedTime(createdAt),
                                               style: const TextStyle(
                                                 fontSize: 10,
-                                                fontWeight: FontWeight.w800,
-                                                color: Colors.black,
+                                                fontWeight: FontWeight.w700,
+                                                color: _kdsDanger,
                                               ),
                                             ),
                                           ],
@@ -5150,14 +5229,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.schedule_rounded, size: 11, color: Colors.black),
+                                          const Icon(Icons.schedule_rounded, size: 11, color: _kdsTextMuted),
                                           const SizedBox(width: 3.5),
                                           Text(
                                             _formatElapsedTime(createdAt),
                                             style: const TextStyle(
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.black,
+                                              fontWeight: FontWeight.w600,
+                                              color: _kdsTextPrimary,
                                             ),
                                           ),
                                         ],
@@ -5165,7 +5244,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     const SizedBox(height: 2.5),
                                     Text(
                                       _formatDateTime(createdAt),
-                                      style: const TextStyle(fontSize: 9.5, color: Colors.black, fontWeight: FontWeight.w500),
+                                      style: const TextStyle(fontSize: 9.5, color: _kdsTextTertiary, fontWeight: FontWeight.w400),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -5181,9 +5260,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withValues(alpha: 0.09),
+                                      color: statusColor.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.black, width: 0.8),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -5192,10 +5270,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                         const SizedBox(width: 4.5),
                                         Text(
                                           status,
-                                          style: const TextStyle(
-                                            color: Colors.black,
+                                          style: TextStyle(
+                                            color: statusColor,
                                             fontSize: 10.5,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ],
@@ -5217,12 +5295,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               height: 31,
                                               child: ElevatedButton.icon(
                                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                                                icon: const Icon(Icons.check_rounded, size: 13, color: Colors.black),
-                                                label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black)),
+                                                icon: const Icon(Icons.check_rounded, size: 13),
+                                                label: const Text('Approve', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                                 style: ElevatedButton.styleFrom(
-                                                  backgroundColor: const Color(0xFF10B981),
-                                                  foregroundColor: Colors.black,
-                                                  side: const BorderSide(color: Colors.black, width: 1.0),
+                                                  backgroundColor: _kdsPrimary,
+                                                  foregroundColor: Colors.white,
                                                   elevation: 0,
                                                   padding: const EdgeInsets.symmetric(horizontal: 10),
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
@@ -5234,11 +5311,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                               height: 31,
                                               child: OutlinedButton.icon(
                                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                                                icon: const Icon(Icons.close_rounded, size: 12, color: Colors.black),
-                                                label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black)),
+                                                icon: const Icon(Icons.close_rounded, size: 12),
+                                                label: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                                 style: OutlinedButton.styleFrom(
-                                                  foregroundColor: Colors.black,
-                                                  side: const BorderSide(color: Colors.black, width: 1.0),
+                                                  foregroundColor: _kdsTextSecondary,
+                                                  side: const BorderSide(color: _kdsBorderStrong, width: 1.0),
                                                   padding: const EdgeInsets.symmetric(horizontal: 10),
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                                                 ),
@@ -5246,25 +5323,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             ),
                                           ],
                                         )
+                                      // Processed: neutral audit stamp — status color already lives in the Status column.
                                       : Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: statusColor.withValues(alpha: 0.08),
+                                            color: _kdsSurface,
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: Colors.black, width: 0.8),
+                                            border: Border.all(color: _kdsBorder, width: 0.8),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(statusIcon, size: 11, color: statusColor),
+                                              const Icon(Icons.history_rounded, size: 11, color: _kdsTextMuted),
                                               const SizedBox(width: 4),
                                               Flexible(
                                                 child: Text(
                                                   'Processed ${_formatDateTime(updatedAt ?? createdAt)}',
                                                   style: const TextStyle(
                                                     fontSize: 10,
-                                                    color: Colors.black,
-                                                    fontWeight: FontWeight.w700,
+                                                    color: _kdsTextTertiary,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
@@ -5361,34 +5439,32 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     switch (status) {
       case 'Approved':
-        statusColor = const Color(0xFF10B981);
+        statusColor = _kdsSuccess;
         statusIcon = Icons.check_circle_rounded;
         break;
       case 'Rejected':
-        statusColor = const Color(0xFFEF4444);
+        statusColor = _kdsDanger;
         statusIcon = Icons.cancel_rounded;
         break;
       default:
-        statusColor = const Color(0xFFF59E0B);
+        statusColor = _kdsWarning;
         statusIcon = Icons.hourglass_top_rounded;
     }
 
-    const headerBg = Color(0xFF14332E);
-    const headerFg = Color(0xFFE6C374);
+    const headerBg = _kdsPrimary;
+    const headerFg = Colors.white;
 
+    // Only exceptions (Urgent/High) get a hue; Normal & Low stay neutral.
     Color priorityColor;
     switch (priority) {
       case 'Urgent':
-        priorityColor = const Color(0xFFEF4444);
+        priorityColor = const Color(0xFFF87171);
         break;
       case 'High':
-        priorityColor = const Color(0xFFF59E0B);
-        break;
-      case 'Low':
-        priorityColor = const Color(0xFF0284C7);
+        priorityColor = const Color(0xFFFBBF24);
         break;
       default:
-        priorityColor = const Color(0xFF64748B);
+        priorityColor = Colors.white;
     }
 
     final chefHandle = requestedBy.contains('@') ? requestedBy.split('@')[0] : requestedBy;
@@ -5398,7 +5474,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.black.withValues(alpha: 0.20),
+          color: _kdsBorder,
           width: 1.0,
         ),
       ),
@@ -5420,7 +5496,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     '#KDS-$ticketCode',
                     style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       color: headerFg,
                       letterSpacing: 0.6,
                     ),
@@ -5429,9 +5505,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: priorityColor.withValues(alpha: 0.25),
+                      color: priorityColor.withValues(alpha: priority == 'Urgent' || priority == 'High' ? 0.20 : 0.10),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.black, width: 0.8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -5443,10 +5518,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           ),
                         Text(
                           priority.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 9,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -5458,12 +5533,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.22),
+                        color: const Color(0xFFF87171).withValues(alpha: 0.20),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: Colors.black,
-                          width: 0.8,
-                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -5474,7 +5545,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             'OVERDUE • ${_formatElapsedTime(createdAt)}',
                             style: const TextStyle(
                               fontSize: 9,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: Color(0xFFFEE2E2),
                               letterSpacing: 0.2,
                             ),
@@ -5516,11 +5587,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _kdsSurfaceAlt,
                             borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
                           ),
-                          child: const Icon(Icons.restaurant_rounded, size: 15, color: Colors.black),
+                          child: const Icon(Icons.restaurant_rounded, size: 15, color: _kdsTextTertiary),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -5531,9 +5601,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               Text(
                                 itemName,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 13.5,
-                                  color: Colors.black,
+                                  color: _kdsTextPrimary,
                                   letterSpacing: -0.2,
                                 ),
                                 maxLines: 1,
@@ -5544,8 +5614,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 'By: $chefHandle • ${_formatDateTime(createdAt)}',
                                 style: const TextStyle(
                                   fontSize: 10,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w500,
+                                  color: _kdsTextTertiary,
+                                  fontWeight: FontWeight.w400,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -5568,16 +5638,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                   text: '$invStockDisplay / $quantity ',
                                   style: const TextStyle(
                                     fontSize: 13.5,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
+                                    color: _kdsTextPrimary,
                                   ),
                                 ),
                                 TextSpan(
                                   text: unit,
                                   style: const TextStyle(
                                     fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                    color: _kdsTextTertiary,
                                   ),
                                 ),
                               ],
@@ -5595,13 +5665,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: _kdsSurface,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
+                          border: Border.all(color: _kdsBorder, width: 0.8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.sticky_note_2_outlined, size: 12, color: Colors.black),
+                            const Icon(Icons.sticky_note_2_outlined, size: 12, color: _kdsTextMuted),
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
@@ -5609,8 +5679,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontStyle: FontStyle.italic,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
+                                  color: _kdsTextSecondary,
+                                  fontWeight: FontWeight.w500,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -5624,21 +5694,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: _kdsSurface,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.black.withValues(alpha: 0.20), width: 0.8),
+                          border: Border.all(color: _kdsBorder, width: 0.8),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.inventory_2_outlined, size: 11, color: Colors.black),
+                            Icon(Icons.inventory_2_outlined, size: 11, color: _kdsTextMuted),
                             SizedBox(width: 5),
                             Expanded(
                               child: Text(
                                 'Direct kitchen stock requisition',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w500,
+                                  color: _kdsTextTertiary,
+                                  fontWeight: FontWeight.w400,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -5660,12 +5730,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               height: 33,
                               child: ElevatedButton.icon(
                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
-                                icon: const Icon(Icons.check_rounded, size: 14, color: Colors.black),
-                                label: const Text('APPROVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.3, color: Colors.black)),
+                                icon: const Icon(Icons.check_rounded, size: 14),
+                                label: const Text('APPROVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.black,
-                                  side: const BorderSide(color: Colors.black, width: 1.0),
+                                  backgroundColor: _kdsPrimary,
+                                  foregroundColor: Colors.white,
                                   elevation: 0,
                                   padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
@@ -5680,11 +5749,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               height: 33,
                               child: OutlinedButton.icon(
                                 onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
-                                icon: const Icon(Icons.close_rounded, size: 13, color: Colors.black),
-                                label: const Text('REJECT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.2, color: Colors.black)),
+                                icon: const Icon(Icons.close_rounded, size: 13),
+                                label: const Text('REJECT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.black,
-                                  side: const BorderSide(color: Colors.black, width: 1.0),
+                                  foregroundColor: _kdsTextSecondary,
+                                  side: const BorderSide(color: _kdsBorderStrong, width: 1.0),
                                   padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                                 ),
@@ -5699,9 +5768,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         height: 32,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.08),
+                          color: _kdsSurface,
                           borderRadius: BorderRadius.circular(7),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          border: Border.all(color: _kdsBorder, width: 0.8),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -5712,8 +5781,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               '$status • ${_formatDateTime(updatedAt ?? createdAt)}',
                               style: const TextStyle(
                                 fontSize: 10,
-                                color: Colors.black,
-                                fontWeight: FontWeight.w800,
+                                color: _kdsTextSecondary,
+                                fontWeight: FontWeight.w600,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -6981,71 +7050,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
-    NotificationService.markAllAsRead('', forAdmin: true);
-    if (notifications.isNotEmpty) {
-      final unreadIds = notifications
-          .where((n) => n['is_read'] == false)
-          .map((n) => n['id'].toString())
-          .toList();
-      if (unreadIds.isNotEmpty) {
-        NotificationService.markVisibleAsRead(unreadIds);
-      }
-    }
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.notifications_rounded, color: Color(0xFF14332E)),
-            SizedBox(width: 8),
-            Text('Notifications', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-          ],
-        ),
-        content: SizedBox(
-          width: 400,
-          height: 480,
-          child: notifications.isEmpty
-              ? const Center(child: Text('No new activity notifications'))
-              : ListView.separated(
-                  itemCount: notifications.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                  itemBuilder: (context, index) {
-                    final n = notifications[index];
-                    final date = DateTime.parse(n['created_at']).toLocal();
-                    final timeStr = DateFormat('MMM d, h:mm a').format(date);
-
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF14332E).withValues(alpha: 0.1),
-                        child: Icon(_getIconForAction(n['action_type']), color: const Color(0xFF14332E), size: 18),
-                      ),
-                      title: Text(
-                        _getNotificationTitle(n),
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_getNotificationSubtitle(n), style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                          const SizedBox(height: 2),
-                          Text(timeStr, style: const TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+      barrierDismissible: true,
+      builder: (context) => _InvNotificationCenterDialog(
+        notifications: notifications,
+        onNavigateTab: (tabIndex) {
+          _onItemTapped(tabIndex);
+        },
       ),
-    );
+    ).then((_) {
+      // Mark notifications as read after the dialog is closed
+      NotificationService.markAllAsRead('', forAdmin: true);
+    });
   }
 
   void _showInvNotificationToast(Map<String, dynamic> n) {
@@ -7268,6 +7285,764 @@ class _InvTopToastWidgetState extends State<_InvTopToastWidget>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INVENTORY NOTIFICATION CENTER (EXECUTIVE DIALOG)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Grouped notification item to collapse consecutive duplicate alerts cleanly
+class _GroupedInvNotification {
+  final Map<String, dynamic> raw;
+  final String actionType;
+  final String eventType;
+  final DateTime latestCreatedAt;
+  final int count;
+  final bool hasUnread;
+  final List<String> allIds;
+
+  _GroupedInvNotification({
+    required this.raw,
+    required this.actionType,
+    required this.eventType,
+    required this.latestCreatedAt,
+    required this.count,
+    required this.hasUnread,
+    required this.allIds,
+  });
+}
+
+class _InvNotificationCenterDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> notifications;
+  final Function(int tabIndex) onNavigateTab;
+
+  const _InvNotificationCenterDialog({
+    required this.notifications,
+    required this.onNavigateTab,
+  });
+
+  @override
+  State<_InvNotificationCenterDialog> createState() => _InvNotificationCenterDialogState();
+}
+
+class _InvNotificationCenterDialogState extends State<_InvNotificationCenterDialog> {
+  int _selectedFilter = 0; // 0: All, 1: Stock Alerts, 2: Kitchen Requests, 3: History
+  late List<Map<String, dynamic>> _notifications;
+  bool _markedAllAsRead = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifications = List<Map<String, dynamic>>.from(widget.notifications);
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inSeconds < 45) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d, h:mm a').format(dt);
+  }
+
+  List<_GroupedInvNotification> _groupNotifications(List<Map<String, dynamic>> rawList) {
+    final Map<String, _GroupedInvNotification> groupMap = {};
+    final List<String> groupOrder = [];
+
+    for (final n in rawList) {
+      final actionType = n['action_type']?.toString() ?? 'general';
+      final eventType = n['event_type']?.toString() ?? '';
+
+      DateTime dt = DateTime.now();
+      try {
+        if (n['created_at'] != null) {
+          dt = DateTime.parse(n['created_at'].toString()).toLocal();
+        }
+      } catch (_) {}
+
+      // Group identical notifications on the same calendar day to stop alert spam
+      final dateKey = '${dt.year}-${dt.month}-${dt.day}';
+      final key = '${actionType}_${eventType}_$dateKey';
+
+      final id = n['id']?.toString() ?? '';
+      final isRead = n['is_read'] == true;
+
+      if (!groupMap.containsKey(key)) {
+        groupMap[key] = _GroupedInvNotification(
+          raw: n,
+          actionType: actionType,
+          eventType: eventType,
+          latestCreatedAt: dt,
+          count: 1,
+          hasUnread: !isRead,
+          allIds: id.isNotEmpty ? [id] : [],
+        );
+        groupOrder.add(key);
+      } else {
+        final existing = groupMap[key]!;
+        final newLatest = dt.isAfter(existing.latestCreatedAt) ? dt : existing.latestCreatedAt;
+        final newHasUnread = existing.hasUnread || !isRead;
+        final newIds = List<String>.from(existing.allIds);
+        if (id.isNotEmpty && !newIds.contains(id)) newIds.add(id);
+
+        groupMap[key] = _GroupedInvNotification(
+          raw: existing.raw,
+          actionType: actionType,
+          eventType: eventType,
+          latestCreatedAt: newLatest,
+          count: existing.count + 1,
+          hasUnread: newHasUnread,
+          allIds: newIds,
+        );
+      }
+    }
+
+    return groupOrder.map((k) => groupMap[k]!).toList();
+  }
+
+  IconData _getIconForAction(String action, String eventType) {
+    switch (action) {
+      case 'stock_request':
+        return Icons.shopping_bag_rounded;
+      case 'stock_alert':
+        final upper = eventType.toUpperCase();
+        if (upper.contains('OUT OF STOCK') ||
+            upper.contains('0 KILO') ||
+            upper.contains('0 LEFT') ||
+            upper.contains('CRITICAL')) {
+          return Icons.error_outline_rounded;
+        }
+        return Icons.warning_amber_rounded;
+      case 'stock_approved':
+        return Icons.check_circle_rounded;
+      case 'stock_rejected':
+        return Icons.cancel_rounded;
+      case 'pos_order':
+        return Icons.receipt_long_rounded;
+      default:
+        return Icons.notifications_rounded;
+    }
+  }
+
+  Color _getColorForAction(String action, String eventType) {
+    switch (action) {
+      case 'stock_request':
+        return const Color(0xFF0284C7); // Sky blue
+      case 'stock_alert':
+        final upper = eventType.toUpperCase();
+        if (upper.contains('OUT OF STOCK') ||
+            upper.contains('0 KILO') ||
+            upper.contains('0 LEFT') ||
+            upper.contains('CRITICAL')) {
+          return const Color(0xFFEF4444); // Crimson red
+        }
+        return const Color(0xFFF59E0B); // Amber
+      case 'stock_approved':
+        return const Color(0xFF10B981); // Emerald
+      case 'stock_rejected':
+        return const Color(0xFFEF4444); // Crimson red
+      case 'pos_order':
+        return const Color(0xFF059669); // Forest emerald
+      default:
+        return const Color(0xFF14332E);
+    }
+  }
+
+  String _getTitleForAction(String action, String eventType) {
+    switch (action) {
+      case 'stock_request':
+        return 'Stock Request from Kitchen';
+      case 'stock_alert':
+        final upper = eventType.toUpperCase();
+        if (upper.contains('OUT OF STOCK') || upper.contains('CRITICAL')) {
+          return 'Critical Stock Alert';
+        }
+        return 'Inventory Stock Alert';
+      case 'stock_approved':
+        return 'Stock Request Approved';
+      case 'stock_rejected':
+        return 'Stock Request Declined';
+      case 'pos_order':
+        return 'New Kitchen POS Order';
+      default:
+        return 'Inventory Notification';
+    }
+  }
+
+  String _getSubtitleForAction(String action, String eventType) {
+    if (action == 'stock_request') {
+      return eventType.isNotEmpty ? 'Kitchen Chef requested: $eventType' : 'Kitchen Chef submitted a stock request.';
+    }
+    if (action == 'stock_alert') {
+      return eventType.isNotEmpty ? eventType : 'Stock level is critical.';
+    }
+    return eventType.isNotEmpty ? eventType : 'Inventory system activity logged.';
+  }
+
+  int _getDestinationTab(String action, String eventType) {
+    if (action == 'stock_request' || action == 'stock_approved' || action == 'stock_rejected' || action == 'pos_order') {
+      return 1; // Kitchen Requests
+    }
+    if (action == 'stock_alert') {
+      if (eventType.toLowerCase().contains('storage')) {
+        return 3; // Storage Room
+      }
+      return 2; // Manage Inventory
+    }
+    return 0; // Dashboard Overview
+  }
+
+  String _getActionHint(String action, String eventType) {
+    if (action == 'stock_request' || action == 'stock_approved' || action == 'stock_rejected' || action == 'pos_order') {
+      return 'View Kitchen Requests';
+    }
+    if (action == 'stock_alert') {
+      if (eventType.toLowerCase().contains('storage')) {
+        return 'Open Storage Room';
+      }
+      return 'Manage in Inventory';
+    }
+    return 'View Dashboard';
+  }
+
+  Future<void> _markAllAsRead() async {
+    final allIds = _notifications
+        .map((n) => n['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (allIds.isNotEmpty) {
+      await NotificationService.markVisibleAsRead(allIds);
+    }
+    await NotificationService.markAllAsRead('', forAdmin: true);
+    if (mounted) {
+      setState(() {
+        _markedAllAsRead = true;
+        for (var item in _notifications) {
+          item['is_read'] = true;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All notifications marked as read and moved to History'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF14332E),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final dialogWidth = screenWidth > 720 ? 640.0 : screenWidth * 0.95;
+    final dialogHeight = screenHeight > 700 ? 620.0 : screenHeight * 0.88;
+
+    final allGrouped = _groupNotifications(_notifications);
+    final stockAlerts = allGrouped.where((n) => n.actionType == 'stock_alert').toList();
+    final kitchenRequests = allGrouped.where((n) =>
+        n.actionType == 'stock_request' ||
+        n.actionType == 'stock_approved' ||
+        n.actionType == 'stock_rejected' ||
+        n.actionType == 'pos_order').toList();
+    final unreadAlerts = allGrouped.where((n) => n.hasUnread).toList();
+
+    List<_GroupedInvNotification> displayedList;
+    if (_selectedFilter == 3) {
+      // Tab 3: History tab always preserves all notifications
+      displayedList = allGrouped;
+    } else if (_markedAllAsRead) {
+      // When "Mark all as read" is clicked, active views are cleared
+      displayedList = [];
+    } else {
+      // Active tabs only display unread notifications
+      switch (_selectedFilter) {
+        case 1:
+          displayedList = stockAlerts.where((n) => n.hasUnread).toList();
+          break;
+        case 2:
+          displayedList = kitchenRequests.where((n) => n.hasUnread).toList();
+          break;
+        default:
+          displayedList = unreadAlerts;
+      }
+    }
+
+    final filters = [
+      'All',
+      'Stock Alerts',
+      'Kitchen Requests',
+      'History',
+    ];
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: dialogWidth,
+        height: dialogHeight,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 32,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // ── Modal Header: Deep Forest Emerald Gradient ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0B211D), Color(0xFF133831)],
+                ),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                border: Border(bottom: BorderSide(color: Color(0x33E6C374), width: 1.5)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6C374).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE6C374).withValues(alpha: 0.4)),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_active_rounded,
+                      color: Color(0xFFE6C374),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'NOTIFICATIONS & ALERTS',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            if (!_markedAllAsRead && unreadAlerts.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${unreadAlerts.length} new',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Live activity feed for kitchen requests, critical stocks & inventory',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFFCBD5E1),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                    tooltip: 'Close',
+                    splashRadius: 18,
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Filter Pills Bar (No Numbers) ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: List.generate(filters.length, (idx) {
+                    final isSelected = _selectedFilter == idx;
+                    final name = filters[idx];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => setState(() => _selectedFilter = idx),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF0B211D) : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFFE6C374) : const Color(0xFFCBD5E1),
+                                width: isSelected ? 1.4 : 1,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF0B211D).withValues(alpha: 0.15),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (idx == 3) ...[
+                                  Icon(
+                                    Icons.history_rounded,
+                                    size: 14,
+                                    color: isSelected ? const Color(0xFFE6C374) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Text(
+                                  name,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: isSelected ? const Color(0xFFE6C374) : const Color(0xFF475569),
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+
+            // ── Notifications Content List ──
+            Expanded(
+              child: displayedList.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: _selectedFilter != 3
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                                    : const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _selectedFilter != 3
+                                    ? Icons.done_all_rounded
+                                    : Icons.history_rounded,
+                                size: 38,
+                                color: _selectedFilter != 3
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              _selectedFilter != 3
+                                  ? 'All Caught Up!'
+                                  : 'No notification history yet',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF1E293B),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              _selectedFilter != 3
+                                  ? 'No unread notifications. All past inventory notifications are safely kept in your History tab.'
+                                  : 'Past inventory stock alerts and kitchen requests will appear here.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF64748B),
+                                fontSize: 12,
+                                height: 1.4,
+                              ),
+                            ),
+                            if (_selectedFilter != 3) ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedFilter = 3; // Switch to History
+                                  });
+                                },
+                                icon: const Icon(Icons.history_rounded, size: 16),
+                                label: const Text('View All History'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF14332E),
+                                  foregroundColor: const Color(0xFFE6C374),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      itemCount: displayedList.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = displayedList[index];
+                        final iconColor = _getColorForAction(item.actionType, item.eventType);
+                        final iconData = _getIconForAction(item.actionType, item.eventType);
+                        final title = _getTitleForAction(item.actionType, item.eventType);
+                        final subtitle = _getSubtitleForAction(item.actionType, item.eventType);
+                        final actionHint = _getActionHint(item.actionType, item.eventType);
+                        final destTab = _getDestinationTab(item.actionType, item.eventType);
+
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (item.hasUnread && item.allIds.isNotEmpty) {
+                                NotificationService.markVisibleAsRead(item.allIds);
+                              }
+                              widget.onNavigateTab(destTab);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: item.hasUnread
+                                    ? iconColor.withValues(alpha: 0.04)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: item.hasUnread
+                                      ? iconColor.withValues(alpha: 0.35)
+                                      : const Color(0xFFE2E8F0),
+                                  width: item.hasUnread ? 1.3 : 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (item.hasUnread)
+                                    Container(
+                                      width: 3.5,
+                                      height: 38,
+                                      margin: const EdgeInsets.only(right: 10),
+                                      decoration: BoxDecoration(
+                                        color: iconColor,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  Container(
+                                    padding: const EdgeInsets.all(9),
+                                    decoration: BoxDecoration(
+                                      color: iconColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(iconData, color: iconColor, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      title,
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        color: const Color(0xFF0F172A),
+                                                        fontWeight: FontWeight.w800,
+                                                        fontSize: 13,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              _formatTimeAgo(item.latestCreatedAt),
+                                              style: GoogleFonts.plusJakartaSans(
+                                                color: const Color(0xFF94A3B8),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          subtitle,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            color: const Color(0xFF475569),
+                                            fontSize: 12,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              actionHint,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: iconColor,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.arrow_forward_rounded,
+                                              size: 12,
+                                              color: iconColor,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 18,
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            // ── Modal Footer Toolbar ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: Row(
+                children: [
+                  if (_markedAllAsRead || unreadAlerts.isEmpty)
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'All marked as read',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed: _markAllAsRead,
+                      icon: const Icon(Icons.done_all_rounded, size: 16, color: Color(0xFF64748B)),
+                      label: Text(
+                        'Mark all as read',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14332E),
+                      foregroundColor: const Color(0xFFE6C374),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
