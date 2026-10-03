@@ -299,7 +299,7 @@ class NotificationService {
         await _supabase
             .from('notifications')
             .update({'is_read': true})
-            .or('recipient_email.eq.$lower,customer_email.eq.$lower');
+            .or('recipient_email.eq.$lower,customer_email.eq.$lower,user_email.eq.$lower');
       }
     } catch (e) {
       debugPrint('Error marking notifications as read: $e');

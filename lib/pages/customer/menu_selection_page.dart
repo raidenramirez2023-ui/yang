@@ -41,8 +41,6 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   double _depositAmount = 0.0;
   
   final ScrollController _categoryScrollController = ScrollController();
-  bool _canScrollCategoryLeft = false;
-  bool _canScrollCategoryRight = true;
 
   final Map<String, num> _inventoryCache = {};
   final Map<String, List<Map<String, dynamic>>> _recipeCache = {};
@@ -93,42 +91,8 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       }
     }
     
-    _categoryScrollController.addListener(_categoryScrollListener);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkCategoryScroll();
-    });
-    
     _updatePricing();
     _fetchInventory();
-  }
-
-  void _categoryScrollListener() {
-    _checkCategoryScroll();
-  }
-
-  void _checkCategoryScroll() {
-    if (!_categoryScrollController.hasClients) return;
-    
-    final position = _categoryScrollController.position;
-    final atLeft = position.pixels <= 0;
-    final atRight = position.pixels >= position.maxScrollExtent;
-    
-    bool newCanScrollLeft = !atLeft;
-    bool newCanScrollRight = !atRight;
-    
-    if (position.maxScrollExtent == 0) {
-      newCanScrollLeft = false;
-      newCanScrollRight = false;
-    }
-    
-    if (_canScrollCategoryLeft != newCanScrollLeft || _canScrollCategoryRight != newCanScrollRight) {
-      if (mounted) {
-        setState(() {
-          _canScrollCategoryLeft = newCanScrollLeft;
-          _canScrollCategoryRight = newCanScrollRight;
-        });
-      }
-    }
   }
 
   Future<void> _fetchInventory() async {
@@ -429,85 +393,15 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           // Filter and Category Chips Row
           SizedBox(
             height: 38,
-            child: Stack(
-              children: [
-                ListView(
-                  controller: _categoryScrollController,
-                  scrollDirection: Axis.horizontal,
-                  children: _isEventPlace
-                      ? menu.keys.map((cat) => _buildCategoryChip(cat)).toList()
-                      : [
-                          _buildCategoryChip('All'),
-                          ...MenuService.customerCategories.map((cat) => _buildCategoryChip(cat)),
-                        ],
-                ),
-                if (_canScrollCategoryLeft)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 2,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.chevron_left_rounded, color: AppTheme.primaryColor, size: 18),
-                          onPressed: () {
-                            _categoryScrollController.animateTo(
-                              (_categoryScrollController.offset - 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (_canScrollCategoryRight)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 2,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.chevron_right_rounded, color: AppTheme.primaryColor, size: 18),
-                          onPressed: () {
-                            _categoryScrollController.animateTo(
-                              (_categoryScrollController.offset + 150).clamp(0.0, _categoryScrollController.position.maxScrollExtent),
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            child: ListView(
+              controller: _categoryScrollController,
+              scrollDirection: Axis.horizontal,
+              children: _isEventPlace
+                  ? menu.keys.map((cat) => _buildCategoryChip(cat)).toList()
+                  : [
+                      _buildCategoryChip('All'),
+                      ...MenuService.customerCategories.map((cat) => _buildCategoryChip(cat)),
+                    ],
             ),
           ),
         ],
@@ -717,9 +611,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        item.hasVariants
-                            ? 'From ₱${_fmt.format(item.minPrice)}'
-                            : '₱${_fmt.format(item.minPrice)}',
+                        '₱${_fmt.format(item.minPrice)}',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 11,
