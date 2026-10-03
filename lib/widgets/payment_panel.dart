@@ -27,6 +27,7 @@ class PaymentPanel extends StatefulWidget {
   final String note;
   final double? overrideTotalAmount; // Optional total with discount included
   final String tableNumber;
+  final String orderType;
 
   const PaymentPanel({
     super.key,
@@ -37,6 +38,7 @@ class PaymentPanel extends StatefulWidget {
     this.note = '',
     this.overrideTotalAmount,
     this.tableNumber = '',
+    this.orderType = 'Dine-in',
   });
 
   @override
@@ -408,7 +410,10 @@ class _PaymentPanelState extends State<PaymentPanel>
               // ===== CATEGORY LABEL =====
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
-                child: pw.Text('DINE IN', style: baseStyle),
+                child: pw.Text(
+                  widget.orderType.toLowerCase().contains('take') ? 'TAKE HOME' : 'DINE IN',
+                  style: baseStyle,
+                ),
               ),
               
               // ===== ITEMS =====

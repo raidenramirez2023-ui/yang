@@ -77,53 +77,31 @@ class ReceiptTemplate extends StatelessWidget {
   final String? discountName;
 
   final String? discountAddress;
-
-
+  final String? diningOption;
 
   ReceiptTemplate({
-
     super.key,
-
     required this.cart,
-
     required this.totalAmount,
-
     this.customerName,
-
     this.customerAddress,
-
     this.note,
-
     this.paymentMethod = 'CASH',
-
     this.transactionId = '97413347',
-
     this.paidAmount = 0.0,
-
     this.changeDue = 0.0,
-
     DateTime? transactionDate,
-
     this.tableNumber,
-
     this.guestCount,
-
     this.serverName,
-
     this.orderType = 'WALK-IN',
-
     this.terminalNumber = 1,
-
     this.cashierName,
-
     this.discountAmount = 0.0,
-
     this.discountLabel = 'None',
-
     this.discountName,
-
     this.discountAddress,
-
+    this.diningOption = 'Dine-in',
   }) : transactionDate = transactionDate ?? DateTime.now();
 
 
@@ -531,15 +509,17 @@ class ReceiptTemplate extends StatelessWidget {
 
             // ===== CATEGORY LABEL =====
 
-            const Align(
+            Align(
 
               alignment: Alignment.centerLeft,
 
               child: Text(
 
-                'DINE IN',
+                (diningOption != null && diningOption!.toLowerCase().contains('take'))
+                    ? 'TAKE HOME'
+                    : 'DINE IN',
 
-                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
 
               ),
 
@@ -2087,6 +2067,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     String discountAddress = '',
 
+    String orderType = 'Dine-in',
+
   }) async {
 
     if (cart.isEmpty) {
@@ -2248,6 +2230,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       discountAddress: discountAddress,
 
+      orderType: orderType,
+
     );
 
 
@@ -2310,6 +2294,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
             discountAddress: discountAddress,
 
+            diningOption: orderType,
+
           ),
 
         ),
@@ -2354,9 +2340,19 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     String discountAddress = '',
 
+    String orderType = 'Dine-in',
+
   }) async {
 
     final staffEmail = Supabase.instance.client.auth.currentUser?.email ?? 'staffycp@gmail.com';
+
+    final String cleanTrimmedNote = note.trim();
+    final String savedNote = orderType.toLowerCase().contains('take')
+        ? (cleanTrimmedNote.contains('[TAKE HOME]') ? cleanTrimmedNote : (cleanTrimmedNote.isEmpty ? '[TAKE HOME]' : '[TAKE HOME] $cleanTrimmedNote'))
+        : (cleanTrimmedNote.contains('[DINE IN]') ? cleanTrimmedNote : (cleanTrimmedNote.isEmpty ? '[DINE IN]' : '[DINE IN] $cleanTrimmedNote'));
+    final String? finalTableNumber = (orderType.toLowerCase().contains('take') || tableNumber.isEmpty)
+        ? null
+        : tableNumber;
 
     final itemRows = cartSnapshot
 
@@ -2382,276 +2378,150 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     final isOnline = OfflinePosService().isOnlineNotifier.value;
 
-
+    final bool isDrinksOnly = cartSnapshot.isNotEmpty &&
+        cartSnapshot.every((c) =>
+            c.item.category.trim().toLowerCase() == 'drinks' ||
+            MenuService.isDrinkItem(c.item.name));
+    final String initialKitchenStatus = isDrinksOnly ? 'Done' : 'Pending';
 
     // If offline, directly enqueue
-
     if (!isOnline) {
-
       await OfflinePosService().enqueueOrder(
-
         transactionId: transactionId,
-
         total: total,
-
         customerName: customerName,
-
         customerAddress: customerAddress,
-
-        note: note,
-
+        note: savedNote,
         paymentMethod: paymentMethod,
-
         amountPaid: amountPaid,
-
         changeDue: changeDue,
-
         guestCount: guestCount,
-
-        tableNumber: tableNumber,
-
+        tableNumber: finalTableNumber ?? '',
         discountAmount: discountAmount,
-
         discountLabel: discountLabel,
-
         discountName: discountName,
-
         discountAddress: discountAddress,
-
         staffEmail: staffEmail,
-
         items: itemRows,
-
+        kitchenStatus: initialKitchenStatus,
       );
 
-
-
       if (mounted) {
-
         ScaffoldMessenger.of(context).showSnackBar(
-
           SnackBar(
-
             content: Row(
-
               children: [
-
                 const Icon(Icons.cloud_off, color: Colors.white, size: 20),
-
                 const SizedBox(width: 8),
-
                 Expanded(
-
                   child: Text('⚡ Order #$transactionId saved in Offline Mode. It will auto-sync when online.'),
-
                 ),
-
               ],
-
             ),
-
             backgroundColor: const Color(0xFFD97706),
-
             behavior: SnackBarBehavior.floating,
-
             duration: const Duration(seconds: 4),
-
           ),
-
         );
-
       }
-
       return;
-
     }
 
-
-
     try {
-
       final supabase = Supabase.instance.client;
 
-
-
-      print('DEBUG: Inserting order online - customerName: "$customerName", transactionId: "$transactionId"');
-
-
+      print('DEBUG: Inserting order online - customerName: "$customerName", transactionId: "$transactionId", orderType: "$orderType"');
 
       // Insert the order header and get back the generated ID
-
       final orderRes = await supabase
-
           .from('orders')
-
           .insert({
-
             'transaction_id': transactionId,
-
             'customer_name': customerName.isNotEmpty ? customerName : 'Guest',
-
             'customer_address': customerAddress.isNotEmpty ? customerAddress : null,
-
-            'note': note,
-
-            'kitchen_status': 'Pending',
-
+            'note': savedNote,
+            'kitchen_status': initialKitchenStatus,
             'total_amount': total,
-
             'payment_method': paymentMethod,
-
             'payment_status': amountPaid >= total ? 'paid' : 'partially_paid',
-
             'amount_paid': amountPaid,
-
             'change_due': changeDue,
-
             'item_count': cartSnapshot.fold(0, (s, c) => s + c.quantity),
-
             'staff_email': staffEmail,
-
-            'table_number': tableNumber.isNotEmpty ? tableNumber : null,
-
+            'table_number': finalTableNumber,
             'number_of_guests': guestCount,
-
             'discount_amount': discountAmount,
-
             'discount_label': discountLabel,
-
             'discount_name': discountName,
-
             'discount_address': discountAddress,
-
             'created_at': DateTime.now().toUtc().toIso8601String(),
-
           })
-
           .select('id')
-
           .single()
-
           .timeout(const Duration(seconds: 5));
-
-
 
       print('DEBUG: Order insert succeeded, order ID: ${orderRes['id']}');
 
-
-
       final orderId = orderRes['id'].toString();
 
-
-
       // Insert each line item
-
       final itemRowsToInsert = cartSnapshot
-
           .map(
-
             (c) => {
-
               'order_id': orderId,
-
               'item_name': c.item.name,
-
               'quantity': c.quantity,
-
               'unit_price': c.item.price,
-
               'subtotal': c.item.price * c.quantity,
-
             },
-
           )
-
           .toList();
-
-
 
       await supabase.from('order_items').insert(itemRowsToInsert).timeout(const Duration(seconds: 5));
 
-
-
       // Trigger automatic inventory deduction for each item ordered
-
       for (final cartItem in cartSnapshot) {
-
         await RecipeService().deductIngredientsFromInventory(
-
           cartItem.item.name,
-
           cartItem.quantity,
-
         );
-
       }
 
-      
-
       // Refresh inventory cache after deduction
-
       _fetchInventory();
 
-
-
-      // Send notification to kitchen/admin
-
-      await NotificationService.handlePosOrderNotification(
-
-        actorName: staffEmail.split('@')[0],
-
-        reservationId: orderId,
-
-        eventType: 'New POS Order ($transactionId)',
-
-      );
-
-
+      // Send notification to kitchen/admin only if order contains food items needing kitchen prep
+      if (!isDrinksOnly) {
+        await NotificationService.handlePosOrderNotification(
+          actorName: staffEmail.split('@')[0],
+          reservationId: orderId,
+          eventType: 'New POS Order ($transactionId)',
+        );
+      }
 
     } catch (e) {
-
       print('ERROR: Supabase insert failed: $e, enqueuing to offline storage');
-
       debugPrint('Supabase Error: $e');
 
-
-
       // Enqueue to offline storage so no orders are lost!
-
       await OfflinePosService().enqueueOrder(
-
         transactionId: transactionId,
-
         total: total,
-
         customerName: customerName,
-
         customerAddress: customerAddress,
-
         note: note,
-
         paymentMethod: paymentMethod,
-
         amountPaid: amountPaid,
-
         changeDue: changeDue,
-
         guestCount: guestCount,
-
         tableNumber: tableNumber,
-
         discountAmount: discountAmount,
-
         discountLabel: discountLabel,
-
         discountName: discountName,
-
         discountAddress: discountAddress,
-
         staffEmail: staffEmail,
-
         items: itemRows,
-
+        kitchenStatus: initialKitchenStatus,
       );
 
 
@@ -3558,7 +3428,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                       onRemoveItem: _removeItem,
 
-                      onProceedPayment: (customerName, customerAddress, note, totalAmount, guestCount, tableNumber, discountAmount, discountLabel, discountName, discountAddress) async {
+                      onProceedPayment: (customerName, customerAddress, note, totalAmount, guestCount, tableNumber, discountAmount, discountLabel, discountName, discountAddress, orderType) async {
 
                         // Validation for Staff: Stock-based quantity limit (Max = Stock - 1)
                         // Skip Supabase inventory check when offline — let order proceed to payment
@@ -3645,6 +3515,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                                 tableNumber: tableNumber,
 
+                                orderType: orderType,
+
                                 onBack: () => Navigator.pop(context),
 
                                 onComplete:
@@ -3686,6 +3558,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                         discountName: discountName,
 
                                         discountAddress: discountAddress,
+
+                                        orderType: orderType,
 
                                       );
 

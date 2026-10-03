@@ -29,6 +29,53 @@ class MenuService {
     return category.trim().toLowerCase() == 'drinks';
   }
 
+  /// Returns whether an item name belongs to the 'Drinks' category
+  static bool isDrinkItem(String itemName) {
+    if (itemName.trim().isEmpty) return false;
+    final clean = itemName.trim().toLowerCase();
+
+    // 1. Check loaded menu
+    final menu = getMenu();
+    for (final entry in menu.entries) {
+      if (entry.key.trim().toLowerCase() == 'drinks') {
+        for (final item in entry.value) {
+          final itemClean = item.name.trim().toLowerCase();
+          if (clean == itemClean ||
+              clean.startsWith(itemClean) ||
+              itemClean.startsWith(clean)) {
+            return true;
+          }
+        }
+      }
+    }
+
+    // 2. Known standard drinks keywords fallback
+    const knownDrinks = [
+      '7up',
+      'mirinda',
+      'mountain dew',
+      'mug root beer',
+      'nature spring',
+      'pepsi',
+      'red horse',
+      'san mig',
+      'iced tea',
+      'coke',
+      'sprite',
+      'royal',
+      'water',
+      'beer',
+      'soda',
+      'juice',
+      'gulaman',
+    ];
+    for (final kd in knownDrinks) {
+      if (clean.contains(kd)) return true;
+    }
+
+    return false;
+  }
+
   /// Categories for customer-facing views (excludes POS-only categories like Drinks)
   static List<String> get customerCategories =>
       categories.where((cat) => !isPosOnlyCategory(cat)).toList();

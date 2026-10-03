@@ -190,6 +190,7 @@ class OfflinePosService {
     required String discountAddress,
     required String staffEmail,
     required List<Map<String, dynamic>> items,
+    String kitchenStatus = 'Pending',
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -205,7 +206,7 @@ class OfflinePosService {
         'customer_name': customerName.isNotEmpty ? customerName : 'Guest',
         'customer_address': customerAddress.isNotEmpty ? customerAddress : null,
         'note': note,
-        'kitchen_status': 'Pending',
+        'kitchen_status': kitchenStatus,
         'total_amount': total,
         'payment_method': paymentMethod,
         'payment_status': amountPaid >= total ? 'paid' : 'partially_paid',
