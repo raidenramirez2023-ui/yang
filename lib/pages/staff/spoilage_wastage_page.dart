@@ -18,6 +18,7 @@ class SpoilageWastagePage extends StatefulWidget {
 }
 
 class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
+  static const Color _emeraldDeep = Color(0xFF133831);
   final SupabaseClient _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
 
@@ -361,7 +362,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.03),
@@ -377,16 +378,12 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
           Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: _emeraldDeep,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black),
+              border: Border.all(color: _emeraldDeep),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+                  color: _emeraldDeep.withValues(alpha: 0.20),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -414,7 +411,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: isMobile ? 16 : 18,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black,
+                          color: const Color(0xFF0F172A),
                           letterSpacing: -0.3,
                         ),
                         maxLines: 1,
@@ -425,16 +422,16 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.08),
+                        color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.black, width: 0.8),
+                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                       ),
                       child: Text(
                         'AUDIT LOG',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFFDC2626),
+                          color: const Color(0xFF475569),
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -448,7 +445,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       : 'Record spoiled, expired, or prep-damaged ingredients to automatically synchronize stock and maintain food waste audits.',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
-                    color: Colors.black,
+                    color: const Color(0xFF64748B),
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: isMobile ? 1 : 2,
@@ -474,14 +471,13 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
+                backgroundColor: _emeraldDeep,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Colors.black),
                 ),
-                elevation: 1,
+                elevation: 0,
               ),
             ),
         ],
@@ -493,42 +489,45 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
   // 2. TELEMETRY / KPI METRIC CARDS
   // ---------------------------------------------------------------------------
   Widget _buildTelemetryCards(bool isMobile, bool isTablet) {
+    final bool hasLoss = _totalQuantityWasted > 0;
+    final bool hasIncidents = _filteredLogs.isNotEmpty;
+
     final cards = [
       _buildSingleMetricCard(
         label: 'TOTAL UNITS LOST',
         value: '${_totalQuantityWasted.toStringAsFixed(_qtyDecimals(_totalQuantityWasted))} units',
         subtitle: 'Cumulative loss in this filter',
         icon: Icons.remove_shopping_cart_rounded,
-        iconTint: const Color(0xFFDC2626),
-        bgTint: const Color(0xFFFEF2F2),
-        borderTint: const Color(0xFFFCA5A5),
+        iconTint: hasLoss ? const Color(0xFFE11D48) : const Color(0xFF64748B),
+        bgTint: hasLoss ? const Color(0xFFFFF1F2) : const Color(0xFFF8FAFC),
+        borderTint: hasLoss ? const Color(0xFFFECDD3) : const Color(0xFFE2E8F0),
       ),
       _buildSingleMetricCard(
         label: 'WASTE INCIDENTS',
         value: '${_filteredLogs.length} events',
         subtitle: 'Recorded write-off events',
         icon: Icons.assignment_late_outlined,
-        iconTint: const Color(0xFFD97706),
-        bgTint: const Color(0xFFFFFBEB),
-        borderTint: const Color(0xFFFDE68A),
+        iconTint: hasIncidents ? const Color(0xFFD97706) : const Color(0xFF64748B),
+        bgTint: hasIncidents ? const Color(0xFFFFFBEB) : const Color(0xFFF8FAFC),
+        borderTint: hasIncidents ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
       ),
       _buildSingleMetricCard(
         label: 'PRIMARY ROOT CAUSE',
         value: _mostCommonReason,
         subtitle: 'Highest occurrence factor',
         icon: Icons.pie_chart_outline_rounded,
-        iconTint: const Color(0xFF7C3AED),
-        bgTint: const Color(0xFFF5F3FF),
-        borderTint: const Color(0xFFDDD6FE),
+        iconTint: const Color(0xFF475569),
+        bgTint: const Color(0xFFF8FAFC),
+        borderTint: const Color(0xFFE2E8F0),
       ),
       _buildSingleMetricCard(
         label: 'IMPACTED SKUS',
         value: '$_uniqueImpactedItemsCount items',
         subtitle: 'Distinct items affected',
         icon: Icons.inventory_2_outlined,
-        iconTint: const Color(0xFF0284C7),
-        bgTint: const Color(0xFFF0F9FF),
-        borderTint: const Color(0xFFBAE6FD),
+        iconTint: const Color(0xFF475569),
+        bgTint: const Color(0xFFF8FAFC),
+        borderTint: const Color(0xFFE2E8F0),
       ),
     ];
 
@@ -685,7 +684,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.02),
@@ -706,7 +705,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.black),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -714,7 +713,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       _searchQuery = v;
                       _currentPage = 1;
                     }),
-                    style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: const Color(0xFF0F172A)),
                     decoration: InputDecoration(
                       hintText: isMobile
                           ? 'Search ingredient or reason...'
@@ -723,7 +722,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                         fontSize: 12,
                         color: const Color(0xFF94A3B8),
                       ),
-                      prefixIcon: const Icon(Icons.search_rounded, size: 17, color: Colors.black),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 17, color: Color(0xFF64748B)),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? InkWell(
                               onTap: () {
@@ -733,7 +732,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                   _currentPage = 1;
                                 });
                               },
-                              child: const Icon(Icons.close_rounded, size: 16, color: Colors.black),
+                              child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
                             )
                           : null,
                       border: InputBorder.none,
@@ -751,25 +750,25 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.black),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedTimeFilter,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
                     items: ['This Week', 'This Month', 'All Time']
                         .map((t) => DropdownMenuItem(
                               value: t,
                               child: Row(
                                 children: [
-                                  const Icon(Icons.date_range_rounded, size: 14, color: Colors.black),
+                                  const Icon(Icons.date_range_rounded, size: 14, color: Color(0xFF64748B)),
                                   const SizedBox(width: 6),
                                   Text(
                                     t,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.black,
+                                      color: const Color(0xFF334155),
                                     ),
                                   ),
                                 ],
@@ -824,11 +823,11 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFFDC2626)
+                            ? _emeraldDeep
                             : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Colors.black,
+                          color: isSelected ? _emeraldDeep : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Row(
@@ -839,7 +838,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 11,
                               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                              color: isSelected ? Colors.white : Colors.black,
+                              color: isSelected ? Colors.white : const Color(0xFF475569),
                             ),
                           ),
                           const SizedBox(width: 5),
@@ -847,17 +846,16 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.25)
+                                  ? Colors.white.withValues(alpha: 0.20)
                                   : const Color(0xFFE2E8F0),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.black, width: 0.6),
                             ),
                             child: Text(
                               '$count',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w800,
-                                color: isSelected ? Colors.white : Colors.black,
+                                color: isSelected ? Colors.white : const Color(0xFF64748B),
                               ),
                             ),
                           ),
@@ -929,7 +927,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       icon: Icon(
                         Icons.table_rows_rounded,
                         size: 16,
-                        color: !_preferCardView ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
+                        color: !_preferCardView ? _emeraldDeep : const Color(0xFF94A3B8),
                       ),
                       onPressed: () => setState(() => _preferCardView = false),
                       padding: const EdgeInsets.all(6),
@@ -941,7 +939,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       icon: Icon(
                         Icons.view_agenda_rounded,
                         size: 16,
-                        color: _preferCardView ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
+                        color: _preferCardView ? _emeraldDeep : const Color(0xFF94A3B8),
                       ),
                       onPressed: () => setState(() => _preferCardView = true),
                       padding: const EdgeInsets.all(6),
@@ -964,11 +962,11 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
+                  backgroundColor: _emeraldDeep,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 1,
+                  elevation: 0,
                 ),
               ),
             ],
@@ -993,7 +991,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.03),
@@ -1021,12 +1019,12 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       dataRowMaxHeight: 72,
                       horizontalMargin: 18,
                       columnSpacing: 20,
-                      headingRowColor: WidgetStateProperty.all(Colors.transparent),
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                       dividerThickness: 1,
                       border: const TableBorder(
                         horizontalInside: BorderSide(
-                          color: Colors.black,
-                          width: 0.5,
+                          color: Color(0xFFE2E8F0),
+                          width: 1.0,
                         ),
                       ),
                       columns: [
@@ -1072,14 +1070,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.event_outlined, size: 12, color: Colors.black),
+                                      const Icon(Icons.event_outlined, size: 12, color: Color(0xFF94A3B8)),
                                       const SizedBox(width: 4),
                                       Text(
                                         datePart,
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
-                                          color: Colors.black,
+                                          color: const Color(0xFF0F172A),
                                         ),
                                       ),
                                     ],
@@ -1090,7 +1088,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                       timePart,
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 10.5,
-                                        color: Colors.black,
+                                        color: const Color(0xFF64748B),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -1109,9 +1107,9 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                     decoration: BoxDecoration(
                                       color: reasonColor.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.black, width: 0.8),
+                                      border: Border.all(color: reasonColor.withValues(alpha: 0.25), width: 1.0),
                                     ),
-                                    child: Icon(reasonIcon, size: 15, color: Colors.black),
+                                    child: Icon(reasonIcon, size: 15, color: reasonColor),
                                   ),
                                   const SizedBox(width: 10),
                                   Column(
@@ -1123,8 +1121,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                         name,
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.black,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF0F172A),
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -1133,13 +1131,13 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF1F5F9),
                                           borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: Colors.black, width: 0.8),
+                                          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                                         ),
                                         child: Text(
                                           category.toUpperCase(),
                                           style: GoogleFonts.plusJakartaSans(
                                             fontSize: 9.5,
-                                            color: Colors.black,
+                                            color: const Color(0xFF475569),
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.3,
                                           ),
@@ -1158,7 +1156,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFEF2F2),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.black),
+                                  border: Border.all(color: const Color(0xFFFECACA), width: 1.0),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -1185,7 +1183,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                 decoration: BoxDecoration(
                                   color: reasonColor.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.black),
+                                  border: Border.all(color: reasonColor.withValues(alpha: 0.25), width: 1.0),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -1225,7 +1223,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w800,
-                                        color: Colors.black,
+                                        color: const Color(0xFF475569),
                                       ),
                                     ),
                                   ),
@@ -1235,7 +1233,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.black,
+                                      color: const Color(0xFF334155),
                                     ),
                                   ),
                                 ],
@@ -1247,10 +1245,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               ConstrainedBox(
                                 constraints: const BoxConstraints(maxWidth: 180),
                                 child: Text(
-                                    notes.isNotEmpty ? notes : '—',
+                                  notes.isNotEmpty ? notes : '—',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11,
-                                    color: Colors.black,
+                                    color: const Color(0xFF64748B),
                                     fontStyle: notes.isNotEmpty ? FontStyle.italic : FontStyle.normal,
                                   ),
                                   maxLines: 2,
@@ -1264,23 +1262,48 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
-                                    tooltip: 'Inspect Details',
-                                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                                    color: Colors.black,
-                                    onPressed: () => _showInspectionDialog(log),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
+                                  Tooltip(
+                                    message: 'Inspect Details',
+                                    child: InkWell(
+                                      onTap: () => _showInspectionDialog(log),
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        ),
+                                        child: const Icon(
+                                          Icons.visibility_outlined,
+                                          size: 14,
+                                          color: Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    tooltip: 'Delete Log',
-                                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                                    color: Colors.black,
-                                    hoverColor: const Color(0xFFFEF2F2),
-                                    onPressed: () => _confirmDeleteLog(log),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
+                                  const SizedBox(width: 6),
+                                  Tooltip(
+                                    message: 'Delete Log',
+                                    child: InkWell(
+                                      onTap: () => _confirmDeleteLog(log),
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEF2F2),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFFFECACA)),
+                                        ),
+                                        child: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 14,
+                                          color: Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1347,11 +1370,11 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black, width: 1.2),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-                blurRadius: 6,
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -1365,14 +1388,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.event_outlined, size: 12, color: Colors.black),
+                      const Icon(Icons.event_outlined, size: 12, color: Color(0xFF94A3B8)),
                       const SizedBox(width: 4),
                       Text(
                         datePart,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black,
+                          color: const Color(0xFF0F172A),
                         ),
                       ),
                       if (timePart.isNotEmpty) ...[
@@ -1381,7 +1404,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           '• $timePart',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10.5,
-                            color: Colors.black,
+                            color: const Color(0xFF64748B),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1393,7 +1416,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     decoration: BoxDecoration(
                       color: reasonColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.black, width: 0.8),
+                      border: Border.all(color: reasonColor.withValues(alpha: 0.25), width: 1.0),
                     ),
                     child: Text(
                       reason,
@@ -1417,9 +1440,9 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     decoration: BoxDecoration(
                       color: reasonColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.black, width: 0.8),
+                      border: Border.all(color: reasonColor.withValues(alpha: 0.25), width: 1.0),
                     ),
-                    child: Icon(reasonIcon, size: 18, color: Colors.black),
+                    child: Icon(reasonIcon, size: 18, color: reasonColor),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1430,15 +1453,15 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           name,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
                           category,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
-                            color: Colors.black,
+                            color: const Color(0xFF64748B),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1450,7 +1473,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.black, width: 0.8),
+                      border: Border.all(color: const Color(0xFFFECACA), width: 1.0),
                     ),
                     child: Text(
                       '-${qty.toStringAsFixed(_qtyDecimals(qty))} $unit',
@@ -1472,14 +1495,14 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.black, width: 0.8),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                   ),
                   child: Text(
                     'Notes: $notes',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontStyle: FontStyle.italic,
-                      color: Colors.black,
+                      color: const Color(0xFF64748B),
                     ),
                   ),
                 ),
@@ -1500,7 +1523,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            color: const Color(0xFF475569),
                           ),
                         ),
                       ),
@@ -1510,7 +1533,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                          color: const Color(0xFF334155),
                         ),
                       ),
                     ],
@@ -1519,10 +1542,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     children: [
                       TextButton.icon(
                         onPressed: () => _showInspectionDialog(log),
-                        icon: const Icon(Icons.visibility_outlined, size: 14, color: Colors.black),
+                        icon: const Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF334155)),
                         label: const Text('Inspect'),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.black,
+                          foregroundColor: const Color(0xFF334155),
                           textStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700),
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           visualDensity: VisualDensity.compact,
@@ -1531,7 +1554,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                       IconButton(
                         tooltip: 'Delete Log',
                         icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                        color: Colors.black,
+                        color: const Color(0xFFDC2626),
                         onPressed: () => _confirmDeleteLog(log),
                         padding: const EdgeInsets.all(4),
                         constraints: const BoxConstraints(),
@@ -1718,12 +1741,12 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
-        color: Colors.transparent,
+        color: Color(0xFFF8FAFC),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(16),
           bottomRight: Radius.circular(16),
         ),
-        border: Border(top: BorderSide(color: Colors.black, width: 0.8)),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1735,8 +1758,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 : 'Showing ${startIndex + 1}–$endIndex of $totalItems logs',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF64748B),
             ),
           ),
           Row(
@@ -1746,7 +1769,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded, size: 20),
                 onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
-                color: Colors.black,
+                color: const Color(0xFF334155),
                 disabledColor: const Color(0xFFCBD5E1),
                 splashRadius: 18,
                 tooltip: 'Previous Page',
@@ -1762,7 +1785,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black,
+                    color: const Color(0xFF64748B),
                   ),
                 ),
               ),
@@ -1778,8 +1801,8 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   textAlignVertical: TextAlignVertical.center,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
                   ),
                   decoration: InputDecoration(
                     isDense: true,
@@ -1789,15 +1812,15 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.0),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                      borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
                     ),
                   ),
                   onSubmitted: (value) {
@@ -1819,7 +1842,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black,
+                    color: const Color(0xFF64748B),
                   ),
                 ),
               ),
@@ -1827,7 +1850,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded, size: 20),
                 onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
-                color: Colors.black,
+                color: const Color(0xFF334155),
                 disabledColor: const Color(0xFFCBD5E1),
                 splashRadius: 18,
                 tooltip: 'Next Page',
@@ -2475,10 +2498,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                color: _emeraldDeep.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.verified_outlined, size: 42, color: Color(0xFF10B981)),
+              child: const Icon(Icons.verified_outlined, size: 42, color: _emeraldDeep),
             ),
             const SizedBox(height: 14),
             Text(
@@ -2504,7 +2527,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 12, color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
+                backgroundColor: _emeraldDeep,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -2525,7 +2548,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
       style: GoogleFonts.plusJakartaSans(
         fontSize: 10,
         fontWeight: FontWeight.w800,
-        color: Colors.black,
+        color: const Color(0xFF64748B),
         letterSpacing: 0.8,
       ),
     );

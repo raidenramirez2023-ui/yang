@@ -926,7 +926,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                           ? CrossAxisAlignment.start
                           : CrossAxisAlignment.end,
                       children: [
-                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        if (!isUnsent && imageUrl != null && imageUrl.isNotEmpty) ...[
                           GestureDetector(
                             onTap: () => _openFullscreenImage(imageUrl),
                             child: ClipRRect(

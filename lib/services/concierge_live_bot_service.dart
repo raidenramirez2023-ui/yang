@@ -50,7 +50,7 @@ class ConciergeLiveBotService {
         clean.contains('talk to live agent')) {
       return '💬 **Live Staff Connected:**\n\n'
           'We have alerted our restaurant support team for your account (**$email**)!\n\n'
-          '• **Operating Hours:** 🕒 9:00 AM – 9:00 PM Daily\n'
+          '• **Operating Hours:** 🕒 10:00 AM – 8:00 PM Daily\n'
           '• **Attach Photos:** You can tap the camera/photo icon below to upload payment receipts or event screenshots.\n\n'
           'A staff member will reply directly to your message shortly.';
     }

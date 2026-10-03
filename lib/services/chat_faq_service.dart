@@ -183,7 +183,7 @@ class ChatFaqService {
           '💬 **Live Chat & Concierge Support in Yang Chow:**\n\n'
           '• **Message Directly:** Type your questions, dietary preferences, or event inquiries into the chat bar below.\n'
           '• **Attach Photos / Payment Receipts:** Tap the **Camera / Gallery Icon** beside the input bar to attach receipts or event photos.\n'
-          '• **Operating Hours:** 🕒 9:00 AM – 9:00 PM Daily.\n'
+          '• **Operating Hours:** 🕒 10:00 AM – 8:00 PM Daily.\n'
           '• **Instant Notifications:** You will receive live in-app notifications whenever staff replies to your conversation.',
       actionType: 'chat_staff_photo',
     ),

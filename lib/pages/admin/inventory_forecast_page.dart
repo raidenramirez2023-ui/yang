@@ -1934,7 +1934,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     final timeFiltered = _filterDataByTime(categoryFiltered);
 
-    // Calculations for 4 Executive KPI Cards
+    // Calculations for Executive KPI Cards
     final totalTickets = timeFiltered.length;
     final urgentCount = timeFiltered.where((i) =>
         i['priority'] == 'High' || i['priority'] == 'Urgent').length;
@@ -1957,20 +1957,58 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         child: FadeTransition(
           opacity: _fadeIn,
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(isMobile ? 12 : 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 12 : 24,
+              vertical: isMobile ? 12 : 20,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Executive Header Banner ──────────────────────────────
-                _buildExecutiveHeader(isMobile),
+                _buildExecutiveHeader(isMobile, deficitCount, totalTickets),
 
                 const SizedBox(height: 16),
 
                 if (_isLoading && _forecastItems.isEmpty)
-                  const SizedBox(
-                    height: 240,
-                    child: Center(
-                      child: CircularProgressIndicator(color: Color(0xFF14332E)),
+                  Container(
+                    height: 280,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.cardBorder),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: AppTheme.forestGreen, strokeWidth: 2.5),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading inventory demand pipeline & projections...',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.adminPrimaryText,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Aggregating POS receipts, kitchen tickets, and recipe explosions',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.adminSecondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 else ...[
@@ -1991,7 +2029,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   const SizedBox(height: 16),
 
                   // ── View Mode Selector & Content ─────────────────
-                  _buildMainContent(categoryFiltered, timeFiltered, isMobile),
+                  _buildMainContent(categoryFiltered, timeFiltered, deficitCount, isMobile),
                 ],
               ],
             ),
@@ -2002,38 +2040,86 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   }
 
   // ── Executive Header Banner ────────────────────────────────────────────────
-  Widget _buildExecutiveHeader(bool isMobile) {
+  Widget _buildExecutiveHeader(bool isMobile, int deficitCount, int totalTickets) {
     final titleSection = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black, width: 1.0),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: const Icon(Icons.auto_graph_rounded, color: Colors.white, size: 24),
         ),
         const SizedBox(width: 14),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Kitchen Demand & Inventory Forecast',
+              // Pulse Live Engine Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF4ADE80),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Color(0xFF4ADE80), blurRadius: 4, spreadRadius: 1),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'AUTOMATED RECIPE BREAKDOWN • REALTIME INVENTORY SYNC',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Kitchen Demand & Stock Forecast',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  letterSpacing: -0.3,
-                  height: 1.1,
+                  letterSpacing: -0.4,
+                  height: 1.15,
                 ),
                 maxLines: 2,
               ),
-              SizedBox(height: 3),
-              Text(
-                'POS Walk-in sales & kitchen requisitions with automated procurement forecasting',
-                style: TextStyle(fontSize: 11, color: Colors.white70, height: 1.15),
+              const SizedBox(height: 3),
+              const Text(
+                'Calculates how much stock and raw ingredients you need based on incoming customer orders',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: Colors.white70,
+                  height: 1.25,
+                ),
                 maxLines: 2,
               ),
             ],
@@ -2049,35 +2135,35 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         // Excel Direct Download Button
         ElevatedButton.icon(
           onPressed: _exportForecastToExcel,
-          icon: const Icon(Icons.file_download_rounded, size: 16),
-          label: const Text('Download Excel'),
+          icon: const Icon(Icons.file_download_rounded, size: 15),
+          label: const Text('Export Excel'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 13, vertical: isMobile ? 8 : 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9),
-              side: const BorderSide(color: Colors.black, width: 1.0),
+            elevation: 0,
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 11 : 15,
+              vertical: isMobile ? 9 : 11,
             ),
-            textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
-            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
         ),
-        // PDF Direct Download Button (Rekta Download)
+        // PDF Direct Download Button
         ElevatedButton.icon(
           onPressed: () => _exportForecastToPdf(printPreview: false),
-          icon: const Icon(Icons.file_download_rounded, size: 16),
+          icon: const Icon(Icons.picture_as_pdf_rounded, size: 15),
           label: const Text('Download PDF'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF0F766E),
             foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 13, vertical: isMobile ? 8 : 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9),
-              side: const BorderSide(color: Colors.black, width: 1.0),
+            elevation: 0,
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 11 : 15,
+              vertical: isMobile ? 9 : 11,
             ),
-            textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
-            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
         ),
         // PDF Print / Layout Preview Button
@@ -2087,13 +2173,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           label: const Text('Print / Preview'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
-            side: const BorderSide(color: Colors.black, width: 1.0),
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 13, vertical: isMobile ? 8 : 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9),
-              side: const BorderSide(color: Colors.black, width: 1.0),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 11 : 15,
+              vertical: isMobile ? 9 : 11,
             ),
-            textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
         ),
       ],
@@ -2103,21 +2189,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       width: double.infinity,
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 16 : 24,
-        vertical: isMobile ? 16 : 20,
+        vertical: isMobile ? 16 : 22,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF14332E), Color(0xFF1B4942), Color(0xFF163C35)],
+          colors: [Color(0xFF0D2521), Color(0xFF14332E), Color(0xFF1B4942)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black, width: 1.2),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF14332E).withValues(alpha: 0.35),
+            color: const Color(0xFF14332E).withValues(alpha: 0.25),
             blurRadius: 18,
-            offset: const Offset(0, 6),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -2126,7 +2212,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 titleSection,
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 exportButtons,
               ],
             )
@@ -2152,59 +2238,117 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     final cards = [
       _buildKpiCard(
         categoryTag: 'TICKETS & SLIPS',
-        title: 'Total Demand Transactions',
-        value: '$totalTickets Tickets',
+        title: 'Tickets',
+        value: '$totalTickets',
+        unitLabel: '',
         subtitle: _selectedDemandSource == 'All'
             ? 'Orders & kitchen requisitions in selected period'
-            : 'Requisitions from $_selectedDemandSource channel',
+            : 'Orders & requisitions from $_selectedDemandSource',
         icon: Icons.receipt_long_rounded,
-        color: const Color(0xFF14332E),
-        badgeText: 'Channel: $_selectedDemandSource',
+        accentColor: AppTheme.forestGreen,
+        statusChip: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Text(
+            _selectedTimeFilter == 'Daily' ? 'Today' : _selectedTimeFilter,
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
+          ),
+        ),
       ),
       _buildKpiCard(
         categoryTag: 'INGREDIENTS USED',
-        title: 'Raw Stock Consumed',
-        value: '${_formatQty(totalUnits)} Units Used',
+        title: 'Units Used',
+        value: _formatQty(totalUnits),
+        unitLabel: '',
         subtitle: 'Total raw ingredients consumed to fulfill orders',
         icon: Icons.inventory_2_outlined,
-        color: const Color(0xFF2563EB),
-        badgeText: 'Total Pulled',
+        accentColor: AppTheme.forestGreen,
+        statusChip: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: const Text(
+            'From Recipes',
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+          ),
+        ),
       ),
       _buildKpiCard(
         categoryTag: 'KITCHEN PRIORITY',
-        title: 'Urgent & Rush Demands',
-        value: urgentCount > 0 ? '$urgentCount Urgent Slips' : '0 Urgent Slips',
+        title: 'Urgent Slips',
+        value: '$urgentCount',
+        unitLabel: '',
         subtitle: urgentCount > 0
-            ? 'Kitchen marked high priority / rush prep'
+            ? 'Kitchen has urgent orders needing immediate prep'
             : 'All kitchen requisitions at normal prep speed',
         icon: Icons.priority_high_rounded,
-        color: urgentCount > 0 ? const Color(0xFFD97706) : const Color(0xFF059669),
+        accentColor: urgentCount > 0 ? const Color(0xFFD97706) : AppTheme.forestGreen,
         isAlert: urgentCount > 0,
-        badgeText: urgentCount > 0 ? 'Urgent Alert' : 'Normal Prep',
+        statusChip: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: urgentCount > 0 ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: urgentCount > 0 ? const Color(0xFFFDE68A) : const Color(0xFFA7F3D0),
+            ),
+          ),
+          child: Text(
+            urgentCount > 0 ? 'Rush Prep' : 'Normal Pace',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: urgentCount > 0 ? const Color(0xFFD97706) : const Color(0xFF059669),
+            ),
+          ),
+        ),
       ),
       _buildKpiCard(
         categoryTag: 'INVENTORY RISK',
-        title: 'Stock Deficit Warnings',
-        value: deficitCount > 0 ? '$deficitCount Deficit SKUs' : '0 Shortages',
+        title: 'Shortages',
+        value: '$deficitCount',
+        unitLabel: '',
         subtitle: deficitCount > 0
-            ? 'Demand exceeds available stock! Reorder needed'
+            ? 'Some items lack stock to cover all current orders'
             : 'Sufficient stock buffer covers all demand',
         icon: deficitCount > 0 ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-        color: deficitCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF059669),
+        accentColor: deficitCount > 0 ? const Color(0xFFDC2626) : AppTheme.forestGreen,
         isAlert: deficitCount > 0,
-        badgeText: deficitCount > 0 ? 'Restock Needed' : 'Stock Healthy',
+        statusChip: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: deficitCount > 0 ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: deficitCount > 0 ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0),
+            ),
+          ),
+          child: Text(
+            deficitCount > 0 ? 'Restock Needed' : 'Stocks OK',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: deficitCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF059669),
+            ),
+          ),
+        ),
       ),
     ];
 
     if (isMobile) {
       return SizedBox(
-        height: 120,
+        height: 128,
         child: ListView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           children: cards
               .map((c) => Container(
-                    width: 230,
+                    width: 240,
                     margin: const EdgeInsets.only(right: 10),
                     child: c,
                   ))
@@ -2217,7 +2361,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       children: cards
           .map((card) => Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
                   child: card,
                 ),
               ))
@@ -2229,130 +2373,164 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     required String categoryTag,
     required String title,
     required String value,
+    required String unitLabel,
     required String subtitle,
     required IconData icon,
-    required Color color,
-    required String badgeText,
+    required Color accentColor,
+    required Widget statusChip,
     bool isAlert = false,
   }) {
     final isMobile = ResponsiveUtils.isMobile(context);
+    final borderColor = isAlert ? accentColor.withValues(alpha: 0.35) : AppTheme.cardBorder;
+
     return Container(
-      constraints: BoxConstraints(minHeight: isMobile ? 110 : 118),
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 14,
-        vertical: isMobile ? 10 : 12,
-      ),
+      constraints: BoxConstraints(minHeight: isMobile ? 116 : 124),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.black,
-          width: isAlert ? 1.5 : 1.0,
-        ),
+        border: Border.all(color: borderColor, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.black, width: 0.8),
-                ),
-                child: Text(
-                  categoryTag,
-                  style: TextStyle(
-                    fontSize: isMobile ? 8.5 : 9,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black,
-                    letterSpacing: 0.5,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            // Top Accent Line
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              child: Container(color: accentColor),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 15,
+                vertical: isMobile ? 11 : 13,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: isAlert ? accentColor.withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              categoryTag,
+                              style: TextStyle(
+                                fontSize: isMobile ? 8.5 : 9,
+                                fontWeight: FontWeight.w700,
+                                color: isAlert ? accentColor : AppTheme.adminSecondaryText,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          statusChip,
+                        ],
+                      ),
+                      Container(
+                        padding: EdgeInsets.all(isMobile ? 5 : 6),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Icon(icon, color: accentColor, size: isMobile ? 14 : 15),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: isMobile ? 18 : 21,
+                          fontWeight: FontWeight.w900,
+                          color: isAlert ? accentColor : AppTheme.adminPrimaryText,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        unitLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.adminSecondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: isMobile ? 9.5 : 10.5,
+                      color: AppTheme.adminSecondaryText,
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              Container(
-                padding: EdgeInsets.all(isMobile ? 4 : 5),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(isMobile ? 6 : 7),
-                  border: Border.all(color: Colors.black, width: 0.8),
-                ),
-                child: Icon(icon, color: Colors.black, size: isMobile ? 14 : 15),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isMobile ? 16 : 18,
-              fontWeight: FontWeight.w900,
-              color: Colors.black,
-              letterSpacing: -0.3,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: isMobile ? 9.5 : 10.5,
-              color: Colors.black,
-              fontWeight: FontWeight.w600,
-              height: 1.15,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   // ── Filter Controls Section ────────────────────────────────────────────────
-  // ── Filter Controls Section (Unified Industry-Standard Toolbar) ───────────
   Widget _buildFilterControls(bool isMobile) {
     final hasActiveCustomFilter = _selectedDemandSource != 'All' || _selectedCategory != 'All';
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black, width: 1.0),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Bar with Title, Reset Button, and Active Filter Context
+          // Header Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: const BoxDecoration(
               color: Color(0xFFF8FAFC),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(15),
-                topRight: Radius.circular(15),
+                topLeft: Radius.circular(13),
+                topRight: Radius.circular(13),
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.black, width: 1.0),
+                bottom: BorderSide(color: AppTheme.cardBorder),
               ),
             ),
             child: Row(
@@ -2360,20 +2538,19 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: AppTheme.forestGreen.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.black, width: 0.8),
                   ),
-                  child: const Icon(Icons.tune_rounded, size: 15, color: Colors.black),
+                  child: const Icon(Icons.tune_rounded, size: 14, color: AppTheme.forestGreen),
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'FORECAST FILTERS',
+                  'FORECAST CONTROLS & TIMEFRAME',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: Colors.black,
+                    letterSpacing: 0.5,
+                    color: AppTheme.adminPrimaryText,
                   ),
                 ),
                 if (hasActiveCustomFilter) ...[
@@ -2391,18 +2568,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.08),
+                        color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.black, width: 0.8),
+                        border: Border.all(color: const Color(0xFFFECACA)),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.refresh_rounded, size: 12, color: Colors.black),
+                        children: [
+                          Icon(Icons.refresh_rounded, size: 12, color: Color(0xFFDC2626)),
                           SizedBox(width: 4),
                           Text(
                             'Reset Filters',
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.black),
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
                           ),
                         ],
                       ),
@@ -2417,7 +2594,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
           // Main Controls
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: isMobile
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2436,19 +2613,81 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      // 1. Timeframe
                       _buildPeriodToggle(isMobile: false),
-                      Container(width: 1, height: 26, color: Colors.black),
-                      // 2. Secondary Time Dropdown (Month / Day / Week / Year)
+                      Container(width: 1, height: 24, color: AppTheme.cardBorder),
                       _buildSecondaryTimeDropdown(isMobile: false),
-                      Container(width: 1, height: 26, color: Colors.black),
-                      // 3. Channel Dropdown
+                      Container(width: 1, height: 24, color: AppTheme.cardBorder),
                       _buildDemandSourceDropdown(isMobile: false),
-                      // 4. Category Searchable Selector
                       _buildCategorySelectorButton(context, isMobile: false),
                     ],
                   ),
           ),
+
+          // Active filter tags strip
+          if (hasActiveCustomFilter)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Active Scope:',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppTheme.adminSecondaryText),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_selectedDemandSource != 'All')
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: AppTheme.cardBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Channel: $_selectedDemandSource',
+                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppTheme.adminPrimaryText),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () => setState(() => _selectedDemandSource = 'All'),
+                            child: const Icon(Icons.close_rounded, size: 12, color: AppTheme.mediumGrey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (_selectedCategory != 'All')
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Category: $_selectedCategory',
+                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () => setState(() => _selectedCategory = 'All'),
+                            child: const Icon(Icons.close_rounded, size: 12, color: Color(0xFFB45309)),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -2459,9 +2698,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black, width: 1.0),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -2470,11 +2709,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               : demandSourceFilters.first,
           isDense: true,
           isExpanded: isMobile,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
           style: const TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.adminPrimaryText,
           ),
           onChanged: (val) {
             if (val != null) {
@@ -2499,9 +2738,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 14, color: Colors.black),
+                  Icon(icon, size: 14, color: AppTheme.forestGreen),
                   const SizedBox(width: 8),
-                  Flexible(child: Text(label, style: const TextStyle(color: Colors.black), overflow: TextOverflow.ellipsis)),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: const TextStyle(color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -2518,32 +2763,31 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     return InkWell(
       onTap: () => _openCategorySearchDialog(context),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(9),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6.5),
         decoration: BoxDecoration(
-          color: isFiltered ? const Color(0xFFD97706).withValues(alpha: 0.1) : AppTheme.adminMainBackground.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
+          color: isFiltered ? const Color(0xFFFFFBEB) : Colors.white,
+          borderRadius: BorderRadius.circular(9),
           border: Border.all(
-            color: Colors.black,
-            width: 1.0,
+            color: isFiltered ? const Color(0xFFD97706) : AppTheme.cardBorder,
           ),
         ),
         child: Row(
           mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.category_rounded,
               size: 14,
-              color: Colors.black,
+              color: isFiltered ? const Color(0xFFD97706) : AppTheme.forestGreen,
             ),
             const SizedBox(width: 8),
             const Text(
               'Category: ',
               style: TextStyle(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.adminSecondaryText,
               ),
             ),
             Expanded(
@@ -2551,10 +2795,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               child: isMobile
                   ? Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black,
+                        color: isFiltered ? const Color(0xFFD97706) : AppTheme.adminPrimaryText,
                       ),
                       overflow: TextOverflow.ellipsis,
                     )
@@ -2562,10 +2806,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       constraints: const BoxConstraints(maxWidth: 180),
                       child: Text(
                         label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black,
+                          color: isFiltered ? const Color(0xFFD97706) : AppTheme.adminPrimaryText,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2583,16 +2827,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 },
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.1),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFDE68A),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black, width: 0.8),
                   ),
-                  child: const Icon(Icons.close_rounded, size: 12, color: Colors.black),
+                  child: const Icon(Icons.close_rounded, size: 12, color: Color(0xFFB45309)),
                 ),
               )
             else
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
+              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
           ],
         ),
       ),
@@ -2616,7 +2859,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480, maxHeight: 560),
+                constraints: const BoxConstraints(maxWidth: 460, maxHeight: 540),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -2628,10 +2871,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                              color: AppTheme.forestGreen.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.category_rounded, size: 20, color: Color(0xFFD97706)),
+                            child: const Icon(Icons.category_rounded, size: 20, color: AppTheme.forestGreen),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -2641,16 +2884,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 const Text(
                                   'Select Supply & Food Category',
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15.5,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF14332E),
+                                    color: AppTheme.adminPrimaryText,
                                   ),
                                 ),
                                 Text(
                                   '${categories.length} categories available in catalog',
                                   style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.mediumGrey,
+                                    fontSize: 11.5,
+                                    color: AppTheme.adminSecondaryText,
                                   ),
                                 ),
                               ],
@@ -2666,12 +2909,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       const SizedBox(height: 16),
                       TextField(
                         autofocus: true,
+                        style: const TextStyle(fontSize: 13, color: AppTheme.adminPrimaryText),
                         decoration: InputDecoration(
                           hintText: 'Type to search category...',
                           hintStyle: const TextStyle(fontSize: 13, color: AppTheme.mediumGrey),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF14332E)),
+                          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppTheme.forestGreen),
                           filled: true,
-                          fillColor: AppTheme.adminMainBackground.withValues(alpha: 0.6),
+                          fillColor: const Color(0xFFF8FAFC),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -2683,7 +2927,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                            borderSide: const BorderSide(color: AppTheme.forestGreen, width: 1.5),
                           ),
                         ),
                         onChanged: (val) {
@@ -2703,7 +2947,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               )
                             : ListView.separated(
                                 itemCount: filteredCategories.length,
-                                separatorBuilder: (_, __) => const Divider(height: 1, color: AppTheme.cardBorder),
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                                 itemBuilder: (context, index) {
                                   final cat = filteredCategories[index];
                                   final isSelected = _selectedCategory.toLowerCase() == cat.toLowerCase();
@@ -2712,22 +2956,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     dense: true,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    tileColor: isSelected ? const Color(0xFF14332E).withValues(alpha: 0.08) : Colors.transparent,
+                                    tileColor: isSelected ? AppTheme.forestGreen.withValues(alpha: 0.08) : Colors.transparent,
                                     leading: Icon(
                                       isAll ? Icons.all_inclusive_rounded : Icons.label_rounded,
                                       size: 18,
-                                      color: isSelected ? const Color(0xFF14332E) : AppTheme.mediumGrey,
+                                      color: isSelected ? AppTheme.forestGreen : AppTheme.mediumGrey,
                                     ),
                                     title: Text(
                                       isAll ? 'All Categories' : cat,
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                        color: isSelected ? const Color(0xFF14332E) : AppTheme.darkGrey,
+                                        color: isSelected ? AppTheme.forestGreen : AppTheme.adminPrimaryText,
                                       ),
                                     ),
                                     trailing: isSelected
-                                        ? const Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF14332E))
+                                        ? const Icon(Icons.check_circle_rounded, size: 18, color: AppTheme.forestGreen)
                                         : null,
                                     onTap: () {
                                       setState(() {
@@ -2752,14 +2996,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-
+  // ── Period Toggle ──────────────────────────────────────────────────────────
   Widget _buildPeriodToggle({required bool isMobile}) {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppTheme.adminMainBackground.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black, width: 1.0),
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
@@ -2776,18 +3020,27 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             }),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5.5),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSel ? const Color(0xFF14332E) : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
+                color: isSel ? AppTheme.forestGreen : Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+                boxShadow: isSel
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF14332E).withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
               ),
               child: Text(
                 period,
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                  color: isSel ? Colors.white : Colors.black,
+                  color: isSel ? Colors.white : AppTheme.adminSecondaryText,
                 ),
               ),
             ),
@@ -2826,20 +3079,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black, width: 0.8),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.event_available_rounded, size: 14, color: Colors.black),
+          const Icon(Icons.event_available_rounded, size: 14, color: AppTheme.forestGreen),
           const SizedBox(width: 5),
           Text(
             text,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.adminPrimaryText,
             ),
           ),
         ],
@@ -2878,7 +3131,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 140,
+              width: 136,
               child: _styledDropdown(
                 value: _selectedDailyMonth,
                 items: monthFilters,
@@ -2887,7 +3140,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             ),
             const SizedBox(width: 8),
             SizedBox(
-              width: 105,
+              width: 100,
               child: _styledDropdown(
                 value: _selectedDailyDay,
                 items: dayFilters,
@@ -2941,7 +3194,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 140,
+              width: 136,
               child: _styledDropdown(
                 value: _selectedWeeklyMonth,
                 items: monthFilters,
@@ -2960,7 +3213,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             ),
             const SizedBox(width: 8),
             SizedBox(
-              width: 190,
+              width: 185,
               child: _styledDropdown(
                 value: _selectedWeekFilter,
                 items: availableWeeks,
@@ -2980,7 +3233,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           );
         }
         return SizedBox(
-          width: 150,
+          width: 145,
           child: _styledDropdown(
             value: _selectedMonthFilter,
             items: monthFilters,
@@ -2997,7 +3250,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           );
         }
         return SizedBox(
-          width: 120,
+          width: 115,
           child: _styledDropdown(
             value: _selectedYearFilter,
             items: yearFilters,
@@ -3030,17 +3283,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black, width: 1.0),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: items.contains(value) ? value : items.first,
           isDense: true,
           isExpanded: isExpanded,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.black),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryText),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
           items: items.map((i) {
             final sub = itemSubtitles?[i];
             if (sub != null && sub.isNotEmpty) {
@@ -3049,14 +3302,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(child: Text('$prefix$i', style: const TextStyle(color: Colors.black), overflow: TextOverflow.ellipsis)),
+                    Flexible(
+                      child: Text(
+                        '$prefix$i',
+                        style: const TextStyle(color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       sub,
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 10,
                         fontWeight: FontWeight.w400,
-                        color: Colors.black54,
+                        color: AppTheme.mediumGrey,
                       ),
                     ),
                   ],
@@ -3065,7 +3324,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             }
             return DropdownMenuItem<String>(
               value: i,
-              child: Text('$prefix$i', style: const TextStyle(color: Colors.black), overflow: TextOverflow.ellipsis),
+              child: Text(
+                '$prefix$i',
+                style: const TextStyle(color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
             );
           }).toList(),
           onChanged: onChanged,
@@ -3074,11 +3337,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-
   // ── Main Content Section ───────────────────────────────────────────────────
   Widget _buildMainContent(
     List<Map<String, dynamic>> categoryFiltered,
     List<Map<String, dynamic>> timeFiltered,
+    int deficitCount,
     bool isMobile,
   ) {
     return Column(
@@ -3094,11 +3357,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
-                    _viewModeTab('Chart', Icons.bar_chart_rounded, 'Demand Analytics', 'Usage Charts'),
+                    _viewModeTab('Chart', Icons.bar_chart_rounded, 'Usage Charts', 'Which items are most used', null),
                     const SizedBox(width: 8),
-                    _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Demand Queue', 'Ticket Log'),
+                    _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Order List', 'All orders in this period', timeFiltered.length),
                     const SizedBox(width: 8),
-                    _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Stock Deficits', 'Reorder Warnings'),
+                    _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Out of Stock', 'Items you need to restock', deficitCount, isAlertBadge: deficitCount > 0),
                   ],
                 ),
               ),
@@ -3107,7 +3370,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 alignment: Alignment.centerRight,
                 child: Text(
                   '${timeFiltered.length} demand records in scope',
-                  style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -3118,28 +3381,35 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             children: [
               Row(
                 children: [
-                  _viewModeTab('Chart', Icons.bar_chart_rounded, 'Demand Analytics', 'Top Usage Chart'),
+                  _viewModeTab('Chart', Icons.bar_chart_rounded, 'Usage Charts', 'Which ingredients are most used', null),
                   const SizedBox(width: 8),
-                  _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Demand Queue', 'Itemized Ticket Log'),
+                  _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Order List', 'All orders in this period', timeFiltered.length),
                   const SizedBox(width: 8),
-                  _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Stock Deficits', 'Critical Reorders'),
+                  _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Out of Stock', 'Items that need restocking', deficitCount, isAlertBadge: deficitCount > 0),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppTheme.cardBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.dataset_rounded, size: 14, color: AppTheme.mediumGrey),
+                    const Icon(Icons.dataset_rounded, size: 14, color: AppTheme.forestGreen),
                     const SizedBox(width: 6),
                     Text(
-                      '${timeFiltered.length} Demand Records in Scope',
-                      style: const TextStyle(fontSize: 11.5, color: AppTheme.darkGrey, fontWeight: FontWeight.w700),
+                      '${timeFiltered.length} Records In Scope',
+                      style: const TextStyle(fontSize: 11.5, color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -3152,26 +3422,42 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         if (timeFiltered.isEmpty)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(40),
+            padding: const EdgeInsets.all(44),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppTheme.cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Center(
               child: Column(
                 children: [
-                  const Icon(Icons.query_stats_rounded, size: 48, color: AppTheme.mediumGrey),
-                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.query_stats_rounded, size: 36, color: AppTheme.mediumGrey),
+                  ),
+                  const SizedBox(height: 14),
                   Text(
                     _selectedDemandSource == 'All'
-                        ? 'No demand records in this timeframe'
-                        : 'No $_selectedDemandSource demand records in this timeframe',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+                        ? 'No demand records found for this period'
+                        : 'No $_selectedDemandSource records found',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                   ),
                   const SizedBox(height: 4),
-                  const Text('Try switching to another month, week, or select "Monthly" or "Annually"',
-                      style: TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey)),
+                  const Text(
+                    'Try selecting a different date, month, or adjust your channel & category filters above.',
+                    style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
+                  ),
                 ],
               ),
             ),
@@ -3186,7 +3472,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  Widget _viewModeTab(String mode, IconData icon, String label, String subtitle) {
+  Widget _viewModeTab(String mode, IconData icon, String label, String subtitle, int? count, {bool isAlertBadge = false}) {
     final isSelected = _selectedViewMode == mode;
     return GestureDetector(
       onTap: () => setState(() {
@@ -3196,46 +3482,74 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF14332E) : Colors.white,
+          color: isSelected ? AppTheme.forestGreen : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFF14332E) : AppTheme.cardBorder,
+            color: isSelected ? AppTheme.forestGreen : AppTheme.cardBorder,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF14332E).withValues(alpha: 0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFF14332E).withValues(alpha: 0.18)
+                  : const Color(0xFF0F172A).withValues(alpha: 0.02),
+              blurRadius: isSelected ? 8 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isSelected ? Colors.white : AppTheme.darkGrey),
+            Icon(icon, size: 16, color: isSelected ? Colors.white : AppTheme.forestGreen),
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                    color: isSelected ? Colors.white : AppTheme.darkGrey,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                        color: isSelected ? Colors.white : AppTheme.adminPrimaryText,
+                      ),
+                    ),
+                    if (count != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? (isAlertBadge ? const Color(0xFFEF4444) : Colors.white.withValues(alpha: 0.2))
+                              : (isAlertBadge ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(10),
+                          border: isAlertBadge && !isSelected ? Border.all(color: const Color(0xFFFECACA)) : null,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected
+                                ? Colors.white
+                                : (isAlertBadge ? const Color(0xFFDC2626) : AppTheme.adminSecondaryText),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   subtitle,
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w500,
-                    color: isSelected ? Colors.white70 : AppTheme.mediumGrey,
+                    color: isSelected ? Colors.white70 : AppTheme.adminSecondaryText,
                   ),
                 ),
               ],
@@ -3246,13 +3560,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  // ── Top Demand Bar Chart Card (Executive Demand Visualizer) ────────────────
+  // ── Top Demand Bar Chart Card ──────────────────────────────────────────────
   Widget _buildBarChartCard(List<Map<String, dynamic>> forecast) {
     final chartData = _getTopItemsData(forecast);
     final barGroups = chartData['barGroups'] as List<BarChartGroupData>;
     final topItems = chartData['topItems'] as List<MapEntry<String, double>>;
     final itemDetails = chartData['itemDetails'] as Map<String, Map<String, dynamic>>;
     final calculatedMaxY = (chartData['calculatedMaxY'] as num?)?.toDouble() ?? 10.0;
+    final totalDemand = (chartData['totalDemand'] as num?)?.toDouble() ?? 0.0;
     final isMobile = ResponsiveUtils.isMobile(context);
 
     if (topItems.isEmpty) {
@@ -3262,15 +3577,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black, width: 1.0),
+          border: Border.all(color: AppTheme.cardBorder),
         ),
         child: const Center(
           child: Column(
             children: [
-              Icon(Icons.bar_chart_rounded, size: 44, color: Colors.black),
+              Icon(Icons.bar_chart_rounded, size: 44, color: AppTheme.mediumGrey),
               SizedBox(height: 10),
-              Text('No demand records in this timeframe to graph.',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+              Text(
+                'No demand records in this timeframe to graph.',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.adminPrimaryText),
+              ),
             ],
           ),
         ),
@@ -3291,7 +3608,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     }
 
     final double? chartWidth = isMobile
-        ? math.max(MediaQuery.of(context).size.width - 64, topItems.length * 72.0)
+        ? math.max(MediaQuery.of(context).size.width - 64, topItems.length * 74.0)
         : null;
 
     final chartWidget = BarChart(
@@ -3301,7 +3618,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         minY: 0,
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF14332E),
+            getTooltipColor: (_) => AppTheme.forestGreen,
             fitInsideHorizontally: true,
             fitInsideVertically: true,
             tooltipMargin: 8,
@@ -3350,9 +3667,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                        color: AppTheme.forestGreen.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
@@ -3360,7 +3677,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         style: const TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF14332E),
+                          color: AppTheme.forestGreen,
                         ),
                       ),
                     ),
@@ -3379,7 +3696,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 if (value < 0 || value > calculatedMaxY) return const SizedBox.shrink();
                 return Text(
                   _formatAxisValue(value),
-                  style: const TextStyle(color: Colors.black, fontSize: 9.5, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.w600),
                 );
               },
             ),
@@ -3403,8 +3720,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: isMobile ? 8.5 : 9.5,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.adminPrimaryText,
                           height: 1.15,
                         ),
                       ),
@@ -3420,8 +3737,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           show: true,
           drawVerticalLine: false,
           horizontalInterval: gridInterval,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: Colors.black.withValues(alpha: 0.12),
+          getDrawingHorizontalLine: (_) => const FlLine(
+            color: AppTheme.cardBorder,
             strokeWidth: 1,
           ),
         ),
@@ -3430,17 +3747,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       ),
     );
 
+    final topLeader = topItems.isNotEmpty ? topItems.first : null;
+    final topLeaderDetails = topLeader != null ? itemDetails[topLeader.key] : null;
+
     return Container(
       padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black, width: 1.0),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -3459,22 +3779,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.08),
+                            color: AppTheme.forestGreen.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.black, width: 0.8),
                           ),
-                          child: const Icon(Icons.bar_chart_rounded, size: 16, color: Colors.black),
+                          child: const Icon(Icons.bar_chart_rounded, size: 16, color: AppTheme.forestGreen),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Top Kitchen Ingredients by Consumption',
+                            'Kitchen Ingredient Consumption Velocity',
                             style: TextStyle(
-                              fontSize: isMobile ? 13.5 : 15.5,
+                              fontSize: isMobile ? 14 : 16,
                               fontWeight: FontWeight.w800,
-                              color: Colors.black,
+                              color: AppTheme.adminPrimaryText,
                             ),
                           ),
                         ),
@@ -3482,8 +3801,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Highest requested supplies for $_selectedTimeFilter • Ranked by kitchen volume',
-                      style: const TextStyle(fontSize: 11, color: Colors.black),
+                      'Highest requested supplies for $_selectedTimeFilter • Exploded from receipts & kitchen tickets',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText),
                     ),
                   ],
                 ),
@@ -3491,11 +3810,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               const SizedBox(width: 10),
               // Top-N Count Selector (5, 8, 10)
               Container(
-                padding: const EdgeInsets.all(3),
+                padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
-                  color: AppTheme.adminMainBackground,
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.black, width: 1.0),
+                  border: Border.all(color: AppTheme.cardBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3507,7 +3826,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         duration: const Duration(milliseconds: 150),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                         decoration: BoxDecoration(
-                          color: isSel ? const Color(0xFF14332E) : Colors.transparent,
+                          color: isSel ? AppTheme.forestGreen : Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -3515,7 +3834,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                            color: isSel ? Colors.white : Colors.black,
+                            color: isSel ? Colors.white : AppTheme.adminSecondaryText,
                           ),
                         ),
                       ),
@@ -3525,6 +3844,53 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               ),
             ],
           ),
+
+          // Executive Insights Strip
+          if (topLeader != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
+                        children: [
+                          const TextSpan(text: 'Leading ingredient: '),
+                          TextSpan(
+                            text: topLeader.key,
+                            style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                          ),
+                          TextSpan(
+                            text: ' (${_formatQty(topLeader.value)} ${topLeaderDetails?['unit'] ?? 'units'})',
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.forestGreen),
+                          ),
+                          TextSpan(
+                            text: ' • Category: ${topLeaderDetails?['category'] ?? 'General'} • Total demand across top items: ${_formatQty(totalDemand)} units',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 16),
 
@@ -3546,21 +3912,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
           if (isMobile && topItems.length > 4) ...[
             const SizedBox(height: 8),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.swipe_rounded, size: 14, color: Colors.black),
+              children: [
+                Icon(Icons.swipe_rounded, size: 14, color: AppTheme.mediumGrey),
                 SizedBox(width: 5),
                 Text(
                   'Scroll chart horizontally to view all ingredient bars',
-                  style: TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ],
 
           const SizedBox(height: 20),
-          const Divider(height: 1, color: Colors.black),
+          const Divider(height: 1, color: AppTheme.cardBorder),
           const SizedBox(height: 16),
 
           // ── Ranked Consumption Leaderboard & Stock Health ──
@@ -3593,11 +3959,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         Container(
                           padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.08),
+                            color: AppTheme.forestGreen.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.black, width: 0.8),
                           ),
-                          child: const Icon(Icons.military_tech_rounded, size: 14, color: Colors.black),
+                          child: const Icon(Icons.military_tech_rounded, size: 14, color: AppTheme.forestGreen),
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -3605,7 +3970,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            color: AppTheme.adminPrimaryText,
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -3621,7 +3986,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.black, width: 0.8),
+                              border: Border.all(color: const Color(0xFFFECACA)),
                             ),
                             child: Text(
                               '$deficitCount Deficit Risk',
@@ -3634,13 +3999,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0FDF4),
+                              color: const Color(0xFFECFDF5),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.black, width: 0.8),
+                              border: Border.all(color: const Color(0xFFA7F3D0)),
                             ),
                             child: Text(
                               '$coveredCount Covered',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF059669)),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -3650,9 +4015,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         Container(
                           padding: const EdgeInsets.all(2.5),
                           decoration: BoxDecoration(
-                            color: AppTheme.adminMainBackground,
+                            color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.black, width: 1.0),
+                            border: Border.all(color: AppTheme.cardBorder),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -3662,13 +4027,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: !_leaderboardTableView ? const Color(0xFF14332E) : Colors.transparent,
+                                    color: !_leaderboardTableView ? AppTheme.forestGreen : Colors.transparent,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Icon(
                                     Icons.grid_view_rounded,
                                     size: 13,
-                                    color: !_leaderboardTableView ? Colors.white : Colors.black,
+                                    color: !_leaderboardTableView ? Colors.white : AppTheme.adminSecondaryText,
                                   ),
                                 ),
                               ),
@@ -3678,13 +4043,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: _leaderboardTableView ? const Color(0xFF14332E) : Colors.transparent,
+                                    color: _leaderboardTableView ? AppTheme.forestGreen : Colors.transparent,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Icon(
                                     Icons.table_rows_rounded,
                                     size: 13,
-                                    color: _leaderboardTableView ? Colors.white : Colors.black,
+                                    color: _leaderboardTableView ? Colors.white : AppTheme.adminSecondaryText,
                                   ),
                                 ),
                               ),
@@ -3728,7 +4093,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 10,
-            mainAxisExtent: 82,
+            mainAxisExtent: 84,
           ),
           itemBuilder: (context, index) {
             final item = topItems[index];
@@ -3754,24 +4119,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               rankColor = const Color(0xFF9A3412);
               rankBg = const Color(0xFFFFEDD5);
             } else {
-              rankColor = const Color(0xFF14332E);
+              rankColor = AppTheme.forestGreen;
               rankBg = const Color(0xFFF1F5F9);
             }
 
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8.5),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.black,
-                  width: 1.0,
-                ),
+                border: Border.all(color: AppTheme.cardBorder),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.02),
                     blurRadius: 6,
-                    offset: const Offset(0, 2),
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
@@ -3788,7 +4150,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         decoration: BoxDecoration(
                           color: rankBg,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Text(
                           '#${index + 1}',
@@ -3799,7 +4160,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       Expanded(
                         child: Text(
                           item.key,
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Colors.black),
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppTheme.adminPrimaryText),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -3810,9 +4171,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         decoration: BoxDecoration(
                           color: currentStock <= 0
                               ? const Color(0xFFFEF2F2)
-                              : (hasDeficit ? const Color(0xFFFFF7ED) : const Color(0xFFF0FDF4)),
+                              : (hasDeficit ? const Color(0xFFFFF7ED) : const Color(0xFFECFDF5)),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          border: Border.all(
+                            color: currentStock <= 0
+                                ? const Color(0xFFFECACA)
+                                : (hasDeficit ? const Color(0xFFFED7AA) : const Color(0xFFA7F3D0)),
+                          ),
                         ),
                         child: Text(
                           currentStock <= 0
@@ -3823,7 +4188,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             fontWeight: FontWeight.w800,
                             color: currentStock <= 0
                                 ? const Color(0xFFDC2626)
-                                : (hasDeficit ? const Color(0xFFC2410C) : const Color(0xFF16A34A)),
+                                : (hasDeficit ? const Color(0xFFC2410C) : const Color(0xFF059669)),
                           ),
                         ),
                       ),
@@ -3836,7 +4201,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     children: [
                       Text(
                         '$category • $storage',
-                        style: const TextStyle(fontSize: 9.5, color: Colors.black, fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 9.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
                       ),
                       RichText(
                         text: TextSpan(
@@ -3846,16 +4211,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: currentStock <= 0 ? const Color(0xFFDC2626) : Colors.black,
+                                color: currentStock <= 0 ? const Color(0xFFDC2626) : AppTheme.adminSecondaryText,
                               ),
                             ),
                             const TextSpan(
                               text: '  /  ',
-                              style: TextStyle(fontSize: 9, color: Colors.black),
+                              style: TextStyle(fontSize: 9, color: AppTheme.mediumGrey),
                             ),
                             TextSpan(
                               text: 'Need: ${_formatQty(demand)} $unit',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                             ),
                           ],
                         ),
@@ -3869,7 +4234,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     child: LinearProgressIndicator(
                       value: coverageRatio,
                       minHeight: 4,
-                      backgroundColor: const Color(0xFF14332E).withValues(alpha: 0.06),
+                      backgroundColor: const Color(0xFFF1F5F9),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         currentStock <= 0
                             ? const Color(0xFFEF4444)
@@ -3895,7 +4260,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black, width: 1.2),
+        border: Border.all(color: AppTheme.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -3904,21 +4276,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             // Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              color: Colors.transparent,
-              child: Row(
-                children: const [
+              color: const Color(0xFFF8FAFC),
+              child: const Row(
+                children: [
                   SizedBox(
                     width: 38,
                     child: Text(
                       '#',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText),
                     ),
                   ),
                   Expanded(
                     flex: 3,
                     child: Text(
                       'INGREDIENT & CATEGORY',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3926,7 +4298,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'STORAGE ROOM',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3934,7 +4306,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'PROJECTED DEMAND',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3942,7 +4314,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'ON-HAND STOCK',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3950,7 +4322,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'DEFICIT SHORTAGE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -3958,13 +4330,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'STOCK STATUS',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Colors.black),
+            const Divider(height: 1, color: AppTheme.cardBorder),
 
             // Rows
             ...List.generate(topItems.length, (index) {
@@ -3990,16 +4362,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 rankColor = const Color(0xFF9A3412);
                 rankBg = const Color(0xFFFFEDD5);
               } else {
-                rankColor = const Color(0xFF14332E);
+                rankColor = AppTheme.forestGreen;
                 rankBg = const Color(0xFFF1F5F9);
               }
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9.5),
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: index < topItems.length - 1
-                      ? const Border(bottom: BorderSide(color: Colors.black, width: 1.0))
+                      ? const Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))
                       : null,
                 ),
                 child: Row(
@@ -4013,7 +4385,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         decoration: BoxDecoration(
                           color: rankBg,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 0.8),
                         ),
                         child: Text(
                           '#${index + 1}',
@@ -4028,11 +4399,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         children: [
                           Text(
                             item.key,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.adminPrimaryText),
                           ),
                           Text(
                             category,
-                            style: const TextStyle(fontSize: 10, color: Colors.black),
+                            style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText),
                           ),
                         ],
                       ),
@@ -4042,7 +4413,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       flex: 2,
                       child: Text(
                         storage,
-                        style: const TextStyle(fontSize: 11, color: Colors.black, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -4050,7 +4421,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       flex: 2,
                       child: Text(
                         '${_formatQty(demand)} $unit',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.black),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -4060,8 +4431,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         '${_formatQty(currentStock)} $unit',
                         style: TextStyle(
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: currentStock <= 0 ? const Color(0xFFDC2626) : Colors.black,
+                          fontWeight: FontWeight.w600,
+                          color: currentStock <= 0 ? const Color(0xFFDC2626) : AppTheme.adminPrimaryText,
                         ),
                       ),
                     ),
@@ -4072,8 +4443,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         hasDeficit ? '-${_formatQty(deficitQty)} $unit' : '0 (None)',
                         style: TextStyle(
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                          fontWeight: FontWeight.w700,
+                          color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF059669),
                         ),
                       ),
                     ),
@@ -4087,18 +4458,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           decoration: BoxDecoration(
                             color: currentStock <= 0
                                 ? const Color(0xFFFEF2F2)
-                                : (hasDeficit ? const Color(0xFFFFF7ED) : const Color(0xFFF0FDF4)),
+                                : (hasDeficit ? const Color(0xFFFFF7ED) : const Color(0xFFECFDF5)),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(color: Colors.black, width: 0.8),
+                            border: Border.all(
+                              color: currentStock <= 0
+                                  ? const Color(0xFFFECACA)
+                                  : (hasDeficit ? const Color(0xFFFED7AA) : const Color(0xFFA7F3D0)),
+                            ),
                           ),
                           child: Text(
                             currentStock <= 0 ? 'Out of Stock' : (hasDeficit ? 'Deficit Risk' : 'Sufficient'),
                             style: TextStyle(
                               fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: currentStock <= 0
                                   ? const Color(0xFFDC2626)
-                                  : (hasDeficit ? const Color(0xFFC2410C) : const Color(0xFF16A34A)),
+                                  : (hasDeficit ? const Color(0xFFC2410C) : const Color(0xFF059669)),
                             ),
                           ),
                         ),
@@ -4126,7 +4501,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return tableWidget;
   }
 
-  // ── Reorder / Stock Deficit Matrix View (Enterprise Procurement Table) ────
+  // ── Reorder / Stock Deficit Matrix View ─────────────────────────────────────
   Widget _buildDeficitMatrix(List<Map<String, dynamic>> items, bool isMobile) {
     // 1. Filter items with real deficit
     final allDeficitItems = items.where((i) {
@@ -4138,22 +4513,33 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     if (allDeficitItems.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(36),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppTheme.cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: const Center(
           child: Column(
             children: [
-              Icon(Icons.check_circle_outline_rounded, color: AppTheme.successGreen, size: 44),
+              Icon(Icons.check_circle_outline_rounded, color: AppTheme.forestGreen, size: 44),
               SizedBox(height: 10),
-              Text('No Stock Deficits Detected',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.darkGrey)),
+              Text(
+                'No Stock Deficits Detected',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+              ),
               SizedBox(height: 4),
-              Text('All requested ingredients in this timeframe were covered by available inventory.',
-                  style: TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey)),
+              Text(
+                'All requested ingredients in this timeframe were covered by available inventory buffer.',
+                style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
+              ),
             ],
           ),
         ),
@@ -4179,7 +4565,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 src.contains(query);
           }).toList();
 
-    // 3. Deficit Matrix Pagination (15 items per page)
+    // 3. Deficit Matrix Pagination
     final totalItems = filteredDeficits.length;
     final totalPages = totalItems > 0 ? (totalItems / _forecastItemsPerPage).ceil() : 1;
     if (_stockDeficitCurrentPage > totalPages) {
@@ -4208,10 +4594,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFCA5A5).withValues(alpha: 0.8)),
+            border: Border.all(color: const Color(0xFFFECACA)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.02),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -4228,14 +4614,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           decoration: BoxDecoration(
                             color: const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                            border: Border.all(color: const Color(0xFFFECACA)),
                           ),
                           child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'CRITICAL STOCK DEFICITS (${filteredDeficits.length} SKUs)',
+                            'ITEMS RUNNING OUT OF STOCK (${filteredDeficits.length})',
                             style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B), fontWeight: FontWeight.w800),
                           ),
                         ),
@@ -4252,7 +4638,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black, width: 0.8),
+                        border: Border.all(color: const Color(0xFFFECACA)),
                       ),
                       child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
                     ),
@@ -4263,21 +4649,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         Row(
                           children: [
                             const Text(
-                              'CRITICAL STOCK DEFICITS',
-                              style: TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w800),
+                              'ITEMS RUNNING OUT OF STOCK',
+                              style: TextStyle(fontSize: 12, color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEE2E2),
+                                color: const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.black, width: 0.8),
+                                border: Border.all(color: const Color(0xFFFECACA)),
                               ),
                               child: Text(
                                 query.isEmpty
-                                    ? '${allDeficitItems.length} SKUs Reorder Alert'
-                                    : '${filteredDeficits.length} of ${allDeficitItems.length} SKUs',
+                                    ? '${allDeficitItems.length} Items Need Restocking'
+                                    : '${filteredDeficits.length} of ${allDeficitItems.length} Items',
                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFDC2626)),
                               ),
                             ),
@@ -4285,22 +4671,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         ),
                         const SizedBox(height: 1),
                         const Text(
-                          'Demand exceeds warehouse on-hand stock. Recommended reorder quantities are prioritized below.',
-                          style: TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w500),
+                          'These ingredients do not have enough stock to fulfill all current orders. Please reorder soon.',
+                          style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
                     const Spacer(),
-                    // Deficit Quick Search
                     _buildDeficitSearchField(),
                     const SizedBox(width: 8),
-                    // Table vs Cards View Toggle
                     Container(
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(2.5),
                       decoration: BoxDecoration(
-                        color: AppTheme.adminMainBackground,
+                        color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black, width: 1.0),
+                        border: Border.all(color: AppTheme.cardBorder),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -4324,7 +4708,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 ),
         ),
 
-        // ── Main Deficit Content (Table or Cards) ──
+        // ── Main Deficit Content ──
         if (_stockDeficitTableView && !isMobile)
           _buildDeficitQueueTable(paginatedDeficits)
         else
@@ -4357,37 +4741,37 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
   Widget _buildDeficitSearchField() {
     return SizedBox(
-      width: 220,
+      width: 210,
       height: 34,
       child: TextField(
-        style: const TextStyle(fontSize: 11.5, color: Colors.black),
+        style: const TextStyle(fontSize: 11.5, color: AppTheme.adminPrimaryText),
         decoration: InputDecoration(
           hintText: 'Search deficits...',
-          hintStyle: const TextStyle(fontSize: 11.5, color: Colors.black54),
-          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: Colors.black),
+          hintStyle: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey),
+          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: AppTheme.mediumGrey),
           suffixIcon: _stockDeficitSearchQuery.isNotEmpty
               ? GestureDetector(
                   onTap: () => setState(() {
                     _stockDeficitSearchQuery = '';
                     _stockDeficitCurrentPage = 1;
                   }),
-                  child: const Icon(Icons.close_rounded, size: 14, color: Colors.black),
+                  child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.mediumGrey),
                 )
               : null,
           filled: true,
-          fillColor: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+          fillColor: const Color(0xFFF8FAFC),
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderSide: const BorderSide(color: AppTheme.cardBorder),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderSide: const BorderSide(color: AppTheme.cardBorder),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.black, width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
           ),
         ),
         onChanged: (val) {
@@ -4408,12 +4792,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black, width: 1.0),
+          border: Border.all(color: AppTheme.cardBorder),
         ),
         child: const Center(
           child: Text(
             'No matching deficit items found',
-            style: TextStyle(fontSize: 13, color: Colors.black, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 13, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -4423,12 +4807,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black, width: 1.2),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -4439,14 +4823,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             // Table Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              color: Colors.transparent,
-              child: Row(
-                children: const [
+              color: const Color(0xFFF8FAFC),
+              child: const Row(
+                children: [
                   Expanded(
                     flex: 3,
                     child: Text(
-                      'DEFICIT SKU & STORAGE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      'INGREDIENT & STORAGE LOCATION',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4454,7 +4838,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'DEMAND SOURCE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4462,7 +4846,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'TOTAL DEMAND',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4470,7 +4854,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'CURRENT IN-STOCK',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4478,7 +4862,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'REORDER DEFICIT',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -4486,20 +4870,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 3,
                     child: Text(
                       'REQUEST INFO & DATE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Colors.black),
+            const Divider(height: 1, color: AppTheme.cardBorder),
 
             // Table Data Rows
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black),
+              separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
                 final item = items[index];
                 final name = (item['name'] ?? '').toString();
@@ -4519,27 +4903,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
                 final deficit = reqQty - currentStock;
 
-                Color srcBg;
                 IconData srcIcon;
                 String srcLabel;
                 switch (demandSource) {
                   case 'POS Walk-in':
-                    srcBg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
                     srcIcon = Icons.point_of_sale_rounded;
                     srcLabel = 'POS Walk-in';
                     break;
                   case 'Advance Order':
-                    srcBg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
                     srcIcon = Icons.schedule_send_rounded;
                     srcLabel = 'Advance Order';
                     break;
                   case 'Catering Reservation':
-                    srcBg = const Color(0xFFEA580C).withValues(alpha: 0.1);
                     srcIcon = Icons.celebration_rounded;
                     srcLabel = 'Catering Event';
                     break;
                   default:
-                    srcBg = const Color(0xFF10B981).withValues(alpha: 0.1);
                     srcIcon = Icons.restaurant_rounded;
                     srcLabel = 'Kitchen Req';
                     break;
@@ -4558,9 +4937,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                color: const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.black, width: 0.8),
+                                border: Border.all(color: const Color(0xFFFECACA)),
                               ),
                               child: const Icon(
                                 Icons.warning_amber_rounded,
@@ -4577,8 +4956,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     name,
                                     style: const TextStyle(
                                       fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.adminPrimaryText,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -4587,7 +4966,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     '$category • $storageRoom',
                                     style: const TextStyle(
                                       fontSize: 10,
-                                      color: Colors.black,
+                                      color: AppTheme.adminSecondaryText,
                                       fontWeight: FontWeight.w500,
                                     ),
                                     maxLines: 1,
@@ -4609,22 +4988,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: srcBg,
+                              color: const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.black, width: 0.8),
+                              border: Border.all(color: AppTheme.cardBorder),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(srcIcon, size: 11, color: Colors.black),
+                                Icon(srcIcon, size: 11, color: AppTheme.forestGreen),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     srcLabel,
                                     style: const TextStyle(
                                       fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.adminPrimaryText,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -4644,7 +5023,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            color: AppTheme.adminPrimaryText,
                           ),
                         ),
                       ),
@@ -4657,8 +5036,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           '${_formatQty(currentStock)} $unit',
                           style: TextStyle(
                             fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: currentStock == 0 ? const Color(0xFFEF4444) : Colors.black,
+                            fontWeight: FontWeight.w700,
+                            color: currentStock == 0 ? const Color(0xFFDC2626) : AppTheme.adminPrimaryText,
                           ),
                         ),
                       ),
@@ -4674,7 +5053,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.black, width: 0.8),
+                              border: Border.all(color: const Color(0xFFFECACA)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -4690,7 +5069,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     'Deficit -${_formatQty(deficit)} $unit',
                                     style: const TextStyle(
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w800,
                                       color: Color(0xFFDC2626),
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -4713,7 +5092,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               notes.isNotEmpty ? notes : 'By $requestedBy',
                               style: const TextStyle(
                                 fontSize: 10.5,
-                                color: Colors.black,
+                                color: AppTheme.adminPrimaryText,
                                 fontStyle: FontStyle.italic,
                               ),
                               maxLines: 1,
@@ -4724,8 +5103,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 DateFormat('MMM d, h:mm a').format(createdAt),
                                 style: const TextStyle(
                                   fontSize: 9.5,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.adminSecondaryText,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                           ],
@@ -4742,7 +5121,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  // ── Demand Feed View (Enterprise Audit Queue) ─────────────────────────────
+  // ── Demand Feed View ───────────────────────────────────────────────────────
   Widget _buildDemandFeed(List<Map<String, dynamic>> items, bool isMobile) {
     // 1. In-Queue Search filter
     final query = _demandQueueSearchQuery.trim().toLowerCase();
@@ -4763,7 +5142,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 src.contains(query);
           }).toList();
 
-    // 2. Pagination (15 items per page)
+    // 2. Pagination
     final totalItems = filteredItems.length;
     final totalPages = totalItems > 0 ? (totalItems / _forecastItemsPerPage).ceil() : 1;
     if (_demandQueueCurrentPage > totalPages) {
@@ -4792,10 +5171,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF86EFAC).withValues(alpha: 0.6)),
+            border: Border.all(color: AppTheme.cardBorder),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.02),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -4810,17 +5189,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0FDF4),
+                            color: AppTheme.forestGreen.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF86EFAC)),
                           ),
-                          child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF16A34A), size: 16),
+                          child: const Icon(Icons.receipt_long_rounded, color: AppTheme.forestGreen, size: 16),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'ITEMIZED DEMAND QUEUE (${filteredItems.length} Tickets)',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontSize: 12, color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w800),
                           ),
                         ),
                       ],
@@ -4834,11 +5212,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
+                        color: AppTheme.forestGreen.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black, width: 0.8),
                       ),
-                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF16A34A), size: 16),
+                      child: const Icon(Icons.receipt_long_rounded, color: AppTheme.forestGreen, size: 16),
                     ),
                     const SizedBox(width: 10),
                     Column(
@@ -4848,21 +5225,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           children: [
                             const Text(
                               'ITEMIZED DEMAND QUEUE',
-                              style: TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w800),
+                              style: TextStyle(fontSize: 12, color: AppTheme.adminPrimaryText, fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFDCFCE7),
+                                color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.black, width: 0.8),
+                                border: Border.all(color: AppTheme.cardBorder),
                               ),
                               child: Text(
                                 query.isEmpty
                                     ? '${items.length} Tickets in Scope'
                                     : '${filteredItems.length} of ${items.length} Tickets',
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
                               ),
                             ),
                           ],
@@ -4870,21 +5247,19 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         const SizedBox(height: 1),
                         const Text(
                           'Complete audit trail of customer receipts, kitchen requisition slips, and catering reservations.',
-                          style: TextStyle(fontSize: 10.5, color: Colors.black, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
                     const Spacer(),
-                    // Quick Search Field
                     _buildQueueSearchField(),
                     const SizedBox(width: 8),
-                    // Table vs Card View Toggle
                     Container(
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(2.5),
                       decoration: BoxDecoration(
-                        color: AppTheme.adminMainBackground,
+                        color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black, width: 1.0),
+                        border: Border.all(color: AppTheme.cardBorder),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -4908,7 +5283,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 ),
         ),
 
-        // ── Main Queue Content (Table or Cards) ──
+        // ── Main Queue Content ──
         if (_demandQueueTableView && !isMobile)
           _buildDemandQueueTable(paginatedItems)
         else
@@ -4941,37 +5316,37 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
   Widget _buildQueueSearchField() {
     return SizedBox(
-      width: 220,
+      width: 210,
       height: 34,
       child: TextField(
-        style: const TextStyle(fontSize: 11.5, color: Colors.black),
+        style: const TextStyle(fontSize: 11.5, color: AppTheme.adminPrimaryText),
         decoration: InputDecoration(
           hintText: 'Search tickets...',
-          hintStyle: const TextStyle(fontSize: 11.5, color: Colors.black54),
-          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: Colors.black),
+          hintStyle: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey),
+          prefixIcon: const Icon(Icons.search_rounded, size: 15, color: AppTheme.mediumGrey),
           suffixIcon: _demandQueueSearchQuery.isNotEmpty
               ? GestureDetector(
                   onTap: () => setState(() {
                     _demandQueueSearchQuery = '';
                     _demandQueueCurrentPage = 1;
                   }),
-                  child: const Icon(Icons.close_rounded, size: 14, color: Colors.black),
+                  child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.mediumGrey),
                 )
               : null,
           filled: true,
-          fillColor: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+          fillColor: const Color(0xFFF8FAFC),
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderSide: const BorderSide(color: AppTheme.cardBorder),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderSide: const BorderSide(color: AppTheme.cardBorder),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.black, width: 1.5),
+            borderSide: const BorderSide(color: AppTheme.forestGreen, width: 1.5),
           ),
         ),
         onChanged: (val) {
@@ -4996,20 +5371,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF14332E) : Colors.transparent,
+          color: isActive ? AppTheme.forestGreen : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: isActive ? Colors.white : Colors.black),
+            Icon(icon, size: 12, color: isActive ? Colors.white : AppTheme.adminSecondaryText),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                color: isActive ? Colors.white : Colors.black,
+                color: isActive ? Colors.white : AppTheme.adminSecondaryText,
               ),
             ),
           ],
@@ -5026,12 +5401,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black, width: 1.0),
+          border: Border.all(color: AppTheme.cardBorder),
         ),
         child: const Center(
           child: Text(
             'No matching tickets in queue',
-            style: TextStyle(fontSize: 13, color: Colors.black, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 13, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -5041,12 +5416,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black, width: 1.2),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -5057,14 +5432,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             // Table Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              color: Colors.transparent,
-              child: Row(
-                children: const [
+              color: const Color(0xFFF8FAFC),
+              child: const Row(
+                children: [
                   Expanded(
                     flex: 3,
                     child: Text(
                       'ITEM & STORAGE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5072,7 +5447,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'DEMAND CHANNEL',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5080,7 +5455,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'REQUIRED DEMAND',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5088,7 +5463,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'CURRENT STOCK',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5096,7 +5471,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 2,
                     child: Text(
                       'STATUS / HEALTH',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -5104,20 +5479,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     flex: 3,
                     child: Text(
                       'EVENT / NOTE & DATE',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.4),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.4),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Colors.black),
+            const Divider(height: 1, color: AppTheme.cardBorder),
 
             // Table Data Rows
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black),
+              separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
                 final item = items[index];
                 final name = (item['name'] ?? '').toString();
@@ -5138,28 +5513,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 final deficit = reqQty - currentStock;
                 final hasDeficit = deficit > 0;
 
-                // Demand source color & icon
-                Color srcBg;
                 IconData srcIcon;
                 String srcLabel;
                 switch (demandSource) {
                   case 'POS Walk-in':
-                    srcBg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
                     srcIcon = Icons.point_of_sale_rounded;
                     srcLabel = 'POS Walk-in';
                     break;
                   case 'Advance Order':
-                    srcBg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
                     srcIcon = Icons.schedule_send_rounded;
                     srcLabel = 'Advance Order';
                     break;
                   case 'Catering Reservation':
-                    srcBg = const Color(0xFFEA580C).withValues(alpha: 0.1);
                     srcIcon = Icons.celebration_rounded;
                     srcLabel = 'Catering Event';
                     break;
                   default:
-                    srcBg = const Color(0xFF10B981).withValues(alpha: 0.1);
                     srcIcon = Icons.restaurant_rounded;
                     srcLabel = 'Kitchen Req';
                     break;
@@ -5179,15 +5548,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: hasDeficit
-                                    ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                                    : const Color(0xFF10B981).withValues(alpha: 0.12),
+                                    ? const Color(0xFFFEF2F2)
+                                    : const Color(0xFFECFDF5),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.black, width: 0.8),
+                                border: Border.all(
+                                  color: hasDeficit ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0),
+                                ),
                               ),
                               child: Icon(
                                 hasDeficit ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
                                 size: 14,
-                                color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                                color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF059669),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -5199,8 +5570,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     name,
                                     style: const TextStyle(
                                       fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.adminPrimaryText,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -5209,7 +5580,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     '$category • $storageRoom',
                                     style: const TextStyle(
                                       fontSize: 10,
-                                      color: Colors.black,
+                                      color: AppTheme.adminSecondaryText,
                                       fontWeight: FontWeight.w500,
                                     ),
                                     maxLines: 1,
@@ -5231,22 +5602,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: srcBg,
+                              color: const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.black, width: 0.8),
+                              border: Border.all(color: AppTheme.cardBorder),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(srcIcon, size: 11, color: Colors.black),
+                                Icon(srcIcon, size: 11, color: AppTheme.forestGreen),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     srcLabel,
                                     style: const TextStyle(
                                       fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.adminPrimaryText,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -5266,7 +5637,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            color: AppTheme.adminPrimaryText,
                           ),
                         ),
                       ),
@@ -5279,8 +5650,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           '${_formatQty(currentStock)} $unit',
                           style: TextStyle(
                             fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: currentStock == 0 ? const Color(0xFFEF4444) : Colors.black,
+                            fontWeight: FontWeight.w700,
+                            color: currentStock == 0 ? const Color(0xFFDC2626) : AppTheme.adminPrimaryText,
                           ),
                         ),
                       ),
@@ -5295,12 +5666,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
                               color: hasDeficit
-                                  ? const Color(0xFFEF4444).withValues(alpha: 0.1)
-                                  : const Color(0xFF10B981).withValues(alpha: 0.1),
+                                  ? const Color(0xFFFEF2F2)
+                                  : const Color(0xFFECFDF5),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: Colors.black,
-                                width: 0.8,
+                                color: hasDeficit ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0),
                               ),
                             ),
                             child: Row(
@@ -5309,7 +5679,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 Icon(
                                   hasDeficit ? Icons.error_outline_rounded : Icons.check_rounded,
                                   size: 11,
-                                  color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                                  color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF059669),
                                 ),
                                 const SizedBox(width: 4),
                                 Flexible(
@@ -5317,8 +5687,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                     hasDeficit ? 'Deficit -${_formatQty(deficit)} $unit' : 'Covered',
                                     style: TextStyle(
                                       fontSize: 9.5,
-                                      fontWeight: FontWeight.w900,
-                                      color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                                      fontWeight: FontWeight.w800,
+                                      color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF059669),
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -5340,7 +5710,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               notes.isNotEmpty ? notes : 'By $requestedBy',
                               style: const TextStyle(
                                 fontSize: 10.5,
-                                color: Colors.black,
+                                color: AppTheme.adminPrimaryText,
                                 fontStyle: FontStyle.italic,
                               ),
                               maxLines: 1,
@@ -5351,8 +5721,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                                 DateFormat('MMM d, h:mm a').format(createdAt),
                                 style: const TextStyle(
                                   fontSize: 9.5,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.adminSecondaryText,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                           ],
@@ -5369,6 +5739,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
+  // ── Pagination Controls ────────────────────────────────────────────────────
   Widget _buildForecastPagination({
     required int totalItems,
     required int currentPage,
@@ -5388,11 +5759,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black, width: 1.0),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -5407,22 +5778,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                  color: AppTheme.adminSecondaryText,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.black, width: 0.8),
+                  border: Border.all(color: AppTheme.cardBorder),
                 ),
                 child: Text(
                   'Page $currentPage of $totalPages',
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.adminPrimaryText,
                   ),
                 ),
               ),
@@ -5450,12 +5821,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: currentPage > 1 ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                          color: currentPage > 1 ? AppTheme.forestGreen : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.black,
-                            width: 1.0,
-                          ),
+                          border: Border.all(color: AppTheme.cardBorder),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -5463,7 +5831,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             Icon(
                               Icons.chevron_left_rounded,
                               size: 16,
-                              color: currentPage > 1 ? Colors.white : Colors.black45,
+                              color: currentPage > 1 ? Colors.white : AppTheme.mediumGrey,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -5471,7 +5839,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
-                                color: currentPage > 1 ? Colors.white : Colors.black45,
+                                color: currentPage > 1 ? Colors.white : AppTheme.mediumGrey,
                               ),
                             ),
                           ],
@@ -5480,7 +5848,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     ),
                     const SizedBox(width: 8),
 
-                    // Page Number Buttons with smart ellipsis window
+                    // Page Number Buttons with smart ellipsis
                     ...List.generate(totalPages, (index) {
                       final pageNum = index + 1;
                       if (totalPages > 5) {
@@ -5492,7 +5860,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               padding: EdgeInsets.symmetric(horizontal: 4),
                               child: Text(
                                 '…',
-                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: AppTheme.mediumGrey, fontWeight: FontWeight.bold),
                               ),
                             );
                           }
@@ -5515,11 +5883,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             height: 30,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF14332E) : const Color(0xFFF8FAFC),
+                              color: isSelected ? AppTheme.forestGreen : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.black,
-                                width: isSelected ? 1.2 : 1.0,
+                                color: isSelected ? AppTheme.forestGreen : AppTheme.cardBorder,
                               ),
                             ),
                             child: Text(
@@ -5527,7 +5894,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                color: isSelected ? Colors.white : Colors.black,
+                                color: isSelected ? Colors.white : AppTheme.adminPrimaryText,
                               ),
                             ),
                           ),
@@ -5544,15 +5911,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               onPageChanged(currentPage + 1);
                             }
                           : null,
+                      borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: currentPage < totalPages ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+                          color: currentPage < totalPages ? AppTheme.forestGreen : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.black,
-                            width: 1.0,
-                          ),
+                          border: Border.all(color: AppTheme.cardBorder),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -5562,14 +5927,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
-                                color: currentPage < totalPages ? Colors.white : Colors.black45,
+                                color: currentPage < totalPages ? Colors.white : AppTheme.mediumGrey,
                               ),
                             ),
                             const SizedBox(width: 4),
                             Icon(
                               Icons.chevron_right_rounded,
                               size: 16,
-                              color: currentPage < totalPages ? Colors.white : Colors.black45,
+                              color: currentPage < totalPages ? Colors.white : AppTheme.mediumGrey,
                             ),
                           ],
                         ),
@@ -5578,7 +5943,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   ],
                 ),
 
-                // Go to page input (Digits only - letters strictly prohibited)
+                // Go to page input
                 _buildPageJumpInput(
                   currentPage: currentPage,
                   totalPages: totalPages,
@@ -5603,7 +5968,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black, width: 1.0),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -5612,8 +5977,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             'Go to:',
             style: TextStyle(
               fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.adminSecondaryText,
             ),
           ),
           const SizedBox(width: 6),
@@ -5626,8 +5991,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: Colors.black,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.adminPrimaryText,
               ),
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
@@ -5640,15 +6005,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 isDense: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Colors.black, width: 1.0),
+                  borderSide: const BorderSide(color: AppTheme.cardBorder),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Colors.black, width: 1.0),
+                  borderSide: const BorderSide(color: AppTheme.cardBorder),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                  borderSide: const BorderSide(color: AppTheme.forestGreen, width: 1.5),
                 ),
               ),
               onSubmitted: (val) {
@@ -5673,15 +6038,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
-                color: const Color(0xFF14332E),
+                color: AppTheme.forestGreen,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.black, width: 1.0),
               ),
               child: const Text(
                 'Go',
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
               ),
@@ -5692,6 +6056,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
+  // ── Demand Card Item (Cards View Mode) ─────────────────────────────────────
   Widget _buildDemandCard(Map<String, dynamic> item, {required bool isDeficitView}) {
     final name = item['name'] as String;
     final category = item['category'] as String;
@@ -5714,255 +6079,272 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     final deficit = reqQty - currentStock;
     final hasDeficit = deficit > 0;
 
-    final iconBg = hasDeficit ? const Color(0xFFEF4444).withValues(alpha: 0.12) : const Color(0xFF10B981).withValues(alpha: 0.12);
-    final iconFg = hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+    final iconBg = hasDeficit ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5);
+    final iconBorder = hasDeficit ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0);
+    final iconFg = hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF059669);
     final iconData = hasDeficit ? Icons.warning_amber_rounded : Icons.check_circle_rounded;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.black,
-          width: 1.0,
-        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: hasDeficit ? const Color(0xFFFECACA) : AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: Colors.black, width: 0.8),
-                ),
-                child: Icon(iconData, size: 15, color: iconFg),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            // Left Accent Stripe
+            Positioned(
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: 3.5,
+              child: Container(
+                color: hasDeficit ? const Color(0xFFDC2626) : AppTheme.forestGreen,
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.black),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '$category • $storageRoom',
-                      style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 5,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Demand Source Badge
-                  Builder(
-                    builder: (context) {
-                      Color badgeBg;
-                      Color badgeFg;
-                      IconData badgeIcon;
-                      String badgeText;
-
-                      switch (demandSource) {
-                        case 'POS Walk-in':
-                          badgeBg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
-                          badgeFg = const Color(0xFF2563EB);
-                          badgeIcon = Icons.point_of_sale_rounded;
-                          badgeText = 'POS WALK-IN';
-                          break;
-                        case 'Advance Order':
-                          badgeBg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
-                          badgeFg = const Color(0xFF7C3AED);
-                          badgeIcon = Icons.schedule_send_rounded;
-                          badgeText = 'ADVANCE ORDER';
-                          break;
-                        case 'Catering Reservation':
-                          badgeBg = const Color(0xFFEA580C).withValues(alpha: 0.1);
-                          badgeFg = const Color(0xFFC2410C);
-                          badgeIcon = Icons.celebration_rounded;
-                          badgeText = 'CATERING EVENT';
-                          break;
-                        case 'Kitchen Request':
-                        default:
-                          badgeBg = const Color(0xFF10B981).withValues(alpha: 0.1);
-                          badgeFg = const Color(0xFF059669);
-                          badgeIcon = Icons.restaurant_rounded;
-                          badgeText = 'KITCHEN REQ';
-                          break;
-                      }
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  // Header Row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: badgeBg,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          color: iconBg,
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(color: iconBorder),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Icon(iconData, size: 15, color: iconFg),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(badgeIcon, size: 10, color: badgeFg),
-                            const SizedBox(width: 4),
                             Text(
-                              badgeText,
-                              style: TextStyle(
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w900,
-                                color: badgeFg,
-                                letterSpacing: 0.3,
-                              ),
+                              name,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              '$category • Storage: $storageRoom',
+                              style: const TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                      const SizedBox(width: 8),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 5,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          // Demand Source Badge
+                          Builder(
+                            builder: (context) {
+                              IconData badgeIcon;
+                              String badgeText;
 
-                  // Deficit Alert Pill if stock is insufficient
-                  if (hasDeficit)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.black, width: 0.8),
-                      ),
-                      child: const Text(
-                        'DEFICIT RISK',
-                        style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Color(0xFFDC2626)),
-                      ),
-                    ),
+                              switch (demandSource) {
+                                case 'POS Walk-in':
+                                  badgeIcon = Icons.point_of_sale_rounded;
+                                  badgeText = 'POS WALK-IN';
+                                  break;
+                                case 'Advance Order':
+                                  badgeIcon = Icons.schedule_send_rounded;
+                                  badgeText = 'ADVANCE ORDER';
+                                  break;
+                                case 'Catering Reservation':
+                                  badgeIcon = Icons.celebration_rounded;
+                                  badgeText = 'CATERING EVENT';
+                                  break;
+                                case 'Kitchen Request':
+                                default:
+                                  badgeIcon = Icons.restaurant_rounded;
+                                  badgeText = 'KITCHEN REQ';
+                                  break;
+                              }
 
-                  // Pending pill if unapproved
-                  if (isPending)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.black, width: 0.8),
-                      ),
-                      child: const Text(
-                        'PENDING',
-                        style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Color(0xFFD97706)),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.cardBorder),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(badgeIcon, size: 10, color: AppTheme.forestGreen),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      badgeText,
+                                      style: const TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.adminPrimaryText,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
 
-          const SizedBox(height: 10),
+                          // Deficit Alert Pill if stock is insufficient
+                          if (hasDeficit)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFECACA)),
+                              ),
+                              child: const Text(
+                                'DEFICIT RISK',
+                                style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: Color(0xFFDC2626)),
+                              ),
+                            ),
 
-          // Compact Numbers & Deficit Callout
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.black, width: 0.8),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isPos ? 'POS DEMAND' : 'REQ DEMAND',
-                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.black),
+                          // Pending pill if unapproved
+                          if (isPending)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFFBEB),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
+                              ),
+                              child: const Text(
+                                'PENDING',
+                                style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 1),
-                      Text('${_formatQty(reqQty)} $unit',
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Colors.black)),
                     ],
                   ),
-                ),
-                Container(width: 1, height: 22, color: Colors.black),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('CURRENT IN-STOCK',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.black)),
-                      const SizedBox(height: 1),
-                      Text('${_formatQty(currentStock)} $unit',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w900,
-                            color: currentStock == 0 ? const Color(0xFFEF4444) : Colors.black,
-                          )),
-                    ],
+
+                  const SizedBox(height: 12),
+
+                  // Compact Numbers & Deficit Callout
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isPos ? 'POS DEMAND' : 'REQ DEMAND',
+                                style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: AppTheme.mediumGrey, letterSpacing: 0.3),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_formatQty(reqQty)} $unit',
+                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(width: 1, height: 26, color: AppTheme.cardBorder),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'CURRENT IN-STOCK',
+                                style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: AppTheme.mediumGrey, letterSpacing: 0.3),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_formatQty(currentStock)} $unit',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: currentStock == 0 ? const Color(0xFFDC2626) : AppTheme.adminPrimaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(width: 1, height: 26, color: AppTheme.cardBorder),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'STOCK STATUS',
+                                style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: AppTheme.mediumGrey, letterSpacing: 0.3),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                hasDeficit ? 'Deficit: -${_formatQty(deficit)} $unit' : 'Covered in stock',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: hasDeficit ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Container(width: 1, height: 22, color: Colors.black),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('STOCK STATUS',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.black)),
-                      const SizedBox(height: 1),
-                      Text(
-                        hasDeficit ? 'Deficit: -${_formatQty(deficit)} $unit' : 'Covered in stock',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: hasDeficit ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          notes.isNotEmpty ? 'Note: $notes' : 'Requested by $requestedBy',
+                          style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: AppTheme.adminSecondaryText),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (createdAt != null)
+                        Text(
+                          DateFormat('MMM d, h:mm a').format(createdAt),
+                          style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w600),
+                        ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  notes.isNotEmpty ? 'Note: $notes' : 'Requested by $requestedBy',
-                  style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.black),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
               ),
-              if (createdAt != null)
-                Text(
-                  DateFormat('MMM d, h:mm a').format(createdAt),
-                  style: const TextStyle(fontSize: 9.5, color: Colors.black, fontWeight: FontWeight.w600),
-                ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-

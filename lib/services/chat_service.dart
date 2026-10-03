@@ -386,7 +386,10 @@ class ChatService {
     try {
       await _supabase
           .from('chat_messages')
-          .update({'message': unsentMessageSentinel})
+          .update({
+            'message': unsentMessageSentinel,
+            'image_url': null,
+          })
           .eq('id', messageId);
       return true;
     } catch (e) {
