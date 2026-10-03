@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:yang_chow/services/notification_service.dart';
+import 'package:yang_chow/services/menu_service.dart';
 
 // ══════════════════════════════════════════════════════════
 //  CHEF DASHBOARD PAGE
@@ -2594,6 +2595,13 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
             .eq('order_id', widget.order['id'].toString());
         if (mounted) {
           setState(() => _items = List<Map<String, dynamic>>.from(rows));
+
+          // If this order contains ONLY drinks, it does not require kitchen preparation.
+          // Automatically mark it as Done so it is dismissed from active kitchen display.
+          if (rows.isNotEmpty &&
+              rows.every((r) => MenuService.isDrinkItem(r['item_name']?.toString() ?? ''))) {
+            widget.onStatusChanged('Done');
+          }
         }
       } catch (_) {}
     }
@@ -2922,7 +2930,10 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           final dialogWidth = size.width < 600 ? size.width * 0.94 : 520.0;
           final cleanPrepNotes = _cleanSpecialRequests(widget.order['preparation_notes']);
           final cleanSpecialReqs = _cleanSpecialRequests(widget.order['special_requests']);
-          final cleanOrderNote = _cleanSpecialRequests(widget.order['note']);
+          final cleanOrderNote = _cleanSpecialRequests(widget.order['note'])
+              .replaceAll('[TAKE HOME]', '')
+              .replaceAll('[DINE IN]', '')
+              .trim();
           final displayNote = (widget.isAdvanceOrder && cleanPrepNotes.isNotEmpty)
               ? cleanPrepNotes
               : (widget.isReservation && cleanSpecialReqs.isNotEmpty)
@@ -3000,9 +3011,20 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                       ? 'Advance Order • ${widget.order['order_type'] ?? 'Take-out'}'
                                       : (widget.isReservation
                                           ? 'Event Reservation • ${widget.order['event_type'] ?? ''}'
-                                          : (widget.order['table_number']?.toString().isNotEmpty == true
-                                              ? 'Dine In • Table ${widget.order['table_number']}'
-                                              : 'Counter Order Slip')),
+                                          : (() {
+                                              final n = widget.order['note']?.toString() ?? '';
+                                              final tbl = widget.order['table_number']?.toString();
+                                              if (n.contains('[TAKE HOME]') || n.contains('[TAKE-OUT]')) {
+                                                return 'Take-out Order';
+                                              }
+                                              if (tbl != null && tbl.isNotEmpty) {
+                                                return 'Dine In • Table $tbl';
+                                              }
+                                              if (n.contains('[DINE IN]')) {
+                                                return 'Dine In Order';
+                                              }
+                                              return 'Take-out Order';
+                                            })()),
                                   style: GoogleFonts.plusJakartaSans(
                                     color: const Color(0xFFE6C374),
                                     fontSize: 11,
@@ -3172,7 +3194,10 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
     final isPreparing = status == 'Preparing';
     final isReady = status == 'Ready';
     final isDone = status == 'Done';
-    final cleanCardNote = _cleanSpecialRequests(widget.order['note']);
+    final cleanCardNote = _cleanSpecialRequests(widget.order['note'])
+        .replaceAll('[TAKE HOME]', '')
+        .replaceAll('[DINE IN]', '')
+        .trim();
 
     final List<Color> headerGradient = isUrgent
         ? [const Color(0xFF881337), const Color(0xFF9F1239)]
@@ -3378,9 +3403,20 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                   : 'Scheduled ${_formatFriendlyTime(widget.order['order_time']?.toString())} • Ready to cook!')
                               : (widget.isReservation
                                   ? 'Event • ${widget.order['event_type'] ?? ''}'
-                                  : (widget.order['table_number']?.toString().isNotEmpty == true
-                                      ? 'Dine In • Table ${widget.order['table_number']}'
-                                      : 'Take-out Order')),
+                                  : (() {
+                                      final n = widget.order['note']?.toString() ?? '';
+                                      final tbl = widget.order['table_number']?.toString();
+                                      if (n.contains('[TAKE HOME]') || n.contains('[TAKE-OUT]')) {
+                                        return 'Take-out Order';
+                                      }
+                                      if (tbl != null && tbl.isNotEmpty) {
+                                        return 'Dine In • Table $tbl';
+                                      }
+                                      if (n.contains('[DINE IN]')) {
+                                        return 'Dine In Order';
+                                      }
+                                      return 'Take-out Order';
+                                    })()),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
@@ -5048,11 +5084,19 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
 
       for (final o in posDoneOrders) {
         final oid = o['id'].toString();
+        final items = itemsByOrderId[oid] ?? (o['items'] is List ? o['items'] : []);
+
+        // Skip orders where all items are drinks (kitchen never prepared them)
+        if (items.isNotEmpty &&
+            items.every((it) => MenuService.isDrinkItem(it['item_name']?.toString() ?? ''))) {
+          continue;
+        }
+
         result.add({
           ...o,
           '_is_advance': false,
           '_is_reservation': false,
-          'items': itemsByOrderId[oid] ?? (o['items'] is List ? o['items'] : []),
+          'items': items,
         });
       }
     } catch (e) {

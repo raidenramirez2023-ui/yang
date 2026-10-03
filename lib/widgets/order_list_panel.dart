@@ -5,11 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/menu_item.dart';
 import '../services/menu_service.dart';
 import '../services/location_service.dart';
-import '../services/offline_pos_service.dart';
 
 
 
@@ -23,8 +21,7 @@ class OrderListPanel extends StatefulWidget {
 
   final Function(CartItem) onRemoveItem;
 
-  final void Function(String customerName, String customerAddress, String note, double totalAmount, int guestCount, String tableNumber, double discountAmount, String discountLabel, String discountName, String discountAddress)
-
+  final void Function(String customerName, String customerAddress, String note, double totalAmount, int guestCount, String tableNumber, double discountAmount, String discountLabel, String discountName, String discountAddress, String orderType)
   onProceedPayment;
 
   final VoidCallback onClearCart;
@@ -84,6 +81,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
   String _discountCustomerName = '';
   String _discountCustomerAddress = '';
   String? _selectedTableLabel;
+  String _orderType = 'Dine-in';
 
   // ── Simple Table Layout (T-1 to T-15, editable pax) ──
   static const String _prefsKeyTables = 'yang_simple_tables_v2';
@@ -216,6 +214,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
     setState(() {
       _selectedTableNumbers.clear();
       _selectedTableLabel = null;
+      _orderType = 'Dine-in';
     });
 
     _customerNameController.clear();
@@ -283,6 +282,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
                   const SizedBox(height: 14),
 
                   _buildTableAndGuestFields(),
+
+                  const SizedBox(height: 8),
+
+                  _buildOrderTypeSelector(),
 
                   const SizedBox(height: 8),
 
@@ -494,6 +497,135 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
 
 
+  Widget _buildOrderTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            'Order Type:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _textDark,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _orderType = 'Dine-in';
+                      if (_guestCountController.text.trim().isEmpty || _guestCountController.text.trim() == 'N/A') {
+                        _guestCountController.text = '1';
+                      }
+                      if (_tableNumberController.text.trim() == 'N/A') {
+                        _tableNumberController.clear();
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'Dine-in',
+                          groupValue: _orderType,
+                          activeColor: const Color(0xFF0C241F),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _orderType = val;
+                                if (_guestCountController.text.trim().isEmpty || _guestCountController.text.trim() == 'N/A') {
+                                  _guestCountController.text = '1';
+                                }
+                                if (_tableNumberController.text.trim() == 'N/A') {
+                                  _tableNumberController.clear();
+                                }
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 2),
+                        const Text(
+                          'Dine-in',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: _textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _orderType = 'Take-out';
+                      _tableNumberController.clear();
+                      _selectedTableNumbers.clear();
+                      _selectedTableLabel = null;
+                      _guestCountController.clear();
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Radio<String>(
+                          value: 'Take-out',
+                          groupValue: _orderType,
+                          activeColor: const Color(0xFF0C241F),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _orderType = val;
+                                _tableNumberController.clear();
+                                _selectedTableNumbers.clear();
+                                _selectedTableLabel = null;
+                                _guestCountController.clear();
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 2),
+                        const Text(
+                          'Take-out',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: _textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNoteField() {
 
     return TextField(
@@ -655,6 +787,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
   // ─────────────────────────────────────────────────────────────────────────
 
   void _showTablePickerDialog() {
+    if (_orderType == 'Take-out') return;
     showDialog(
       context: context,
       builder: (ctx) {
@@ -1223,192 +1356,183 @@ class _OrderListPanelState extends State<OrderListPanel> {
   }
 
   Widget _buildTableAndGuestFields() {
+    final bool isTakeOut = _orderType == 'Take-out';
 
     return Row(
-
       children: [
-
         // Table Number Field — visual picker
-
         Expanded(
-
           child: Column(
-
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
-
-              const Text(
-
-                'Table No.:',
-
-                style: TextStyle(
-
-                  fontSize: 13,
-
-                  fontWeight: FontWeight.w600,
-
-                  color: _textDark,
-
-                ),
-
+              Row(
+                children: [
+                  Text(
+                    'Table No.:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isTakeOut ? const Color(0xFF94A3B8) : _textDark,
+                    ),
+                  ),
+                  if (isTakeOut) ...[
+                    const SizedBox(width: 4),
+                    const Text(
+                      '(N/A)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-
               const SizedBox(height: 6),
-
               TextField(
                 controller: _tableNumberController,
+                enabled: !isTakeOut,
                 readOnly: true,
-                onTap: _showTablePickerDialog,
+                onTap: isTakeOut ? null : _showTablePickerDialog,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13.5, color: _textDark, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(
-                  hintText: 'Table #',
-                  hintStyle: const TextStyle(color: _grey, fontSize: 13),
-                  filled: true,
-                  fillColor: _bg,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  suffixIcon: _tableNumberController.text.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () => setState(() {
-                            _selectedTableNumbers.clear();
-                            _tableNumberController.clear();
-                            _selectedTableLabel = null;
-                          }),
-                          child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
-                        )
-                      : const MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: Icon(
-                            Icons.table_restaurant_rounded,
-                            size: 17,
-                            color: Color(0xFF0C241F),
-                          ),
-                        ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: _border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: _border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: _indigo, width: 1.5),
-                  ),
-                ),
-              ),
-
-            ],
-
-          ),
-
-        ),
-
-        const SizedBox(width: 12),
-
-        // Guest Count Field
-
-        Expanded(
-
-          child: Column(
-
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-
-              const Text(
-
-                'No. of Guest:',
-
                 style: TextStyle(
-
-                  fontSize: 13,
-
-                  fontWeight: FontWeight.w600,
-
-                  color: _textDark,
-
+                  fontSize: 13.5,
+                  color: isTakeOut ? const Color(0xFF94A3B8) : _textDark,
+                  fontWeight: FontWeight.bold,
                 ),
-
-              ),
-
-              const SizedBox(height: 6),
-
-              TextField(
-
-                controller: _guestCountController,
-
-                keyboardType: TextInputType.number,
-
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
-
                 decoration: InputDecoration(
-
-                  hintText: 'Guests',
-
-                  hintStyle: const TextStyle(color: _grey, fontSize: 13),
-
+                  hintText: isTakeOut ? 'N/A' : 'Table #',
+                  hintStyle: TextStyle(
+                    color: isTakeOut ? const Color(0xFF94A3B8) : _grey,
+                    fontSize: 13,
+                    fontWeight: isTakeOut ? FontWeight.bold : FontWeight.normal,
+                  ),
                   filled: true,
-
-                  fillColor: _bg,
-
+                  fillColor: isTakeOut ? const Color(0xFFE2E8F0).withValues(alpha: 0.5) : _bg,
                   isDense: true,
-
                   contentPadding: const EdgeInsets.symmetric(
-
                     horizontal: 8,
-
                     vertical: 8,
-
                   ),
-
+                  suffixIcon: isTakeOut
+                      ? const Icon(Icons.block_rounded, size: 15, color: Color(0xFF94A3B8))
+                      : (_tableNumberController.text.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () => setState(() {
+                                _selectedTableNumbers.clear();
+                                _tableNumberController.clear();
+                                _selectedTableLabel = null;
+                              }),
+                              child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                            )
+                          : const MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: Icon(
+                                Icons.table_restaurant_rounded,
+                                size: 17,
+                                color: Color(0xFF0C241F),
+                              ),
+                            )),
                   border: OutlineInputBorder(
-
                     borderRadius: BorderRadius.circular(8),
-
-                    borderSide: const BorderSide(color: _border),
-
+                    borderSide: BorderSide(color: isTakeOut ? const Color(0xFFCBD5E1) : _border),
                   ),
-
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
                   enabledBorder: OutlineInputBorder(
-
                     borderRadius: BorderRadius.circular(8),
-
                     borderSide: const BorderSide(color: _border),
-
                   ),
-
                   focusedBorder: OutlineInputBorder(
-
                     borderRadius: BorderRadius.circular(8),
-
                     borderSide: const BorderSide(color: _indigo, width: 1.5),
-
                   ),
-
                 ),
-
               ),
-
             ],
-
           ),
-
         ),
-
+        const SizedBox(width: 12),
+        // Guest Count Field
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'No. of Guest:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isTakeOut ? const Color(0xFF94A3B8) : _textDark,
+                    ),
+                  ),
+                  if (isTakeOut) ...[
+                    const SizedBox(width: 4),
+                    const Text(
+                      '(N/A)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _guestCountController,
+                enabled: !isTakeOut,
+                readOnly: isTakeOut,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isTakeOut ? const Color(0xFF94A3B8) : _textDark,
+                  fontWeight: FontWeight.bold,
+                ),
+                decoration: InputDecoration(
+                  hintText: isTakeOut ? 'N/A' : 'Guests',
+                  hintStyle: TextStyle(
+                    color: isTakeOut ? const Color(0xFF94A3B8) : _grey,
+                    fontSize: 13,
+                    fontWeight: isTakeOut ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  filled: true,
+                  fillColor: isTakeOut ? const Color(0xFFE2E8F0).withValues(alpha: 0.5) : _bg,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isTakeOut ? const Color(0xFFCBD5E1) : _border),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _indigo, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
-
     );
-
   }
 
 
@@ -2011,9 +2135,13 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
                     final total = subtotal - discountAmount;
 
-                    final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 1;
+                    final guestCount = _orderType == 'Take-out'
+                        ? 1
+                        : (int.tryParse(_guestCountController.text.trim()) ?? 1);
 
-                    final tableNumber = _tableNumberController.text.trim();
+                    final tableNumber = _orderType == 'Take-out'
+                        ? ''
+                        : _tableNumberController.text.trim();
 
                     final regularCustomerName = _customerNameController.text.trim();
 
@@ -2046,6 +2174,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       discountName,
 
                       discountAddress,
+
+                      _orderType,
 
                     );
 
