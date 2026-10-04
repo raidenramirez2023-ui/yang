@@ -737,36 +737,36 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     );
   }
 
-  // Main Review Card
+  // Main Review Card - Enterprise Compact & Production-Ready
   Widget _buildMainFormCard() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _primaryGold.withValues(alpha: 0.4),
-          width: 1.5,
+          color: _primaryGold.withValues(alpha: 0.35),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: _primaryGold.withValues(alpha: 0.15),
-            blurRadius: 20,
+            color: _primaryGold.withValues(alpha: 0.08),
+            blurRadius: 10,
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Top Accent Stripe
             Container(
-              height: 5,
+              height: 4,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_primaryGold, _warmGold, _forestGreen],
@@ -774,129 +774,77 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Category Ratings Header
-                  _buildCardSectionTitle(
+                  // Section Header: Rate Your Experience
+                  _buildSectionHeader(
                     'RATE YOUR EXPERIENCE',
-                    'Tap the stars to score each category',
+                    'Overall dining satisfaction and category evaluation',
                     Icons.stars_rounded,
                   ),
+                  const SizedBox(height: 12),
+
+                  // Hero Overall Rating Card
+                  _buildHeroOverallRatingCard(),
+                  const SizedBox(height: 10),
+
+                  // Category Breakdown Matrix Card
+                  _buildRatingMatrixCard(),
                   const SizedBox(height: 16),
 
-                  // Overall Rating
-                  _buildInteractiveRatingCard(
-                    title: 'OVERALL RATING',
-                    subtitle: 'Overall dining satisfaction',
-                    icon: Icons.star_rounded,
-                    rating: _overallRating,
-                    onRatingChanged: (val) => setState(() => _overallRating = val),
-                    isPrimary: true,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Food Quality
-                  _buildInteractiveRatingCard(
-                    title: 'FOOD QUALITY',
-                    subtitle: 'Taste, temperature & presentation',
-                    icon: Icons.restaurant_rounded,
-                    rating: _foodQuality,
-                    onRatingChanged: (val) => setState(() => _foodQuality = val),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Service Quality
-                  _buildInteractiveRatingCard(
-                    title: 'SERVICE QUALITY',
-                    subtitle: 'Staff attentiveness & friendliness',
-                    icon: Icons.room_service_rounded,
-                    rating: _serviceQuality,
-                    onRatingChanged: (val) => setState(() => _serviceQuality = val),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Turnaround Time (TAT)
-                  _buildInteractiveRatingCard(
-                    title: 'TURNAROUND TIME (TAT)',
-                    subtitle: 'Order preparation speed & waiting time',
-                    icon: Icons.timer_rounded,
-                    rating: _turnaroundTime,
-                    onRatingChanged: (val) => setState(() => _turnaroundTime = val),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Responsiveness Rate
-                  _buildInteractiveRatingCard(
-                    title: 'RESPONSIVENESS RATE',
-                    subtitle: 'Staff attentiveness & prompt communication',
-                    icon: Icons.support_agent_rounded,
-                    rating: _responsivenessRate,
-                    onRatingChanged: (val) => setState(() => _responsivenessRate = val),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Ambiance
-                  _buildInteractiveRatingCard(
-                    title: 'AMBIANCE',
-                    subtitle: 'Atmosphere, music & cleanliness',
-                    icon: Icons.deck_rounded,
-                    rating: _ambiance,
-                    onRatingChanged: (val) => setState(() => _ambiance = val),
-                  ),
-                  const SizedBox(height: 22),
-
-                  // Additional Comments Section
-                  _buildCardSectionTitle(
+                  // Section Header: Feedback & Comments
+                  _buildSectionHeader(
                     'YOUR FEEDBACK & COMMENTS',
-                    'Share specific details, favorite dishes, or suggestions',
-                    Icons.edit_note_rounded,
+                    'Share highlights, recommendations, or suggestions',
+                    Icons.rate_review_outlined,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                  // Quick Suggestion Chips
+                  // Single-line Quick Tags
                   _buildQuickReviewChips(),
                   const SizedBox(height: 10),
 
-                  // Comment Text Field
+                  // Compact Feedback Input Field
                   TextField(
                     controller: _reviewTextController,
-                    maxLines: 4,
+                    maxLines: 3,
                     style: GoogleFonts.poppins(
-                      fontSize: 13.5,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black87,
+                      color: const Color(0xFF1E293B),
                     ),
                     decoration: InputDecoration(
-                      hintText: 'e.g. The Yang Chow Fried Rice and Dimsum were authentic and delicious! The staff were very accommodating...',
+                      hintText: 'Share your dining highlights, favorite dishes, or suggestions...',
                       hintStyle: GoogleFonts.poppins(
                         color: Colors.grey.shade400,
-                        fontSize: 12.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
                       ),
                       filled: true,
                       fillColor: const Color(0xFFFCFAF7),
+                      isDense: true,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       focusedBorder: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(12)),
-                        borderSide: BorderSide(color: _primaryGold, width: 1.8),
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                        borderSide: BorderSide(color: _primaryGold, width: 1.5),
                       ),
-                      contentPadding: const EdgeInsets.all(14),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 16),
 
-                  // Submit Button matching Signature Red-Gold Theme
+                  // Submit Button matching Signature Theme
                   Container(
-                    height: 48,
+                    height: 44,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       gradient: const LinearGradient(
@@ -912,9 +860,9 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: _forestGreen.withValues(alpha: 0.4),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
+                          color: _forestGreen.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -926,8 +874,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                         child: Center(
                           child: _isSubmitting
                               ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
+                                  height: 20,
+                                  width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -938,7 +886,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                                   children: [
                                     const Icon(
                                       Icons.send_rounded,
-                                      size: 16,
+                                      size: 15,
                                       color: Colors.white,
                                     ),
                                     const SizedBox(width: 8),
@@ -947,9 +895,9 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                                           ? 'UPDATE GUEST REVIEW'
                                           : 'SUBMIT GUEST REVIEW',
                                       style: GoogleFonts.poppins(
-                                        fontSize: 13.5,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.2,
+                                        letterSpacing: 1.1,
                                         color: Colors.white,
                                       ),
                                     ),
@@ -961,9 +909,9 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                   ),
 
                   if (_existingReview != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(8),
@@ -971,14 +919,14 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 16),
+                          const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 15),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Submitting will update your previous review for this booking.',
                               style: GoogleFonts.poppins(
                                 color: const Color(0xFF1E40AF),
-                                fontSize: 11.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -996,12 +944,12 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     );
   }
 
-  Widget _buildCardSectionTitle(String title, String subtitle, IconData icon) {
+  Widget _buildSectionHeader(String title, String subtitle, IconData icon) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, color: _forestGreen, size: 18),
-        const SizedBox(width: 8),
+        Icon(icon, color: _forestGreen, size: 17),
+        const SizedBox(width: 7),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1009,16 +957,16 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
               Text(
                 title,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                  color: const Color(0xFF330505),
+                  letterSpacing: 0.9,
+                  color: const Color(0xFF1E293B),
                 ),
               ),
               Text(
                 subtitle,
                 style: GoogleFonts.poppins(
-                  fontSize: 11,
+                  fontSize: 10.5,
                   color: Colors.grey.shade600,
                 ),
               ),
@@ -1029,11 +977,363 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     );
   }
 
-  // Quick Review Tags that add to the text controller
+  // Hero Overall Rating Bar
+  Widget _buildHeroOverallRatingCard() {
+    final ratingLabels = [
+      'Tap stars to rate',
+      'Poor Experience',
+      'Fair Experience',
+      'Good Experience',
+      'Very Good Experience',
+      'Exceptional Experience! ⭐',
+    ];
+
+    final scoreText = ratingLabels[_overallRating.clamp(0, 5)];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFFFFDF5),
+            _overallRating > 0 ? const Color(0xFFFFFBEB) : const Color(0xFFFAFAF9),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _overallRating > 0
+              ? _primaryGold.withValues(alpha: 0.6)
+              : Colors.grey.shade300,
+          width: 1.3,
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 420;
+
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _overallRating > 0
+                            ? _primaryGold.withValues(alpha: 0.15)
+                            : Colors.grey.shade100,
+                      ),
+                      child: Icon(
+                        Icons.star_rounded,
+                        size: 18,
+                        color: _overallRating > 0 ? _primaryGold : Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          text: 'OVERALL RATING ',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.7,
+                            color: const Color(0xFF1E293B),
+                          ),
+                          children: [
+                            TextSpan(
+                              text: '*',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFDC2626),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _overallRating > 0
+                            ? Colors.amber.withValues(alpha: 0.15)
+                            : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        scoreText,
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: _overallRating > 0 ? FontWeight.w700 : FontWeight.w500,
+                          color: _overallRating > 0 ? const Color(0xFFB45309) : Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _buildOverallInteractiveStars(size: 28),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // Wide Layout (Desktop / Tablet)
+          return Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _overallRating > 0
+                      ? _primaryGold.withValues(alpha: 0.15)
+                      : Colors.grey.shade100,
+                ),
+                child: Icon(
+                  Icons.star_rounded,
+                  size: 20,
+                  color: _overallRating > 0 ? _primaryGold : Colors.grey.shade500,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RichText(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      text: TextSpan(
+                        text: 'OVERALL RATING ',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.7,
+                          color: const Color(0xFF1E293B),
+                        ),
+                        children: [
+                          TextSpan(
+                            text: '*',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFDC2626),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      scoreText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 10.5,
+                        fontWeight: _overallRating > 0 ? FontWeight.w600 : FontWeight.w400,
+                        color: _overallRating > 0 ? const Color(0xFFB45309) : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _buildOverallInteractiveStars(size: 26),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildOverallInteractiveStars({required double size}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 1; i <= 5; i++)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _overallRating = i),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+              child: AnimatedScale(
+                scale: i <= _overallRating ? 1.12 : 0.95,
+                duration: const Duration(milliseconds: 140),
+                child: Icon(
+                  i <= _overallRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: i <= _overallRating
+                      ? const Color(0xFFF59E0B)
+                      : Colors.grey.shade300,
+                  size: size,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Consolidated Category Breakdown Matrix
+  Widget _buildRatingMatrixCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCFAF7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          _buildCompactRatingRow(
+            title: 'Food Quality',
+            desc: 'Taste, temperature & freshness',
+            icon: Icons.restaurant_rounded,
+            rating: _foodQuality,
+            onChanged: (val) => setState(() => _foodQuality = val),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+          _buildCompactRatingRow(
+            title: 'Service Quality',
+            desc: 'Staff hospitality & attentiveness',
+            icon: Icons.room_service_rounded,
+            rating: _serviceQuality,
+            onChanged: (val) => setState(() => _serviceQuality = val),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+          _buildCompactRatingRow(
+            title: 'Turnaround Time (TAT)',
+            desc: 'Serving speed & waiting time',
+            icon: Icons.timer_rounded,
+            rating: _turnaroundTime,
+            onChanged: (val) => setState(() => _turnaroundTime = val),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+          _buildCompactRatingRow(
+            title: 'Responsiveness Rate',
+            desc: 'Prompt assistance & communication',
+            icon: Icons.support_agent_rounded,
+            rating: _responsivenessRate,
+            onChanged: (val) => setState(() => _responsivenessRate = val),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+          _buildCompactRatingRow(
+            title: 'Dining Ambiance',
+            desc: 'Atmosphere, interior & cleanliness',
+            icon: Icons.deck_rounded,
+            rating: _ambiance,
+            onChanged: (val) => setState(() => _ambiance = val),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactRatingRow({
+    required String title,
+    required String desc,
+    required IconData icon,
+    required int rating,
+    required Function(int) onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: rating > 0 ? _forestGreen : Colors.grey.shade500),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+                Text(
+                  desc,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 9.5,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 5 Stars & Badge scaled gracefully
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (int i = 1; i <= 5; i++)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onChanged(i),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 2),
+                        child: Icon(
+                          i <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: i <= rating ? const Color(0xFFF59E0B) : Colors.grey.shade300,
+                          size: 19,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 5),
+                  // Micro Badge
+                  Container(
+                    width: 26,
+                    padding: const EdgeInsets.symmetric(vertical: 1.5),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: rating > 0 ? Colors.amber.withValues(alpha: 0.15) : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      rating > 0 ? '$rating★' : '-',
+                      style: GoogleFonts.poppins(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: rating > 0 ? const Color(0xFFB45309) : Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Quick Review Tags (Wrap layout so no tags are cut off)
   Widget _buildQuickReviewChips() {
     final tags = [
       'Authentic Flavors! 🍲',
-      'Fast & Courteous Service 🌟',
+      'Fast & Courteous 🌟',
       'Generous Portions 🥢',
       'Cozy Ambiance ✨',
       'Will Visit Again! 👍',
@@ -1044,7 +1344,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
       runSpacing: 6,
       children: tags.map((tag) {
         return InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           onTap: () {
             final current = _reviewTextController.text.trim();
             if (current.isEmpty) {
@@ -1057,8 +1357,8 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: const Color(0xFFFCFAF7),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _primaryGold.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _primaryGold.withValues(alpha: 0.35)),
             ),
             child: Text(
               tag,
@@ -1074,166 +1374,55 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     );
   }
 
-  // Interactive Modern Rating Bar Card
-  Widget _buildInteractiveRatingCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required int rating,
-    required Function(int) onRatingChanged,
-    bool isPrimary = false,
-  }) {
-    final ratingLabels = [
-      'Tap to rate',
-      'Poor',
-      'Fair',
-      'Good',
-      'Very Good',
-      'Exceptional! ⭐',
-    ];
-
-    final scoreText = ratingLabels[rating.clamp(0, 5)];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isPrimary ? const Color(0xFFFFFBEB) : const Color(0xFFFCFAF7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isPrimary
-              ? _primaryGold.withValues(alpha: 0.5)
-              : Colors.grey.shade200,
-          width: isPrimary ? 1.4 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 16,
-                    color: isPrimary ? _primaryGold : _forestGreen,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: const Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: rating > 0
-                      ? Colors.amber.withValues(alpha: 0.15)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  rating > 0 ? '$rating ★  $scoreText' : 'Not rated',
-                  style: GoogleFonts.poppins(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: rating > 0 ? const Color(0xFFB45309) : Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (int i = 1; i <= 5; i++)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onRatingChanged(i),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        child: AnimatedScale(
-                          scale: i <= rating ? 1.08 : 0.95,
-                          duration: const Duration(milliseconds: 150),
-                          child: Icon(
-                            i <= rating
-                                ? Icons.star_rounded
-                                : Icons.star_outline_rounded,
-                            color: i <= rating
-                                ? const Color(0xFFF59E0B)
-                                : Colors.grey.shade300,
-                            size: 32,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Guest Diner Info Card (Full Name & Optional Contact)
+  // Guest Diner Info Card - Enterprise Compact
   Widget _buildGuestInfoCard() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _primaryGold.withValues(alpha: 0.45),
-          width: 1.5,
+          color: _primaryGold.withValues(alpha: 0.35),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 500;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _forestGreen.withValues(alpha: 0.08),
-                      border: Border.all(color: _primaryGold.withValues(alpha: 0.4)),
-                    ),
-                    child: const Icon(Icons.person_pin_rounded, color: _primaryGold, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  // Compact Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _forestGreen.withValues(alpha: 0.08),
+                          border: Border.all(color: _primaryGold.withValues(alpha: 0.4)),
+                        ),
+                        child: const Icon(Icons.person_pin_rounded, color: _primaryGold, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Row(
                           children: [
                             Text(
                               'GUEST DINER INFORMATION',
                               style: GoogleFonts.poppins(
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.6,
                                 color: const Color(0xFF1E293B),
@@ -1241,16 +1430,16 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                             ),
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
                                 color: Colors.blue.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(5),
                                 border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                               ),
                               child: Text(
                                 'Guest Mode',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 10,
+                                  fontSize: 9.5,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.blue.shade700,
                                 ),
@@ -1258,126 +1447,156 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                             ),
                           ],
                         ),
-                        Text(
-                          'Your full name will be shown on verified testimonials',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Inputs (Side-by-side on wide screens, stacked on mobile)
+                  if (isWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildGuestNameField()),
+                        const SizedBox(width: 10),
+                        Expanded(child: _buildGuestContactField()),
                       ],
-                    ),
+                    )
+                  else ...[
+                    _buildGuestNameField(),
+                    const SizedBox(height: 8),
+                    _buildGuestContactField(),
+                  ],
+
+                  const SizedBox(height: 10),
+
+                  // Compact Dining Experience Type
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dining Experience Type:',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          'Dine-In',
+                          'Takeout / Pick-Up',
+                          'Special Celebration',
+                          'Walk-in',
+                        ].map((type) {
+                          final isSelected = _diningType == type;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => setState(() => _diningType = type),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? _primaryGold.withValues(alpha: 0.15)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? _primaryGold
+                                      : Colors.transparent,
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isSelected) ...[
+                                    const Icon(Icons.check_rounded, size: 12, color: _forestGreen),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Text(
+                                    type,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10.5,
+                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                      color: isSelected ? _forestGreen : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              // Full Name field
-              Text(
-                'Full Name *',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextFormField(
-                controller: _guestNameController,
-                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1E293B)),
-                decoration: InputDecoration(
-                  hintText: 'e.g. Maria Santos',
-                  hintStyle: GoogleFonts.poppins(fontSize: 12.5, color: Colors.grey.shade400),
-                  prefixIcon: const Icon(Icons.person_outline_rounded, color: _primaryGold, size: 20),
-                  filled: true,
-                  fillColor: const Color(0xFFFAFAF9),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _primaryGold, width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Optional Contact field
-              Text(
-                'Email or Mobile Number (Optional)',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextFormField(
-                controller: _guestContactController,
-                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1E293B)),
-                decoration: InputDecoration(
-                  hintText: 'e.g. maria@gmail.com or 09171234567',
-                  hintStyle: GoogleFonts.poppins(fontSize: 12.5, color: Colors.grey.shade400),
-                  prefixIcon: const Icon(Icons.alternate_email_rounded, color: Colors.grey, size: 20),
-                  filled: true,
-                  fillColor: const Color(0xFFFAFAF9),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _primaryGold, width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Dining Type Selection
-              Text(
-                'Dining Experience Type',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: ['Dine-In', 'Takeout / Pick-Up', 'Special Celebration', 'Walk-in'].map((type) {
-                  final isSelected = _diningType == type;
-                  return ChoiceChip(
-                    label: Text(type),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      if (selected) setState(() => _diningType = type);
-                    },
-                    selectedColor: _primaryGold.withValues(alpha: 0.2),
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    labelStyle: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? _forestGreen : Colors.grey.shade700,
-                    ),
-                    side: BorderSide(
-                      color: isSelected ? _primaryGold : Colors.transparent,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  );
-                }).toList(),
-              ),
-            ],
+              );
+            },
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestNameField() {
+    return TextFormField(
+      controller: _guestNameController,
+      style: GoogleFonts.poppins(fontSize: 12.5, color: const Color(0xFF1E293B)),
+      decoration: InputDecoration(
+        labelText: 'Full Name *',
+        labelStyle: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade600),
+        hintText: 'e.g. Maria Santos',
+        hintStyle: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade400),
+        prefixIcon: const Icon(Icons.person_outline_rounded, color: _primaryGold, size: 18),
+        filled: true,
+        fillColor: const Color(0xFFFAFAF9),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _primaryGold, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestContactField() {
+    return TextFormField(
+      controller: _guestContactController,
+      style: GoogleFonts.poppins(fontSize: 12.5, color: const Color(0xFF1E293B)),
+      decoration: InputDecoration(
+        labelText: 'Email or Mobile (Optional)',
+        labelStyle: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade600),
+        hintText: 'e.g. maria@gmail.com or 09171234567',
+        hintStyle: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade400),
+        prefixIcon: const Icon(Icons.alternate_email_rounded, color: Colors.grey, size: 18),
+        filled: true,
+        fillColor: const Color(0xFFFAFAF9),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _primaryGold, width: 1.5),
         ),
       ),
     );

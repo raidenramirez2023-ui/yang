@@ -97,14 +97,11 @@ class _LandingPageState extends State<LandingPage>
   LatLng? _pinnedLocation;
   String _pinnedAddress = '';
   LatLng? _startLatLng;
-  LatLng? _destinationLatLng = _restaurantLocation;
   List<LatLng> _routePoints = [];
   bool _isRouting = false;
-  bool _showDirectionsPanel = false;
   double? _routeDistanceKm;
   int? _routeDurationMin;
   bool _isSatelliteMode = false;
-  bool _isRouteCardHidden = false;
 
   late AnimationController _mapPulseController;
 
@@ -725,7 +722,6 @@ class _LandingPageState extends State<LandingPage>
   }) async {
     setState(() => _isRouting = true);
     _startLatLng = start;
-    _destinationLatLng = dest;
 
     // Instant realistic distance calculation for Laguna roads (1.25x road winding factor)
     final straightKm = const Distance().as(LengthUnit.Kilometer, start, dest);
@@ -737,8 +733,6 @@ class _LandingPageState extends State<LandingPage>
       _routeDistanceKm = distanceKm;
       _routeDurationMin = durationMin;
       _isRouting = false;
-      _showRestaurantInfoCard = true;
-      _isRouteCardHidden = false;
     });
 
     final bounds = LatLngBounds.fromPoints([start, dest]);
@@ -940,64 +934,8 @@ class _LandingPageState extends State<LandingPage>
       _userLocation = null;
       _startPointController.clear();
       _mapSearchController.clear();
-      _isRouteCardHidden = false;
     });
     _recenterRestaurant();
-  }
-
-  Future<void> _getRoute() async {
-    final startText = _startPointController.text.trim();
-    final destText = _destinationController.text.trim();
-
-    if (startText.isEmpty || destText.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Please enter starting point and destination.')),
-        );
-      }
-      return;
-    }
-
-    setState(() => _isRouting = true);
-    final start = await _geocodeAddress(startText);
-    final dest = await _geocodeAddress(destText);
-
-    if (start == null) {
-      setState(() => _isRouting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Could not locate "$startText". Try adding more details (e.g. "$startText, Laguna").')),
-        );
-      }
-      return;
-    }
-    if (dest == null) {
-      setState(() => _isRouting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not locate "$destText".')),
-        );
-      }
-      return;
-    }
-
-    await _calculateRouteBetween(start, dest, showSnackbar: true);
-  }
-
-  void _swapRoutingPoints() {
-    final tempText = _startPointController.text;
-    _startPointController.text = _destinationController.text;
-    _destinationController.text = tempText;
-
-    final tempLatLng = _startLatLng;
-    _startLatLng = _destinationLatLng;
-    _destinationLatLng = tempLatLng;
-
-    if (_routePoints.isNotEmpty) _getRoute();
   }
 
   Future<void> _openYangChowFacebookPage() async {
@@ -1074,7 +1012,6 @@ class _LandingPageState extends State<LandingPage>
           _pinnedAddress = trimmed;
           _startPointController.text = trimmed;
           _startLatLng = target;
-          _isRouteCardHidden = false;
         });
 
         // Center map on the pinned location with clear zoom
@@ -2550,22 +2487,25 @@ class _LandingPageState extends State<LandingPage>
                         color: warmGold.withValues(alpha: 0.4),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.stars_rounded,
-                            color: warmGold, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Authentic Asian Cuisine • Pagsanjan, Laguna',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: warmGold,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            letterSpacing: 0.5,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.stars_rounded,
+                              color: warmGold, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Authentic Asian Cuisine • Pagsanjan, Laguna',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: warmGold,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -2902,20 +2842,23 @@ class _LandingPageState extends State<LandingPage>
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: warmGold.withValues(alpha: 0.4)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.stars_rounded, color: warmGold, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                'Authentic Asian • Pagsanjan, Laguna',
-                style: GoogleFonts.plusJakartaSans(
-                  color: warmGold,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.stars_rounded, color: warmGold, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  'Authentic Asian • Pagsanjan, Laguna',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: warmGold,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -4345,34 +4288,7 @@ class _LandingPageState extends State<LandingPage>
     final isMobile = ResponsiveUtils.isMobile(context);
     final isTablet = ResponsiveUtils.isTablet(context);
 
-    final displayAnnouncements = _announcements.isNotEmpty
-        ? _announcements
-        : [
-            {
-              'title': 'Grand Opening & Special Dimsum Family Meals',
-              'content':
-                  'Visit Yang Chow Pagsanjan at CLA Town Center Mall for daily authentic Asian dining specials & family bundles! Enjoy our signature Dimsum platter deals, sweet & sour pork, and handcrafted Chinese tea.',
-              'created_at': DateTime.now().toIso8601String(),
-            },
-            {
-              'title': 'Chef Special: Signature Hong Kong Style Dimsum Platter',
-              'content':
-                  'Freshly steamed daily! Savor our premium Hakaw, Pork Siomai, and Xiao Long Bao prepared with traditional Asian recipes by our master chefs.',
-              'created_at': DateTime.now()
-                  .subtract(const Duration(days: 3))
-                  .toIso8601String(),
-            },
-            {
-              'title': 'Weekend Family Banquet & Special Promo Discounts',
-              'content':
-                  'Gather with loved ones and enjoy exclusive weekend bundles featuring Yang Chow Fried Rice, Honey Glazed Chicken, and complimentary dessert.',
-              'created_at': DateTime.now()
-                  .subtract(const Duration(days: 5))
-                  .toIso8601String(),
-            },
-          ];
-
-    final itemsToShow = displayAnnouncements.take(3).toList();
+    final itemsToShow = _announcements.take(3).toList();
 
     return Container(
       width: double.infinity,
@@ -4447,26 +4363,135 @@ class _LandingPageState extends State<LandingPage>
               ),
               SizedBox(height: isMobile ? 28 : 44),
 
-              // Ultra-Modern Symmetrical Bento 3-Card Showcase
-              if (isMobile || isTablet)
+              // Ultra-Modern Symmetrical Bento 3-Card Showcase OR Empty State
+              if (itemsToShow.isEmpty)
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isMobile ? 36 : 48,
+                    horizontal: isMobile ? 24 : 40,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: warmGold.withValues(alpha: 0.25),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: forestGreen.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: warmGold.withValues(alpha: 0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.campaign_outlined,
+                          size: 34,
+                          color: forestGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'No Current Announcements',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: isMobile ? 20 : 22,
+                          fontWeight: FontWeight.bold,
+                          color: darkGreyText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No current announcements at this time. Stay tuned for upcoming promos, seasonal dishes, and special events!',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: isMobile ? 13.5 : 14.5,
+                          color: AppTheme.mediumGrey,
+                          height: 1.55,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (isMobile || isTablet)
                 Column(
                   children: itemsToShow.asMap().entries.map((entry) {
                     final index = entry.key;
                     final item = entry.value;
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: index < itemsToShow.length - 1 ? 20 : 0,
-                      ),
-                      child: _ModernAnnouncementCardWidget(
-                        item: item,
-                        index: index,
-                        isMobile: true,
-                        triggerNotifier: _updatesAssemblyNotifier,
-                        onTap: () =>
-                            _showAnnouncementDetailsDialog(context, item),
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: index < itemsToShow.length - 1 ? 20 : 0,
+                          ),
+                          child: _ModernAnnouncementCardWidget(
+                            item: item,
+                            index: index,
+                            isMobile: true,
+                            triggerNotifier: _updatesAssemblyNotifier,
+                            onTap: () =>
+                                _showAnnouncementDetailsDialog(context, item),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
+                )
+              else if (itemsToShow.length == 1)
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: _ModernAnnouncementCardWidget(
+                      item: itemsToShow.first,
+                      index: 0,
+                      isMobile: false,
+                      triggerNotifier: _updatesAssemblyNotifier,
+                      onTap: () => _showAnnouncementDetailsDialog(
+                          context, itemsToShow.first),
+                    ),
+                  ),
+                )
+              else if (itemsToShow.length == 2)
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 864),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (int i = 0; i < itemsToShow.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 24),
+                          Expanded(
+                            child: _ModernAnnouncementCardWidget(
+                              item: itemsToShow[i],
+                              index: i,
+                              isMobile: false,
+                              triggerNotifier: _updatesAssemblyNotifier,
+                              onTap: () => _showAnnouncementDetailsDialog(
+                                  context, itemsToShow[i]),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 )
               else
                 Row(
@@ -5009,10 +5034,8 @@ class _LandingPageState extends State<LandingPage>
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
-  // INTERACTIVE LOCATION MAP SECTION (REALISTIC & RESPONSIVE)
+  // INTERACTIVE LOCATION MAP SECTION (ENTERPRISE HUB)
   // ---------------------------------------------------------------------------
-
-  bool _showRestaurantInfoCard = true;
 
   void _zoomInMap() {
     final currentZoom = _mapController.camera.zoom;
@@ -5026,9 +5049,6 @@ class _LandingPageState extends State<LandingPage>
 
   void _recenterRestaurant() {
     _mapController.move(_restaurantLocation, 16.5);
-    setState(() {
-      _showRestaurantInfoCard = true;
-    });
   }
 
   void _toggleSatelliteMode() {
@@ -5039,10 +5059,8 @@ class _LandingPageState extends State<LandingPage>
 
   String _getTileUrl() {
     if (_isSatelliteMode) {
-      // High-resolution Google Hybrid Satellite (photographic imagery + real road labels)
       return 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
     }
-    // Clean, modern Google Maps standard vector navigation roadmap (100% watermark-free, zero API key required)
     return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
   }
 
@@ -5070,6 +5088,40 @@ class _LandingPageState extends State<LandingPage>
     }
   }
 
+  void _copyStoreAddress() {
+    Clipboard.setData(const ClipboardData(
+      text: 'CLA Town Center Mall, Ground Floor, National Highway, Pagsanjan, Laguna',
+    ));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+              const SizedBox(width: 10),
+              Text(
+                'Address copied to clipboard',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // ENTERPRISE PRODUCTION-READY MAP & STORE HUB SECTION
+  // ---------------------------------------------------------------------------
+
   Widget _buildMapSection(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
 
@@ -5077,1705 +5129,1050 @@ class _LandingPageState extends State<LandingPage>
       width: double.infinity,
       color: const Color(0xFFF8FAFC),
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 36 : 52,
-        horizontal: isMobile ? 14 : 36,
+        vertical: isMobile ? 32 : 44,
+        horizontal: isMobile ? 16 : 32,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1280),
+          constraints: const BoxConstraints(maxWidth: 1220),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Real Interactive Navigation Badge Pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF00B4D8).withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    )
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _mapPulseController,
-                      builder: (context, _) {
-                        return Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF10B981)
-                                    .withValues(alpha: 0.8),
-                                blurRadius: 6,
-                                spreadRadius: 1.5,
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'STORE NAVIGATOR & DIRECTIONS',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFF38BDF8),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Text(
-                'Find Your Route to Yang Chow',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: isMobile ? 28 : 38,
-                  fontWeight: FontWeight.bold,
-                  color: darkGreyText,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              Text(
-                'Tap anywhere on the map, select your town, or use GPS to calculate real turn-by-turn road distance & travel time to CLA Town Center Mall, Pagsanjan',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  color: AppTheme.mediumGrey,
-                  fontSize: isMobile ? 13 : 14.5,
-                  height: 1.4,
-                ),
-              ),
+              _buildMapSectionHeader(isMobile),
               const SizedBox(height: 20),
-
-              // Interactive Map Card Frame
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                      blurRadius: 28,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: const Color(0xFF990000).withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: SizedBox(
-                    height: isMobile ? 500 : 560,
-                    width: double.infinity,
-                    child: Stack(
-                      children: [
-                        // Map Viewport
-                        FlutterMap(
-                          mapController: _mapController,
-                          options: MapOptions(
-                            initialCenter: _restaurantLocation,
-                            initialZoom: 15.5,
-                            minZoom: 4.0,
-                            maxZoom: 19.0,
-                            onTap: (tapPosition, point) => _handleMapTap(point),
-                          ),
-                          children: [
-                            // Base Tiles (Google Maps Roadmap or Google Hybrid Satellite)
-                            TileLayer(
-                              key: ValueKey('map_tiles_${_isSatelliteMode ? "satellite" : "roadmap"}'),
-                              urlTemplate: _getTileUrl(),
-                              userAgentPackageName: 'com.yangchow.app',
-                              tileProvider: CancellableNetworkTileProvider(),
-                            ),
-
-                            // Real Road Polyline Layer
-                            if (_routePoints.isNotEmpty)
-                              PolylineLayer(
-                                polylines: [
-                                  // Glowing Cyan Underlay
-                                  Polyline(
-                                    points: _routePoints,
-                                    strokeWidth: 8.5,
-                                    color: const Color(0xFF00B4D8)
-                                        .withValues(alpha: 0.4),
-                                  ),
-                                  // Sharp Navigation Core
-                                  Polyline(
-                                    points: _routePoints,
-                                    strokeWidth: 4.5,
-                                    color: const Color(0xFF0284C7),
-                                    borderColor: Colors.white,
-                                    borderStrokeWidth: 1.8,
-                                  ),
-                                ],
-                              ),
-
-                            // Real Markers Layer
-                            MarkerLayer(
-                              markers: [
-                                // ─── 1. Yang Chow Destination Pin ─────────────
-                                Marker(
-                                  point: _restaurantLocation,
-                                  width: 240,
-                                  height: 110,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _showRestaurantInfoCard = true;
-                                      });
-                                    },
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        // Golden Radar Ripple
-                                        AnimatedBuilder(
-                                          animation: _mapPulseController,
-                                          builder: (context, _) {
-                                            final val =
-                                                _mapPulseController.value;
-                                            return Container(
-                                              width: 44 + (val * 34),
-                                              height: 44 + (val * 34),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: const Color(0xFFFFD166)
-                                                      .withValues(
-                                                          alpha: (1.0 - val) *
-                                                              0.9),
-                                                  width: 2.0,
-                                                ),
-                                                color: const Color(0xFF990000)
-                                                    .withValues(
-                                                        alpha: (1.0 - val) *
-                                                            0.25),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 10, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFF0F172A),
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                  border: Border.all(
-                                                    color: warmGold,
-                                                    width: 1.2,
-                                                  ),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withValues(alpha: 0.45),
-                                                      blurRadius: 8,
-                                                      offset: const Offset(0, 3),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Container(
-                                                      width: 7,
-                                                      height: 7,
-                                                      decoration:
-                                                          const BoxDecoration(
-                                                        color: Color(0xFF10B981),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 5),
-                                                    Text(
-                                                      'Yang Chow • CLA Mall',
-                                                      style: GoogleFonts
-                                                          .plusJakartaSans(
-                                                        color: Colors.white,
-                                                        fontSize: 10.5,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Container(
-                                              width: 46,
-                                              height: 46,
-                                              padding: const EdgeInsets.all(3),
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFFB91C1C),
-                                                    Color(0xFF7F1D1D)
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                ),
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: warmGold,
-                                                  width: 2.5,
-                                                ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: const Color(0xFF990000)
-                                                        .withValues(alpha: 0.6),
-                                                    blurRadius: 14,
-                                                    spreadRadius: 2,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: ClipOval(
-                                                child: Image.asset(
-                                                  AppConstants.logoPath,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (_, __, ___) =>
-                                                      const Icon(
-                                                    Icons.restaurant_rounded,
-                                                    color: warmGold,
-                                                    size: 22,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            Container(
-                                              width: 3,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                color: warmGold,
-                                                borderRadius:
-                                                    BorderRadius.circular(2),
-                                              ),
-                                            ),
-                                            Container(
-                                              width: 14,
-                                              height: 4,
-                                              decoration: BoxDecoration(
-                                                color: Colors.black38,
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-
-                                // ─── 2. User Tapped / Pinned Location Marker ──
-                                if (_pinnedLocation != null)
-                                  Marker(
-                                    point: _pinnedLocation!,
-                                    width: 240,
-                                    height: 100,
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        // Cyan Ripple
-                                        AnimatedBuilder(
-                                          animation: _mapPulseController,
-                                          builder: (context, _) {
-                                            final val =
-                                                _mapPulseController.value;
-                                            return Container(
-                                              width: 32 + (val * 28),
-                                              height: 32 + (val * 28),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: const Color(0xFF00B4D8)
-                                                      .withValues(
-                                                          alpha: 1.0 - val),
-                                                  width: 1.8,
-                                                ),
-                                                color: const Color(0xFF00B4D8)
-                                                    .withValues(
-                                                        alpha:
-                                                            (1.0 - val) * 0.25),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 9, vertical: 3.5),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFF0F172A),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  border: Border.all(
-                                                      color:
-                                                          const Color(0xFF00B4D8),
-                                                      width: 1.2),
-                                                  boxShadow: const [
-                                                    BoxShadow(
-                                                        color: Colors.black45,
-                                                        blurRadius: 6),
-                                                  ],
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Container(
-                                                      width: 6,
-                                                      height: 6,
-                                                      decoration:
-                                                          const BoxDecoration(
-                                                        color: Color(0xFF38BDF8),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 5),
-                                                    Text(
-                                                      _pinnedAddress.isNotEmpty
-                                                          ? (_pinnedAddress.length >
-                                                                  22
-                                                              ? '${_pinnedAddress.substring(0, 20)}...'
-                                                              : _pinnedAddress)
-                                                          : 'Starting Location',
-                                                      style: GoogleFonts
-                                                          .plusJakartaSans(
-                                                        color:
-                                                            const Color(0xFF38BDF8),
-                                                        fontSize: 10,
-                                                        fontWeight: FontWeight.w700,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF00C4CC),
-                                                    Color(0xFF0284C7)
-                                                  ],
-                                                ),
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                    color: Colors.white,
-                                                    width: 2.5),
-                                                boxShadow: const [
-                                                  BoxShadow(
-                                                    color: Colors.black38,
-                                                    blurRadius: 6,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.my_location_rounded,
-                                                  color: Colors.white,
-                                                  size: 19,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                              // ─── 3. User GPS Marker ─────────────────────────
-                              if (_userLocation != null &&
-                                  _userLocation != _pinnedLocation)
-                                Marker(
-                                  point: _userLocation!,
-                                  width: 50,
-                                  height: 50,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      AnimatedBuilder(
-                                        animation: _mapPulseController,
-                                        builder: (context, _) {
-                                          final val =
-                                              _mapPulseController.value;
-                                          return Container(
-                                            width: 28 + (val * 20),
-                                            height: 28 + (val * 20),
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: const Color(0xFF0284C7)
-                                                    .withValues(
-                                                        alpha: (1.0 - val)),
-                                                width: 1.5,
-                                              ),
-                                              color: const Color(0xFF0284C7)
-                                                    .withValues(
-                                                        alpha:
-                                                            (1.0 - val) * 0.3),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      Container(
-                                        width: 32,
-                                        height: 32,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF0284C7),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                              color: Colors.white, width: 2.5),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFF0284C7)
-                                                  .withValues(alpha: 0.5),
-                                              blurRadius: 8,
-                                            ),
-                                          ],
-                                        ),
-                                        child: const Icon(
-                                          Icons.person_pin_circle_rounded,
-                                          color: Colors.white,
-                                          size: 18,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      // ─── Top Floating Search & Real Landmark Chips ─────────
-                      Positioned(
-                        top: 14,
-                        left: 14,
-                        right: 14,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _showDirectionsPanel
-                                ? _buildRealDirectionsPanel()
-                                : _buildRealSearchBar(isMobile),
-                            const SizedBox(height: 8),
-                            _buildRealLandmarksBar(),
-                          ],
-                        ),
-                      ),
-
-                      // ─── Bottom Floating Card (Route or Store Info) ────────
-                      if (!_showDirectionsPanel)
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          right: 12,
-                          child: Align(
-                            alignment: isMobile
-                                ? Alignment.bottomCenter
-                                : Alignment.bottomLeft,
-                            child: _routePoints.isNotEmpty
-                                ? (_isRouteCardHidden
-                                    ? _buildCollapsedRouteBadge()
-                                    : _buildRealRouteInfoCard(isMobile))
-                                : (_showRestaurantInfoCard
-                                    ? _buildRealStoreInfoCard(isMobile)
-                                    : _buildCollapsedStoreBadge(isMobile)),
-                          ),
-                        ),
-
-                      // ─── Desktop-only subtle zoom controls (Mobile uses pinch-to-zoom) ─────
-                      if (!isMobile)
-                        Positioned(
-                          bottom: 20,
-                          right: 20,
-                          child: _buildDesktopZoomControls(),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-  // ─── Real Laguna Landmarks Quick Chips (100% Functional) ─────────────────
-  Widget _buildRealLandmarksBar() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          // 1. Recenter Yang Chow Restaurant
-          _buildPillChip(
-            icon: Icons.storefront_rounded,
-            label: 'Yang Chow',
-            color: warmGold,
-            onTap: _recenterRestaurant,
+              isMobile
+                  ? _buildMobileMapLayout()
+                  : _buildDesktopMapLayout(),
+            ],
           ),
-          const SizedBox(width: 8),
-
-          // 2. My Location GPS button
-          _buildPillChip(
-            icon: Icons.my_location_rounded,
-            label: _isMyLocationActive ? 'GPS Active' : 'My Location',
-            color: const Color(0xFF38BDF8),
-            isActive: _isMyLocationActive,
-            onTap: _toggleMyLocation,
-          ),
-          const SizedBox(width: 8),
-
-          // 2. Real Laguna Landmarks
-          ..._quickLandmarks.map((lm) {
-            final isCurrent = _startPointController.text == lm['name'];
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _buildPillChip(
-                icon: Icons.place_rounded,
-                label: lm['name'] as String,
-                color: isCurrent ? warmGold : Colors.white,
-                isActive: isCurrent,
-                onTap: () => _selectLandmark(lm),
-              ),
-            );
-          }),
-
-          // 3. Clear route / Recenter
-          if (_routePoints.isNotEmpty)
-            _buildPillChip(
-              icon: Icons.close_rounded,
-              label: 'Clear Route',
-              color: const Color(0xFFEF4444),
-              onTap: _clearRoute,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPillChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    VoidCallback? onTap,
-    bool isActive = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.94),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isActive ? color : color.withValues(alpha: 0.4),
-            width: 1.1,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 13),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  // ─── Collapsed Floating Route Badge (Unobtrusive Mini Bar) ──────────────
-  Widget _buildCollapsedRouteBadge() {
-    final dist = _routeDistanceKm?.toStringAsFixed(1) ?? "0.0";
-    final time = _formatTravelTime(_routeDurationMin ?? 0);
-
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width - 85,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: const Color(0xFF00B4D8).withValues(alpha: 0.75),
-            width: 1.2,
+  Widget _buildMapSectionHeader(bool isMobile) {
+    return Column(
+      children: [
+        // Live status & subtitle pill
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(3.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00B4D8).withValues(alpha: 0.25),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.alt_route_rounded,
-                    color: Color(0xFF38BDF8), size: 13),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '~$dist km • $time',
-                style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(width: 7),
-              // Show / Expand button
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _isRouteCardHidden = false;
-                  });
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00B4D8).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(
-                      color: const Color(0xFF00B4D8).withValues(alpha: 0.45),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Details',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: const Color(0xFF38BDF8),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10.5,
+              AnimatedBuilder(
+                animation: _mapPulseController,
+                builder: (context, _) {
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981)
+                              .withValues(alpha: 0.3 + (0.5 * _mapPulseController.value)),
+                          blurRadius: 6,
+                          spreadRadius: 1.5,
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.keyboard_arrow_up_rounded,
-                          color: Color(0xFF38BDF8), size: 13),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                },
               ),
-              const SizedBox(width: 3),
-              // Clear Route
-              Tooltip(
-                message: 'Clear Route',
-                child: IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: Colors.white54, size: 15),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                  onPressed: _clearRoute,
+              const SizedBox(width: 8),
+              Text(
+                'STORE LOCATION & TRANSIT HUB',
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                  letterSpacing: 1.2,
                 ),
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 10),
+        Text(
+          'Find Your Route to Yang Chow',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: isMobile ? 24 : 32,
+            fontWeight: FontWeight.bold,
+            color: darkGreyText,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'CLA Town Center Mall, National Highway, Pagsanjan, Laguna • Open Daily 10:00 AM – 9:00 PM',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            color: const Color(0xFF64748B),
+            fontSize: isMobile ? 12.5 : 14,
+            height: 1.4,
+          ),
+        ),
+      ],
     );
   }
 
-  // ─── Real Route & Trip Navigation Card (When Route is Calculated) ────────
-  Widget _buildRealRouteInfoCard(bool isMobile) {
+  // ─── Desktop / Tablet Enterprise Dual-Pane Layout ────────────────────────
+  Widget _buildDesktopMapLayout() {
     return Container(
-      width: isMobile ? double.infinity : null,
-      constraints: const BoxConstraints(maxWidth: 420),
-      padding: const EdgeInsets.all(14),
+      height: 480,
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.97),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF00B4D8).withValues(alpha: 0.6),
-          width: 1.4,
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00B4D8).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.alt_route_rounded,
-                          color: Color(0xFF38BDF8), size: 16),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Route to Yang Chow',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+          // Left Control Deck
+          SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Dedicated Hide Button
-                  Tooltip(
-                    message: 'Hide Route Panel',
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _isRouteCardHidden = true;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00B4D8).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.visibility_off_rounded,
-                                color: Color(0xFF38BDF8), size: 13),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Hide',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: const Color(0xFF38BDF8),
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  _buildStoreIdentityCard(isMobile: false),
+                  const SizedBox(height: 14),
+                  _buildAddressSection(),
+                  const SizedBox(height: 14),
+                  _buildSearchAndLandmarksSection(),
+                  if (_routePoints.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _buildActiveRouteSummaryCard(),
+                  ],
+                  const SizedBox(height: 18),
+                  _buildNavigationActionRow(),
+                ],
+              ),
+            ),
+          ),
+
+          // Divider
+          Container(width: 1, color: const Color(0xFFE2E8F0)),
+
+          // Right Map Viewport
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              child: Stack(
+                children: [
+                  _buildMapViewport(),
+                  // Top Right Controls (Satellite Toggle & Recenter)
+                  Positioned(
+                    top: 14,
+                    right: 14,
+                    child: _buildFloatingMapControls(isMobile: false),
                   ),
-                  const SizedBox(width: 6),
-                  // Close Button (Hides panel without losing route)
-                  Tooltip(
-                    message: 'Hide Panel',
-                    child: IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          color: Colors.white60, size: 18),
-                      padding: EdgeInsets.zero,
-                      constraints:
-                          const BoxConstraints(minWidth: 26, minHeight: 26),
-                      onPressed: () {
-                        setState(() {
-                          _isRouteCardHidden = true;
-                        });
-                      },
-                    ),
+                  // Bottom Right Zoom Controls
+                  Positioned(
+                    bottom: 14,
+                    right: 14,
+                    child: _buildDesktopZoomControls(),
+                  ),
+                  // Bottom Left Tap Hint
+                  Positioned(
+                    bottom: 14,
+                    left: 14,
+                    child: _buildMapTapHintPill(),
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Origin & Destination Stepper
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white12),
             ),
-            child: Column(
-              children: [
-                // Point A: Starting Point
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.my_location_rounded,
-                          color: Color(0xFF00B4D8), size: 14),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _pinnedAddress.isNotEmpty
-                            ? _pinnedAddress
-                            : (_startPointController.text.isNotEmpty
-                                ? _startPointController.text
-                                : 'Starting Point'),
-                        style: GoogleFonts.plusJakartaSans(
-                          color: const Color(0xFFE2E8F0),
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // Connector line
-                Row(
-                  children: [
-                    const SizedBox(width: 6),
-                    Container(height: 10, width: 1.5, color: Colors.white30),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // Point B: Yang Chow Restaurant
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.place_rounded,
-                          color: Color(0xFFEF4444), size: 14),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Yang Chow Restaurant, CLA Mall, Pagsanjan',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Trip Metric Badges
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricBadge(
-                  icon: Icons.straighten_rounded,
-                  label: '~${_routeDistanceKm?.toStringAsFixed(1) ?? "0.0"} km',
-                  sub: 'Possible Est. Distance',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricBadge(
-                  icon: Icons.timer_rounded,
-                  label: _formatTravelTime(_routeDurationMin ?? 0),
-                  sub: 'Possible Est. Time',
-                  valueColor: const Color(0xFF10B981),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Helpful Estimation Disclaimer
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline_rounded,
-                    color: Color(0xFF94A3B8), size: 12),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Estimates are approximate. Tap Google Maps or Waze below for live navigation.',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: const Color(0xFF94A3B8),
-                      fontSize: 9.8,
-                      height: 1.25,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Real Navigation Launchers
-          Row(
-            children: [
-              // Google Maps with Exact Origin & Destination Navigation
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _openExternalGoogleMaps,
-                  icon: const Icon(Icons.navigation_rounded, size: 14),
-                  label: Text(
-                    'Google Maps',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A73E8),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Waze Navigation
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _openExternalWaze,
-                  icon: const Icon(Icons.near_me_rounded, size: 14),
-                  label: Text(
-                    'Waze App',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00B2FF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricBadge({
-    required IconData icon,
-    required String label,
-    required String sub,
-    Color? valueColor,
-  }) {
+  // ─── Mobile Enterprise Stacked Layout ────────────────────────────────────
+  Widget _buildMobileMapLayout() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 12, color: const Color(0xFF94A3B8)),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  sub,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFF94A3B8),
-                    fontSize: 9.5,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              color: valueColor ?? Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12.5,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Yang Chow Store Info Card (When No Route Active) ───────────────────
-  Widget _buildRealStoreInfoCard(bool isMobile) {
-    return Container(
-      width: isMobile ? double.infinity : null,
-      constraints: const BoxConstraints(maxWidth: 400),
-      padding: EdgeInsets.all(isMobile ? 12 : 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.97),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF00B4D8).withValues(alpha: 0.55),
-          width: 1.3,
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: warmGold, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
-                      blurRadius: 6,
-                    )
-                  ],
-                ),
-                child: ClipOval(
-                  child: Image.asset(
-                    AppConstants.logoPath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.restaurant,
-                      color: warmGold,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            'Yang Chow Pagsanjan',
-                            style: GoogleFonts.playfairDisplay(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: isMobile ? 14 : 15,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF10B981).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'OPEN NOW',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: const Color(0xFF10B981),
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded,
-                            color: warmGold, size: 13),
-                        const SizedBox(width: 3),
-                        Text(
-                          '4.9 (150+ reviews)',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: warmGold,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '• CLA Mall',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: const Color(0xFF94A3B8),
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Tooltip(
-                message: 'Minimize card',
-                child: IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: Colors.white60, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: () =>
-                      setState(() => _showRestaurantInfoCard = false),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-
-          Row(
-            children: [
-              const Icon(Icons.place_rounded,
-                  size: 13, color: Color(0xFF38BDF8)),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'CLA Town Center Mall, Ground Floor, Pagsanjan, Laguna',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFFCBD5E1),
-                    fontSize: 10.5,
-                    height: 1.25,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-
-          if (!isMobile) ...[
-            const SizedBox(height: 8),
-            // Real Functional Tip (Desktop / Tablet)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00B4D8).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
-              ),
-              child: Row(
+          // Sleek Compact Map Viewport
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: SizedBox(
+              height: 270,
+              child: Stack(
                 children: [
-                  const Icon(Icons.touch_app_rounded,
-                      color: Color(0xFF38BDF8), size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Pindutin ang mapa o pumili ng bayan sa itaas para mag-calculate ng ruta.',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFFBAE6FD),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                  _buildMapViewport(),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: _buildFloatingMapControls(isMobile: true),
+                  ),
+                  Positioned(
+                    bottom: 10,
+                    left: 10,
+                    child: _buildMapTapHintPill(),
                   ),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: 9),
+          ),
 
-          // Action buttons: Clean Google Maps and Waze buttons
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: ElevatedButton.icon(
-                  onPressed: _openExternalGoogleMaps,
-                  icon: const Icon(Icons.navigation_rounded, size: 14),
-                  label: Text(
-                    'Google Maps',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A73E8),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: OutlinedButton.icon(
-                  onPressed: _openExternalWaze,
-                  icon: const Icon(Icons.near_me_rounded, size: 14),
-                  label: Text(
-                    'Waze',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF00B2FF),
-                    side: const BorderSide(color: Color(0xFF00B2FF)),
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          // Mobile Control Section
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStoreIdentityCard(isMobile: true),
+                const SizedBox(height: 12),
+                _buildAddressSection(),
+                const SizedBox(height: 12),
+                _buildSearchAndLandmarksSection(),
+                if (_routePoints.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildActiveRouteSummaryCard(),
+                ],
+                const SizedBox(height: 14),
+                _buildNavigationActionRow(),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ─── Floating Search Bar ───────────────────────────────────────────────
-  Widget _buildRealSearchBar(bool isMobile) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF00B4D8).withValues(alpha: 0.5),
-          width: 1.2,
+  // ─── Core Map Viewport ───────────────────────────────────────────────────
+  Widget _buildMapViewport() {
+    return FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        initialCenter: _restaurantLocation,
+        initialZoom: 15.5,
+        minZoom: 4.0,
+        maxZoom: 19.0,
+        onTap: (tapPosition, point) => _handleMapTap(point),
+      ),
+      children: [
+        TileLayer(
+          key: ValueKey('map_tiles_${_isSatelliteMode ? "satellite" : "roadmap"}'),
+          urlTemplate: _getTileUrl(),
+          userAgentPackageName: 'com.yangchow.app',
+          tileProvider: CancellableNetworkTileProvider(),
         ),
+
+        // Route Polyline Layer
+        if (_routePoints.isNotEmpty)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: _routePoints,
+                strokeWidth: 7.0,
+                color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+              ),
+              Polyline(
+                points: _routePoints,
+                strokeWidth: 4.0,
+                color: const Color(0xFF1D4ED8),
+                borderColor: Colors.white,
+                borderStrokeWidth: 1.5,
+              ),
+            ],
+          ),
+
+        // Markers Layer
+        MarkerLayer(
+          markers: [
+            // 1. Yang Chow Restaurant Pin
+            Marker(
+              point: _restaurantLocation,
+              width: 170,
+              height: 76,
+              child: GestureDetector(
+                onTap: _recenterRestaurant,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: warmGold, width: 1.2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Yang Chow • CLA Mall',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFB91C1C), Color(0xFF7F1D1D)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: warmGold, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF990000).withValues(alpha: 0.5),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          AppConstants.logoPath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.restaurant_rounded,
+                            color: warmGold,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2. User Tapped / Selected Landmark Pin
+            if (_pinnedLocation != null)
+              Marker(
+                point: _pinnedLocation!,
+                width: 160,
+                height: 65,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF38BDF8), width: 1.1),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 4),
+                        ],
+                      ),
+                      child: Text(
+                        _pinnedAddress.isNotEmpty
+                            ? (_pinnedAddress.length > 20
+                                ? '${_pinnedAddress.substring(0, 18)}...'
+                                : _pinnedAddress)
+                            : 'Starting Point',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: const Color(0xFF38BDF8),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 5),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.my_location_rounded, color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // 3. GPS User Location Marker
+            if (_userLocation != null && _userLocation != _pinnedLocation)
+              Marker(
+                point: _userLocation!,
+                width: 32,
+                height: 32,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.4),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 16),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ─── Store Identity Header Card ──────────────────────────────────────────
+  Widget _buildStoreIdentityCard({required bool isMobile}) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          padding: const EdgeInsets.all(2.5),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: warmGold, width: 1.5),
+            color: const Color(0xFF990000),
+          ),
+          child: ClipOval(
+            child: Image.asset(
+              AppConstants.logoPath,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.restaurant,
+                color: warmGold,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Yang Chow Pagsanjan',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: isMobile ? 15 : 16,
+                        fontWeight: FontWeight.bold,
+                        color: darkGreyText,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: Text(
+                      'OPEN NOW',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF059669),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  const Icon(Icons.star_rounded, color: Color(0xFFEAB308), size: 14),
+                  const SizedBox(width: 3),
+                  Text(
+                    '4.9',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: darkGreyText,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      '(150+ reviews) • CLA Mall',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF64748B),
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Clean Address with 1-Tap Copy ───────────────────────────────────────
+  Widget _buildAddressSection() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.place_rounded, color: Color(0xFF990000), size: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CLA Town Center Mall, Ground Floor',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    color: darkGreyText,
+                  ),
+                ),
+                Text(
+                  'National Highway, Pagsanjan, Laguna',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: _copyStoreAddress,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.copy_rounded, color: Color(0xFF475569), size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Copy',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Search & Quick Laguna Landmarks ─────────────────────────────────────
+  Widget _buildSearchAndLandmarksSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search Input
+        Container(
+          height: 38,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFCBD5E1)),
+          ),
+          child: Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 16),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _mapSearchController,
+                  onSubmitted: _searchPlace,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: darkGreyText,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search town, church, or landmark...',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 11.5,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+              if (_isRouting)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+                )
+              else if (_mapSearchController.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear_rounded, size: 14, color: Color(0xFF94A3B8)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: () {
+                    _mapSearchController.clear();
+                    setState(() {});
+                  },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Quick Laguna Landmarks Chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ..._quickLandmarks.map((lm) {
+                final isSelected = _startPointController.text == lm['name'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: InkWell(
+                    onTap: () => _selectLandmark(lm),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.place_outlined,
+                            size: 11,
+                            color: isSelected ? warmGold : const Color(0xFF64748B),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            lm['name'] as String,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10.5,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              color: isSelected ? Colors.white : const Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Active Route Summary Card ───────────────────────────────────────────
+  Widget _buildActiveRouteSummaryCard() {
+    final dist = _routeDistanceKm?.toStringAsFixed(1) ?? '0.0';
+    final time = _formatTravelTime(_routeDurationMin ?? 0);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => _searchPlace(_mapSearchController.text),
-            borderRadius: BorderRadius.circular(12),
-            child: const Padding(
-              padding: EdgeInsets.all(3),
-              child: Icon(Icons.search_rounded,
-                  color: Color(0xFF00B4D8), size: 19),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _mapSearchController,
-              onSubmitted: _searchPlace,
-              cursorColor: const Color(0xFF00B4D8),
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: InputDecoration(
-                hintText: isMobile
-                    ? 'Search place in Laguna...'
-                    : 'Search place, town, or landmark (e.g. Santa Cruz, Pagsanjan Church)...',
-                hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12,
-                ),
-                filled: false,
-                fillColor: Colors.transparent,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              ),
-            ),
-          ),
-          if (_mapSearchController.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear_rounded,
-                  size: 16, color: Colors.white60),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-              onPressed: () {
-                _mapSearchController.clear();
-                setState(() {});
-              },
-            ),
-          const SizedBox(width: 4),
-          // Satellite View Toggle Button (Integrated directly into Search Bar)
-          Container(
-            decoration: BoxDecoration(
-              color: _isSatelliteMode
-                  ? const Color(0xFF00B4D8)
-                  : Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: _isSatelliteMode
-                    ? const Color(0xFF00B4D8)
-                    : Colors.white24,
-                width: 1,
-              ),
-            ),
-            child: IconButton(
-              icon: Icon(
-                _isSatelliteMode
-                    ? Icons.map_rounded
-                    : Icons.satellite_alt_rounded,
-                color: _isSatelliteMode
-                    ? const Color(0xFF0F172A)
-                    : const Color(0xFF38BDF8),
-                size: 16,
-              ),
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: _isSatelliteMode
-                  ? 'Switch to Road Map'
-                  : 'Switch to Satellite View',
-              onPressed: _toggleSatelliteMode,
-            ),
-          ),
-          const SizedBox(width: 5),
-          // Directions Panel Button
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF00B4D8),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.alt_route_rounded,
-                  color: Color(0xFF0F172A), size: 17),
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: 'Calculate Route',
-              onPressed: () => setState(() => _showDirectionsPanel = true),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Directions Panel ───────────────────────────────────────────────────
-  Widget _buildRealDirectionsPanel() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.98),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF00B4D8).withValues(alpha: 0.6),
-          width: 1.3,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.directions_rounded,
-                        color: Color(0xFF00B4D8), size: 19),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Road Route & Navigation',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13.5,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.swap_vert_rounded,
-                        color: Color(0xFFFFD166), size: 20),
-                    onPressed: _swapRoutingPoints,
-                    tooltip: 'Swap start & destination',
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.alt_route_rounded, color: Color(0xFF60A5FA), size: 14),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: Colors.white70, size: 20),
-                    onPressed: () =>
-                        setState(() => _showDirectionsPanel = false),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Calculated Route',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _buildRoutingTextField(
-            controller: _startPointController,
-            hint: 'Starting Point (e.g. Your location or Santa Cruz)',
-            icon: Icons.my_location_rounded,
-            onIconTap: () async {
-              _startPointController.text = 'Your location';
-              if (_userLocation == null) {
-                await _getCurrentLocation();
-              } else {
-                setState(() {});
-              }
-            },
-          ),
-          const SizedBox(height: 6),
-          // Quick "Use My Current Location" Toggle Chip
-          Align(
-            alignment: Alignment.centerLeft,
-            child: InkWell(
-              onTap: _toggleMyLocation,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _isMyLocationActive
-                      ? const Color(0xFF00B4D8).withValues(alpha: 0.2)
-                      : const Color(0xFF0284C7).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _isMyLocationActive
-                        ? const Color(0xFF00B4D8)
-                        : const Color(0xFF0284C7).withValues(alpha: 0.5),
+              InkWell(
+                onTap: _clearRoute,
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.close_rounded, size: 12, color: Color(0xFF94A3B8)),
+                      const SizedBox(width: 2),
+                      Text(
+                        'Clear',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: const Color(0xFF94A3B8),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _isMyLocationActive
-                          ? Icons.check_circle_rounded
-                          : Icons.my_location_rounded,
-                      color: _isMyLocationActive
-                          ? const Color(0xFF00B4D8)
-                          : const Color(0xFF38BDF8),
-                      size: 12,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      _isMyLocationActive
-                          ? 'GPS Active'
-                          : 'Use GPS Location',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: _isMyLocationActive
-                            ? const Color(0xFF00B4D8)
-                            : const Color(0xFF38BDF8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 8),
-          _buildRoutingTextField(
-            controller: _destinationController,
-            hint: 'Destination (Yang Chow)',
-            icon: Icons.location_on_rounded,
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: ElevatedButton(
-                  onPressed: _isRouting ? null : _getRoute,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00B4D8),
-                    foregroundColor: const Color(0xFF0F172A),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: _isRouting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF0F172A),
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.alt_route_rounded,
-                                color: Color(0xFF0F172A), size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Calculate Road Route',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                          ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'EST. DISTANCE',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 8.5,
+                          color: const Color(0xFF94A3B8),
+                          fontWeight: FontWeight.w700,
                         ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '~$dist km',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'EST. DRIVE TIME',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 8.5,
+                          color: const Color(0xFF94A3B8),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        time,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRoutingTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    VoidCallback? onIconTap,
-  }) {
-    return TextField(
-      controller: controller,
-      style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.white),
-      decoration: InputDecoration(
-        prefixIcon: onIconTap != null
-            ? IconButton(
-                icon: Icon(icon, size: 18, color: const Color(0xFF38BDF8)),
-                tooltip: 'Set to Current Location',
-                onPressed: onIconTap,
-              )
-            : Icon(icon, size: 18, color: const Color(0xFF00B4D8)),
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-        filled: true,
-        fillColor: const Color(0xFF1E293B),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-              color: const Color(0xFF00B4D8).withValues(alpha: 0.3)),
+  // ─── External Navigation Action Row ──────────────────────────────────────
+  Widget _buildNavigationActionRow() {
+    return Row(
+      children: [
+        // Google Maps Button
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _openExternalGoogleMaps,
+            icon: const Icon(Icons.navigation_rounded, size: 14),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Google Maps',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11.5,
+                ),
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1A73E8),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white12),
+        const SizedBox(width: 8),
+
+        // Waze App Button
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _openExternalWaze,
+            icon: const Icon(Icons.near_me_rounded, size: 14),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Waze App',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11.5,
+                ),
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00B2FF),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Color(0xFF00B4D8), width: 1.5),
-        ),
+      ],
+    );
+  }
+
+  // ─── Floating Controls on Map Viewport ───────────────────────────────────
+  Widget _buildFloatingMapControls({required bool isMobile}) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Satellite / Road Toggle Pill
+          InkWell(
+            onTap: _toggleSatelliteMode,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: _isSatelliteMode ? const Color(0xFF2563EB) : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isSatelliteMode ? Icons.map_rounded : Icons.satellite_alt_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isSatelliteMode ? 'Road' : 'Satellite',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+
+          // Re-center Yang Chow
+          Tooltip(
+            message: 'Center Yang Chow',
+            child: InkWell(
+              onTap: _recenterRestaurant,
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.all(5),
+                child: Icon(Icons.storefront_rounded, color: warmGold, size: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 2),
+
+          // My Location GPS
+          Tooltip(
+            message: _isMyLocationActive ? 'Turn off GPS' : 'My Location',
+            child: InkWell(
+              onTap: _toggleMyLocation,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: Icon(
+                  Icons.my_location_rounded,
+                  color: _isMyLocationActive ? const Color(0xFF38BDF8) : Colors.white70,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Map Tap Hint Pill ───────────────────────────────────────────────────
+  Widget _buildMapTapHintPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.touch_app_rounded, color: warmGold, size: 12),
+          const SizedBox(width: 5),
+          Text(
+            'Tap map to route',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -6784,145 +6181,34 @@ class _LandingPageState extends State<LandingPage>
   Widget _buildDesktopZoomControls() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF00B4D8).withValues(alpha: 0.4),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
         ],
       ),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(2),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildCompactMapIconBtn(
-            icon: Icons.add_rounded,
-            tooltip: 'Zoom In',
-            iconColor: Colors.white,
+          InkWell(
             onTap: _zoomInMap,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Container(
-              height: 1,
-              width: 20,
-              color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.all(6),
+              child: Icon(Icons.add_rounded, color: Colors.white, size: 16),
             ),
           ),
-          _buildCompactMapIconBtn(
-            icon: Icons.remove_rounded,
-            tooltip: 'Zoom Out',
-            iconColor: Colors.white,
+          Container(height: 1, width: 16, color: Colors.white12),
+          InkWell(
             onTap: _zoomOutMap,
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.all(6),
+              child: Icon(Icons.remove_rounded, color: Colors.white, size: 16),
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCompactMapIconBtn({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    Color? iconColor,
-    Color? activeBgColor,
-    bool isActive = false,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      triggerMode: TooltipTriggerMode.manual,
-      waitDuration: const Duration(milliseconds: 400),
-      child: Material(
-        color: isActive
-            ? (activeBgColor ?? const Color(0xFF00B4D8))
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: onTap,
-          child: Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            child: Icon(
-              icon,
-              color: isActive
-                  ? const Color(0xFF0F172A)
-                  : (iconColor ?? Colors.white),
-              size: 18,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ─── Collapsed Store Badge (Floating Reopen Pill) ──────────────────────
-  Widget _buildCollapsedStoreBadge(bool isMobile) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => setState(() => _showRestaurantInfoCard = true),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFF00B4D8).withValues(alpha: 0.65),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.restaurant_rounded, color: warmGold, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                'Yang Chow Pagsanjan',
-                style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'OPEN',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFF10B981),
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 5),
-              const Icon(Icons.keyboard_arrow_up_rounded,
-                  color: Color(0xFF38BDF8), size: 16),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -8491,7 +7777,8 @@ class _LandingReviewCardState extends State<_LandingReviewCard> {
                     color: _LandingPageState.primaryGold,
                   ),
                   const SizedBox(width: 4),
-                  Flexible(
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isMobile ? 150 : 190),
                     child: Text(
                       dish,
                       maxLines: 1,
@@ -8590,77 +7877,157 @@ class _AllReviewsDialogState extends State<_AllReviewsDialog> {
                 decoration: const BoxDecoration(
                   color: _darkRed,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
+                child: isMobile
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Guest Reviews',
-                            style: GoogleFonts.playfairDisplay(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              ...List.generate(
-                                  5,
-                                  (i) => Icon(
-                                        Icons.star_rounded,
-                                        color: _gold,
-                                        size: 16,
-                                      )),
-                              const SizedBox(width: 8),
                               Text(
-                                '${widget.averageRating.toStringAsFixed(1)}  ·  ${widget.totalCount} verified reviews',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white70,
-                                  fontSize: 12.5,
+                                'Guest Reviews',
+                                style: GoogleFonts.playfairDisplay(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
                                 ),
+                              ),
+                              IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.close_rounded,
+                                    color: Colors.white70, size: 22),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 4),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              children: [
+                                ...List.generate(
+                                    5,
+                                    (i) => const Icon(
+                                          Icons.star_rounded,
+                                          color: _gold,
+                                          size: 15,
+                                        )),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${widget.averageRating.toStringAsFixed(1)} · ${widget.totalCount} verified reviews',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CustomerReviewsPage(isPublicAccess: true),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.edit_note_rounded, size: 16, color: _darkRed),
+                              label: Text(
+                                'Leave Review',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _darkRed,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _gold,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Guest Reviews',
+                                  style: GoogleFonts.playfairDisplay(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    ...List.generate(
+                                        5,
+                                        (i) => const Icon(
+                                              Icons.star_rounded,
+                                              color: _gold,
+                                              size: 16,
+                                            )),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${widget.averageRating.toStringAsFixed(1)} · ${widget.totalCount} verified reviews',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white70,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CustomerReviewsPage(isPublicAccess: true),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.edit_note_rounded, size: 16, color: _darkRed),
+                            label: Text(
+                              'Leave Review',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _darkRed,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _gold,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close_rounded,
+                                color: Colors.white70, size: 24),
+                          ),
                         ],
                       ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CustomerReviewsPage(isPublicAccess: true),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.edit_note_rounded, size: 16, color: _darkRed),
-                      label: Text(
-                        'Leave Review',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _darkRed,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _gold,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded,
-                          color: Colors.white70, size: 24),
-                    ),
-                  ],
-                ),
               ),
 
               // ── Search + Star Filter ─────────────────────────────────
@@ -9003,7 +8370,8 @@ class _ReviewListTileState extends State<_ReviewListTile> {
                     const Icon(Icons.restaurant_menu_rounded,
                         size: 11, color: _primaryGold),
                     const SizedBox(width: 4),
-                    Flexible(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
                       child: Text(
                         dish,
                         maxLines: 1,

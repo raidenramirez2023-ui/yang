@@ -11600,9 +11600,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           ],
                         ),
                         child: Text(
-                          item.hasVariants
-                              ? 'From ₱${_fmt.format(item.minPrice)}'
-                              : '₱${_fmt.format(item.minPrice)}',
+                          '₱${_fmt.format(item.minPrice)}',
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,

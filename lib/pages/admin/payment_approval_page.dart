@@ -705,6 +705,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
     // Stats calculations
     final totalPending = _pendingPayments.length;
     final totalPendingAmount = _pendingPayments.fold<double>(
@@ -714,38 +715,81 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final advanceCount = _pendingPayments.where((p) => p['_table'] == 'advance_orders').length;
     final reservationCount = _pendingPayments.where((p) => p['_table'] == 'reservations').length;
 
-    return Scaffold(
-      backgroundColor: AppTheme.adminMainBackground,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Premium Header ───────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(11),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF14332E),
-                      borderRadius: BorderRadius.circular(12),
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Premium Header ───────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                if (widget.isFullscreen) ...[
+                  Tooltip(
+                    message: 'Back to Operation Hub',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 8 : 12,
+                            vertical: isMobile ? 7 : 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.arrow_back_rounded,
+                                size: isMobile ? 16 : 18,
+                                color: const Color(0xFF0F172A),
+                              ),
+                              if (!isMobile) ...[
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Back',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.verified_user_rounded, color: Color(0xFFD9A441), size: 22),
                   ),
+                  SizedBox(width: isMobile ? 8 : 12),
+                ],
+                Container(
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14332E),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.verified_user_rounded, color: Color(0xFFD9A441), size: 22),
+                ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -889,7 +933,17 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             ),
           ],
         ),
-      ),
+      );
+
+    if (widget.isFullscreen) {
+      return Scaffold(
+        backgroundColor: AppTheme.adminMainBackground,
+        body: SafeArea(child: content),
+      );
+    }
+    return Scaffold(
+      backgroundColor: AppTheme.adminMainBackground,
+      body: content,
     );
   }
 
