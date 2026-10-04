@@ -515,7 +515,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                     MaterialPageRoute(
                       builder: (_) => const RefundManagementPage(
                         isFullscreen: true,
-                        todayOnly: true,
+                        todayOnly: false,
                       ),
                     ),
                   );
@@ -1121,34 +1121,54 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                         ),
                       );
                     },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          width: 1.0,
+                    child: Tooltip(
+                      message: 'View Orders & Process POS Refunds',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            width: 1.0,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.receipt_long_rounded,
-                            color: Colors.white,
-                            size: 15,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'History',
-                            style: GoogleFonts.inter(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.receipt_long_rounded,
                               color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11.5,
+                              size: 16,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Orders',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11.5,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                Text(
+                                  'Refund',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFFBBF24),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 8.5,
+                                    height: 1.0,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

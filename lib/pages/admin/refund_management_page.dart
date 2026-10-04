@@ -1262,9 +1262,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
+    final streamContent = StreamBuilder<List<Map<String, dynamic>>>(
         stream: _refundService.refundsStream(),
         builder: (context, refundSnapshot) {
           return StreamBuilder<List<Map<String, dynamic>>>(
@@ -1453,7 +1451,17 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             },
           );
         },
-      ),
+      );
+
+    if (widget.isFullscreen) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(child: streamContent),
+      );
+    }
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: streamContent,
     );
   }
 
@@ -1486,6 +1494,32 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               children: [
                 Row(
                   children: [
+                    if (widget.isFullscreen) ...[
+                      Tooltip(
+                        message: 'Back to Operation Hub',
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: _slateLight),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_rounded,
+                                size: 16,
+                                color: _darkBg,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     Container(
                       padding: const EdgeInsets.all(11),
                       decoration: BoxDecoration(
@@ -1598,6 +1632,46 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             )
           : Row(
               children: [
+                if (widget.isFullscreen) ...[
+                  Tooltip(
+                    message: 'Back to Operation Hub',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _slateLight),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.arrow_back_rounded,
+                                size: 18,
+                                color: _darkBg,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Back',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _darkBg,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Container(
                   padding: const EdgeInsets.all(11),
                   decoration: BoxDecoration(

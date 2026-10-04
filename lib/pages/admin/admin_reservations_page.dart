@@ -954,6 +954,51 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       ),
       child: Row(
         children: [
+          if (widget.isFullscreen) ...[
+            Tooltip(
+              message: 'Back to Operation Hub',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 8 : 12,
+                      vertical: isMobile ? 7 : 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _slateLight),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.arrow_back_rounded,
+                          size: isMobile ? 16 : 18,
+                          color: _darkBg,
+                        ),
+                        if (!isMobile) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            'Back',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _darkBg,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: isMobile ? 8 : 12),
+          ],
           Container(
             padding: EdgeInsets.all(isMobile ? 8 : 11),
             decoration: BoxDecoration(
