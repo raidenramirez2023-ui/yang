@@ -7,6 +7,7 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/menu_service.dart';
+import 'package:yang_chow/services/recipe_service.dart';
 
 // ══════════════════════════════════════════════════════════
 //  CHEF DASHBOARD PAGE
@@ -583,6 +584,9 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       case 'stock_approved':
         _showStockApprovedPopup(notification);
         break;
+      case 'stock_rejected':
+        _showStockRejectedPopup(notification);
+        break;
       case 'created':
       case 'updated':
       case 'paid':
@@ -610,6 +614,18 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     });
   }
 
+  void _dismissNotificationPermanently(Map<String, dynamic> notification) {
+    final id = notification['id']?.toString();
+    if (id != null) {
+      NotificationService.markAsRead(id);
+      if (mounted) {
+        setState(() {
+          _dismissedNotificationIds.add(id);
+        });
+      }
+    }
+  }
+
   /// Enterprise alert dialog wrapper for all notification popups
   void _showEnterpriseNoticeDialog({
     required IconData icon,
@@ -623,7 +639,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   }) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (ctx) {
         final screenWidth = MediaQuery.of(ctx).size.width;
         final dialogWidth = screenWidth > 520 ? 460.0 : screenWidth * 0.92;
@@ -795,7 +811,9 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           ),
         );
       },
-    );
+    ).then((_) {
+      _closePopup();
+    });
   }
 
   void _showNewOrderPopup(Map<String, dynamic> notification) {
@@ -822,16 +840,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       hintText: 'Switch to the Kitchen Display to start preparation',
       actionLabel: 'View in Kitchen',
       onDismiss: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
       },
       onAction: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
         _pageController.animateToPage(
@@ -853,16 +867,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       hintText: 'Check scheduled time and special instructions',
       actionLabel: 'View Orders',
       onDismiss: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
       },
       onAction: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
         _pageController.animateToPage(
@@ -898,16 +908,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       hintText: 'Review updated quantities in the Stock Management view',
       actionLabel: 'View Stock',
       onDismiss: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
       },
       onAction: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
         _pageController.animateToPage(
@@ -916,6 +922,37 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           curve: Curves.easeOut,
         );
         setState(() => _currentTab = 4);
+      },
+    );
+  }
+
+  void _showStockRejectedPopup(Map<String, dynamic> notification) {
+    final eventType = notification['event_type']?.toString() ?? 'Stock Request Declined';
+    
+    _showEnterpriseNoticeDialog(
+      icon: Icons.cancel_rounded,
+      iconColor: const Color(0xFFEF4444),
+      title: 'Stock Request Declined',
+      message: eventType.isNotEmpty
+          ? eventType
+          : 'Your kitchen requisition request was declined by Inventory management.',
+      hintText: 'Check the Requisitions tab to review declined items or submit a new request',
+      actionLabel: 'View Requisitions',
+      onDismiss: () {
+        _dismissNotificationPermanently(notification);
+        Navigator.pop(context);
+        _closePopup();
+      },
+      onAction: () {
+        _dismissNotificationPermanently(notification);
+        Navigator.pop(context);
+        _closePopup();
+        _pageController.animateToPage(
+          3,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+        setState(() => _currentTab = 3);
       },
     );
   }
@@ -937,16 +974,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           : 'Check the Events tab for catering requirements and guest menu',
       actionLabel: isToday ? "View Today's Events" : 'View Events Tab',
       onDismiss: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
       },
       onAction: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
         _pageController.animateToPage(
@@ -969,18 +1002,14 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       title: title,
       message: subtitle,
       hintText: '',
-      actionLabel: 'Acknowledge',
+      actionLabel: 'Got It',
       onDismiss: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
       },
       onAction: () {
-        setState(() {
-          _dismissedNotificationIds.add(notification['id'].toString());
-        });
+        _dismissNotificationPermanently(notification);
         Navigator.pop(context);
         _closePopup();
       },
@@ -1018,9 +1047,13 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 borderRadius: BorderRadius.circular(10),
                 onTap: () {
                   if (latestUnread != null) {
-                    setState(() {
-                      _dismissedNotificationIds.add(latestUnread!['id'].toString());
-                    });
+                    final id = latestUnread['id']?.toString();
+                    if (id != null) {
+                      NotificationService.markAsRead(id);
+                      setState(() {
+                        _dismissedNotificationIds.add(id);
+                      });
+                    }
                   }
                   _showNotificationsDialog(notifications);
                 },
@@ -1899,6 +1932,10 @@ class _ChefNotificationCenterDialogState extends State<_ChefNotificationCenterDi
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
+                              final id = n['id']?.toString();
+                              if (id != null) {
+                                NotificationService.markAsRead(id);
+                              }
                               Navigator.pop(context);
                               final targetTab = _getDestinationTab(actionType, eventType);
                               widget.onNavigateTab(targetTab);
@@ -2052,12 +2089,11 @@ class _CombinedKitchenTab extends StatefulWidget {
 class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
   final Map<String, String> _kitchenStatus = {};
 
-  static const _statusOrder = ['Pending', 'Preparing', 'Ready', 'Done'];
+  static const _statusOrder = ['Pending', 'Preparing', 'Done'];
   static const _statusColors = {
     'Pending': Color(0xFFFFA726),
     'Preparing': Color(0xFF2196F3),
-    'Ready': Color(0xFF4CAF50),
-    'Done': Color(0xFF9E9E9E),
+    'Done': Color(0xFF059669),
   };
 
   // Stream subscriptions instead of StreamBuilders
@@ -2146,12 +2182,71 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
           .from('orders')
           .update({'kitchen_status': newStatus})
           .eq('id', orderId);
+
+      // 🔔 Hakbang 3: Send real-time notification to POS / Waiter when food is DONE / READY
+      if (newStatus == 'Done' || newStatus == 'Ready') {
+        try {
+          final orderData = await Supabase.instance.client
+              .from('orders')
+              .select('id, table_number, order_number, transaction_id')
+              .eq('id', orderId)
+              .maybeSingle();
+
+          final tableNum = orderData?['table_number']?.toString();
+          final tableStr = (tableNum != null && tableNum.isNotEmpty && tableNum != 'null')
+              ? 'Table $tableNum'
+              : 'Take-out';
+          final ticketIdStr = _formatOrderId(orderData ?? {'id': orderId});
+
+          await NotificationService.sendNotification(
+            isForAdmin: true,
+            actorName: 'Kitchen Chef',
+            actionType: 'pos_order_ready',
+            reservationId: orderId,
+            eventType: 'Order $ticketIdStr is READY ($tableStr)',
+          );
+        } catch (e) {
+          debugPrint('Error sending ready notification for POS order: $e');
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
+    }
+  }
+
+  // ── Helper to deduct ingredients from kitchen inventory ──
+  Future<void> _deductStockForOrder({
+    required String table,
+    required String id,
+    required Map<String, dynamic>? selectedMenuItems,
+    required bool isAlreadyDeducted,
+  }) async {
+    if (isAlreadyDeducted || selectedMenuItems == null || selectedMenuItems.isEmpty) {
+      return;
+    }
+
+    try {
+      // Loop over each menu item in the order and deduct according to its recipe
+      for (final entry in selectedMenuItems.entries) {
+        final itemName = entry.key.toString().trim();
+        final rawQty = entry.value;
+        final qty = rawQty is num ? rawQty.toInt() : (int.tryParse(rawQty.toString()) ?? 1);
+        if (qty > 0 && itemName.isNotEmpty) {
+          await RecipeService().deductIngredientsFromInventory(itemName, qty);
+        }
+      }
+
+      // Mark as deducted in database so future status transitions won't double-deduct
+      await Supabase.instance.client
+          .from(table)
+          .update({'inventory_deducted': true})
+          .eq('id', id);
+    } catch (e) {
+      debugPrint('Error deducting ingredients for $table ($id): $e');
     }
   }
 
@@ -2164,24 +2259,45 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
           .update({'status': newStatus.toLowerCase()})
           .eq('id', orderId);
 
-      if (newStatus == 'Ready' || newStatus == 'Done') {
+      // Deduct ingredients when advance order enters preparation or cooking
+      if (newStatus == 'Preparing' || newStatus == 'Ready' || newStatus == 'Done') {
         try {
           final orderData = await Supabase.instance.client
               .from('advance_orders')
-              .select('customer_email, order_type, id')
+              .select('selected_menu_items, inventory_deducted, customer_email, order_type, id')
               .eq('id', orderId)
               .single();
-          
-          if (orderData['customer_email'] != null) {
-            await NotificationService.sendNotification(
-              recipientEmail: orderData['customer_email'],
-              actorName: 'Kitchen',
-              actionType: newStatus.toLowerCase(),
-              reservationId: orderId,
-              eventType: 'Advance Order (${orderData['order_type']})',
-            );
+
+          final bool alreadyDeducted = orderData['inventory_deducted'] == true;
+          final dynamic rawItems = orderData['selected_menu_items'];
+          Map<String, dynamic>? menuItems;
+          if (rawItems is Map<String, dynamic>) {
+            menuItems = rawItems;
+          } else if (rawItems is Map) {
+            menuItems = Map<String, dynamic>.from(rawItems);
           }
-        } catch (_) {}
+
+          await _deductStockForOrder(
+            table: 'advance_orders',
+            id: orderId,
+            selectedMenuItems: menuItems,
+            isAlreadyDeducted: alreadyDeducted,
+          );
+
+          if (newStatus == 'Ready' || newStatus == 'Done') {
+            if (orderData['customer_email'] != null) {
+              await NotificationService.sendNotification(
+                recipientEmail: orderData['customer_email'],
+                actorName: 'Kitchen',
+                actionType: newStatus.toLowerCase(),
+                reservationId: orderId,
+                eventType: 'Advance Order (${orderData['order_type']})',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error processing advance order post-status update: $e');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -2201,24 +2317,45 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
           .update({'kitchen_status': newStatus})
           .eq('id', resId);
 
-      if (newStatus == 'Ready' || newStatus == 'Done') {
+      // Deduct ingredients when reservation enters preparation or ready
+      if (newStatus == 'Preparing' || newStatus == 'Ready' || newStatus == 'Done') {
         try {
           final resData = await Supabase.instance.client
               .from('reservations')
-              .select('customer_email, event_type, id')
+              .select('selected_menu_items, inventory_deducted, customer_email, event_type, id')
               .eq('id', resId)
               .single();
-          
-          if (resData['customer_email'] != null) {
-            await NotificationService.sendNotification(
-              recipientEmail: resData['customer_email'],
-              actorName: 'Kitchen',
-              actionType: newStatus.toLowerCase(),
-              reservationId: resId,
-              eventType: 'Event Reservation (${resData['event_type']})',
-            );
+
+          final bool alreadyDeducted = resData['inventory_deducted'] == true;
+          final dynamic rawItems = resData['selected_menu_items'];
+          Map<String, dynamic>? menuItems;
+          if (rawItems is Map<String, dynamic>) {
+            menuItems = rawItems;
+          } else if (rawItems is Map) {
+            menuItems = Map<String, dynamic>.from(rawItems);
           }
-        } catch (_) {}
+
+          await _deductStockForOrder(
+            table: 'reservations',
+            id: resId,
+            selectedMenuItems: menuItems,
+            isAlreadyDeducted: alreadyDeducted,
+          );
+
+          if (newStatus == 'Ready' || newStatus == 'Done') {
+            if (resData['customer_email'] != null) {
+              await NotificationService.sendNotification(
+                recipientEmail: resData['customer_email'],
+                actorName: 'Kitchen',
+                actionType: newStatus.toLowerCase(),
+                reservationId: resId,
+                eventType: 'Event Reservation (${resData['event_type']})',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error processing reservation post-status update: $e');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -2231,6 +2368,9 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
 
   List<Map<String, dynamic>> _buildOrdersList() {
     // ── Process POS orders ──
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
     final posOrders = _posRaw.where((o) {
       final ks = _kitchenStatus['pos_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending';
       final ps = o['payment_status']?.toString().toLowerCase() ?? 'unpaid';
@@ -2239,18 +2379,29 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
 
       final isRefunded = rs == 'full_refund' || status == 'refunded' || status == 'cancelled';
 
-      return !isRefunded && ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
+      // 🛑 FILTER: Block old test orders (keep only orders created within the last 24 hours)
+      final createdAtStr = o['created_at']?.toString();
+      if (createdAtStr != null) {
+        final createdAt = DateTime.tryParse(createdAtStr);
+        if (createdAt != null) {
+          final age = now.difference(createdAt);
+          if (age.inHours >= 24) {
+            return false; // Skip stale / old test orders (> 24 hours)
+          }
+        }
+      }
+
+      // Keep orders until marked Done (served). Ready orders remain visible in Ready section.
+      return !isRefunded && ks != 'Done' && (ps == 'paid' || ps == 'fully_paid');
     }).map((o) => {
       ...o,
       '_is_advance': false,
       '_is_reservation': false,
+      'kitchen_status': _kitchenStatus['pos_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending',
       '_sort_key': o['created_at']?.toString() ?? '',
     }).toList();
 
     // ── Process Advance orders ──
-    final now = DateTime.now();
-    final todayStr = DateFormat('yyyy-MM-dd').format(now);
-
     final advOrders = _advRaw.map((o) {
       final key = 'adv_${o['id']}';
       final status = o['status']?.toString().toLowerCase();
@@ -2278,7 +2429,8 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       final isRefunded = rs == 'full_refund' || status == 'refunded' || status == 'cancelled';
       final isApprovedAdvance = status == 'pending' || status == 'preparing' || status == 'ready';
 
-      return !isRefunded && ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && isApprovedAdvance;
+      // Keep until marked Done
+      return !isRefunded && ks != 'Done' && (ps == 'paid' || ps == 'fully_paid') && isApprovedAdvance;
     }).toList();
 
     // ── Process Event reservations for today ──
@@ -2286,7 +2438,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       final isMenuBased = o['is_menu_based'] == true;
       final ps = o['payment_status']?.toString().toLowerCase();
       final rs = o['refund_status']?.toString() ?? 'none';
-      final isPaid = ps == 'paid' || ps == 'fully_paid';
+      final isPaid = ps == 'paid' || ps == 'fully_paid' || ps == 'deposit_paid';
       
       final eventDateStr = o['event_date']?.toString();
       final isTodayOrPast = eventDateStr != null && eventDateStr.compareTo(todayStr) <= 0;
@@ -2296,7 +2448,8 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       final isApproved = resStatus == 'confirmed' || resStatus == 'completed';
       
       final ks = _kitchenStatus['res_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending';
-      return !isRefunded && isMenuBased && isPaid && isTodayOrPast && isApproved && ks != 'Done' && ks != 'Ready';
+      // Keep until marked Done
+      return !isRefunded && isMenuBased && isPaid && isTodayOrPast && isApproved && ks != 'Done';
     }).map((o) => {
       ...o,
       '_is_advance': false,
@@ -2410,7 +2563,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     }
 
     final now = DateTime.now();
-    final List<Map<String, dynamic>> actionableOrders = [];
+    final List<Map<String, dynamic>> cookingOrders = [];
     final List<Map<String, dynamic>> scheduledLaterOrders = [];
 
     for (final o in allOrders) {
@@ -2425,7 +2578,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
           continue;
         }
       }
-      actionableOrders.add(o);
+      cookingOrders.add(o);
     }
 
     return LayoutBuilder(
@@ -2445,24 +2598,19 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
         return CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
-            // ── Section 1: Actionable Now (Live POS + Due Advance Orders) ──
-            if (actionableOrders.isNotEmpty) ...[
-              if (scheduledLaterOrders.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: _buildSectionHeader(
-                      icon: Icons.bolt_rounded,
-                      title: 'ORDERS TO COOK NOW',
-                      count: actionableOrders.length,
-                      color: const Color(0xFF059669),
-                    ),
+            // ── Section 1: Active Cooking (Pending & Preparing) ──
+            if (cookingOrders.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: _buildSectionHeader(
+                    icon: Icons.local_fire_department_rounded,
+                    title: 'ORDERS TO COOK (ACTIVE)',
+                    count: cookingOrders.length,
+                    color: const Color(0xFF0284C7),
                   ),
-                )
-              else
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 12),
                 ),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 sliver: SliverGrid(
@@ -2473,8 +2621,8 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
                     mainAxisExtent: 300,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildOrderCard(actionableOrders[index]),
-                    childCount: actionableOrders.length,
+                    (context, index) => _buildOrderCard(cookingOrders[index]),
+                    childCount: cookingOrders.length,
                   ),
                 ),
               ),
@@ -2484,7 +2632,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
             if (scheduledLaterOrders.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, actionableOrders.isEmpty ? 12 : 20, 16, 8),
+                  padding: EdgeInsets.fromLTRB(16, cookingOrders.isEmpty ? 12 : 20, 16, 8),
                   child: _buildSectionHeader(
                     icon: Icons.schedule_rounded,
                     title: 'UPCOMING ORDERS (FOR LATER)',
@@ -3769,9 +3917,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: nextStatus == 'Preparing'
                                       ? const Color(0xFF0284C7)
-                                      : nextStatus == 'Ready'
-                                          ? const Color(0xFF059669)
-                                          : const Color(0xFF10B981),
+                                      : const Color(0xFF059669),
                                   foregroundColor: Colors.white,
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -3783,9 +3929,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 label: Text(
                                   nextStatus == 'Preparing'
                                       ? (widget.isAdvanceOrder ? 'START PREPARATION' : 'START PREP')
-                                      : nextStatus == 'Ready'
-                                          ? 'MARK READY'
-                                          : 'SERVE ORDER',
+                                      : 'MARK READY',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 11.5,
@@ -3829,8 +3973,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
         return Icons.local_fire_department_rounded;
       case 'Ready':
         return Icons.check_circle_outline_rounded;
-      case 'Done':
-        return Icons.task_alt_rounded;
+      case 'Done': return Icons.check_circle_outline_rounded;
       default:
         return Icons.arrow_forward_rounded;
     }
@@ -4480,6 +4623,46 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
           .from('reservations')
           .update({'kitchen_status': nextStatus})
           .eq('id', widget.event['id']);
+
+      // Deduct ingredients when event is being prepared / marked ready
+      try {
+        final resId = widget.event['id']?.toString() ?? '';
+        final resData = await Supabase.instance.client
+            .from('reservations')
+            .select('selected_menu_items, inventory_deducted')
+            .eq('id', resId)
+            .single();
+
+        final bool alreadyDeducted = resData['inventory_deducted'] == true;
+        if (!alreadyDeducted) {
+          final dynamic rawItems = resData['selected_menu_items'];
+          Map<String, dynamic>? menuItems;
+          if (rawItems is Map<String, dynamic>) {
+            menuItems = rawItems;
+          } else if (rawItems is Map) {
+            menuItems = Map<String, dynamic>.from(rawItems);
+          }
+
+          if (menuItems != null && menuItems.isNotEmpty) {
+            for (final entry in menuItems.entries) {
+              final itemName = entry.key.toString().trim();
+              final rawQty = entry.value;
+              final qty = rawQty is num ? rawQty.toInt() : (int.tryParse(rawQty.toString()) ?? 1);
+              if (qty > 0 && itemName.isNotEmpty) {
+                await RecipeService().deductIngredientsFromInventory(itemName, qty);
+              }
+            }
+
+            await Supabase.instance.client
+                .from('reservations')
+                .update({'inventory_deducted': true})
+                .eq('id', resId);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error deducting ingredients in _UpcomingEventCard: $e');
+      }
+
       if (mounted) setState(() => _kitchenStatus = nextStatus);
     } catch (e) {
       if (mounted) {
@@ -6098,7 +6281,13 @@ class _FinishedOrderTableRowState extends State<_FinishedOrderTableRow> {
       timeStr = '${order['order_date'] ?? ''} ${order['order_time'] ?? ''}'.trim();
       if (timeStr.isEmpty) timeStr = '—';
     } else {
-      timeStr = createdAt != null ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal()) : '—';
+      if (createdAt != null) {
+        final localDate = createdAt.toLocal();
+        final isDifferentYear = localDate.year != DateTime.now().year;
+        timeStr = DateFormat(isDifferentYear ? 'MMM d, yyyy, hh:mm a' : 'MMM d, hh:mm a').format(localDate);
+      } else {
+        timeStr = '—';
+      }
     }
 
     final tableNumber = order['table_number']?.toString();
