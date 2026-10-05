@@ -30,14 +30,18 @@ class NotificationService {
     
     try {
       final eventText = '$itemName is $status! ($quantity $unit left in $source)';
+      final prefix = '$itemName is $status!';
       
+      // Prevent spamming repetitive alerts:
+      // Don't send if an alert for this item and status was already sent in the last 12 hours
+      final cutoff = DateTime.now().toUtc().subtract(const Duration(hours: 12)).toIso8601String();
       final existing = await _supabase
           .from('notifications')
           .select('id')
           .eq('is_for_admin', true)
           .eq('action_type', 'stock_alert')
-          .eq('event_type', eventText)
-          .eq('is_read', false)
+          .ilike('event_type', '$prefix%')
+          .gte('created_at', cutoff)
           .limit(1);
           
       if (existing.isEmpty) {
@@ -384,43 +388,61 @@ class NotificationService {
 
   /// Stream for Kitchen Side (POS orders, stock approval & rejection from inventory, advance order tickets, kitchen alerts, event reminders)
   static Stream<List<Map<String, dynamic>>> getKitchenNotificationsStream() {
-    return getAdminNotificationsStream().map((list) => list.where((n) {
-          final actionType = n['action_type'];
-          // Kitchen receives approvals/rejections from inventory, event reminders, day-of-event notifications, and new incoming orders
-          if (actionType == 'pos_order' ||
-              actionType == 'stock_approved' ||
-              actionType == 'stock_rejected' ||
-              actionType == 'event_reminder' ||
-              actionType == 'event_today') {
-            return true;
-          }
-          if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
-            return true;
-          }
-          // Advance order tickets
-          if (actionType == 'advance_order_ticket') {
-            final eventTypeStr = n['event_type']?.toString() ?? '';
-            if (eventTypeStr.contains('Event Reservation')) {
-              return true; // Always notify kitchen immediately of event reservations
-            }
+    return getAdminNotificationsStream().map((list) {
+      final now = DateTime.now();
+      final cutoff = now.subtract(const Duration(hours: 48));
 
-            final eventDateStr = n['event_date']?.toString();
-            if (eventDateStr != null) {
-              try {
-                final eventDate = DateTime.parse(eventDateStr);
-                final now = DateTime.now();
-                final daysUntilEvent = eventDate.difference(now).inDays;
-                // Only include if event is within 2 days (including today and tomorrow)
-                return daysUntilEvent >= 0 && daysUntilEvent <= 2;
-              } catch (e) {
-                // If date parsing fails, don't include the notification
-                return false;
-              }
-            }
-            return true;
+      return list.where((n) {
+        final actionType = n['action_type'];
+        final isRead = n['is_read'] == true;
+
+        // If notification has been marked read, exclude old records beyond 48 hours
+        // so historical records don't flood the notification center
+        if (isRead) {
+          final createdAtStr = n['created_at']?.toString();
+          if (createdAtStr != null) {
+            try {
+              final dt = DateTime.parse(createdAtStr);
+              if (dt.isBefore(cutoff)) return false;
+            } catch (_) {}
           }
-          return false;
-        }).toList());
+        }
+
+        // Kitchen receives approvals/rejections from inventory, event reminders, day-of-event notifications, and new incoming orders
+        if (actionType == 'pos_order' ||
+            actionType == 'stock_approved' ||
+            actionType == 'stock_rejected' ||
+            actionType == 'event_reminder' ||
+            actionType == 'event_today') {
+          return true;
+        }
+        if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
+          return true;
+        }
+        // Advance order tickets
+        if (actionType == 'advance_order_ticket') {
+          final eventTypeStr = n['event_type']?.toString() ?? '';
+          if (eventTypeStr.contains('Event Reservation')) {
+            return true; // Always notify kitchen immediately of event reservations
+          }
+
+          final eventDateStr = n['event_date']?.toString();
+          if (eventDateStr != null) {
+            try {
+              final eventDate = DateTime.parse(eventDateStr);
+              final daysUntilEvent = eventDate.difference(now).inDays;
+              // Only include if event is within 2 days (including today and tomorrow)
+              return daysUntilEvent >= 0 && daysUntilEvent <= 2;
+            } catch (e) {
+              // If date parsing fails, don't include the notification
+              return false;
+            }
+          }
+          return true;
+        }
+        return false;
+      }).toList();
+    });
   }
 
   /// Stream for Main Inventory Side (stock requests from Chef, inventory stock alerts)

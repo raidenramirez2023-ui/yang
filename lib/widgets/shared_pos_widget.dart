@@ -1,7 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-
 import 'package:intl/intl.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -19,6 +18,7 @@ import '../models/menu_item.dart';
 import '../services/menu_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_pos_service.dart';
+import '../utils/sound_helper.dart';
 
 
 
@@ -1096,27 +1096,148 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   bool _isLoadingMenu = true;
 
   List<CartItem> cart = [];
-
-  final TextEditingController _mobileCustomerNameController =
-
-      TextEditingController();
-
+  final TextEditingController _mobileCustomerNameController = TextEditingController();
   VoidCallback? _clearOrderInputs;
 
+  // 🔔 Real-time order ready alert subscription & top overlay
+  StreamSubscription<List<Map<String, dynamic>>>? _readyOrdersSubscription;
+  final Set<String> _notifiedReadyOrderIds = {};
+  OverlayEntry? _orderReadyTopOverlay;
+  Timer? _orderReadyTopOverlayTimer;
 
+  void _dismissOrderReadyBanner() {
+    _orderReadyTopOverlayTimer?.cancel();
+    _orderReadyTopOverlayTimer = null;
+    _orderReadyTopOverlay?.remove();
+    _orderReadyTopOverlay = null;
+  }
 
   @override
-
   void initState() {
-
     super.initState();
-
     OfflinePosService().init();
-
     _loadMenu();
-
     _fetchInventory();
+    _listenForReadyOrders();
+  }
 
+  void _listenForReadyOrders() {
+    final now = DateTime.now();
+    bool isInitial = true;
+
+    // Listen to orders that were updated/completed
+    _readyOrdersSubscription = Supabase.instance.client
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .limit(30)
+        .listen((rows) {
+          if (!mounted) return;
+          if (isInitial) {
+            isInitial = false;
+            for (final order in rows) {
+              final id = order['id']?.toString();
+              if (id != null) _notifiedReadyOrderIds.add(id);
+            }
+            return;
+          }
+
+          for (final order in rows) {
+            final ks = order['kitchen_status']?.toString();
+            if (ks != 'Ready' && ks != 'Done') continue;
+
+            final orderId = order['id']?.toString();
+            if (orderId == null || _notifiedReadyOrderIds.contains(orderId)) {
+              continue;
+            }
+
+            // Check if order was created recently (within last 12 hours) to avoid notifying on stale orders
+            final createdAtStr = order['created_at']?.toString();
+            if (createdAtStr != null) {
+              final createdAt = DateTime.tryParse(createdAtStr);
+              if (createdAt != null && now.difference(createdAt).inHours > 12) {
+                _notifiedReadyOrderIds.add(orderId);
+                continue;
+              }
+            }
+
+            _notifiedReadyOrderIds.add(orderId);
+
+            // Extract table number and destination (matching kitchen card display)
+            final tableNum = order['table_number']?.toString();
+            final note = order['note']?.toString() ?? '';
+            final isTakeOut = (tableNum == null || tableNum.isEmpty || tableNum == 'null') ||
+                note.contains('[TAKE HOME]') ||
+                note.contains('[TAKE-OUT]');
+            final destinationStr = isTakeOut
+                ? 'Take-out'
+                : 'Table $tableNum';
+
+            // Match kitchen ticket format exactly (matches _formatOrderId in chef_dashboard)
+            final txn = order['transaction_id']?.toString();
+            String ticketId;
+            if (txn != null && txn.isNotEmpty && txn != 'null') {
+              ticketId = txn.startsWith('#') ? txn : '#$txn';
+            } else {
+              final on = order['order_number']?.toString();
+              if (on != null && on.isNotEmpty && on != 'null') {
+                ticketId = on.startsWith('#') ? on : '#$on';
+              } else {
+                final asInt = int.tryParse(orderId);
+                ticketId = asInt != null
+                    ? '#${asInt.toString().padLeft(3, '0')}'
+                    : '#${orderId.length > 6 ? orderId.substring(orderId.length - 6).toUpperCase() : orderId.toUpperCase()}';
+              }
+            }
+
+            final customerName = order['customer_name']?.toString();
+
+            _showOrderReadyBanner(
+              ticketId: ticketId,
+              destinationStr: destinationStr,
+              customerName: customerName,
+            );
+          }
+        });
+  }
+
+  void _showOrderReadyBanner({
+    required String ticketId,
+    required String destinationStr,
+    String? customerName,
+  }) {
+    if (!mounted) return;
+    _dismissOrderReadyBanner();
+
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _PosTopNotificationToast(
+        ticketId: ticketId,
+        destinationStr: destinationStr,
+        customerName: customerName,
+        onDismiss: () {
+          if (_orderReadyTopOverlay == entry) {
+            _dismissOrderReadyBanner();
+          }
+        },
+      ),
+    );
+
+    _orderReadyTopOverlay = entry;
+    overlay.insert(entry);
+
+    // 🔔 Play pleasant restaurant kitchen chime (Ding-Dong!)
+    playOrderReadySound();
+
+    // Auto-dismiss after 7 seconds
+    _orderReadyTopOverlayTimer = Timer(const Duration(seconds: 7), () {
+      if (_orderReadyTopOverlay == entry) {
+        _dismissOrderReadyBanner();
+      }
+    });
   }
 
 
@@ -1276,15 +1397,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
   @override
-
   void dispose() {
-
+    _dismissOrderReadyBanner();
+    _readyOrdersSubscription?.cancel();
     _mobileCustomerNameController.dispose();
-
     _searchController.dispose();
-
     super.dispose();
-
   }
 
 
@@ -5011,6 +5129,234 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       },
     );
   }
+}
 
+/// ── High-visibility Top Notification Banner for POS Staff ──
+class _PosTopNotificationToast extends StatefulWidget {
+  final String ticketId;
+  final String destinationStr;
+  final String? customerName;
+  final VoidCallback onDismiss;
+
+  const _PosTopNotificationToast({
+    required this.ticketId,
+    required this.destinationStr,
+    this.customerName,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_PosTopNotificationToast> createState() => _PosTopNotificationToastState();
+}
+
+class _PosTopNotificationToastState extends State<_PosTopNotificationToast>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+      reverseDuration: const Duration(milliseconds: 250),
+    );
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    _animController.forward();
+  }
+
+  Future<void> _handleDismiss() async {
+    if (!mounted) return;
+    await _animController.reverse();
+    widget.onDismiss();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding > 0 ? topPadding + 14 : 18,
+      left: 16,
+      right: 16,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF044E38), Color(0xFF065F46), Color(0xFF059669)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF34D399).withValues(alpha: 0.6),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFF059669).withValues(alpha: 0.35),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: _handleDismiss,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            // Glowing Icon Badge
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.room_service_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            // Content Info
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'ORDER READY TO SERVE!',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 12,
+                                          letterSpacing: 0.6,
+                                          color: const Color(0xFFA7F3D0),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE6C374),
+                                          borderRadius: BorderRadius.circular(6),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.2),
+                                              blurRadius: 4,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          widget.ticketId,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            color: const Color(0xFF0B211D),
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 12,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  RichText(
+                                    text: TextSpan(
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      children: [
+                                        const TextSpan(text: 'Ready for '),
+                                        TextSpan(
+                                          text: widget.destinationStr,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            color: const Color(0xFFFDE68A),
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        if (widget.customerName != null &&
+                                            widget.customerName!.trim().isNotEmpty &&
+                                            widget.customerName!.trim().toLowerCase() != 'guest') ...[
+                                          TextSpan(text: ' • (${widget.customerName!.trim()})'),
+                                        ],
+                                        const TextSpan(
+                                          text: ' — Please serve hot!',
+                                          style: TextStyle(color: Color(0xFFD1FAE5)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Close Button
+                            IconButton(
+                              onPressed: _handleDismiss,
+                              icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                              tooltip: 'Dismiss',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
