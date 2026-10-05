@@ -263,11 +263,13 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                           'Total: ₱${_fmt.format(_totalPrice)}',
                           style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.darkGrey),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Deposit Required: ₱${_fmt.format(_depositAmount)}',
-                          style: GoogleFonts.inter(color: AppTheme.primaryColor, fontWeight: FontWeight.w800, fontSize: 12),
-                        ),
+                        if (!_isAdvanceOrder) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Deposit Required: ₱${_fmt.format(_depositAmount)}',
+                            style: GoogleFonts.inter(color: AppTheme.primaryColor, fontWeight: FontWeight.w800, fontSize: 12),
+                          ),
+                        ],
                       ],
                     ),
                     Container(
@@ -436,7 +438,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.reservationType == 'Advance Order' 
+                  _isAdvanceOrder 
                       ? 'Total Amount' 
                       : 'Deposit Required',
                   style: GoogleFonts.inter(
@@ -513,11 +515,38 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
     final groupedList = GroupedMenuItem.groupItems(items);
 
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+
+    // Responsive layout: more compact cards and better column distribution on desktop and tablet
+    // Mobile view is left exactly untouched (2 columns, 0.74 aspect ratio)
+    final int crossAxisCount;
+    final double childAspectRatio;
+
+    if (isDesktop) {
+      if (width >= 1500) {
+        crossAxisCount = 6;
+      } else if (width >= 1200) {
+        crossAxisCount = 5;
+      } else {
+        crossAxisCount = 4;
+      }
+      childAspectRatio = 0.90;
+    } else if (isTablet) {
+      crossAxisCount = width >= 900 ? 4 : 3;
+      childAspectRatio = 0.85;
+    } else {
+      // Mobile: completely untouched
+      crossAxisCount = 2;
+      childAspectRatio = 0.74;
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: 0.74,
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: childAspectRatio,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
