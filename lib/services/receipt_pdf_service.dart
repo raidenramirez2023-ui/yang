@@ -612,4 +612,427 @@ class ReceiptPdfService {
       ),
     );
   }
+
+  /// Generates a standardized 57mm thermal POS receipt PDF document (supports official Reprint mode)
+  static Future<Uint8List> generatePosReceiptPdf({
+    required String transactionId,
+    required DateTime transactionDate,
+    required List<Map<String, dynamic>> items,
+    required double totalAmount,
+    double paidAmount = 0.0,
+    double changeDue = 0.0,
+    String paymentMethod = 'CASH',
+    String? customerName,
+    String? customerAddress,
+    String? note,
+    String? tableNumber,
+    int? guestCount,
+    String? serverName,
+    String? cashierName,
+    double discountAmount = 0.0,
+    String discountLabel = 'None',
+    String? discountName,
+    String? discountAddress,
+    String diningOption = 'Dine-in',
+    bool isReprint = false,
+    String? reprintedBy,
+    DateTime? reprintDate,
+    String? reprintReason,
+  }) async {
+    final pdf = pw.Document();
+    final monoFont = pw.Font.courier();
+    final monoBoldFont = pw.Font.courierBold();
+
+    final baseStyle = pw.TextStyle(fontSize: 9.5, font: monoFont);
+    final boldStyle = pw.TextStyle(fontSize: 9.5, font: monoBoldFont);
+    final headerStyle = pw.TextStyle(fontSize: 12, font: monoBoldFont);
+    final subHeaderStyle = pw.TextStyle(fontSize: 11, font: monoBoldFont);
+    final totalStyle = pw.TextStyle(fontSize: 11.5, font: monoBoldFont);
+    final alertStyle = pw.TextStyle(fontSize: 9, font: monoBoldFont);
+
+    pw.Widget dashDivider() {
+      return pw.Text(
+        '------------------------------------------------',
+        style: baseStyle,
+        textAlign: pw.TextAlign.center,
+        maxLines: 1,
+      );
+    }
+
+    pw.Widget starDivider() {
+      return pw.Text(
+        '************************************************',
+        style: baseStyle,
+        textAlign: pw.TextAlign.center,
+        maxLines: 1,
+      );
+    }
+
+    final fmt = NumberFormat('#,##0.00', 'en_US');
+    final formattedDate = DateFormat('MM/dd/yyyy').format(transactionDate);
+    final formattedTime = DateFormat('HH:mm:ss').format(transactionDate);
+    final subtotal = items.fold<double>(0.0, (sum, it) {
+      final price = (it['unit_price'] as num?)?.toDouble() ?? 0.0;
+      final qty = (it['quantity'] as num?)?.toInt() ?? 1;
+      return sum + (price * qty);
+    });
+
+    // Parse split payments if applicable (e.g. "SPLIT (CASH: 5,000.00, GCASH: 8,712.00)")
+    final isSplitPayment = paymentMethod.trim().toUpperCase().startsWith('SPLIT') && paymentMethod.contains('(');
+    final splitItems = <Map<String, String>>[];
+    if (isSplitPayment) {
+      final inner = paymentMethod
+          .replaceFirst(RegExp(r'^SPLIT\s*\(?', caseSensitive: false), '')
+          .replaceAll(RegExp(r'\)+$'), '')
+          .trim();
+      final regex = RegExp(
+        r'(?:^|,\s*)([A-Za-z0-9_\-\s]+?):\s*(?:₱|PHP\s*)?([0-9,]+(?:\.[0-9]+)?)(?:\s*\[Ref:\s*([^\]]+)\])?',
+        caseSensitive: false,
+      );
+      for (final match in regex.allMatches(inner)) {
+        final m = match.group(1)?.trim().toUpperCase() ?? '';
+        final a = match.group(2)?.trim() ?? '';
+        final r = match.group(3)?.trim();
+        if (m.isNotEmpty && a.isNotEmpty) {
+          splitItems.add({
+            'method': m,
+            'amount': a,
+            if (r != null && r.isNotEmpty) 'ref': r,
+          });
+        }
+      }
+    }
+
+    final receiptFormat = PdfPageFormat.roll57.copyWith(
+      marginTop: 8,
+      marginBottom: 8,
+      marginLeft: 8,
+      marginRight: 8,
+    );
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: receiptFormat,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              // ===== REPRINT WATERMARK / BANNER =====
+              if (isReprint) ...[
+                starDivider(),
+                pw.Text('*** REPRINT COPY ***', style: pw.TextStyle(fontSize: 11, font: monoBoldFont)),
+                pw.Text('NOT AN OFFICIAL RECEIPT', style: alertStyle),
+                starDivider(),
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Reprinted:', style: baseStyle),
+                    pw.Text(
+                      DateFormat('MMM dd, yyyy hh:mm a').format(reprintDate ?? DateTime.now()),
+                      style: baseStyle,
+                    ),
+                  ],
+                ),
+                if (reprintedBy != null && reprintedBy.isNotEmpty)
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('By:', style: baseStyle),
+                      pw.Text(reprintedBy, style: baseStyle),
+                    ],
+                  ),
+                if (reprintReason != null && reprintReason.isNotEmpty)
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('Reason:', style: baseStyle),
+                      pw.Text(reprintReason, style: baseStyle),
+                    ],
+                  ),
+                dashDivider(),
+                pw.SizedBox(height: 4),
+              ],
+
+              // ===== STORE HEADER =====
+              pw.Text("CEAZAR GABRIEL'S", style: headerStyle, textAlign: pw.TextAlign.center),
+              pw.Text('RESTAURANT', style: headerStyle, textAlign: pw.TextAlign.center),
+              pw.Text('YANG CHOW', style: subHeaderStyle, textAlign: pw.TextAlign.center),
+              pw.Text('Owned & optd by:', style: baseStyle, textAlign: pw.TextAlign.center),
+              pw.Text('Ceazar Gabriel R.  Areza', style: baseStyle, textAlign: pw.TextAlign.center),
+              pw.Text('Areza Town Center Mall brgy. Biñan', style: baseStyle, textAlign: pw.TextAlign.center),
+              pw.Text('Pagsanjan Laguna', style: baseStyle, textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 8),
+
+              // ===== ORDER METADATA =====
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Table #: ${tableNumber != null && tableNumber.isNotEmpty ? tableNumber : "N/A"}', style: baseStyle),
+                  pw.Text('No. of Guest: ${guestCount ?? 2}', style: baseStyle),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Text('Term. No.  1', style: baseStyle),
+                ],
+              ),
+              pw.SizedBox(height: 2),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('WALK-IN', style: baseStyle),
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Flexible(
+                    child: pw.Text('Cashr: ${cashierName ?? "JANE"}', style: baseStyle, maxLines: 1),
+                  ),
+                  pw.Flexible(
+                    child: pw.Text('Server: ${serverName ?? "JANE"}', style: baseStyle, maxLines: 1),
+                  ),
+                ],
+              ),
+              dashDivider(),
+              pw.SizedBox(height: 2),
+
+              // ===== ITEMS TABLE HEADER =====
+              pw.Row(
+                children: [
+                  pw.SizedBox(width: 32, child: pw.Text('Qty', style: boldStyle)),
+                  pw.Expanded(
+                    child: pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+                      child: pw.Text('Description(s)', style: boldStyle),
+                    ),
+                  ),
+                  pw.SizedBox(width: 48, child: pw.Text('Price', style: boldStyle, textAlign: pw.TextAlign.right)),
+                ],
+              ),
+              dashDivider(),
+              pw.SizedBox(height: 2),
+
+              // ===== DINING CATEGORY =====
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text(
+                  diningOption.toLowerCase().contains('take') ? 'TAKE HOME' : 'DINE IN',
+                  style: baseStyle,
+                ),
+              ),
+
+              // ===== LINE ITEMS =====
+              ...items.map((it) {
+                final qty = (it['quantity'] as num?)?.toDouble() ?? 1.0;
+                final price = (it['unit_price'] as num?)?.toDouble() ?? 0.0;
+                final name = (it['item_name'] ?? it['name'] ?? 'Item').toString().toUpperCase();
+                final lineTotal = price * qty;
+
+                return pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(
+                        width: 32,
+                        child: pw.Text(' ${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)}', style: baseStyle),
+                      ),
+                      pw.Expanded(
+                        child: pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+                          child: pw.Text(name, style: baseStyle, maxLines: 2),
+                        ),
+                      ),
+                      pw.SizedBox(
+                        width: 48,
+                        child: pw.Text(fmt.format(lineTotal), style: baseStyle, textAlign: pw.TextAlign.right),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+              pw.SizedBox(height: 4),
+              pw.Text(
+                '----------${items.length} Item(s)-----------',
+                style: baseStyle,
+                textAlign: pw.TextAlign.center,
+                maxLines: 1,
+              ),
+              pw.SizedBox(height: 4),
+
+              // ===== SUBTOTAL & TOTAL =====
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('  Sub Total', style: baseStyle),
+                  pw.Text(fmt.format(subtotal > 0 ? subtotal : totalAmount), style: baseStyle),
+                ],
+              ),
+              if (discountAmount > 0) ...[
+                pw.SizedBox(height: 1),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('  Discount ($discountLabel)', style: pw.TextStyle(fontSize: 8.5, font: monoFont)),
+                    pw.Text('-${fmt.format(discountAmount)}', style: pw.TextStyle(fontSize: 8.5, font: monoFont)),
+                  ],
+                ),
+              ],
+              dashDivider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TOTAL', style: totalStyle),
+                  pw.Text(fmt.format(totalAmount), style: totalStyle),
+                ],
+              ),
+              pw.SizedBox(height: 8),
+
+              // ===== PAYMENT & CHANGE =====
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Tendered / Payments:', style: baseStyle),
+              ),
+              pw.SizedBox(height: 2),
+              if (splitItems.isNotEmpty) ...[
+                for (final item in splitItems) ...[
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('  ${item['method']}:', style: baseStyle),
+                      pw.Text(item['amount']!, style: baseStyle),
+                    ],
+                  ),
+                  if (item['ref'] != null && item['ref']!.isNotEmpty) ...[
+                    pw.SizedBox(height: 1),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.end,
+                      children: [
+                        pw.Text('Ref: ${item['ref']}', style: pw.TextStyle(fontSize: 8.5, font: monoFont)),
+                      ],
+                    ),
+                  ],
+                  pw.SizedBox(height: 1),
+                ],
+              ] else ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('  ${paymentMethod.toUpperCase()}', style: baseStyle),
+                    pw.Text(fmt.format(paidAmount > 0 ? paidAmount : totalAmount), style: baseStyle),
+                  ],
+                ),
+              ],
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Change:', style: baseStyle),
+                  pw.Text(fmt.format(changeDue), style: baseStyle),
+                ],
+              ),
+              dashDivider(),
+              pw.SizedBox(height: 10),
+
+              // ===== TIMESTAMP & TXN =====
+              pw.Text('TXN: #$transactionId', style: boldStyle, textAlign: pw.TextAlign.center),
+              pw.Text('$formattedDate $formattedTime', style: baseStyle, textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 10),
+
+              // ===== CUSTOMER / DISCOUNT INFO =====
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text(
+                  'Name: ${(discountAmount > 0 && discountName != null && discountName.isNotEmpty ? discountName : customerName) ?? "________________________________"}',
+                  style: baseStyle,
+                  maxLines: 1,
+                ),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text(
+                  'Address: ${(discountAmount > 0 && discountAddress != null && discountAddress.isNotEmpty ? discountAddress : customerAddress) ?? "_____________________________"}',
+                  style: baseStyle,
+                  maxLines: 1,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+
+              // ===== FOOTER NOTICE =====
+              if (isReprint) ...[
+                pw.Text('*** DUPLICATE / REPRINT RECEIPT ***', style: alertStyle, textAlign: pw.TextAlign.center),
+                pw.Text('Original TXN: $formattedDate $formattedTime', style: pw.TextStyle(fontSize: 8, font: monoFont), textAlign: pw.TextAlign.center),
+              ] else ...[
+                pw.Text('This serves as an official receipt.', style: boldStyle, textAlign: pw.TextAlign.center),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// Triggers standard printing dialog for POS Receipt
+  static Future<void> printPosReceipt({
+    required String transactionId,
+    required DateTime transactionDate,
+    required List<Map<String, dynamic>> items,
+    required double totalAmount,
+    double paidAmount = 0.0,
+    double changeDue = 0.0,
+    String paymentMethod = 'CASH',
+    String? customerName,
+    String? customerAddress,
+    String? note,
+    String? tableNumber,
+    int? guestCount,
+    String? serverName,
+    String? cashierName,
+    double discountAmount = 0.0,
+    String discountLabel = 'None',
+    String? discountName,
+    String? discountAddress,
+    String diningOption = 'Dine-in',
+    bool isReprint = false,
+    String? reprintedBy,
+    DateTime? reprintDate,
+    String? reprintReason,
+  }) async {
+    final pdfBytes = await generatePosReceiptPdf(
+      transactionId: transactionId,
+      transactionDate: transactionDate,
+      items: items,
+      totalAmount: totalAmount,
+      paidAmount: paidAmount,
+      changeDue: changeDue,
+      paymentMethod: paymentMethod,
+      customerName: customerName,
+      customerAddress: customerAddress,
+      note: note,
+      tableNumber: tableNumber,
+      guestCount: guestCount,
+      serverName: serverName,
+      cashierName: cashierName,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
+      discountName: discountName,
+      discountAddress: discountAddress,
+      diningOption: diningOption,
+      isReprint: isReprint,
+      reprintedBy: reprintedBy,
+      reprintDate: reprintDate,
+      reprintReason: reprintReason,
+    );
+
+    final prefix = isReprint ? 'REPRINT' : 'RECEIPT';
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdfBytes,
+      name: 'YangChow_${prefix}_$transactionId.pdf',
+    );
+  }
 }

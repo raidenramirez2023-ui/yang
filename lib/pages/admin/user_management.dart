@@ -106,16 +106,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
-  /// Persist custom departments to Supabase app_settings & local storage
-  Future<void> _saveCustomDepartments() async {
-    try {
-      final base = {'All', 'Management', 'Kitchen', 'Service', 'Operations'};
-      final custom = _departments.where((d) => !base.contains(d)).toList();
-      await StaffService.saveCustomDepartments(custom);
-    } catch (e) {
-      debugPrint('Error saving custom departments: $e');
-    }
-  }
 
   /// Persist custom roles to Supabase app_settings & local storage
   Future<void> _saveCustomRoles() async {
@@ -1463,24 +1453,34 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return 2; // default to Staff
   }
 
-  /// Generates a readable 8-char temporary password (Google-style).
-  /// Format: Word + Symbol + 3 digits  →  e.g. Rice@472, Beef#839, Lime!253
+  /// Generates a strong, secure 10-char temporary password.
+  /// Guarantees: at least 8+ chars, 1 uppercase, 1 lowercase, 1 digit, and 1 special character.
   String _generatePassword() {
-    const words = [
-      'Rice', 'Beef', 'Pork', 'Fish', 'Crab', 'Milk', 'Lime', 'Corn',
-      'Mint', 'Salt', 'Gold', 'Teal', 'Bold', 'Fast', 'Cool', 'Warm',
-      'Mango', 'Lemon', 'Sugar', 'Cream', 'Bread', 'Spice', 'Basil',
-      'Flame', 'Swift', 'Storm', 'Blaze', 'Frost', 'Maple', 'Cedar',
-    ];
-    const symbols = ['@', '#', '!'];
-    const digits = '2345678';
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnpqrstuvwxyz';
+    const digits = '23456789';
+    const specials = '@#\$%&*!?';
+    const all = '$upper$lower$digits$specials';
+
     final rng = Random.secure();
-    final word = words[rng.nextInt(words.length)];
-    final sym = symbols[rng.nextInt(symbols.length)];
-    final d1 = digits[rng.nextInt(digits.length)];
-    final d2 = digits[rng.nextInt(digits.length)];
-    final d3 = digits[rng.nextInt(digits.length)];
-    return '$word$sym$d1$d2$d3';
+
+    // Guarantee required character classes (2 upper, 3 lower, 2 digits, 2 special + 1 random = 10 chars)
+    final chars = <String>[
+      upper[rng.nextInt(upper.length)],
+      upper[rng.nextInt(upper.length)],
+      lower[rng.nextInt(lower.length)],
+      lower[rng.nextInt(lower.length)],
+      lower[rng.nextInt(lower.length)],
+      digits[rng.nextInt(digits.length)],
+      digits[rng.nextInt(digits.length)],
+      specials[rng.nextInt(specials.length)],
+      specials[rng.nextInt(specials.length)],
+      all[rng.nextInt(all.length)],
+    ];
+
+    // Shuffle characters to avoid predictable ordering
+    chars.shuffle(rng);
+    return chars.join();
   }
 
   /// Auto-detect the department based on role title keywords.
@@ -1972,11 +1972,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
       text: isEditing ? (staff['id'] ?? '') : 'EMP${_nextEmpNumber.toString().padLeft(3, '0')}',
     );
 
-    String selectedDept = isEditing ? (staff['dept'] ?? 'Kitchen') : 'Kitchen';
     String selectedRole = isEditing ? (staff['role'] ?? 'Cook') : 'Cook';
+    String selectedDept = _detectDeptFromRole(selectedRole);
     bool createLoginAccount = !isEditing && _isPortalRole(selectedRole);
     bool isPasswordVisible = false;
-    int selectedLevel = isEditing ? (staff['level'] ?? 2) : 2;
+    int selectedLevel = _detectLevelFromRole(selectedRole);
     String selectedStatus = isEditing ? (staff['status'] ?? 'active') : 'active';
     String? currentPhoto = isEditing ? (staff['image'] as String?) : null;
 
@@ -2585,99 +2585,46 @@ Text(
                               ),
                               const SizedBox(width: 10),
 
-                              // Department (Auto-updated from Role)
+                              // Department (Auto-assigned from Role, Locked / Read-only)
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _inputLabel('Department *'),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      height: 48,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                                      alignment: Alignment.centerLeft,
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFF8FAFC),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(color: _slateLight),
                                       ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value: deptOptions.contains(selectedDept) ? selectedDept : deptOptions.first,
-                                          isExpanded: true,
-                                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                                          items: [
-                                            ...deptOptions.map((d) => DropdownMenuItem(
-                                              value: d,
-                                              child: Text(d, style: GoogleFonts.plusJakartaSans(fontSize: 12), overflow: TextOverflow.ellipsis),
-                                            )),
-                                            DropdownMenuItem(
-                                              value: '__add_dept__',
-                                              child: Row(
-                                                children: [
-                                                  const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
-                                                  const SizedBox(width: 6),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Add Another Dept',
-                                                      style: GoogleFonts.plusJakartaSans(
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: _emerald,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                          onChanged: (val) async {
-                                            if (val == '__add_dept__') {
-                                              final ctrl = TextEditingController();
-                                              final newDept = await showDialog<String>(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                                  title: Text('Add Department', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16)),
-                                                  content: TextField(
-                                                    controller: ctrl,
-                                                    autofocus: true,
-                                                    decoration: _inputDecoration('e.g. Delivery, Bar, Maintenance', Icons.business_rounded),
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () => Navigator.pop(ctx),
-                                                      child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate)),
-                                                    ),
-                                                    ElevatedButton(
-                                                      onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-                                                      style: ElevatedButton.styleFrom(backgroundColor: _emerald, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                                                      child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (newDept != null && newDept.isNotEmpty) {
-                                                setDialogState(() {
-                                                  if (!deptOptions.contains(newDept)) deptOptions.add(newDept);
-                                                  selectedDept = newDept;
-                                                });
-                                                setState(() {
-                                                  if (!_departments.contains(newDept)) _departments.add(newDept);
-                                                });
-                                                _saveCustomDepartments();
-                                              }
-                                            } else if (val != null) {
-                                              setDialogState(() => selectedDept = val);
-                                            }
-                                          },
+                                      child: Text(
+                                        selectedDept.isEmpty ? 'Auto-assigned' : selectedDept,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF1E293B),
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        'Department',
-                                        style: GoogleFonts.plusJakartaSans(fontSize: 9, color: _slate, fontWeight: FontWeight.w500),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.auto_awesome_rounded, size: 10, color: _slate),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'Auto-assigned from Role',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 9,
+                                              color: _slate,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -2911,7 +2858,7 @@ Text(
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Auto-generated. Share with staff then ask them to change it.',
+                                    'Auto-generated strong password (8+ chars, upper, lower, number & symbol).',
                                     style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF64748B)),
                                   ),
                                 ],
@@ -2921,17 +2868,17 @@ Text(
                           ],
                           const SizedBox(height: 14),
 
-                          // Hierarchy Level (L4=Exec top, L1=Support bottom)
+                          // Hierarchy Level (Auto-assigned from Role, Read-only)
                           _inputLabel('Staff Hierarchy Level'),
                           Row(
                             children: [
-                              _levelChip(1, 'L1\nSupport', selectedLevel == 1, () => setDialogState(() => selectedLevel = 1)),
+                              _levelChip(1, 'L1\nSupport', selectedLevel == 1),
                               const SizedBox(width: 6),
-                              _levelChip(2, 'L2\nStaff', selectedLevel == 2, () => setDialogState(() => selectedLevel = 2)),
+                              _levelChip(2, 'L2\nStaff', selectedLevel == 2),
                               const SizedBox(width: 6),
-                              _levelChip(3, 'L3\nSr. Mgr', selectedLevel == 3, () => setDialogState(() => selectedLevel = 3)),
+                              _levelChip(3, 'L3\nSr. Mgr', selectedLevel == 3),
                               const SizedBox(width: 6),
-                              _levelChip(4, 'L4\nExec', selectedLevel == 4, () => setDialogState(() => selectedLevel = 4)),
+                              _levelChip(4, 'L4\nExec', selectedLevel == 4),
                             ],
                           ),
                           const SizedBox(height: 14),
@@ -3215,9 +3162,19 @@ Text(
                                 showValidationError('Please enter a valid email address (e.g. maria.staff@yangchow.com).');
                                 return;
                               }
-                              if (createLoginAccount && password.length < 6) {
-                                showValidationError('Temporary password must be at least 6 characters.');
-                                return;
+                              if (createLoginAccount) {
+                                if (password.length < 8) {
+                                  showValidationError('Temporary password must be at least 8 characters.');
+                                  return;
+                                }
+                                final hasUpper = RegExp(r'[A-Z]').hasMatch(password);
+                                final hasLower = RegExp(r'[a-z]').hasMatch(password);
+                                final hasDigit = RegExp(r'[0-9]').hasMatch(password);
+                                final hasSpecial = RegExp(r'[@#\$%!&*^%+=?_\-]').hasMatch(password);
+                                if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+                                  showValidationError('Temporary password must contain at least 1 uppercase, 1 lowercase, 1 digit, and 1 special character.');
+                                  return;
+                                }
                               }
 
                               int colorHex = 0xFF14332E;
@@ -4583,7 +4540,7 @@ Text(
     );
   }
 
-  Widget _levelChip(int level, String label, bool isSelected, VoidCallback onTap) {
+  Widget _levelChip(int level, String label, bool isSelected, [VoidCallback? onTap]) {
     return Expanded(
       child: InkWell(
         onTap: onTap,

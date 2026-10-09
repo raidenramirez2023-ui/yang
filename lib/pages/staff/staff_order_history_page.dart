@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/refund_service.dart';
+import 'package:yang_chow/services/receipt_pdf_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 
 class StaffOrderHistoryPage extends StatefulWidget {
   const StaffOrderHistoryPage({super.key});
@@ -26,23 +28,28 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
 
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Today', 'This Week'];
   int _currentPage = 1;
   static const int _itemsPerPage = 20;
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  late final Stream<List<Map<String, dynamic>>> _ordersStream;
 
-  // ── Fetch orders ───────────────────────────────────────────────────────────
-  Stream<List<Map<String, dynamic>>> _ordersStream() {
-    return _supabase
+  @override
+  void initState() {
+    super.initState();
+    _ordersStream = _supabase
         .from('orders')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 
   // ── Filter helpers ─────────────────────────────────────────────────────────
@@ -176,111 +183,118 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
           ),
         ),
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _ordersStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: _primaryDark),
-            );
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Error loading orders: ${snapshot.error}',
-                style: GoogleFonts.inter(color: _red, fontSize: 13),
-              ),
-            );
-          }
+      body: Column(
+        children: [
+          // Top filter controls (kept outside StreamBuilder so it never unmounts or loses focus)
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Column(
+              children: [
+                _buildSearchBar(),
+                const SizedBox(height: 10),
+                _buildFilterChips(),
+              ],
+            ),
+          ),
 
-          final allOrders = snapshot.data ?? [];
-          final filtered = _applyFilters(allOrders);
+          // Stream Content
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _ordersStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _primaryDark),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error loading orders: ${snapshot.error}',
+                      style: GoogleFonts.inter(color: _red, fontSize: 13),
+                    ),
+                  );
+                }
 
-          // Calculate summary metrics for currently visible orders
-          double totalRevenue = 0.0;
-          int refundedCount = 0;
+                final allOrders = snapshot.data ?? [];
+                final filtered = _applyFilters(allOrders);
 
-          for (final o in filtered) {
-            final isFull = o['refund_status'] == 'full_refund';
-            if (!isFull) {
-              final amt = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
-              totalRevenue += amt;
-            }
-            if (o['refund_status'] == 'full_refund' ||
-                o['refund_status'] == 'partial_refund') {
-              refundedCount++;
-            }
-          }
+                // Calculate summary metrics for currently visible orders
+                double totalRevenue = 0.0;
+                int refundedCount = 0;
 
-          return Column(
-            children: [
-              // Top filter controls
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Column(
+                for (final o in filtered) {
+                  final isFull = o['refund_status'] == 'full_refund';
+                  if (!isFull) {
+                    final amt = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+                    totalRevenue += amt;
+                  }
+                  if (o['refund_status'] == 'full_refund' ||
+                      o['refund_status'] == 'partial_refund') {
+                    refundedCount++;
+                  }
+                }
+
+                return Column(
                   children: [
-                    _buildSearchBar(),
-                    const SizedBox(height: 10),
-                    _buildFilterChips(filtered.length),
+                    // Summary metric banner
+                    if (filtered.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _border),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildMetricItem(
+                              icon: Icons.receipt_long_rounded,
+                              label: 'Total Orders',
+                              value: '${filtered.length}',
+                              color: _textDark,
+                            ),
+                            Container(width: 1, height: 28, color: _border),
+                            _buildMetricItem(
+                              icon: Icons.payments_rounded,
+                              label: 'Net Sales',
+                              value: '₱ ${_fmt.format(totalRevenue)}',
+                              color: const Color(0xFF166534),
+                            ),
+                            Container(width: 1, height: 28, color: _border),
+                            _buildMetricItem(
+                              icon: Icons.assignment_return_rounded,
+                              label: 'Refunds',
+                              value: '$refundedCount',
+                              color: refundedCount > 0 ? _red : _grey,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Table Content
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? _buildEmptyState()
+                          : _buildOrdersTable(filtered),
+                    ),
                   ],
-                ),
-              ),
-
-              // Summary metric banner
-              if (filtered.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildMetricItem(
-                        icon: Icons.receipt_long_rounded,
-                        label: 'Total Orders',
-                        value: '${filtered.length}',
-                        color: _textDark,
-                      ),
-                      Container(width: 1, height: 28, color: _border),
-                      _buildMetricItem(
-                        icon: Icons.payments_rounded,
-                        label: 'Net Sales',
-                        value: '₱ ${_fmt.format(totalRevenue)}',
-                        color: const Color(0xFF166534),
-                      ),
-                      Container(width: 1, height: 28, color: _border),
-                      _buildMetricItem(
-                        icon: Icons.assignment_return_rounded,
-                        label: 'Refunds',
-                        value: '$refundedCount',
-                        color: refundedCount > 0 ? _red : _grey,
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Table Content
-              Expanded(
-                child: filtered.isEmpty
-                    ? _buildEmptyState()
-                    : _buildOrdersTable(filtered),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -330,6 +344,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       ),
       child: TextField(
         controller: _searchController,
+        focusNode: _searchFocusNode,
         keyboardType: TextInputType.text,
         onChanged: (v) => setState(() {
           _searchQuery = v.trim();
@@ -361,7 +376,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
     );
   }
 
-  Widget _buildFilterChips(int count) {
+  Widget _buildFilterChips() {
     return Row(
       children: _filters.map((f) {
         final selected = _selectedFilter == f;
@@ -501,7 +516,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
         borderRadius: BorderRadius.circular(14),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            const minTableWidth = 920.0;
+            const minTableWidth = 990.0;
             final isConstrained = constraints.maxWidth < minTableWidth;
 
             final tableWidget = Column(
@@ -540,7 +555,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                         child: Center(child: _tableHeaderLabel('STATUS')),
                       ),
                       SizedBox(
-                        width: 190,
+                        width: 260,
                         child: Center(child: _tableHeaderLabel('ACTIONS')),
                       ),
                     ],
@@ -565,6 +580,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                         formatTs: _formatTs,
                         onViewDetails: () => _showOrderDetailsDialog(context, order),
                         onRefund: () => _showPosRefundDialog(context, order),
+                        onReprint: () => _handleReprintOrder(context, order),
                       );
                     },
                   ),
@@ -1141,6 +1157,34 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 10),
+                            ElevatedButton.icon(
+                              icon: const Icon(
+                                Icons.print_rounded,
+                                size: 15,
+                                color: Colors.white,
+                              ),
+                              label: Text(
+                                'Reprint Receipt',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryDark,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _handleReprintOrder(context, order);
+                              },
+                            ),
                             if (!isFullRefund) ...[
                               const SizedBox(width: 10),
                               ElevatedButton.icon(
@@ -1272,6 +1316,328 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
     } catch (_) {
       return [];
     }
+  }
+
+  // ── POS Reprint Receipt Handler ───────────────────────────────────────────
+  Future<void> _handleReprintOrder(
+      BuildContext context, Map<String, dynamic> order) async {
+    final tid = order['transaction_id']?.toString();
+    final dbid = order['id']?.toString() ?? '';
+    final orderId =
+        tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
+    final total = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final paid = (order['amount_paid'] as num?)?.toDouble() ?? total;
+    final change = (order['change_due'] as num?)?.toDouble() ?? 0.0;
+    final rawCreatedAt = order['created_at']?.toString();
+    final txnDate = rawCreatedAt != null
+        ? (DateTime.tryParse(rawCreatedAt)?.toLocal() ?? DateTime.now())
+        : DateTime.now();
+
+    final currentUser = _supabase.auth.currentUser;
+    final staffName = currentUser?.userMetadata?['full_name']?.toString() ??
+        currentUser?.userMetadata?['name']?.toString() ??
+        currentUser?.email?.split('@').first ??
+        order['cashier_name']?.toString() ??
+        'Cashier Staff';
+
+    final reasonCtrl =
+        TextEditingController(text: 'Customer requested duplicate copy');
+    String selectedPresetReason = 'Customer Request';
+    bool isPrinting = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryDark.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.print_rounded,
+                      color: _primaryDark, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reprint POS Receipt',
+                        style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _textDark),
+                      ),
+                      Text(
+                        'Official duplicate print for Order #$orderId',
+                        style: GoogleFonts.inter(fontSize: 11, color: _grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _border),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildReceiptRow(
+                            'Transaction Date',
+                            DateFormat('MMM dd, yyyy • hh:mm a')
+                                .format(txnDate)),
+                        const SizedBox(height: 4),
+                        _buildReceiptRow('Customer',
+                            (order['customer_name'] ?? 'Walk-in').toString()),
+                        const SizedBox(height: 4),
+                        _buildReceiptRow(
+                            'Total Amount', '₱ ${_fmt.format(total)}',
+                            isBold: true),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'REPRINT REASON (AUDIT COMPLIANCE)',
+                    style: GoogleFonts.inter(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: _grey,
+                        letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      'Customer Request',
+                      'Printer Paper Jam',
+                      'Tax / Accounting Audit',
+                      'Other Reason',
+                    ].map((reasonOption) {
+                      final isSelected = selectedPresetReason == reasonOption;
+                      return InkWell(
+                        onTap: () {
+                          setDlgState(() {
+                            selectedPresetReason = reasonOption;
+                            if (reasonOption == 'Customer Request') {
+                              reasonCtrl.text =
+                                  'Customer requested duplicate copy';
+                            } else if (reasonOption == 'Printer Paper Jam') {
+                              reasonCtrl.text =
+                                  'Thermal printer paper jam on initial print';
+                            } else if (reasonOption ==
+                                'Tax / Accounting Audit') {
+                              reasonCtrl.text =
+                                  'Store accounting duplicate filing';
+                            } else {
+                              reasonCtrl.clear();
+                            }
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? _primaryDark
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: isSelected ? _primaryDark : _border),
+                          ),
+                          child: Text(
+                            reasonOption,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: reasonCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason for audit log...',
+                      hintStyle: GoogleFonts.inter(
+                          fontSize: 12, color: const Color(0xFF94A3B8)),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: _border)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: _primaryDark)),
+                    ),
+                    style: GoogleFonts.inter(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isPrinting ? null : () => Navigator.pop(ctx),
+                child: Text('Cancel',
+                    style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _grey)),
+              ),
+              ElevatedButton.icon(
+                icon: isPrinting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.print_rounded,
+                        size: 15, color: Colors.white),
+                label: Text(
+                  isPrinting ? 'Preparing...' : 'Print Duplicate Copy',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryDark,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: isPrinting
+                    ? null
+                    : () async {
+                        setDlgState(() => isPrinting = true);
+                        try {
+                          final items =
+                              await _fetchOrderItems(order['id'].toString());
+                          final finalReason = reasonCtrl.text.trim().isNotEmpty
+                              ? reasonCtrl.text.trim()
+                              : selectedPresetReason;
+
+                          if (ctx.mounted) Navigator.pop(ctx);
+
+                          await ReceiptPdfService.printPosReceipt(
+                            transactionId: orderId,
+                            transactionDate: txnDate,
+                            items: items,
+                            totalAmount: total,
+                            paidAmount: paid,
+                            changeDue: change,
+                            paymentMethod:
+                                (order['payment_method'] ?? 'CASH').toString(),
+                            customerName: order['customer_name']?.toString(),
+                            customerAddress:
+                                order['customer_address']?.toString(),
+                            note: order['note']?.toString(),
+                            tableNumber: order['table_number']?.toString(),
+                            guestCount: (order['number_of_guests'] ??
+                                    order['guest_count'] as num?)
+                                ?.toInt(),
+                            serverName: order['server_name']?.toString(),
+                            cashierName: order['cashier_name']?.toString() ??
+                                staffName,
+                            discountAmount: (order['discount_amount'] as num?)
+                                    ?.toDouble() ??
+                                0.0,
+                            discountLabel:
+                                order['discount_label']?.toString() ?? 'None',
+                            discountName: order['discount_name']?.toString(),
+                            discountAddress:
+                                order['discount_address']?.toString(),
+                            diningOption:
+                                (order['order_type'] ?? 'Dine-in').toString(),
+                            isReprint: true,
+                            reprintedBy: staffName,
+                            reprintDate: DateTime.now(),
+                            reprintReason: finalReason,
+                          );
+
+                          // Audit trail logging
+                          await AuditLogService.logActivity(
+                            action: 'RECEIPT_REPRINT',
+                            module: 'POS',
+                            description:
+                                'Reprinted receipt for order #$orderId (Reason: $finalReason)',
+                            entityId: order['id'].toString(),
+                            metadata: {
+                              'order_id': orderId,
+                              'total_amount': total,
+                              'reprinted_by': staffName,
+                              'reprint_reason': finalReason,
+                              'timestamp': DateTime.now().toIso8601String(),
+                            },
+                          );
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded,
+                                        color: Colors.white, size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                        'Receipt #$orderId reprinted successfully (Duplicate Copy)'),
+                                  ],
+                                ),
+                                backgroundColor: _primaryDark,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to reprint receipt: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   // ── POS Refund Dialog ──────────────────────────────────────────────────────
@@ -1907,6 +2273,7 @@ class _OrderTableRow extends StatefulWidget {
   final String Function(String?) formatTs;
   final VoidCallback onViewDetails;
   final VoidCallback onRefund;
+  final VoidCallback onReprint;
 
   const _OrderTableRow({
     super.key,
@@ -1915,6 +2282,7 @@ class _OrderTableRow extends StatefulWidget {
     required this.formatTs,
     required this.onViewDetails,
     required this.onRefund,
+    required this.onReprint,
   });
 
   @override
@@ -2125,7 +2493,7 @@ class _OrderTableRowState extends State<_OrderTableRow> {
 
               // ACTIONS
               SizedBox(
-                width: 190,
+                width: 260,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -2143,7 +2511,7 @@ class _OrderTableRowState extends State<_OrderTableRow> {
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                            horizontal: 8, vertical: 6),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         side: const BorderSide(color: Color(0xFFCBD5E1)),
@@ -2152,7 +2520,32 @@ class _OrderTableRowState extends State<_OrderTableRow> {
                       ),
                       onPressed: widget.onViewDetails,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
+
+                    // Reprint button
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.print_rounded,
+                          size: 13, color: _primaryDark),
+                      label: Text(
+                        'Reprint',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _primaryDark,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6)),
+                      ),
+                      onPressed: widget.onReprint,
+                    ),
+                    const SizedBox(width: 6),
 
                     // Refund button
                     if (!isFullRefund)

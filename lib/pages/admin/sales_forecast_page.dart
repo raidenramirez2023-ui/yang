@@ -433,20 +433,20 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         confLabel = 'Very High (Secured Pipeline)';
       }
 
-      String opLoad = 'Normal na Araw';
+      String opLoad = 'Normal Operations';
       Color loadClr = const Color(0xFF10B981);
 
       if (totalForecast >= _historicalDailyAvg * 1.6 || matchingReservations.length >= 2) {
-        opLoad = 'Sobrang Dagsa (Peak)';
+        opLoad = 'High Demand (Peak)';
         loadClr = const Color(0xFFEF4444);
       } else if (totalForecast >= _historicalDailyAvg * 1.25 || matchingReservations.isNotEmpty) {
-        opLoad = 'Abala ang Kusina (Busy)';
+        opLoad = 'Busy Kitchen (Busy)';
         loadClr = const Color(0xFFF59E0B);
       } else if (totalForecast >= _historicalDailyAvg * 0.9) {
-        opLoad = 'Normal na Daloy (Steady)';
+        opLoad = 'Steady Operations (Steady)';
         loadClr = const Color(0xFF0284C7);
       } else {
-        opLoad = 'Maluwag na Araw (Light)';
+        opLoad = 'Light Demand (Light)';
         loadClr = const Color(0xFF10B981);
       }
 
@@ -481,7 +481,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   // ─────────────────────────────────────────────────────────────────────────────
 
   Future<void> _exportForecastToExcel() async {
-    GlobalMessenger.showInfo('Ginagawa ang Sales Forecast Excel report...');
+    GlobalMessenger.showInfo('Generating Sales Forecast Excel report...');
 
     try {
       final excel = excel_pkg.Excel.createExcel();
@@ -511,31 +511,31 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       }
 
       // SHEET 1: DAILY PROJECTIONS
-      final sheet1 = excel['Inaasahang Benta Bawat Araw'];
+      final sheet1 = excel['Daily Sales Projections'];
       sheet1.setColumnWidth(0, 18.0);
       sheet1.setColumnWidth(1, 10.0);
       sheet1.setColumnWidth(2, 16.0);
       sheet1.setColumnWidth(3, 16.0);
-      sheet1.setColumnWidth(4, 18.0);
+      sheet1.setColumnWidth(4, 20.0);
       sheet1.setColumnWidth(5, 18.0);
       sheet1.setColumnWidth(6, 20.0);
       sheet1.setColumnWidth(7, 18.0);
       sheet1.setColumnWidth(8, 22.0);
 
-      appendRow(sheet1, [excel_pkg.TextCellValue('YANG CHOW RESTAURANT — TINATAYANG BENTA (SALES FORECAST)')], style: titleStyle);
-      appendRow(sheet1, [excel_pkg.TextCellValue('Na-generate: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())} • Horizon: Susunod na $_selectedHorizonDays Araw')]);
+      appendRow(sheet1, [excel_pkg.TextCellValue('YANG CHOW RESTAURANT — SALES FORECAST & PREDICTIVE AUDIT')], style: titleStyle);
+      appendRow(sheet1, [excel_pkg.TextCellValue('Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())} • Horizon: Next $_selectedHorizonDays Days')]);
       sheet1.appendRow([excel_pkg.TextCellValue('')]);
 
       appendRow(sheet1, [
-        excel_pkg.TextCellValue('Petsa'),
-        excel_pkg.TextCellValue('Araw'),
+        excel_pkg.TextCellValue('Date'),
+        excel_pkg.TextCellValue('Day'),
         excel_pkg.TextCellValue('Catering / Events'),
         excel_pkg.TextCellValue('Advance Orders'),
-        excel_pkg.TextCellValue('Sigurado Na (Bookings)'),
-        excel_pkg.TextCellValue('Tantyang Walk-In'),
-        excel_pkg.TextCellValue('Kabuuang Inaasahan'),
-        excel_pkg.TextCellValue('Katumpakan'),
-        excel_pkg.TextCellValue('Katayuan sa Kusina'),
+        excel_pkg.TextCellValue('Guaranteed (Bookings)'),
+        excel_pkg.TextCellValue('Projected Walk-In'),
+        excel_pkg.TextCellValue('Total Forecast'),
+        excel_pkg.TextCellValue('Confidence'),
+        excel_pkg.TextCellValue('Kitchen Status'),
       ], style: headerStyle);
 
       for (var f in _dailyForecasts) {
@@ -553,7 +553,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       }
 
       // SHEET 2: CONFIRMED BOOKINGS PIPELINE
-      final sheet2 = excel['Mga Kumpirmadong Bookings'];
+      final sheet2 = excel['Confirmed Bookings Pipeline'];
       sheet2.setColumnWidth(0, 16.0);
       sheet2.setColumnWidth(1, 16.0);
       sheet2.setColumnWidth(2, 22.0);
@@ -563,13 +563,13 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       sheet2.setColumnWidth(6, 16.0);
 
       appendRow(sheet2, [
-        excel_pkg.TextCellValue('Petsa ng Event'),
-        excel_pkg.TextCellValue('Uri ng Booking'),
-        excel_pkg.TextCellValue('Pangalan ng Customer'),
-        excel_pkg.TextCellValue('Detalye'),
-        excel_pkg.TextCellValue('Bisita / Pax'),
-        excel_pkg.TextCellValue('Halaga'),
-        excel_pkg.TextCellValue('Katayuan ng Bayad'),
+        excel_pkg.TextCellValue('Event Date'),
+        excel_pkg.TextCellValue('Booking Type'),
+        excel_pkg.TextCellValue('Customer Name'),
+        excel_pkg.TextCellValue('Details'),
+        excel_pkg.TextCellValue('Guests / Pax'),
+        excel_pkg.TextCellValue('Amount'),
+        excel_pkg.TextCellValue('Payment Status'),
       ], style: headerStyle);
 
       for (var f in _dailyForecasts) {
@@ -581,7 +581,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             excel_pkg.TextCellValue(r['event_type']?.toString() ?? 'Banquet'),
             excel_pkg.IntCellValue((r['number_of_guests'] as num?)?.toInt() ?? 0),
             excel_pkg.DoubleCellValue((r['total_price'] as num?)?.toDouble() ?? 0.0),
-            excel_pkg.TextCellValue(r['payment_status']?.toString() ?? 'Kumpirmado'),
+            excel_pkg.TextCellValue(r['payment_status']?.toString() ?? 'Confirmed'),
           ]);
         }
         for (var a in f.advanceOrderBookings) {
@@ -595,7 +595,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             excel_pkg.TextCellValue('Advance Order ($orderType)'),
             excel_pkg.IntCellValue(guests),
             excel_pkg.DoubleCellValue((a['total_price'] as num?)?.toDouble() ?? 0.0),
-            excel_pkg.TextCellValue(a['payment_status']?.toString() ?? 'Bayad Na'),
+            excel_pkg.TextCellValue(a['payment_status']?.toString() ?? 'Paid'),
           ]);
         }
       }
@@ -604,7 +604,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       if (excelBytes == null) throw Exception('Excel encoding failed');
       final Uint8List bytes = Uint8List.fromList(excelBytes);
 
-      final fileName = 'Yang_Chow_Sales_Forecast_${_selectedHorizonDays}Araw_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}';
+      final fileName = 'Yang_Chow_Sales_Forecast_${_selectedHorizonDays}Days_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}';
 
       // 1. Direct Web Download
       if (kIsWeb) {
@@ -614,7 +614,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         if (downloaded) {
-          GlobalMessenger.showSuccess('Sales Forecast Excel na-download: $fileName.xlsx');
+          GlobalMessenger.showSuccess('Sales Forecast Excel downloaded: $fileName.xlsx');
           return;
         }
       } else {
@@ -706,7 +706,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
-                      'Tinatayang Benta (Sales Forecast Report)',
+                      'Sales Forecast & Predictive Analytics Report',
                       style: pw.TextStyle(fontSize: 12, color: PdfColor.fromHex('#475569')),
                     ),
                   ],
@@ -715,11 +715,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text(
-                      'Susunod na $_selectedHorizonDays Araw',
+                      'Next $_selectedHorizonDays Days',
                       style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
                     ),
                     pw.Text(
-                      'Na-generate: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.now())}',
+                      'Generated: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.now())}',
                       style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                     ),
                   ],
@@ -742,25 +742,25 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 children: [
                   pw.Column(
                     children: [
-                      pw.Text('KABUUANG INAASAHANG BENTA', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                      pw.Text('TOTAL PROJECTED SALES', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatPdfAmt(totalProjected), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#14332E'))),
                     ],
                   ),
                   pw.Column(
                     children: [
-                      pw.Text('SIGURADONG BENTA (NAKA-BOOK)', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                      pw.Text('GUARANTEED REVENUE (BOOKED)', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatPdfAmt(totalGuaranteed), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0284C7'))),
-                      pw.Text('${totalProjected > 0 ? ((totalGuaranteed / totalProjected) * 100).toStringAsFixed(1) : 0}% ng Kabuuan', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                      pw.Text('${totalProjected > 0 ? ((totalGuaranteed / totalProjected) * 100).toStringAsFixed(1) : 0}% of Total', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                     ],
                   ),
                   pw.Column(
                     children: [
-                      pw.Text('TANTYANG WALK-IN / DINE-IN', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                      pw.Text('ESTIMATED WALK-IN / DINE-IN', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatPdfAmt(totalWalkIn), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#F59E0B'))),
-                      pw.Text('Base sa kasaysayan ng benta', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                      pw.Text('Based on historical daily sales trend', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                     ],
                   ),
                 ],
@@ -771,15 +771,15 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             // Table
             pw.TableHelper.fromTextArray(
               headers: [
-                'Petsa',
-                'Araw',
+                'Date',
+                'Day',
                 'Catering / Events',
                 'Advance Orders',
-                'Sigurado Na',
-                'Tantyang Walk-In',
-                'Kabuuang Inaasahan',
-                'Katumpakan',
-                'Katayuan sa Kusina',
+                'Guaranteed',
+                'Est. Walk-In',
+                'Total Forecast',
+                'Confidence',
+                'Kitchen Status',
               ],
               data: _dailyForecasts.map((f) => [
                 f.dateFormatted,
@@ -806,13 +806,13 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       // Direct download / save
       final List<int> rawPdf = await doc.save();
       final Uint8List pdfBytes = Uint8List.fromList(rawPdf);
-      final fileName = 'Yang_Chow_Sales_Forecast_${_selectedHorizonDays}Araw_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+      final fileName = 'Yang_Chow_Sales_Forecast_${_selectedHorizonDays}Days_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
 
       // 1. Direct Web Download
       if (kIsWeb) {
         final downloaded = downloadBinaryFile(pdfBytes, fileName, 'application/pdf');
         if (downloaded) {
-          GlobalMessenger.showSuccess('Sales Forecast PDF na-download: $fileName');
+          GlobalMessenger.showSuccess('Sales Forecast PDF downloaded: $fileName');
           return;
         }
       } else {
@@ -826,7 +826,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 final targetPath = '${downloadsDir.path}\\$fileName';
                 final file = File(targetPath);
                 await file.writeAsBytes(pdfBytes);
-                GlobalMessenger.showSuccess('Sales Forecast PDF na-save sa Downloads: $fileName');
+                GlobalMessenger.showSuccess('Sales Forecast PDF saved to Downloads: $fileName');
                 return;
               }
             }
@@ -889,7 +889,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     CircularProgressIndicator(color: AppTheme.adminPrimaryAccent),
                     SizedBox(height: 16),
                     Text(
-                      'Kinukwenta ang inaasahang benta batay sa bookings at kasaysayan ng resto...',
+                      'Calculating projected sales based on confirmed bookings and historical trends...',
                       style: TextStyle(fontSize: 13, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -1014,7 +1014,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       runSpacing: 6,
                       children: [
                         const Text(
-                          'Tinatayang Benta (Sales Forecast)',
+                          'Sales Forecast & Predictive Analytics',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
@@ -1035,7 +1035,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
                               SizedBox(width: 4),
                               Text(
-                                'LIVE • NAKA-KONEKTA SA SYSTEM',
+                                'LIVE • SYSTEM CONNECTED',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
@@ -1050,7 +1050,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Pagtataya sa papasok na kita ng Yang Chow sa mga darating na araw base sa mga kumpirmadong bookings, advance pre-orders, at karaniwang benta ng walk-in customers.',
+                      'Projected store revenue and demand forecasting based on confirmed reservations, advance pre-orders, and historical walk-in dining trends.',
                       style: TextStyle(
                         fontSize: 13,
                         color: AppTheme.adminSecondaryText.withValues(alpha: 0.9),
@@ -1076,7 +1076,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Piliin ang Panahon:',
+                    'Select Horizon:',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
                   ),
                   const SizedBox(height: 6),
@@ -1092,9 +1092,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildHorizonChip('7 Araw (1 Linggo)', 7),
-                          _buildHorizonChip('14 Araw (2 Linggo)', 14),
-                          _buildHorizonChip('Buong Buwan (30 Araw)', 30),
+                          _buildHorizonChip('7 Days (1 Week)', 7),
+                          _buildHorizonChip('14 Days (2 Weeks)', 14),
+                          _buildHorizonChip('Full Month (30 Days)', 30),
                         ],
                       ),
                     ),
@@ -1112,7 +1112,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     onPressed: () => _fetchAndCalculateForecast(isSilent: false),
                     icon: const Icon(Icons.refresh_rounded, size: 16),
                     label: Text(
-                      'I-refresh (${DateFormat('hh:mm a').format(_lastRefreshTime)})',
+                      'Refresh (${DateFormat('hh:mm a').format(_lastRefreshTime)})',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     style: OutlinedButton.styleFrom(
@@ -1125,7 +1125,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   OutlinedButton.icon(
                     onPressed: _exportForecastToExcel,
                     icon: const Icon(Icons.table_chart_outlined, size: 16, color: Color(0xFF16A34A)),
-                    label: const Text('I-download sa Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    label: const Text('Export to Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF16A34A),
                       side: const BorderSide(color: Color(0xFF86EFAC)),
@@ -1137,7 +1137,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   ElevatedButton.icon(
                     onPressed: _downloadPdf,
                     icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: Colors.white),
-                    label: const Text('I-download PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    label: const Text('Download PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF14332E),
                       foregroundColor: Colors.white,
@@ -1195,7 +1195,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Paano kinukwenta ang Tinatayang Benta? Pinagsamang Siguradong Bookings + Tantyang Walk-In.',
+                'How is Sales Forecast Calculated? Sum of Confirmed Advance Bookings + Estimated POS Walk-in.',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF166534)),
               ),
             ),
@@ -1212,7 +1212,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Tingnan ang Gabay',
+                      'View Methodology',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
                     ),
                     SizedBox(width: 4),
@@ -1252,12 +1252,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Gabay para kay Admin: Paano kinukwenta ang Tinatayang Benta?',
+                      'Admin Guide: How is Sales Forecast Calculated?',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Madaling unawain! Ang tantyang kita ay pinagsama mula sa dalawang bahagi:',
+                      'Intuitive & Transparent! Projected turnover combines two distinct components:',
                       style: TextStyle(fontSize: 12, color: Color(0xFF15803D)),
                     ),
                   ],
@@ -1266,7 +1266,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               IconButton(
                 onPressed: () => setState(() => _showExplainer = false),
                 icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF166534)),
-                tooltip: 'Itago ang gabay',
+                tooltip: 'Hide guide',
               ),
             ],
           ),
@@ -1277,22 +1277,22 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               final items = [
                 _buildGuideStepCard(
                   stepNum: '1',
-                  title: 'Siguradong Benta (Naka-Book Na)',
-                  desc: 'Mula sa mga approved Catering Reservations at Advance Pre-Orders na kumpirmado na sa system.',
+                  title: 'Guaranteed Revenue (Booked)',
+                  desc: 'From approved Catering Reservations and Advance Pre-Orders confirmed in the system.',
                   color: const Color(0xFF0284C7),
                   icon: Icons.verified_rounded,
                 ),
                 _buildGuideStepCard(
                   stepNum: '2',
-                  title: 'Tantyang Walk-In & Dine-In',
-                  desc: 'Kinalkula base sa totoong benta ng resto noong mga nakaraang araw (mas malakas tuwing Biyernes hanggang Linggo).',
+                  title: 'Estimated Walk-In & Dine-In',
+                  desc: 'Calculated from historical restaurant sales (typically higher Friday through Sunday).',
                   color: const Color(0xFFF59E0B),
                   icon: Icons.storefront_rounded,
                 ),
                 _buildGuideStepCard(
                   stepNum: '=',
-                  title: 'Kabuuang Inaasahang Benta',
-                  desc: 'Pinagsamang Bookings + Walk-In upang magabayan ang admin sa pamimili ng sangkap at pag-duty ng staff.',
+                  title: 'Total Projected Gross Sales',
+                  desc: 'Combined Bookings + Walk-In to guide admin in purchasing ingredients and scheduling staff.',
                   color: const Color(0xFF14332E),
                   icon: Icons.payments_rounded,
                 ),
@@ -1457,9 +1457,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             SizedBox(
               width: cardWidth,
               child: _buildFeaturedKpiCard(
-                title: 'KABUUANG INAASAHANG BENTA',
+                title: 'PROJECTED GROSS SALES',
                 value: _currencyFormat.format(totalProjected),
-                subtitle: 'Susunod na $_selectedHorizonDays araw',
+                subtitle: 'Next $_selectedHorizonDays days',
                 chipLabel: '${(_momentumFactor >= 1.0 ? '+' : '')}${((_momentumFactor - 1.0) * 100).toStringAsFixed(1)}%',
                 chipColor: _momentumFactor >= 1.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
                 icon: Icons.payments_rounded,
@@ -1470,10 +1470,10 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             SizedBox(
               width: cardWidth,
               child: _buildStandardKpiCard(
-                title: 'SIGURADONG BENTA',
+                title: 'GUARANTEED REVENUE',
                 value: _currencyFormat.format(totalGuaranteed),
-                subtitle: '$totalBookings kumpirmadong bookings',
-                badgeText: 'SURE NA KITA',
+                subtitle: '$totalBookings confirmed bookings',
+                badgeText: 'CONFIRMED',
                 badgeColor: const Color(0xFF0284C7),
                 icon: Icons.verified_rounded,
                 accentColor: const Color(0xFF0284C7),
@@ -1484,9 +1484,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             SizedBox(
               width: cardWidth,
               child: _buildStandardKpiCard(
-                title: 'TANTYANG DINE-IN / WALK-IN',
+                title: 'ESTIMATED DINE-IN / WALK-IN',
                 value: _currencyFormat.format(totalWalkIn),
-                subtitle: 'Mula sa regular na benta sa resto',
+                subtitle: 'Based on regular sales trend',
                 badgeText: 'REGULAR',
                 badgeColor: const Color(0xFFF59E0B),
                 icon: Icons.storefront_rounded,
@@ -1498,11 +1498,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             SizedBox(
               width: cardWidth,
               child: _buildStandardKpiCard(
-                title: 'PINAKAMALAKAS NA ARAW',
+                title: 'PEAK SALES DAY',
                 value: peakDay != null ? peakDay.dayName.toUpperCase() : 'N/A',
                 subtitle: peakDay != null
                     ? '${peakDay.dateFormatted} • ${_currencyFormat.format(peakDay.totalForecastRevenue)}'
-                    : 'Walang data',
+                    : 'No data',
                 badgeText: peakDay?.operationalLoad ?? 'Normal',
                 badgeColor: peakDay?.loadColor ?? const Color(0xFF10B981),
                 icon: Icons.local_fire_department_rounded,
@@ -1753,14 +1753,14 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       Icon(Icons.timeline_rounded, size: 18, color: Color(0xFF14332E)),
                       SizedBox(width: 8),
                       Text(
-                        'Araw-Araw na Takbo ng Inaasahang Benta',
+                        'Daily Projected Revenue Trends',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                       ),
                     ],
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Nakikita dito kung gaano kalaki ang benta bawat araw batay sa mga naka-book at regular na customers',
+                    'Daily projected sales trajectory combining confirmed advance bookings and estimated regular walk-in dining',
                     style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
                   ),
                 ],
@@ -1770,9 +1770,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 spacing: 12,
                 runSpacing: 4,
                 children: [
-                  _buildLegendIndicator('Sigurado (May Bookings Na)', const Color(0xFF0284C7)),
-                  _buildLegendIndicator('Tantyang Walk-In', const Color(0xFFF59E0B)),
-                  _buildLegendIndicator('Kabuuang Inaasahang Benta', const Color(0xFF8B5CF6)),
+                  _buildLegendIndicator('Guaranteed (Bookings)', const Color(0xFF0284C7)),
+                  _buildLegendIndicator('Estimated Walk-In', const Color(0xFFF59E0B)),
+                  _buildLegendIndicator('Total Projected Sales', const Color(0xFF8B5CF6)),
                 ],
               ),
             ],
@@ -1827,7 +1827,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         const SizedBox(height: 5),
 
                         // Total
-                        _tooltipRow(const Color(0xFF8B5CF6), 'Kabuuang Inaasahang Kita'),
+                        _tooltipRow(const Color(0xFF8B5CF6), 'Total Projected Revenue'),
                         Padding(
                           padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
                           child: Text(_currencyFormat.format(f.totalForecastRevenue),
@@ -1835,7 +1835,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
 
                         // Naka-Book
-                        _tooltipRow(const Color(0xFF0284C7), 'Sigurado (Naka-Book na)'),
+                        _tooltipRow(const Color(0xFF0284C7), 'Guaranteed (Booked)'),
                         Padding(
                           padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
                           child: Text(_currencyFormat.format(f.guaranteedPipeline),
@@ -1843,7 +1843,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
 
                         // Walk-In
-                        _tooltipRow(const Color(0xFFF59E0B), 'Tantyang Walk-In / Dine-In'),
+                        _tooltipRow(const Color(0xFFF59E0B), 'Estimated Walk-In / Dine-In'),
                         Padding(
                           padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
                           child: Text(_currencyFormat.format(f.projectedWalkInRevenue),
@@ -1858,7 +1858,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           children: [
                             const Icon(Icons.info_outline_rounded, size: 9.5, color: Colors.white38),
                             const SizedBox(width: 4),
-                            const Text('Antas ng Abala: ', style: TextStyle(color: Colors.white38, fontSize: 9)),
+                            const Text('Kitchen Status: ', style: TextStyle(color: Colors.white38, fontSize: 9)),
                             Flexible(
                               child: Text(f.operationalLoad,
                                   style: TextStyle(color: f.loadColor, fontWeight: FontWeight.w700, fontSize: 9)),
@@ -1957,14 +1957,14 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               Icon(Icons.pie_chart_outline_rounded, size: 18, color: Color(0xFF14332E)),
               SizedBox(width: 8),
               Text(
-                'Saan Nanggagaling ang Kita?',
+                'Revenue Channel Breakdown',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
               ),
             ],
           ),
           const SizedBox(height: 4),
           const Text(
-            'Bahagi ng bawat uri ng customer sa kabuuang inaasahang kita',
+            'Channel contribution to overall projected gross sales',
             style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
           ),
           const SizedBox(height: 20),
@@ -1979,7 +1979,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
-                        'KABUUAN',
+                        'TOTAL',
                         style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
                       ),
                       Text(
@@ -2089,7 +2089,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
 
   Widget _buildOperationalAlertsCard() {
     // Find peak days with heavy catering bookings
-    final highVolumeDays = _dailyForecasts.where((f) => f.operationalLoad.contains('Dagsa') || f.operationalLoad.contains('Abala') || f.confirmedReservationsCount > 0).toList();
+    final highVolumeDays = _dailyForecasts.where((f) => f.operationalLoad.contains('Peak') || f.operationalLoad.contains('Busy') || f.confirmedReservationsCount > 0).toList();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -2115,7 +2115,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Paalala sa Kusina, Imbentaryo, at Staffing',
+                  'Kitchen, Inventory & Staffing Advisory',
                   style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w800,
@@ -2125,12 +2125,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 const SizedBox(height: 6),
                 if (highVolumeDays.isNotEmpty) ...[
                   Text(
-                    'Maraming customer ang inaasahan sa: ${highVolumeDays.map((d) => '${d.dayName} (${d.dateFormatted})').join(', ')}. Irekomenda ng admin na mag-order ng pangkusina ng maaga at mag-dagdag ng staff para maiwasan ang bottleneck.',
+                    'High customer traffic expected on: ${highVolumeDays.map((d) => '${d.dayName} (${d.dateFormatted})').join(', ')}. Recommend ordering kitchen supplies early and scheduling additional staff to avoid bottlenecks.',
                     style: const TextStyle(fontSize: 12.5, color: Color(0xFF78350F), height: 1.35),
                   ),
                 ] else ...[
                   const Text(
-                    'Karaniwan lang ang inaasahang dami ng customer sa panahong ito. Normal na staffing at regular na imbentaryo ang sapat.',
+                    'Normal customer volume expected during this period. Standard staffing and regular inventory levels are sufficient.',
                     style: TextStyle(fontSize: 12.5, color: Color(0xFF78350F), height: 1.35),
                   ),
                 ],
@@ -2175,12 +2175,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Inaasahang Benta Bawat Araw',
+                      'Daily Projected Sales Schedule',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Detalye ng kita bawat araw: kumpirmadong bookings at tantyang walk-in customers',
+                      'Daily revenue breakdown: confirmed bookings and estimated walk-in customers',
                       style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
                     ),
                   ],
@@ -2206,7 +2206,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             Icon(Icons.calculate_outlined, size: 14, color: Color(0xFF334155)),
                             SizedBox(width: 5),
                             Text(
-                              'Paano Kinukwenta?',
+                              'How It Works',
                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
                             ),
                           ],
@@ -2221,7 +2221,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         border: Border.all(color: AppTheme.cardBorder),
                       ),
                       child: Text(
-                        '${_dailyForecasts.length} araw na forecast',
+                        '${_dailyForecasts.length}-day forecast',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
                       ),
                     ),
@@ -2232,7 +2232,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           ),
           const Divider(height: 1, color: AppTheme.cardBorder),
 
-          // Pormula Banner (Clean, Neutral, Educational)
+          // Formula Banner (Clean, Neutral, Educational)
           Container(
             margin: const EdgeInsets.fromLTRB(20, 14, 20, 14),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -2257,13 +2257,13 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         text: TextSpan(
                           style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.4),
                           children: [
-                            const TextSpan(text: 'Pormula sa Pagtataya: ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-                            const TextSpan(text: 'Kabuuang Inaasahan = '),
-                            const TextSpan(text: 'Sigurado na (Bookings)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            const TextSpan(text: 'Forecasting Formula: ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                            const TextSpan(text: 'Total Projected = '),
+                            const TextSpan(text: 'Guaranteed (Bookings)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                             const TextSpan(text: ' + ['),
-                            const TextSpan(text: 'Dating Benta sa Araw (90-Day Baseline)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            const TextSpan(text: 'Historical Day-of-Week (90-Day Baseline)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                             const TextSpan(text: ' × '),
-                            TextSpan(text: 'Trend ng Benta (${_momentumFactor.toStringAsFixed(3)})', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                            TextSpan(text: 'Sales Trend (${_momentumFactor.toStringAsFixed(3)})', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                             const TextSpan(text: ']'),
                           ],
                         ),
@@ -2285,7 +2285,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Alamin ang Detalye', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                        Text('View Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                         SizedBox(width: 3),
                         Icon(Icons.arrow_forward_rounded, size: 12),
                       ],
@@ -2324,15 +2324,15 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text('PETSA AT ARAW', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                    child: Text('DATE & DAY', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                   Expanded(
                     flex: 2,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('SIGURADO NA', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
-                        Text('(Catering at Advance)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
+                        Text('GUARANTEED', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                        Text('(Catering & Advance)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
                       ],
                     ),
                   ),
@@ -2341,7 +2341,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('TANTYANG WALK-IN', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                        Text('ESTIMATED WALK-IN', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                         Text('(90-Day Baseline × Trend)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
                       ],
                     ),
@@ -2351,18 +2351,18 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('KABUUANG INAASAHAN', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
-                        Text('(Sigurado + Walk-In)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
+                        Text('TOTAL PROJECTED', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                        Text('(Guaranteed + Walk-In)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
                       ],
                     ),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text('KATAYUAN SA KUSINA', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                    child: Text('KITCHEN STATUS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                   SizedBox(
                     width: 110,
-                    child: Text('AKSYON', textAlign: TextAlign.end, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                    child: Text('ACTION', textAlign: TextAlign.end, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                 ],
               ),
@@ -2378,7 +2378,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               itemBuilder: (context, index) {
                 final f = _dailyForecasts[index];
                 final hasBookings = f.confirmedReservationsCount > 0 || f.confirmedAdvanceCount > 0;
-                final isHeavy = f.operationalLoad.contains('Abala') || f.operationalLoad.contains('Dagsa') || f.operationalLoad.contains('Peak');
+                final isHeavy = f.operationalLoad.contains('Busy') || f.operationalLoad.contains('Peak');
 
                 return Container(
                   color: index.isEven ? Colors.white : const Color(0xFFF8FAFC),
@@ -2416,7 +2416,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 Text(
                                   hasBookings
                                       ? '${f.confirmedReservationsCount} Event${f.confirmedReservationsCount != 1 ? 's' : ''} • ${f.confirmedAdvanceCount} Pre-Order'
-                                      : 'Walang naka-iskedyul na event',
+                                      : 'No scheduled events',
                                   style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText),
                                 ),
                               ],
@@ -2440,7 +2440,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               ),
                             ),
                             Text(
-                              f.totalGuestsCount > 0 ? '${f.totalGuestsCount} bisita' : 'Walang booking',
+                              f.totalGuestsCount > 0 ? '${f.totalGuestsCount} guests' : 'No bookings',
                               style: const TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText),
                             ),
                           ],
@@ -2488,7 +2488,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               ),
                             ),
                             child: Text(
-                              isHeavy ? 'Abala (Busy)' : 'Normal (Steady)',
+                              isHeavy ? 'Busy' : 'Steady',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
@@ -2530,7 +2530,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    hasBookings ? 'Tingnan' : 'Kwenta',
+                                    hasBookings ? 'View' : 'Details',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w800,
@@ -2558,7 +2558,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               itemBuilder: (context, index) {
                 final f = _dailyForecasts[index];
                 final hasBookings = f.confirmedReservationsCount > 0 || f.confirmedAdvanceCount > 0;
-                final isHeavy = f.operationalLoad.contains('Abala') || f.operationalLoad.contains('Dagsa') || f.operationalLoad.contains('Peak');
+                final isHeavy = f.operationalLoad.contains('Busy') || f.operationalLoad.contains('Peak');
 
                 return Padding(
                   padding: const EdgeInsets.all(16),
@@ -2582,7 +2582,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               ),
                             ),
                             child: Text(
-                              isHeavy ? 'Abala' : 'Normal',
+                              isHeavy ? 'Busy' : 'Steady',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
@@ -2599,7 +2599,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Sigurado (Bookings)', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
+                              const Text('Guaranteed (Bookings)', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
                               Text(
                                 _currencyFormat.format(f.guaranteedPipeline),
                                 style: TextStyle(
@@ -2613,7 +2613,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Tantyang Walk-In', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
+                              const Text('Est. Walk-In', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
                               Text(
                                 _currencyFormat.format(f.projectedWalkInRevenue),
                                 style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
@@ -2623,7 +2623,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text('Kabuuan', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
+                              const Text('Total', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
                               Text(
                                 _currencyFormat.format(f.totalForecastRevenue),
                                 style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Color(0xFF14332E)),
@@ -2644,8 +2644,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           ),
                           label: Text(
                             hasBookings
-                                ? 'Tingnan (${f.confirmedReservationsCount + f.confirmedAdvanceCount} Booking at Kwenta)'
-                                : 'Tingnan ang Kwenta',
+                                ? 'View (${f.confirmedReservationsCount + f.confirmedAdvanceCount} Bookings & Math)'
+                                : 'View Calculation',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF14332E)),
                           ),
                         ),
@@ -2678,7 +2678,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           'amount': (r['total_price'] as num?)?.toDouble() ?? 0.0,
           'deposit': (r['deposit_amount'] as num?)?.toDouble() ?? 0.0,
           'guests': (r['number_of_guests'] as num?)?.toInt() ?? 0,
-          'status': r['payment_status'] ?? 'Kumpirmado',
+          'status': r['payment_status'] ?? 'Confirmed',
           'color': const Color(0xFF14332E),
           'icon': Icons.celebration_rounded,
         });
@@ -2695,7 +2695,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           'amount': (a['total_price'] as num?)?.toDouble() ?? 0.0,
           'deposit': (a['total_price'] as num?)?.toDouble() ?? 0.0,
           'guests': (a['number_of_guests'] as num?)?.toInt() ?? (isDineIn ? 1 : 0),
-          'status': a['payment_status'] ?? 'Bayad Na',
+          'status': a['payment_status'] ?? 'Paid',
           'color': isDineIn ? const Color(0xFF0D9488) : const Color(0xFF0284C7),
           'icon': isDineIn ? Icons.restaurant_rounded : Icons.takeout_dining_rounded,
         });
@@ -2732,7 +2732,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'Listahan ng mga Kumpirmadong Bookings',
+                      'Upcoming Confirmed Bookings Pipeline',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                     ),
                   ),
@@ -2745,7 +2745,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${allUpcomingBookings.length} Aktibong Bookings',
+                  '${allUpcomingBookings.length} Active Bookings',
                   style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
                 ),
               ),
@@ -2753,7 +2753,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           ),
           const SizedBox(height: 6),
           const Text(
-            'Mga naka-iskedyul na events at advance orders na kumpirmado na sa loob ng piniling panahon',
+            'Scheduled catering events and advance pre-orders confirmed within the selected horizon',
             style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
           ),
           const SizedBox(height: 20),
@@ -2767,7 +2767,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     Icon(Icons.event_available_rounded, size: 40, color: AppTheme.mediumGrey.withValues(alpha: 0.5)),
                     const SizedBox(height: 10),
                     const Text(
-                      'Wala pang naka-book na events o advance orders sa panahong ito.',
+                      'No upcoming catering events or advance orders in this period.',
                       style: TextStyle(fontSize: 12.5, color: AppTheme.adminSecondaryText),
                     ),
                   ],
@@ -2821,7 +2821,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              '${b['date']} • ${b['detail']}${b['guests'] > 1 ? ' (${b['guests']} bisita)' : ''}',
+                              '${b['date']} • ${b['detail']}${b['guests'] > 1 ? ' (${b['guests']} guests)' : ''}',
                               style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText),
                             ),
                           ],
@@ -2885,7 +2885,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Kabuuang Inaasahan: ${_currencyFormat.format(f.totalForecastRevenue)} • ${f.operationalLoad}',
+                        'Total Forecast: ${_currencyFormat.format(f.totalForecastRevenue)} • ${f.operationalLoad}',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                       ),
                     ],
@@ -2922,17 +2922,17 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 Icon(Icons.calculate_outlined, size: 15, color: Color(0xFF14332E)),
                                 SizedBox(width: 6),
                                 Text(
-                                  'PAGKUKWENTA NG TANYA SA ARAW NA ITO',
+                                  'CALCULATION BREAKDOWN FOR THIS DAY',
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.4),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 10),
-                            // Row 1: Sigurado na (Bookings)
+                            // Row 1: Guaranteed (Bookings)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('1. Sigurado na (Bookings):', style: TextStyle(fontSize: 11.5, color: Color(0xFF475569))),
+                                const Text('1. Guaranteed Pipeline (Bookings):', style: TextStyle(fontSize: 11.5, color: Color(0xFF475569))),
                                 Text(
                                   _currencyFormat.format(f.guaranteedPipeline),
                                   style: TextStyle(
@@ -2952,11 +2952,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 ),
                               ),
                             const SizedBox(height: 6),
-                            // Row 2: Tantyang Walk-In
+                            // Row 2: Projected Walk-In
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('2. Tantyang Walk-In (DOW × Trend):', style: TextStyle(fontSize: 11.5, color: Color(0xFF475569))),
+                                const Text('2. Estimated Walk-In (DOW × Trend):', style: TextStyle(fontSize: 11.5, color: Color(0xFF475569))),
                                 Text(
                                   _currencyFormat.format(f.projectedWalkInRevenue),
                                   style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
@@ -2966,7 +2966,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             Padding(
                               padding: const EdgeInsets.only(left: 12, top: 2),
                               child: Text(
-                                '(90-Day Baseline ng ${f.dayName}: ${_currencyFormat.format(f.baseDowRevenue)} [mula sa ${_currencyFormat.format(_dowTotalRevenue[f.date.weekday] ?? (f.baseDowRevenue * 13))} sa ${_dowTotalDays[f.date.weekday] ?? 13} na ${f.dayName}] × Trend: ${f.momentumFactor.toStringAsFixed(3)})',
+                                '(90-Day Baseline for ${f.dayName}: ${_currencyFormat.format(f.baseDowRevenue)} [from ${_currencyFormat.format(_dowTotalRevenue[f.date.weekday] ?? (f.baseDowRevenue * 13))} across ${_dowTotalDays[f.date.weekday] ?? 13} ${f.dayName}s] × Trend: ${f.momentumFactor.toStringAsFixed(3)})',
                                 style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                               ),
                             ),
@@ -2974,11 +2974,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Divider(height: 1, color: Color(0xFFE2E8F0)),
                             ),
-                            // Row 3: Kabuuang Inaasahan
+                            // Row 3: Total Projected
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Kabuuang Inaasahan (1 + 2):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                                const Text('Total Projected Revenue (1 + 2):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
                                 Text(
                                   _currencyFormat.format(f.totalForecastRevenue),
                                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF14332E)),
@@ -3003,7 +3003,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Walang naka-iskedyul na catering event o advance pre-orders sa araw na ito. Ang buong benta ay nakabatay sa 90-day walk-in baseline ng restaurant.',
+                                  'No scheduled catering events or advance pre-orders on this day. Total projected sales is driven by the 90-day walk-in baseline of the restaurant.',
                                   style: TextStyle(fontSize: 11, color: Color(0xFF475569)),
                                 ),
                               ),
@@ -3013,7 +3013,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ],
 
                       if (f.reservationBookings.isNotEmpty) ...[
-                        const Text('CATERING / EVENTS NA NAKA-BOOK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.5)),
+                        const Text('CONFIRMED CATERING / EVENTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.5)),
                         const SizedBox(height: 8),
                         ...f.reservationBookings.map((r) => Container(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -3032,7 +3032,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(r['customer_name']?.toString() ?? 'Client', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
-                                    Text('${r['event_type'] ?? 'Banquet'} • ${r['number_of_guests'] ?? 0} Bisita / Pax', style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
+                                    Text('${r['event_type'] ?? 'Banquet'} • ${r['number_of_guests'] ?? 0} Guests / Pax', style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
                                   ],
                                 ),
                               ),
@@ -3044,7 +3044,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ],
 
                       if (f.advanceOrderBookings.isNotEmpty) ...[
-                        const Text('MGA ADVANCE / PRE-ORDERS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0284C7), letterSpacing: 0.5)),
+                        const Text('CONFIRMED ADVANCE / PRE-ORDERS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0284C7), letterSpacing: 0.5)),
                         const SizedBox(height: 8),
                         ...f.advanceOrderBookings.map((a) {
                           final rawType = a['order_type']?.toString().trim();
@@ -3052,7 +3052,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           final isDineIn = orderType.toLowerCase().contains('dine');
                           final typeColor = isDineIn ? const Color(0xFF0D9488) : const Color(0xFF0284C7);
                           final guests = (a['number_of_guests'] as num?)?.toInt();
-                          final guestsText = (isDineIn && guests != null && guests > 0) ? ' • $guests bisita' : '';
+                          final guestsText = (isDineIn && guests != null && guests > 0) ? ' • $guests guests' : '';
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
@@ -3081,7 +3081,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(a['customer_name']?.toString() ?? 'Customer', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
-                                      Text('Advance Order ($orderType$guestsText) • Bayad: ${a['payment_status'] ?? 'Bayad Na'}', style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
+                                      Text('Advance Order ($orderType$guestsText) • Payment: ${a['payment_status'] ?? 'Paid'}', style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
                                     ],
                                   ),
                                 ),
@@ -3106,7 +3106,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Isara', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  child: const Text('Close', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -3144,7 +3144,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       Icon(Icons.calculate_outlined, size: 22, color: Color(0xFF14332E)),
                       SizedBox(width: 8),
                       Text(
-                        'Paano Kinukwenta ang Tanya?',
+                        'How is Sales Forecast Calculated?',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
                       ),
                     ],
@@ -3157,7 +3157,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               ),
               const SizedBox(height: 2),
               const Text(
-                'Paliwanag sa paraan ng pagkalkula ng inaasahang benta ng Yang Chow',
+                'Explanation of Yang Chow predictive sales forecasting methodology',
                 style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
               ),
               const SizedBox(height: 16),
@@ -3182,17 +3182,17 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'PANGUNAHING PORMULA',
+                              'CORE FORECASTING FORMULA',
                               style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.5),
                             ),
                             SizedBox(height: 6),
                             Text(
-                              'Kabuuang Inaasahan = Sigurado na (Bookings) + Tantyang Walk-In',
+                              'Total Projected Revenue = Guaranteed Pipeline (Bookings) + Estimated Walk-In',
                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'kung saan:  Tantyang Walk-In = (Dating Benta sa Araw / 90-Day Baseline) × Trend ng Benta',
+                              'where:  Estimated Walk-In = (Day-of-Week 90-Day Baseline) × Sales Momentum Trend',
                               style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
                             ),
                           ],
@@ -3200,7 +3200,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ),
                       const SizedBox(height: 14),
 
-                      // Hakbang 1: Sigurado na
+                      // Step 1: Guaranteed Pipeline
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -3228,12 +3228,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Sigurado na (Bookings Pipeline)',
+                                    'Guaranteed Pipeline (Confirmed Bookings)',
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Direktang binabasa mula sa database ang lahat ng kumpirmadong Catering Events at Advance Pre-Orders (Take-out/Pick-up/Delivery) na nakatakda sa araw na iyon. Ito ay 100% kumpirmadong benta dahil may booking reservation o bayad na.',
+                                    'Directly pulled from the database for all confirmed Catering Events and Advance Pre-Orders (Take-out/Pick-up/Delivery) scheduled for that specific date. This represents 100% committed revenue backed by reservations or deposits.',
                                     style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                   ),
                                 ],
@@ -3244,7 +3244,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ),
                       const SizedBox(height: 10),
 
-                      // Hakbang 2: Tantyang Walk-In
+                      // Step 2: Estimated Walk-In
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -3275,17 +3275,17 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'Tantyang Walk-In Customers',
+                                        'Estimated Dine-In & Walk-In Customers',
                                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '• 90-Day Baseline: Kinukuha ang karaniwang benta (average sales) ng bawat araw ng linggo sa nakaraang 90 araw. Kabuuang benta ng resto sa nakalipas na 90 araw: ${_currencyFormat.format(_totalHistorical90dRevenue)} (mula sa $_totalHistoricalDaysSampled na araw na naitala).',
+                                        '• 90-Day Day-of-Week Baseline: Computes historical average daily sales for each specific day of the week over the trailing 90 days. Total restaurant historical revenue sampled: ${_currencyFormat.format(_totalHistorical90dRevenue)} across $_totalHistoricalDaysSampled recorded days.',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '• Trend ng Benta (${_momentumFactor.toStringAsFixed(3)}): Kinukumpara ang benta ng huling 14 araw laban sa naunang 14 araw upang malaman kung lumalakas o bahagyang humupa ang benta kamakailan. Naka-lock ito sa 0.85 hanggang 1.25 para maiwasan ang labis na pagbabago.',
+                                        '• Sales Momentum Trend (${_momentumFactor.toStringAsFixed(3)}): Evaluates recent sales velocity by comparing the trailing 14 days against the prior 14 days to capture current growth or seasonality. Clamped safely between 0.85 and 1.25 to prevent outlier swings.',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                       ),
                                     ],
@@ -3310,11 +3310,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       const Text(
-                                        'TALAAN NG 90-ARAW NA KITA AT BASELINE',
+                                        '90-DAY HISTORICAL REVENUE & BASELINE SUMMARY',
                                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.3),
                                       ),
                                       Text(
-                                        'Kabuuan: ${_currencyFormat.format(_totalHistorical90dRevenue)} ($_totalHistoricalDaysSampled araw)',
+                                        'Total: ${_currencyFormat.format(_totalHistorical90dRevenue)} ($_totalHistoricalDaysSampled days)',
                                         style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF14332E)),
                                       ),
                                     ],
@@ -3322,21 +3322,21 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                   const SizedBox(height: 8),
                                   const Row(
                                     children: [
-                                      Expanded(flex: 2, child: Text('ARAW', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
-                                      Expanded(flex: 3, child: Text('KABUUANG KITA (90d)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
-                                      Expanded(flex: 2, child: Text('BILANG', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
+                                      Expanded(flex: 2, child: Text('DAY', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
+                                      Expanded(flex: 3, child: Text('TOTAL REVENUE (90d)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
+                                      Expanded(flex: 2, child: Text('COUNT', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
                                       Expanded(flex: 3, child: Text('BASELINE (AVERAGE)', textAlign: TextAlign.end, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
                                     ],
                                   ),
                                   const Divider(height: 10, color: Color(0xFFE2E8F0)),
                                   ...[
-                                    {'dow': 1, 'name': 'Lunes'},
-                                    {'dow': 2, 'name': 'Martes'},
-                                    {'dow': 3, 'name': 'Miyerkules'},
-                                    {'dow': 4, 'name': 'Huwebes'},
-                                    {'dow': 5, 'name': 'Biyernes'},
-                                    {'dow': 6, 'name': 'Sabado'},
-                                    {'dow': 7, 'name': 'Linggo'},
+                                    {'dow': 1, 'name': 'Monday'},
+                                    {'dow': 2, 'name': 'Tuesday'},
+                                    {'dow': 3, 'name': 'Wednesday'},
+                                    {'dow': 4, 'name': 'Thursday'},
+                                    {'dow': 5, 'name': 'Friday'},
+                                    {'dow': 6, 'name': 'Saturday'},
+                                    {'dow': 7, 'name': 'Sunday'},
                                   ].map((d) {
                                     final dow = d['dow'] as int;
                                     final name = d['name'] as String;
@@ -3374,7 +3374,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                           Expanded(
                                             flex: 2,
                                             child: Text(
-                                              '$days araw',
+                                              '$days days',
                                               style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                                             ),
                                           ),
@@ -3402,7 +3402,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ),
                       const SizedBox(height: 10),
 
-                      // Hakbang 3: Pagsasama
+                      // Step 3: Synthesis
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -3430,12 +3430,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Pagsasama (Kabuuang Inaasahan)',
+                                    'Synthesis (Total Projected Gross Sales)',
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Pinagsasama ang Sigurado na at ang Tantyang Walk-In para sa bawat darating na araw upang magabayan ang admin sa tamang pamimili ng sangkap sa supplier at pag-iskedyul ng tamang dami ng staff.',
+                                    'Aggregates guaranteed bookings with projected walk-in demand for every upcoming day. This provides management with actionable visibility for raw ingredient procurement and optimal staff rostering.',
                                     style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                   ),
                                 ],
@@ -3446,7 +3446,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       ),
                       const SizedBox(height: 14),
 
-                      // Halimbawa ng Kwenta
+                      // Example Calculation Box
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -3462,23 +3462,23 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 Icon(Icons.lightbulb_outline_rounded, size: 15, color: Color(0xFF334155)),
                                 SizedBox(width: 6),
                                 Text(
-                                  'HALIMBAWA SA TUNAY NA DATOS NG RESTAURANT',
+                                  'PRACTICAL EXAMPLE WITH LIVE RESTAURANT DATA',
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF334155), letterSpacing: 0.4),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Ipagpalagay na may darating na Biyernes na may ₱15,000 na catering reservation at ang 90-day baseline average sa Biyernes ay ₱7,945:',
+                              'Suppose an upcoming Friday has a ₱15,000 confirmed catering reservation, and Friday\'s 90-day baseline average is ₱7,945:',
                               style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.4),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '• Tantyang Walk-In: ₱7,945 × ${_momentumFactor.toStringAsFixed(3)} = ${_currencyFormat.format(7945 * _momentumFactor)}',
+                              '• Estimated Walk-In: ₱7,945 × ${_momentumFactor.toStringAsFixed(3)} = ${_currencyFormat.format(7945 * _momentumFactor)}',
                               style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                             ),
                             Text(
-                              '• Kabuuang Inaasahan: ₱15,000 + ${_currencyFormat.format(7945 * _momentumFactor)} = ${_currencyFormat.format(15000 + (7945 * _momentumFactor))}',
+                              '• Total Projected Sales: ₱15,000 + ${_currencyFormat.format(7945 * _momentumFactor)} = ${_currencyFormat.format(15000 + (7945 * _momentumFactor))}',
                               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF14332E)),
                             ),
                           ],
@@ -3499,7 +3499,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Isara', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  child: const Text('Close', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],

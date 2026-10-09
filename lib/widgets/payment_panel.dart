@@ -328,9 +328,9 @@ class _PaymentPanelState extends State<PaymentPanel>
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               // ===== HEADER SECTION =====
-              pw.Text("CEAZAR GABRIEL'S RES", style: headerStyle,
+              pw.Text("CEAZAR GABRIEL'S", style: headerStyle,
                 textAlign: pw.TextAlign.center),
-              pw.Text('TAURANT', style: headerStyle,
+              pw.Text('RESTAURANT', style: headerStyle,
                 textAlign: pw.TextAlign.center),
               pw.Text('YANG CHOW', style: subHeaderStyle,
                 textAlign: pw.TextAlign.center),
