@@ -2157,6 +2157,8 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
           });
         });
 
+    _loadInitialOrdersAndReservations();
+
     _resSubscription = Supabase.instance.client
         .from('reservations')
         .stream(primaryKey: ['id'])
@@ -2172,6 +2174,26 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
             }
           });
         });
+  }
+
+  Future<void> _loadInitialOrdersAndReservations() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('reservations')
+          .select();
+      if (mounted && res.isNotEmpty) {
+        setState(() {
+          _resRaw = List<Map<String, dynamic>>.from(res);
+          _initialLoading = false;
+          for (final o in res) {
+            final key = 'res_${o['id']}';
+            _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error initial fetch reservations in chef: $e');
+    }
   }
 
   // ── Update status for POS orders ──
@@ -4493,31 +4515,50 @@ class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
   }
 
   void _subscribe() {
+    _fetchInitialEvents();
     _sub = Supabase.instance.client
         .from('reservations')
         .stream(primaryKey: ['id'])
         .order('event_date', ascending: true)
         .listen((rows) {
           if (!mounted) return;
-          final filtered = rows.where((r) {
-            final isMenuBased = r['is_menu_based'] == true;
-            final ps = r['payment_status']?.toString().toLowerCase();
-            final isPaid = ps == 'paid' || ps == 'deposit_paid' || ps == 'fully_paid';
-            final menuItems = r['selected_menu_items'];
-            final hasMenu = menuItems != null && (menuItems as Map).isNotEmpty;
-            final isNotServed = r['kitchen_status']?.toString() != 'Done';
-            // Only show events that have been approved by admin in Payment Approvals
-            final status = r['status']?.toString().toLowerCase();
-            final isApproved = status == 'confirmed' || status == 'completed';
-            return isMenuBased && isPaid && hasMenu && isNotServed && isApproved;
-          }).toList();
-          setState(() {
-            _events = filtered;
-            _loading = false;
-          });
-          // Check and send 2-day reminder notifications if any event meets criteria
-          NotificationService.checkAndSendUpcomingEventReminders();
+          _processRows(rows);
         });
+  }
+
+  Future<void> _fetchInitialEvents() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('reservations')
+          .select()
+          .order('event_date', ascending: true);
+      if (mounted && rows.isNotEmpty) {
+        _processRows(List<Map<String, dynamic>>.from(rows));
+      }
+    } catch (e) {
+      debugPrint('Error initial fetch reservations: $e');
+    }
+  }
+
+  void _processRows(List<Map<String, dynamic>> rows) {
+    final filtered = rows.where((r) {
+      final isMenuBased = r['is_menu_based'] == true;
+      final ps = r['payment_status']?.toString().toLowerCase();
+      final isPaid = ps == 'paid' || ps == 'deposit_paid' || ps == 'fully_paid';
+      final menuItems = r['selected_menu_items'];
+      final hasMenu = menuItems != null && (menuItems as Map).isNotEmpty;
+      final isNotServed = r['kitchen_status']?.toString() != 'Done';
+      // Only show events that have been approved by admin in Payment Approvals
+      final status = r['status']?.toString().toLowerCase();
+      final isApproved = status == 'confirmed' || status == 'completed';
+      return isMenuBased && isPaid && hasMenu && isNotServed && isApproved;
+    }).toList();
+    setState(() {
+      _events = filtered;
+      _loading = false;
+    });
+    // Check and send 2-day reminder notifications if any event meets criteria
+    NotificationService.checkAndSendUpcomingEventReminders();
   }
 
   @override

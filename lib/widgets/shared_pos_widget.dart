@@ -18,6 +18,7 @@ import '../models/menu_item.dart';
 import '../services/menu_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_pos_service.dart';
+import '../services/receipt_pdf_service.dart';
 import '../utils/sound_helper.dart';
 
 
@@ -78,6 +79,11 @@ class ReceiptTemplate extends StatelessWidget {
 
   final String? discountAddress;
   final String? diningOption;
+  final bool isReprint;
+  final String? reprintedBy;
+  final DateTime? reprintDate;
+  final String? reprintReason;
+  final bool showActionButtons;
 
   ReceiptTemplate({
     super.key,
@@ -102,6 +108,11 @@ class ReceiptTemplate extends StatelessWidget {
     this.discountName,
     this.discountAddress,
     this.diningOption = 'Dine-in',
+    this.isReprint = false,
+    this.reprintedBy,
+    this.reprintDate,
+    this.reprintReason,
+    this.showActionButtons = true,
   }) : transactionDate = transactionDate ?? DateTime.now();
 
 
@@ -161,30 +172,73 @@ class ReceiptTemplate extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
 
           children: [
+            // ===== REPRINT BANNER (IF APPLICABLE) =====
+            if (isReprint) ...[
+              _starDivider(),
+              const Text(
+                '*** REPRINT COPY ***',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'monospace',
+                  color: Color(0xFFDC2626),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Text(
+                'NOT AN OFFICIAL RECEIPT',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  color: Color(0xFFDC2626),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              _starDivider(),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Reprinted:', style: TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                  Text(
+                    DateFormat('MMM dd, yyyy • hh:mm a').format(reprintDate ?? DateTime.now()),
+                    style: const TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (reprintedBy != null && reprintedBy!.isNotEmpty)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('By:', style: TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                    Text(reprintedBy!, style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                  ],
+                ),
+              if (reprintReason != null && reprintReason!.isNotEmpty)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Reason:', style: TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                    Text(reprintReason!, style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                  ],
+                ),
+              _dashDivider(),
+              const SizedBox(height: 6),
+            ],
 
             // ===== HEADER SECTION =====
-
             const Text(
-
-              'CEAZAR GABRIEL\'S RES',
-
+              'CEAZAR GABRIEL\'S',
               style: TextStyle(
-
                 fontSize: 15,
-
                 fontWeight: FontWeight.bold,
-
                 fontFamily: 'monospace',
-
               ),
-
               textAlign: TextAlign.center,
-
             ),
-
             const Text(
-
-              'TAURANT',
+              'RESTAURANT',
 
               style: TextStyle(
 
@@ -788,65 +842,65 @@ class ReceiptTemplate extends StatelessWidget {
             const SizedBox(height: 2),
 
             if (paymentMethod.toUpperCase().startsWith('SPLIT') && paymentMethod.contains('(')) ...[
-              ...paymentMethod
-                  .replaceFirst(RegExp(r'^SPLIT\s*\(?', caseSensitive: false), '')
-                  .replaceAll(')', '')
-                  .split(',')
-                  .map((part) {
-                    final p = part.trim();
-                    final colonIdx = p.indexOf(':');
-                    if (colonIdx != -1) {
-                      final m = p.substring(0, colonIdx).trim().toUpperCase();
-                      var valAndRef = p.substring(colonIdx + 1).trim();
-                      String? ref;
-                      final refMatch = RegExp(r'\[Ref:\s*([^\]]+)\]', caseSensitive: false).firstMatch(valAndRef);
-                      if (refMatch != null) {
-                        ref = refMatch.group(1)?.trim();
-                        valAndRef = valAndRef.replaceAll(refMatch.group(0)!, '').trim();
-                      }
-                      // Remove any stray currency symbol to prevent line wraps
-                      valAndRef = valAndRef.replaceAll('₱', '').trim();
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 2.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('  $m:', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                                Text(valAndRef, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                              ],
-                            ),
-                            if (ref != null && ref.isNotEmpty) ...[
-                              const SizedBox(height: 1),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Ref: $ref',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontFamily: 'monospace',
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    }
-                    return Row(
+              ...() {
+                final inner = paymentMethod
+                    .replaceFirst(RegExp(r'^SPLIT\s*\(?', caseSensitive: false), '')
+                    .replaceAll(RegExp(r'\)+$'), '')
+                    .trim();
+                final regex = RegExp(
+                  r'(?:^|,\s*)([A-Za-z0-9_\-\s]+?):\s*(?:₱|PHP\s*)?([0-9,]+(?:\.[0-9]+)?)(?:\s*\[Ref:\s*([^\]]+)\])?',
+                  caseSensitive: false,
+                );
+                final matches = regex.allMatches(inner).toList();
+                if (matches.isEmpty) {
+                  return [
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('  $p', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                        Text('  $paymentMethod', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
                         const SizedBox(),
                       ],
-                    );
-                  }),
+                    ),
+                  ];
+                }
+                return matches.map((match) {
+                  final m = match.group(1)?.trim().toUpperCase() ?? '';
+                  final valAndRef = match.group(2)?.trim() ?? '';
+                  final ref = match.group(3)?.trim();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 2.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('  $m:', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                            Text(valAndRef, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                          ],
+                        ),
+                        if (ref != null && ref.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Ref: $ref',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontFamily: 'monospace',
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }).toList();
+              }(),
             ] else ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -991,35 +1045,97 @@ class ReceiptTemplate extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            
-
-            // ===== OFFICIAL RECEIPT TEXT =====
-
-            const Align(
-
+            // ===== OFFICIAL RECEIPT / REPRINT NOTICE =====
+            Align(
               alignment: Alignment.center,
-
               child: Text(
-
-                'This serves as an official receipt.',
-
+                isReprint
+                    ? '*** DUPLICATE / REPRINT RECEIPT ***\nOriginal TXN: $_formattedDate $_formattedTime24'
+                    : 'This serves as an official receipt.',
                 style: TextStyle(
-
-                  fontSize: 12,
-
+                  fontSize: isReprint ? 10.5 : 12,
                   fontFamily: 'monospace',
-
                   fontWeight: FontWeight.bold,
-
+                  color: isReprint ? const Color(0xFFDC2626) : Colors.black,
                 ),
-
                 textAlign: TextAlign.center,
-
               ),
-
             ),
 
-            const SizedBox(height: 24),
+            if (showActionButtons) ...[
+              const SizedBox(height: 16),
+              _dashDivider(),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.print_rounded, size: 14, color: Colors.white),
+                      label: Text(
+                        isReprint ? 'Print Copy' : 'Print',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF14332E),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () async {
+                        final itemRows = cart.map((c) => {
+                          'item_name': c.item.name,
+                          'quantity': c.quantity,
+                          'unit_price': c.item.price,
+                        }).toList();
+
+                        await ReceiptPdfService.printPosReceipt(
+                          transactionId: transactionId,
+                          transactionDate: transactionDate,
+                          items: itemRows,
+                          totalAmount: totalAmount,
+                          paidAmount: paidAmount,
+                          changeDue: changeDue,
+                          paymentMethod: paymentMethod,
+                          customerName: customerName,
+                          customerAddress: customerAddress,
+                          note: note,
+                          tableNumber: tableNumber,
+                          guestCount: guestCount,
+                          serverName: serverName,
+                          cashierName: cashierName,
+                          discountAmount: discountAmount,
+                          discountLabel: discountLabel,
+                          discountName: discountName,
+                          discountAddress: discountAddress,
+                          diningOption: diningOption ?? 'Dine-in',
+                          isReprint: isReprint,
+                          reprintedBy: reprintedBy,
+                          reprintDate: reprintDate,
+                          reprintReason: reprintReason,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 14),
 
           ],
 
@@ -1033,13 +1149,37 @@ class ReceiptTemplate extends StatelessWidget {
 
 
 
-  
-
   Widget _dashDivider() {
 
     return const Text(
 
       '------------------------------------------------',
+
+      style: TextStyle(
+
+        fontSize: 12,
+
+        fontFamily: 'monospace',
+
+        letterSpacing: 0,
+
+      ),
+
+      maxLines: 1,
+
+      overflow: TextOverflow.clip,
+
+      textAlign: TextAlign.center,
+
+    );
+
+  }
+
+  Widget _starDivider() {
+
+    return const Text(
+
+      '************************************************',
 
       style: TextStyle(
 

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -238,7 +238,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           children: [
             CircularProgressIndicator(color: Color(0xFF14332E)),
             SizedBox(width: 16),
-            Expanded(child: Text('Generating Onsite GCash QR & Checkout link...')),
+            Expanded(child: Text('Generating Onsite E-wallet QR & Checkout link...')),
           ],
         ),
       ),
@@ -1123,6 +1123,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     final paginatedData = filtered.sublist(startIndex, endIndex);
     
     return Container(
+      clipBehavior: Clip.antiAlias,
       constraints: const BoxConstraints(minHeight: double.infinity),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1142,16 +1143,19 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final double tableWidth = constraints.maxWidth < 1100 ? 1100.0 : constraints.maxWidth;
-                final double availableWidth = (tableWidth - 32 - 84).clamp(0.0, double.infinity);
+                // Table fits 100% of available card width when >= 980px; scrolls cleanly inside the clipped card on smaller viewports
+                final double minTableWidth = 980.0;
+                final double tableWidth = constraints.maxWidth < minTableWidth ? minTableWidth : constraints.maxWidth;
+                // DataTable padding: horizontalMargin (16 * 2 = 32), columnSpacing (12 * 6 = 72)
+                final double availableWidth = (tableWidth - 32 - 72).clamp(0.0, double.infinity);
                 
-                final double customerWidth = availableWidth * 0.20;
-                final double orderIdWidth = availableWidth * 0.11;
-                final double eventDateWidth = availableWidth * 0.12;
-                final double totalWidth = availableWidth * 0.12;
-                final double paidWidth = availableWidth * 0.13;
-                final double remainingWidth = availableWidth * 0.14;
-                final double actionsWidth = availableWidth * 0.18;
+                final double customerWidth = availableWidth * 0.21;
+                final double orderIdWidth = availableWidth * 0.10;
+                final double eventDateWidth = availableWidth * 0.11;
+                final double totalWidth = availableWidth * 0.11;
+                final double paidWidth = availableWidth * 0.14;
+                final double remainingWidth = availableWidth * 0.13;
+                final double actionsWidth = availableWidth * 0.20;
 
                 return ScrollConfiguration(
                   behavior: ScrollConfiguration.of(context).copyWith(
@@ -1327,7 +1331,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                   ),
                                   DataCell(
                                     SizedBox(
-                                      width: paidWidth * 1.3,
+                                      width: paidWidth,
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1409,8 +1413,8 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                             message: 'Open official PayMongo QR Ph page & listen for payment in real-time',
                                             child: ElevatedButton.icon(
                                               onPressed: () => _generateOnsiteQrAndLink(item),
-                                              icon: const Icon(Icons.qr_code_scanner_rounded, size: 13),
-                                              label: const Text('Pay with GCash QR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                                              icon: const Icon(Icons.account_balance_wallet_rounded, size: 13),
+                                              label: const Text('Pay with E-wallet', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: const Color(0xFF0EA5E9),
                                                 foregroundColor: Colors.white,
@@ -1430,7 +1434,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                             child: ElevatedButton.icon(
                                               onPressed: () => _showMarkPaidDialog(item, true),
                                               icon: const Icon(Icons.check_circle_rounded, size: 12),
-                                              label: const Text('Mark Paid (Cash)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                                              label: const Text('Mark Paid (Cash)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: const Color(0xFF14332E),
                                                 foregroundColor: const Color(0xFFD9A441),
@@ -1785,7 +1789,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                               child: ElevatedButton.icon(
                                 onPressed: () => _generateOnsiteQrAndLink(item),
                                 icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
-                                label: const Text('Pay with GCash QR (Onsite)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                label: const Text('Pay with E-wallet (Onsite)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0EA5E9),
                                   foregroundColor: Colors.white,
@@ -2376,6 +2380,32 @@ class _OnsiteQrPaymentDialogState extends State<_OnsiteQrPaymentDialog> {
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // Confirm QR Payment Received Button (Immediate settlement override)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _pollingTimer?.cancel();
+                    Navigator.of(context).pop();
+                    widget.onPaymentSuccess(widget.item['id'], widget.remainingBalance);
+                  },
+                  icon: const Icon(Icons.check_circle_rounded, size: 16),
+                  label: const Text(
+                    'Confirm QR Payment Received',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF15803D),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ),
             ],
           ),

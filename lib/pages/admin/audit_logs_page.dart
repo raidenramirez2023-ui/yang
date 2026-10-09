@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:csv/csv.dart' as csv_pkg;
+import 'package:excel/excel.dart' as xl;
 
 import '../../models/audit_log_model.dart';
 import '../../services/audit_log_service.dart';
@@ -26,6 +26,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
 
   // View Mode: 'table' or 'timeline'
   String _viewMode = 'table';
+  bool _isExporting = false;
 
   // Filters
   final TextEditingController _searchController = TextEditingController();
@@ -128,7 +129,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     }
   }
 
-  Future<void> _exportLogsToCSV() async {
+  Future<void> _exportLogsToExcel() async {
     if (_logs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -139,62 +140,152 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       return;
     }
 
+    setState(() => _isExporting = true);
+
     try {
-      List<List<dynamic>> rows = [];
-      rows.add([
-        '${AppConstants.appName.toUpperCase()} AUDIT TRAIL REPORT',
-      ]);
-      rows.add([
-        'Exported At: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
-        'Total Records: ${_logs.length}',
-      ]);
-      rows.add([]);
-      rows.add([
+      final excel = xl.Excel.createExcel();
+      const sheetName = 'Audit Trail';
+      final sheet = excel[sheetName];
+      excel.setDefaultSheet(sheetName);
+      if (excel.sheets.containsKey('Sheet1') && sheetName != 'Sheet1') {
+        excel.delete('Sheet1');
+      }
+
+      // Title & Summary Block
+      final titleCell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
+      titleCell.value = xl.TextCellValue('${AppConstants.appName.toUpperCase()} AUDIT TRAIL REPORT');
+      titleCell.cellStyle = xl.CellStyle(
+        bold: true,
+        fontColorHex: xl.ExcelColor.fromHexString('FF14332E'),
+      );
+
+      final subtitleCell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1));
+      subtitleCell.value = xl.TextCellValue(
+        'Exported: ${DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now())}  |  Total Records: ${_logs.length}  |  Module: $_selectedModule  |  Range: $_selectedDateRange',
+      );
+      subtitleCell.cellStyle = xl.CellStyle(
+        italic: true,
+        fontColorHex: xl.ExcelColor.fromHexString('FF64748B'),
+      );
+
+      // Header Row (Row 3)
+      const headers = [
+        '#',
         'Timestamp',
-        'User Name',
-        'User Email',
+        'Operator / User',
+        'Email Address',
         'Role',
         'Module',
         'Action',
         'Description',
-        'Entity ID',
-        'Metadata (JSON)',
-      ]);
+        'Reference ID',
+        'Activity Details',
+      ];
 
-      for (var log in _logs) {
-        rows.add([
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(log.createdAt),
-          log.userName,
-          log.userEmail,
-          log.userRole,
-          log.module,
-          log.action,
-          log.description,
-          log.entityId ?? '',
-          jsonEncode(log.metadata),
-        ]);
+      const headerRowIndex = 3;
+      for (int col = 0; col < headers.length; col++) {
+        final cell = sheet.cell(
+          xl.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: headerRowIndex),
+        );
+        cell.value = xl.TextCellValue(headers[col]);
+        cell.cellStyle = xl.CellStyle(
+          bold: true,
+          backgroundColorHex: xl.ExcelColor.fromHexString('FF14332E'),
+          fontColorHex: xl.ExcelColor.fromHexString('FFFFFFFF'),
+        );
       }
 
-      final csvContent = csv_pkg.CsvCodec().encode(rows);
-      final bytes = Uint8List.fromList(utf8.encode(csvContent));
-      final fileName = 'audit_logs_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
+      // Data Rows
+      for (int i = 0; i < _logs.length; i++) {
+        final log = _logs[i];
+        final rowIndex = headerRowIndex + 1 + i;
+
+        final numStr = '${i + 1}';
+        final timeStr = DateFormat('yyyy-MM-dd hh:mm:ss a').format(log.createdAt);
+        final nameStr = log.userName;
+        final emailStr = log.userEmail;
+        final roleStr = log.userRole;
+        final moduleStr = log.module;
+        final actionStr = log.action;
+        final descStr = log.description;
+        final entityStr = log.entityId ?? '-';
+        final metaStr = _formatLogMetadata(log.metadata);
+
+        final rowValues = [
+          numStr,
+          timeStr,
+          nameStr,
+          emailStr,
+          roleStr,
+          moduleStr,
+          actionStr,
+          descStr,
+          entityStr,
+          metaStr,
+        ];
+
+        final isEven = (i % 2 == 0);
+        for (int col = 0; col < rowValues.length; col++) {
+          final cell = sheet.cell(
+            xl.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex),
+          );
+          cell.value = xl.TextCellValue(rowValues[col]);
+          if (!isEven) {
+            cell.cellStyle = xl.CellStyle(
+              backgroundColorHex: xl.ExcelColor.fromHexString('FFF8FAFC'),
+            );
+          }
+        }
+      }
+
+      // Column widths (generous so text never wraps or clips into ###)
+      final colWidths = [
+        8.0,   // #
+        26.0,  // Timestamp
+        22.0,  // Operator / User
+        32.0,  // Email Address
+        14.0,  // Role
+        16.0,  // Module
+        18.0,  // Action
+        55.0,  // Description
+        22.0,  // Reference ID
+        45.0,  // Activity Details
+      ];
+      for (int i = 0; i < colWidths.length; i++) {
+        sheet.setColumnWidth(i, colWidths[i]);
+      }
+
+      final excelBytes = excel.encode();
+      if (excelBytes == null) throw Exception('Failed to encode Excel file.');
+      final bytes = Uint8List.fromList(excelBytes);
+      final fileName = 'audit_logs_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
 
       final outputFilePath = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Audit Trail CSV Export',
+        dialogTitle: 'Save Audit Trail Excel Export',
         fileName: fileName,
         type: FileType.custom,
-        allowedExtensions: ['csv'],
+        allowedExtensions: ['xlsx'],
         bytes: bytes,
       );
 
       if (outputFilePath != null && mounted) {
+        AuditLogService.logActivity(
+          action: 'EXPORT_AUDIT_EXCEL',
+          module: 'System',
+          description: 'Exported ${_logs.length} audit logs to Excel ($fileName)',
+          metadata: {
+            'file_name': fileName,
+            'total_exported': _logs.length,
+          },
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Exported ${_logs.length} audit logs successfully!')),
+                Expanded(child: Text('Exported ${_logs.length} audit logs to Excel successfully!')),
               ],
             ),
             backgroundColor: const Color(0xFF15803D),
@@ -207,12 +298,27 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to export CSV: $e'),
+            content: Text('Failed to export Excel: $e'),
             backgroundColor: AppTheme.errorRed,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  String _formatLogMetadata(Map<String, dynamic> metadata) {
+    if (metadata.isEmpty) return '-';
+    try {
+      final entries = metadata.entries
+          .where((e) => e.value != null && e.value.toString().isNotEmpty)
+          .map((e) => '${e.key}: ${e.value}')
+          .join(' | ');
+      return entries.isNotEmpty ? entries : '-';
+    } catch (_) {
+      return jsonEncode(metadata);
     }
   }
 
@@ -1049,11 +1155,17 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
 
 
 
-                // Export CSV Button
+                // Export Excel Button
                 ElevatedButton.icon(
-                  onPressed: _exportLogsToCSV,
-                  icon: const Icon(Icons.download_rounded, size: 17),
-                  label: Text('Export CSV', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13)),
+                  onPressed: _isExporting ? null : _exportLogsToExcel,
+                  icon: _isExporting
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF14332E)),
+                        )
+                      : const Icon(Icons.table_view_rounded, size: 17),
+                  label: Text(_isExporting ? 'Exporting...' : 'Export Excel', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.warmGold,
                     foregroundColor: const Color(0xFF14332E),
@@ -1094,9 +1206,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: _exportLogsToCSV,
-                  icon: const Icon(Icons.download_rounded, size: 15),
-                  label: Text('Export CSV', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                  onPressed: _isExporting ? null : _exportLogsToExcel,
+                  icon: _isExporting
+                      ? const SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF14332E)),
+                        )
+                      : const Icon(Icons.table_view_rounded, size: 15),
+                  label: Text(_isExporting ? 'Exporting...' : 'Export Excel', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 11.5)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.warmGold,
                     foregroundColor: const Color(0xFF14332E),

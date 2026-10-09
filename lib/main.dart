@@ -267,32 +267,32 @@ class YangChowApp extends StatelessWidget {
         // Chef Portal Routes (with Deep Linking)
         // ==========================================
         '/chef/dashboard': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(initialTab: 0),
         ),
         '/chef/kitchen': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(initialTab: 0),
         ),
         '/chef/events': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(initialTab: 1),
         ),
         '/chef/finished': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(initialTab: 2),
         ),
         '/chef/requests': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(initialTab: 3),
         ),
         '/chef/stock': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(initialTab: 4),
         ),
@@ -301,32 +301,32 @@ class YangChowApp extends StatelessWidget {
         // Main Inventory Portal Routes (with Deep Linking)
         // ==========================================
         '/inventory/dashboard': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(initialIndex: 0),
         ),
         '/inventory/kitchen-requests': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(initialIndex: 1),
         ),
         '/inventory/manage-inventory': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(initialIndex: 2),
         ),
         '/inventory/storage-room': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(initialIndex: 3),
         ),
         '/inventory/petty-cash': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(initialIndex: 4),
         ),
         '/inventory/spoilage-waste': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(initialIndex: 5),
         ),
@@ -450,7 +450,7 @@ class YangChowApp extends StatelessWidget {
         ),
 
         '/pagsanjaninv-dashboard': (context) => const AuthGuard(
-          allowedRoles: ['pagsanjaninv', 'inventory staff'],
+          allowedRoles: ['pagsanjaninv', 'inventory staff', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: PagsanjaninvDashboardPage(),
         ),
@@ -462,7 +462,7 @@ class YangChowApp extends StatelessWidget {
         ),
 
         '/chef-dashboard': (context) => const AuthGuard(
-          allowedRoles: ['chef'],
+          allowedRoles: ['chef', 'admin', 'developer'],
           redirectRoute: '/staff-login',
           child: ChefDashboardPage(),
         ),

@@ -73,7 +73,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   // ── Stock Transactions Live Table State ──
   int _txFilterType = 0; // 0: All, 1: Incoming, 2: Outgoing, 3: Petty Cash
   final List<String> _txFilterLabels = ['All', 'Incoming (Deliveries)', 'Outgoing (Kitchen)', 'Petty Cash'];
-  int _txDateFilter = 0; // 0: Today, 1: This Week, 2: This Month, 3: All Time
+  int _txDateFilter = 3; // 0: Today, 1: This Week, 2: This Month, 3: All Time
   final List<String> _txDateFilterLabels = ['Today', 'This Week', 'This Month', 'All Time'];
   String _txSearchQuery = '';
   TextEditingController? _txSearchController;
@@ -364,12 +364,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         final startDate = DateTime(_selectedYear, _selectedMonth, startDay, 0, 0, 0).toUtc().toIso8601String();
         final endDate = DateTime(_selectedYear, _selectedMonth, endDay, 23, 59, 59).toUtc().toIso8601String();
 
-        final requestsResponse = await _supabase
+        var requestsResponse = await _supabase
             .from('kitchen_requests')
             .select('item_name, quantity_needed')
             .eq('status', 'Approved')
             .gte('created_at', startDate)
             .lte('created_at', endDate);
+
+        // Fallback: If no approved requests in the selected week, fetch recent approved requests
+        // so the top requested chart is populated with actual records instead of remaining blank
+        if (requestsResponse.isEmpty) {
+          final fallbackResponse = await _supabase
+              .from('kitchen_requests')
+              .select('item_name, quantity_needed')
+              .eq('status', 'Approved')
+              .order('created_at', ascending: false)
+              .limit(100);
+          if (fallbackResponse.isNotEmpty) {
+            requestsResponse = fallbackResponse;
+          }
+        }
 
         Map<String, int> topItemsMap = {};
         for (var req in requestsResponse) {

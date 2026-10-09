@@ -53,6 +53,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   String selectedChartType = 'Area'; // 'Area', 'Bar'
   Set<String> activeStreams = {'Regular', 'Advance', 'Reservation'};
   bool _showEventReservationPerformance = true;
+  String _paymentDistributionMode = 'Revenue'; // 'Revenue' or 'Count'
   final _supabase = Supabase.instance.client;
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
   
@@ -464,6 +465,31 @@ class _SalesReportPageState extends State<SalesReportPage>
     }
   }
 
+  bool _isOrderTakeout(Map<String, dynamic> order) {
+    final note = (order['note']?.toString() ?? '').toUpperCase();
+    final orderType = (order['order_type']?.toString() ?? '').toLowerCase();
+    final diningOption = (order['dining_option']?.toString() ?? '').toLowerCase();
+
+    if (note.contains('[TAKE HOME]') ||
+        note.contains('[TAKE-OUT]') ||
+        note.contains('[TAKEOUT]') ||
+        note.contains('TAKE HOME') ||
+        note.contains('TAKE-OUT') ||
+        note.contains('TAKEOUT')) {
+      return true;
+    }
+    if (orderType.contains('take') || orderType.contains('pick')) return true;
+    if (diningOption.contains('take') || diningOption.contains('pick')) return true;
+
+    final tbl = order['table_number']?.toString().trim();
+    if ((tbl == null || tbl.isEmpty || tbl == 'null' || tbl.toUpperCase() == 'N/A') &&
+        !note.contains('[DINE IN]') &&
+        !orderType.contains('dine')) {
+      return true;
+    }
+    return false;
+  }
+
   Map<String, dynamic> _processMetrics(
       List<Map<String, dynamic>> allOrders,
       List<Map<String, dynamic>> allAdvanceOrders,
@@ -473,6 +499,11 @@ class _SalesReportPageState extends State<SalesReportPage>
     final activeChannels = channelFilter ?? {'Regular', 'Advance', 'Reservation'};
     double regularRevenue = 0;
     int regularOrdersCount = 0;
+    double advanceRevenue = 0;
+    int advanceOrdersCount = 0;
+    int totalPeriodAdvanceOrders = 0;
+    int advanceCancelledCount = 0;
+    int totalGuestsServed = 0;
     Set<String> uniqueCustomers = {};
 
     final bool includeRegular = activeChannels.contains('Regular');
@@ -485,24 +516,26 @@ class _SalesReportPageState extends State<SalesReportPage>
       if (_isDateInSelectedPeriod(rawDate)) {
         final status = (order['status']?.toString() ?? order['kitchen_status']?.toString() ?? '').toLowerCase();
         final paymentStatus = (order['payment_status']?.toString() ?? '').toLowerCase();
-        // Skip cancelled or refunded walk-in orders
+        final isTakeout = _isOrderTakeout(order);
+
+        // Skip cancelled or refunded walk-in / POS orders
         if (status == 'cancelled' || status == 'voided' || paymentStatus == 'refunded' || paymentStatus == 'cancelled') {
           continue;
         }
 
         final amount = (order['total_amount'] as num?)?.toDouble() ?? 
                        (order['total_price'] as num?)?.toDouble() ?? 0.0;
+        final name = order['customer_name']?.toString() ?? '';
+        final int rawGuests = (order['number_of_guests'] as num?)?.toInt() ?? 1;
+        final int orderGuests = isTakeout ? 1 : (rawGuests > 0 ? rawGuests : 1);
+
         regularRevenue += amount;
         regularOrdersCount++;
-        final name = order['customer_name']?.toString() ?? '';
+        totalGuestsServed += orderGuests;
         if (name.isNotEmpty && name != 'Guest') uniqueCustomers.add(name);
       }
     }
 
-    int totalPeriodAdvanceOrders = 0;
-    int advanceCancelledCount = 0;
-    double advanceRevenue = 0;
-    int advanceOrdersCount = 0;
     for (var adv in allAdvanceOrders) {
       if (!includeAdvance) break;
       final rawDate = _parseDateWithTime(adv['order_date'], adv['order_time'], adv['created_at']);
@@ -520,6 +553,8 @@ class _SalesReportPageState extends State<SalesReportPage>
         if (isPaid || status == 'completed' || status == 'done' || status == 'ready') {
           advanceRevenue += (adv['total_price'] as num?)?.toDouble() ?? 0.0;
           advanceOrdersCount++;
+          final int rawAdvGuests = (adv['number_of_guests'] as num?)?.toInt() ?? (adv['guest_count'] as num?)?.toInt() ?? 1;
+          totalGuestsServed += (rawAdvGuests > 0 ? rawAdvGuests : 1);
           final name = adv['customer_name']?.toString() ?? '';
           if (name.isNotEmpty && name != 'Guest') uniqueCustomers.add(name);
         }
@@ -543,15 +578,18 @@ class _SalesReportPageState extends State<SalesReportPage>
           continue;
         }
 
+        final int resGuests = (res['number_of_guests'] as num?)?.toInt() ?? (res['guest_count'] as num?)?.toInt() ?? (res['pax'] as num?)?.toInt() ?? 0;
         if (paymentStatus == 'deposit_paid') {
           final amt = (res['deposit_amount'] as num?)?.toDouble() ?? 
                      ((res['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
           reservationRevenue += amt;
           reservationOrdersCount++;
+          totalGuestsServed += (resGuests > 0 ? resGuests : 0);
         } else if (paymentStatus == 'paid' || paymentStatus == 'fully_paid' || status == 'confirmed' || status == 'completed') {
           final amt = (res['total_price'] as num?)?.toDouble() ?? 0.0;
           reservationRevenue += amt;
           reservationOrdersCount++;
+          totalGuestsServed += (resGuests > 0 ? resGuests : 0);
         }
         final name = res['customer_name']?.toString() ?? '';
         if (name.isNotEmpty && name != 'Guest') uniqueCustomers.add(name);
@@ -577,7 +615,9 @@ class _SalesReportPageState extends State<SalesReportPage>
       'regularOrders': regularOrdersCount,
       'advanceOrders': advanceOrdersCount,
       'reservationOrders': reservationOrdersCount,
-      'customers': uniqueCustomers.length,
+      'customers': totalGuestsServed,
+      'totalGuests': totalGuestsServed,
+      'uniqueCustomers': uniqueCustomers.length,
       'avgOrder': avgOrder,
       'advanceCancellationRate': advanceCancellationRate,
       'eventCancellationRate': eventCancellationRate,
@@ -684,7 +724,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       }
     }
 
-    // 1. Regular Walk-in Orders
+    // 1. Regular POS Orders (Dine-in vs Take-out)
     for (var o in orders) {
       final status = (o['status']?.toString() ?? o['kitchen_status']?.toString() ?? '').toLowerCase();
       final paymentStatus = (o['payment_status']?.toString() ?? '').toLowerCase();
@@ -826,9 +866,9 @@ class _SalesReportPageState extends State<SalesReportPage>
       return null;
     }
 
-    // 1. Fetch item-level records for Regular POS orders in this period
+    // 1. Fetch item-level records for Regular & POS Take-out orders in this period
     final regularOrderIds = periodTransactions
-        .where((t) => t['type'] == 'Regular')
+        .where((t) => t['type'] == 'Regular' || t['db_source'] == 'orders' || t['is_pos_takeout'] == true)
         .map((t) => t['db_id'])
         .where((id) => id != null && id.toString().isNotEmpty)
         .toSet()
@@ -838,7 +878,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     if (regularOrderIds.isNotEmpty) {
       const int chunkSize = 100;
       for (int i = 0; i < regularOrderIds.length; i += chunkSize) {
-        statusNotifier?.value = 'Kinukuha ang item details (${i + 1}/${regularOrderIds.length})...';
+        statusNotifier?.value = 'Fetching item details (${i + 1}/${regularOrderIds.length})...';
         await Future.delayed(Duration.zero);
         final chunk = regularOrderIds.sublist(
           i,
@@ -907,7 +947,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     for (int idx = 0; idx < periodTransactions.length; idx++) {
       if (idx > 0 && idx % 100 == 0) {
-        statusNotifier?.value = 'Sinusuri ang transaksyon ($idx/${periodTransactions.length})...';
+        statusNotifier?.value = 'Auditing transactions ($idx/${periodTransactions.length})...';
         await Future.delayed(Duration.zero);
       }
       final t = periodTransactions[idx];
@@ -918,7 +958,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       String itemsSummary = 'No items';
       int itemsCount = 0;
 
-      if (t['type'] == 'Regular') {
+      if (t['type'] == 'Regular' || t['db_source'] == 'orders' || t['is_pos_takeout'] == true) {
         final items = orderItemsMap[t['db_id']];
         if (items != null && items.isNotEmpty) {
           itemsSummary = items.map((i) => '${i['item_name']} x${i['quantity']}').join('; ');
@@ -942,7 +982,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             }
           }
         } else {
-          itemsSummary = 'Standard Walk-in Order';
+          itemsSummary = t['is_pos_takeout'] == true ? 'Standard Take-out Order' : 'Standard Walk-in Order';
           itemsCount = 1;
           if (isValidRevenue) totalQuantitySold += 1;
         }
@@ -1230,7 +1270,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     Map<String, dynamic>? metrics,
     Set<String>? channelFilter,
   }) async {
-    final statusNotifier = ValueNotifier<String>('Inihahanda ang data ng Excel report...');
+    final statusNotifier = ValueNotifier<String>('Preparing Excel report data...');
 
     if (!mounted) return;
     showDialog(
@@ -1255,7 +1295,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
-                  const Text('Mangyaring maghintay, ligtas itong pinoproseso...', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  const Text('Please wait, processing securely...', style: TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
               ),
             ),
@@ -1276,7 +1316,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         return;
       }
 
-      statusNotifier.value = 'Binubuo ang Executive Summary sheet...';
+      statusNotifier.value = 'Generating Executive Summary sheet...';
       await Future.delayed(Duration.zero);
 
       final excel = excel_pkg.Excel.createExcel();
@@ -1357,21 +1397,21 @@ class _SalesReportPageState extends State<SalesReportPage>
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Bookings Fulfilled'), excel_pkg.IntCellValue(data.totalOrders), excel_pkg.TextCellValue('Confirmed and serviced event reservations')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Average Spend Per Booking'), excel_pkg.DoubleCellValue(data.avgOrderValue), excel_pkg.TextCellValue('Average package value per banquet')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Dishes & Buffet Units Prepared'), excel_pkg.IntCellValue(data.totalQuantitySold), excel_pkg.TextCellValue('Aggregated catering courses served')]);
-        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Unique Event Clients Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Distinct customer accounts / hosts')]);
+        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Event Attendees / Pax Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Confirmed event attendee headcount')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Catering Cancellation Rate'), excel_pkg.TextCellValue('${data.eventCancelRate.toStringAsFixed(1)}%'), excel_pkg.TextCellValue(data.eventCancelRate > 10 ? 'Attention Needed (>10%)' : 'Normal / Low Cancellation')]);
       } else if (data.isAdvanceOnly) {
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Advance Orders Revenue'), excel_pkg.DoubleCellValue(data.grossRevenue), excel_pkg.TextCellValue('100% of pre-order sales')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Pre-Orders Fulfilled'), excel_pkg.IntCellValue(data.totalOrders), excel_pkg.TextCellValue('Takeout and scheduled orders completed')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Average Spend Per Pre-Order'), excel_pkg.DoubleCellValue(data.avgOrderValue), excel_pkg.TextCellValue('Average ticket value per advance order')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Dishes / Food Items Packaged'), excel_pkg.IntCellValue(data.totalQuantitySold), excel_pkg.TextCellValue('Total units prepared for scheduled pickup')]);
-        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Advance Customers Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Distinct customer accounts')]);
+        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Pre-Order Customers Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Scheduled pickup customer headcount')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Advance Cancellation Rate'), excel_pkg.TextCellValue('${data.advCancelRate.toStringAsFixed(1)}%'), excel_pkg.TextCellValue(data.advCancelRate > 10 ? 'Attention Needed (>10%)' : 'Normal / Low Cancellation')]);
       } else if (data.isRegularOnly) {
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Gross Walk-in / Dine-in Sales'), excel_pkg.DoubleCellValue(data.grossRevenue), excel_pkg.TextCellValue('100% of POS counter sales')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Counter Tickets'), excel_pkg.IntCellValue(data.totalOrders), excel_pkg.TextCellValue('Completed POS walk-in receipts')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Average Ticket Value (AOV)'), excel_pkg.DoubleCellValue(data.avgOrderValue), excel_pkg.TextCellValue('Average spend per counter order')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Dishes Served at Counter'), excel_pkg.IntCellValue(data.totalQuantitySold), excel_pkg.TextCellValue('Dine-in / takeout units prepared by kitchen')]);
-        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Walk-in Customers Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Customer accounts recorded at POS')]);
+        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Diners / Guests Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('POS covers and diners serviced')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Low Stock Ingredients Alert'), excel_pkg.IntCellValue(data.lowStockItems), excel_pkg.TextCellValue('Items below stock threshold')]);
       } else {
         final walkInPct = data.grossRevenue > 0 ? (data.walkInRevenue / data.grossRevenue) * 100 : 0.0;
@@ -1380,12 +1420,12 @@ class _SalesReportPageState extends State<SalesReportPage>
 
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Gross Total Sales'), excel_pkg.DoubleCellValue(data.grossRevenue), excel_pkg.TextCellValue('100.0% of total revenue')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Dine-in / Walk-in Sales'), excel_pkg.DoubleCellValue(data.walkInRevenue), excel_pkg.TextCellValue('${walkInPct.toStringAsFixed(1)}% sales share (${data.walkInOrders} orders)')]);
-        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Takeout & Pre-Orders Sales'), excel_pkg.DoubleCellValue(data.advanceRevenue), excel_pkg.TextCellValue('${advPct.toStringAsFixed(1)}% sales share (${data.advanceOrders} orders)')]);
+        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Advance Orders Sales'), excel_pkg.DoubleCellValue(data.advanceRevenue), excel_pkg.TextCellValue('${advPct.toStringAsFixed(1)}% sales share (${data.advanceOrders} orders)')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Event & Catering Sales'), excel_pkg.DoubleCellValue(data.reservationRevenue), excel_pkg.TextCellValue('${eventPct.toStringAsFixed(1)}% sales share (${data.reservationOrders} bookings)')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Completed Orders'), excel_pkg.IntCellValue(data.totalOrders), excel_pkg.TextCellValue('Fulfilled customer orders & event bookings')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Dishes / Items Sold'), excel_pkg.IntCellValue(data.totalQuantitySold), excel_pkg.TextCellValue('Aggregated food & beverage units served')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Average Spend per Order (AOV)'), excel_pkg.DoubleCellValue(data.avgOrderValue), excel_pkg.TextCellValue('Average ticket value per customer transaction')]);
-        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Customer Headcount Recorded'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Distinct customer accounts serviced')]);
+        appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Total Guests / Diners Serviced'), excel_pkg.IntCellValue(data.uniqueCustomers), excel_pkg.TextCellValue('Total covers and headcount serviced across all channels')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Low Stock Ingredients Alert'), excel_pkg.IntCellValue(data.lowStockItems), excel_pkg.TextCellValue('Kitchen items below minimum stock threshold')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Advance Order Cancellation Rate'), excel_pkg.TextCellValue('${data.advCancelRate.toStringAsFixed(1)}%'), excel_pkg.TextCellValue(data.advCancelRate > 10 ? 'Attention Needed (Above 10%)' : 'Normal / Low Cancellation')]);
         appendStyledRow(summarySheet, [excel_pkg.TextCellValue('Catering Cancellation Rate'), excel_pkg.TextCellValue('${data.eventCancelRate.toStringAsFixed(1)}%'), excel_pkg.TextCellValue(data.eventCancelRate > 10 ? 'Attention Needed (Above 10%)' : 'Normal / Low Cancellation')]);
@@ -1701,7 +1741,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
         for (int i = 0; i < data.transactions.length; i++) {
           if (i > 0 && i % 40 == 0) {
-            statusNotifier.value = 'Isinusulat ang advance orders (${i + 1}/${data.transactions.length})...';
+            statusNotifier.value = 'Writing advance orders (${i + 1}/${data.transactions.length})...';
             await Future.delayed(Duration.zero);
           }
           final t = data.transactions[i];
@@ -1780,16 +1820,19 @@ class _SalesReportPageState extends State<SalesReportPage>
 
         for (int i = 0; i < data.transactions.length; i++) {
           if (i > 0 && i % 40 == 0) {
-            statusNotifier.value = 'Isinusulat ang transaksyon (${i + 1}/${data.transactions.length})...';
+            statusNotifier.value = 'Writing transactions (${i + 1}/${data.transactions.length})...';
             await Future.delayed(Duration.zero);
           }
           final t = data.transactions[i];
           final date = (t['raw_date'] as DateTime).toLocal();
           final dateFormatted = DateFormat('yyyy-MM-dd hh:mm a').format(date);
           final ref = t['id']?.toString() ?? '#N/A';
-          final channel = t['type'] == 'Regular'
-              ? 'Dine-in / Walk-in'
-              : (t['type'] == 'Advance' ? 'Pre-Order' : 'Event Catering');
+          final isPosTakeout = (t['is_pos_takeout'] as bool?) ?? false;
+          final channel = isPosTakeout
+              ? 'Take-out'
+              : (t['type'] == 'Regular'
+                  ? 'Dine-in / Walk-in'
+                  : (t['type'] == 'Advance' ? 'Pre-Order' : 'Event Catering'));
           final customer = t['customer']?.toString() ?? 'Guest';
           final payment = t['payment_method']?.toString() ?? 'Cash';
           final itemsCount = (t['_itemsCount'] as int?) ?? 1;
@@ -1846,7 +1889,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         if (downloaded) {
-          GlobalMessenger.showSuccess('Sales Report Excel na-download: $fileName.xlsx');
+          GlobalMessenger.showSuccess('Sales Report Excel downloaded: $fileName.xlsx');
           return;
         }
       } else {
@@ -1860,7 +1903,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 final targetPath = '${downloadsDir.path}\\$fileName.xlsx';
                 final file = File(targetPath);
                 await file.writeAsBytes(bytes);
-                GlobalMessenger.showSuccess('Sales Report Excel na-save sa Downloads: $fileName.xlsx');
+                GlobalMessenger.showSuccess('Sales Report Excel saved to Downloads: $fileName.xlsx');
                 return;
               }
             }
@@ -1911,7 +1954,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     bool directDownload = false,
     Set<String>? channelFilter,
   }) async {
-    final statusNotifier = ValueNotifier<String>('Kinukuha ang data ng report…');
+    final statusNotifier = ValueNotifier<String>('Retrieving report data…');
 
     if (!mounted) return;
     showDialog(
@@ -1937,7 +1980,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Mangyaring maghintay, ligtas itong pinoproseso…',
+                    'Please wait, processing securely…',
                     style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                 ],
@@ -1965,7 +2008,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       final reportData = data;
 
       // Step 2: Load fonts (cached after first download)
-      statusNotifier.value = 'Nilo-load ang mga font…';
+      statusNotifier.value = 'Loading report fonts…';
       await Future.delayed(Duration.zero);
       pw.ThemeData? theme;
       try {
@@ -1978,7 +2021,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       } catch (_) {}
 
       // Step 3: Build PDF structure
-      statusNotifier.value = 'Binubuo ang PDF layout…';
+      statusNotifier.value = 'Building PDF layout…';
       await Future.delayed(Duration.zero);
 
       final pdf = pw.Document(theme: theme);
@@ -1998,7 +2041,11 @@ class _SalesReportPageState extends State<SalesReportPage>
           build: (pw.Context ctx) => [
             _buildPdfSummaryCards(reportData, primaryColor, goldColor, borderColor),
             pw.SizedBox(height: 8),
+            _buildPdfCombinedSalesChart(reportData, primaryColor, goldColor, borderColor),
+            pw.SizedBox(height: 8),
             _buildPdfVisualizations(reportData, primaryColor, goldColor, borderColor),
+            pw.SizedBox(height: 8),
+            _buildPdfPaymentDistribution(reportData, primaryColor, goldColor, borderColor),
             pw.SizedBox(height: 8),
             _buildPdfExecutiveExplanation(reportData, primaryColor, goldColor, borderColor),
             pw.SizedBox(height: 8),
@@ -2018,12 +2065,12 @@ class _SalesReportPageState extends State<SalesReportPage>
       );
 
       // Step 4: Serialize to bytes (CPU-heavy)
-      statusNotifier.value = 'Ine-encode ang PDF file…';
+      statusNotifier.value = 'Encoding PDF file…';
       await Future.delayed(Duration.zero);
       pdfBytes = await pdf.save();
 
       // Step 5: Save / open
-      statusNotifier.value = directDownload ? 'Isinasave ang PDF file…' : 'Binubuksan ang print dialog…';
+      statusNotifier.value = directDownload ? 'Saving PDF file…' : 'Opening print dialog…';
       await Future.delayed(Duration.zero);
     } catch (e) {
       if (mounted) Navigator.pop(context);
@@ -2046,7 +2093,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             'application/pdf',
           );
           if (downloaded) {
-            GlobalMessenger.showSuccess('Sales Report PDF na-download: $fileName.pdf');
+            GlobalMessenger.showSuccess('Sales Report PDF downloaded: $fileName.pdf');
             return;
           }
         } else {
@@ -2060,7 +2107,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   final targetPath = '${downloadsDir.path}\\$fileName.pdf';
                   final file = File(targetPath);
                   await file.writeAsBytes(pdfBytes);
-                  GlobalMessenger.showSuccess('Sales Report PDF na-save sa Downloads: $fileName.pdf');
+                  GlobalMessenger.showSuccess('Sales Report PDF saved to Downloads: $fileName.pdf');
                   return;
                 }
               }
@@ -2232,13 +2279,13 @@ class _SalesReportPageState extends State<SalesReportPage>
         children: [
           pw.Row(
             children: [
-              pw.Expanded(child: metricBox('Gross Catering Sales', _formatPdfMoney(data.grossRevenue), 'Kabuuang benta ng catering')),
+              pw.Expanded(child: metricBox('Gross Catering Sales', _formatPdfMoney(data.grossRevenue), 'Total catering revenue')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Event Bookings', '${_formatPdfCount(data.totalOrders)} Bookings', 'Confirmed & serviced')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Average Event Value', _formatPdfMoney(data.avgOrderValue), 'Mean spend per event')),
               pw.SizedBox(width: 6),
-              pw.Expanded(child: metricBox('Booking Status', '${_formatPdfCount(data.totalOrders)} Confirmed', data.eventCancelRate > 10 ? 'May mga Nakansela' : 'Normal at Maayos')),
+              pw.Expanded(child: metricBox('Booking Status', '${_formatPdfCount(data.totalOrders)} Confirmed', data.eventCancelRate > 10 ? 'Cancellations Recorded' : 'Normal Operations')),
             ],
           ),
           pw.SizedBox(height: 6),
@@ -2246,7 +2293,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             children: [
               pw.Expanded(child: metricBox('Buffet Courses / Dishes', '${_formatPdfCount(data.totalQuantitySold)} Dishes', 'Total courses prepared')),
               pw.SizedBox(width: 6),
-              pw.Expanded(child: metricBox('Clients & Organizers', '${_formatPdfCount(data.uniqueCustomers)} Clients', 'Distinct customer profiles')),
+              pw.Expanded(child: metricBox('Clients & Attendees', '${_formatPdfCount(data.uniqueCustomers)} Pax', 'Confirmed attendee headcount')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Sales Channel', 'Event Catering', 'Special banquet bookings')),
               pw.SizedBox(width: 6),
@@ -2261,13 +2308,13 @@ class _SalesReportPageState extends State<SalesReportPage>
         children: [
           pw.Row(
             children: [
-              pw.Expanded(child: metricBox('Gross Pre-Order Sales', _formatPdfMoney(data.grossRevenue), 'Kabuuang benta ng pre-orders')),
+              pw.Expanded(child: metricBox('Gross Pre-Order Sales', _formatPdfMoney(data.grossRevenue), 'Total pre-orders revenue')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Pre-Orders Handled', '${_formatPdfCount(data.totalOrders)} Orders', 'Scheduled & fulfilled')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Average Spend (AOV)', _formatPdfMoney(data.avgOrderValue), 'Mean spend per pre-order')),
               pw.SizedBox(width: 6),
-              pw.Expanded(child: metricBox('Order Status', '${_formatPdfCount(data.totalOrders)} Fulfilled', data.advCancelRate > 10 ? 'May mga Nakansela' : 'Normal at Maayos')),
+              pw.Expanded(child: metricBox('Order Status', '${_formatPdfCount(data.totalOrders)} Fulfilled', data.advCancelRate > 10 ? 'Cancellations Recorded' : 'Normal Operations')),
             ],
           ),
           pw.SizedBox(height: 6),
@@ -2275,7 +2322,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             children: [
               pw.Expanded(child: metricBox('Dishes Packaged', '${_formatPdfCount(data.totalQuantitySold)} Dishes', 'Total kitchen units')),
               pw.SizedBox(width: 6),
-              pw.Expanded(child: metricBox('Customer Profiles', '${_formatPdfCount(data.uniqueCustomers)} Customers', 'Distinct customer accounts')),
+              pw.Expanded(child: metricBox('Pre-Order Customers', '${_formatPdfCount(data.uniqueCustomers)} Guests', 'Scheduled pickup headcount')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Sales Channel', 'Advance Orders', 'Scheduled pickup & takeout')),
               pw.SizedBox(width: 6),
@@ -2290,7 +2337,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         children: [
           pw.Row(
             children: [
-              pw.Expanded(child: metricBox('Gross Walk-in Sales', _formatPdfMoney(data.grossRevenue), 'Kabuuang counter revenue')),
+              pw.Expanded(child: metricBox('Gross Walk-in Sales', _formatPdfMoney(data.grossRevenue), 'Total counter revenue')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Counter Receipts', '${_formatPdfCount(data.totalOrders)} Orders', 'Completed POS tickets')),
               pw.SizedBox(width: 6),
@@ -2302,7 +2349,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           pw.SizedBox(height: 6),
           pw.Row(
             children: [
-              pw.Expanded(child: metricBox('Customer Profiles', '${_formatPdfCount(data.uniqueCustomers)} Customers', 'POS customer accounts')),
+              pw.Expanded(child: metricBox('Diners / Guests Served', '${_formatPdfCount(data.uniqueCustomers)} Guests', 'POS covers & headcount')),
               pw.SizedBox(width: 6),
               pw.Expanded(child: metricBox('Kitchen Alerts', '${data.lowStockItems} Low Stock', 'Inventory threshold')),
               pw.SizedBox(width: 6),
@@ -2320,11 +2367,11 @@ class _SalesReportPageState extends State<SalesReportPage>
       children: [
         pw.Row(
           children: [
-            pw.Expanded(child: metricBox('Gross Total Sales', _formatPdfMoney(data.grossRevenue), 'Kabuuang benta ng tindahan')),
+            pw.Expanded(child: metricBox('Gross Total Sales', _formatPdfMoney(data.grossRevenue), 'Total store gross sales')),
             pw.SizedBox(width: 6),
             pw.Expanded(child: metricBox('Dine-in / Walk-in', _formatPdfMoney(data.walkInRevenue), '${_formatPdfCount(data.walkInOrders)} orders')),
             pw.SizedBox(width: 6),
-            pw.Expanded(child: metricBox('Takeout & Pre-Orders', _formatPdfMoney(data.advanceRevenue), '${_formatPdfCount(data.advanceOrders)} orders')),
+            pw.Expanded(child: metricBox('Advance Orders', _formatPdfMoney(data.advanceRevenue), '${_formatPdfCount(data.advanceOrders)} orders')),
             pw.SizedBox(width: 6),
             pw.Expanded(child: metricBox('Event Catering', _formatPdfMoney(data.reservationRevenue), '${_formatPdfCount(data.reservationOrders)} bookings')),
           ],
@@ -2338,10 +2385,296 @@ class _SalesReportPageState extends State<SalesReportPage>
             pw.SizedBox(width: 6),
             pw.Expanded(child: metricBox('Average Spend (AOV)', _formatPdfMoney(data.avgOrderValue), 'Mean spend per order')),
             pw.SizedBox(width: 6),
-            pw.Expanded(child: metricBox('Customer Profiles', '${_formatPdfCount(data.uniqueCustomers)} Customers', '${data.lowStockItems} low stock alerts')),
+            pw.Expanded(child: metricBox('Total Guests Served', '${_formatPdfCount(data.uniqueCustomers)} Guests', '${data.lowStockItems} low stock alerts')),
           ],
         ),
       ],
+    );
+  }
+
+  String _formatPdfShortMoney(double amount) {
+    if (amount >= 1000000) {
+      return 'P${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return 'P${(amount / 1000).toStringAsFixed(0)}K';
+    } else {
+      return 'P${amount.toInt()}';
+    }
+  }
+
+  pw.Widget _buildPdfCombinedSalesChart(
+    _ProcessedReportData data,
+    PdfColor primaryColor,
+    PdfColor goldColor,
+    PdfColor borderColor,
+  ) {
+    final dailyList = data.dailyList;
+    if (dailyList.isEmpty) return pw.SizedBox();
+
+    // 1. Calculate scales
+    double maxSales = 0.0;
+    int maxOrders = 0;
+    for (final d in dailyList) {
+      if (d.grossSales > maxSales) maxSales = d.grossSales;
+      if (d.ordersCount > maxOrders) maxOrders = d.ordersCount;
+    }
+    if (maxSales <= 0) maxSales = 1000.0;
+    if (maxOrders <= 0) maxOrders = 10;
+
+    // Add headroom
+    final double salesCeiling = maxSales * 1.15;
+    final double ordersCeiling = (maxOrders * 1.25).toDouble();
+
+    // Format Y-axis tick values
+    final String topSalesLabel = _formatPdfShortMoney(salesCeiling);
+    final String midSalesLabel = _formatPdfShortMoney(salesCeiling / 2);
+    const String zeroSalesLabel = 'P0';
+
+    final String topOrdersLabel = '${ordersCeiling.toInt()}';
+    final String midOrdersLabel = '${(ordersCeiling / 2).toInt()}';
+    const String zeroOrdersLabel = '0';
+
+    const barColor = PdfColor.fromInt(0xFF14332E);       // Deep emerald
+    const barTopColor = PdfColor.fromInt(0xFF0D9488);    // Teal top border
+    const lineColor = PdfColor.fromInt(0xFFD97706);      // Amber gold line
+    const dotColor = PdfColor.fromInt(0xFFF59E0B);       // Bright amber dot
+    const gridLineColor = PdfColor.fromInt(0xFFE2E8F0);  // Slate grid
+
+    const double chartHeight = 70.0;
+    final int n = dailyList.length;
+
+    // Determine label step for X-axis
+    final int labelStep = n > 20 ? 3 : (n > 10 ? 2 : 1);
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(7),
+      decoration: pw.BoxDecoration(
+        color: const PdfColor.fromInt(0xFFF8FAFC),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.TableBorder.all(color: borderColor, width: 0.8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // ── Header & Legend ──
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'GROSS ANALYTICS & TRENDS (COMBINED BAR & LINE GRAPH)',
+                    style: pw.TextStyle(fontSize: 7.8, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                  ),
+                  pw.SizedBox(height: 1),
+                  pw.Text(
+                    'Daily Gross Sales (Bars in PHP) vs. Transaction Volume / Customer Orders (Line Graph)',
+                    style: const pw.TextStyle(fontSize: 5.8, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+              // Legend badges
+              pw.Row(
+                children: [
+                  pw.Container(
+                    width: 7,
+                    height: 6,
+                    decoration: const pw.BoxDecoration(
+                      color: barColor,
+                      borderRadius: pw.BorderRadius.all(pw.Radius.circular(1)),
+                    ),
+                  ),
+                  pw.SizedBox(width: 3),
+                  pw.Text(
+                    'Gross Sales (Bar)',
+                    style: pw.TextStyle(fontSize: 5.5, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Container(width: 8, height: 1.5, color: lineColor),
+                  pw.SizedBox(width: 2),
+                  pw.Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const pw.BoxDecoration(color: dotColor, shape: pw.BoxShape.circle),
+                  ),
+                  pw.SizedBox(width: 3),
+                  pw.Text(
+                    'Order Volume (Line)',
+                    style: pw.TextStyle(fontSize: 5.5, fontWeight: pw.FontWeight.bold, color: lineColor),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 5),
+
+          // ── Chart Area ──
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Left Y-axis (Sales P)
+              pw.Container(
+                height: chartHeight,
+                width: 32,
+                child: pw.Column(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(topSalesLabel, style: const pw.TextStyle(fontSize: 5.0, color: PdfColors.grey700)),
+                    pw.Text(midSalesLabel, style: const pw.TextStyle(fontSize: 5.0, color: PdfColors.grey700)),
+                    pw.Text(zeroSalesLabel, style: const pw.TextStyle(fontSize: 5.0, color: PdfColors.grey700)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 4),
+
+              // Canvas + X-Axis Day Numbers
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    pw.Container(
+                      height: chartHeight,
+                      child: pw.CustomPaint(
+                        size: const PdfPoint(460, chartHeight),
+                        painter: (PdfGraphics canvas, PdfPoint size) {
+                          // Grid lines (Top, Mid, Base)
+                          canvas.setStrokeColor(gridLineColor);
+                          canvas.setLineWidth(0.5);
+
+                          canvas.drawLine(0, size.y, size.x, size.y);
+                          canvas.strokePath();
+
+                          canvas.drawLine(0, size.y / 2, size.x, size.y / 2);
+                          canvas.strokePath();
+
+                          canvas.drawLine(0, 0, size.x, 0);
+                          canvas.strokePath();
+
+                          if (n == 0) return;
+
+                          final double slotW = size.x / n;
+                          final double barW = (slotW * 0.55).clamp(2.0, 14.0);
+
+                          // 1. Draw Bars (Sales)
+                          for (int i = 0; i < n; i++) {
+                            final d = dailyList[i];
+                            final double ratio = (d.grossSales / salesCeiling).clamp(0.0, 1.0);
+                            final double barH = (ratio * (size.y - 4)).clamp(0.0, size.y);
+                            final double slotCenterX = (i + 0.5) * slotW;
+                            final double barLeft = slotCenterX - (barW / 2);
+
+                            if (barH > 0) {
+                              canvas.drawRect(barLeft, 0, barW, barH);
+                              canvas.setFillColor(barColor);
+                              canvas.fillPath();
+
+                              canvas.drawLine(barLeft, barH, barLeft + barW, barH);
+                              canvas.setStrokeColor(barTopColor);
+                              canvas.setLineWidth(0.8);
+                              canvas.strokePath();
+                            }
+                          }
+
+                          // 2. Draw Line & Points (Orders Count)
+                          final List<PdfPoint> points = [];
+                          for (int i = 0; i < n; i++) {
+                            final d = dailyList[i];
+                            final double ratio = (d.ordersCount / ordersCeiling).clamp(0.0, 1.0);
+                            final double dotY = (ratio * (size.y - 6)).clamp(2.0, size.y - 2);
+                            final double slotCenterX = (i + 0.5) * slotW;
+                            points.add(PdfPoint(slotCenterX, dotY));
+                          }
+
+                          if (points.isNotEmpty) {
+                            canvas.moveTo(points.first.x, points.first.y);
+                            for (int i = 1; i < points.length; i++) {
+                              canvas.lineTo(points[i].x, points[i].y);
+                            }
+                            canvas.setStrokeColor(lineColor);
+                            canvas.setLineWidth(1.5);
+                            canvas.strokePath();
+
+                            for (final p in points) {
+                              canvas.drawEllipse(p.x, p.y, 2.0, 2.0);
+                              canvas.setFillColor(dotColor);
+                              canvas.fillPath();
+                              canvas.drawEllipse(p.x, p.y, 2.0, 2.0);
+                              canvas.setStrokeColor(PdfColors.white);
+                              canvas.setLineWidth(0.5);
+                              canvas.strokePath();
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+
+                    // X-Axis day labels
+                    pw.Row(
+                      children: List.generate(n, (i) {
+                        final d = dailyList[i];
+                        final dayNum = d.date.day;
+                        final bool showLabel = (i % labelStep == 0) || (i == n - 1);
+                        return pw.Expanded(
+                          child: pw.Center(
+                            child: pw.Text(
+                              showLabel ? '$dayNum' : '',
+                              style: const pw.TextStyle(fontSize: 4.8, color: PdfColors.grey700),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 4),
+
+              // Right Y-axis (Orders)
+              pw.Container(
+                height: chartHeight,
+                width: 26,
+                child: pw.Column(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('$topOrdersLabel ord', style: const pw.TextStyle(fontSize: 5.0, color: lineColor)),
+                    pw.Text('$midOrdersLabel ord', style: const pw.TextStyle(fontSize: 5.0, color: lineColor)),
+                    pw.Text('$zeroOrdersLabel ord', style: const pw.TextStyle(fontSize: 5.0, color: lineColor)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 3.5),
+
+          // Short explanation box for Combined Chart
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+            decoration: pw.BoxDecoration(
+              color: const PdfColor.fromInt(0xFFF1F5F9),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+              border: pw.TableBorder.all(color: const PdfColor.fromInt(0xFFE2E8F0), width: 0.5),
+            ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'CHART OVERVIEW: ',
+                  style: pw.TextStyle(fontSize: 4.8, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    'Correlates daily gross sales (emerald bars, left axis) with completed customer order volume (amber line, right axis) to analyze foot traffic intensity, average spend behavior, and revenue fluctuations across operating days.',
+                    style: const pw.TextStyle(fontSize: 4.8, color: PdfColors.grey700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2402,12 +2735,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'VISUAL NA PAGSUSURI NG BENTA AT OPERASYON (DYNAMIC SALES ANALYTICS)',
+                    'DYNAMIC SALES & OPERATIONS ANALYTICS (EXECUTIVE BREAKDOWN)',
                     style: pw.TextStyle(fontSize: 7.8, fontWeight: pw.FontWeight.bold, color: primaryColor),
                   ),
                   pw.SizedBox(height: 1),
                   pw.Text(
-                    'Distribusyon ng Benta sa Bawat Channel | Dagsa sa Oras | Galaw ng Menu',
+                    'Sales Channel Distribution | Service Period Demand | Menu Performance',
                     style: const pw.TextStyle(fontSize: 5.8, color: PdfColors.grey700),
                   ),
                 ],
@@ -2431,7 +2764,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           // ── Component 1: Channel & Conversion Breakdown ──
           if (data.isAllChannels || data.activeChannels.length > 1) ...[
             pw.Text(
-              '1. Pamamahagi ng Benta Ayon sa Sales Channel (Sales Channel Distribution):',
+              '1. Sales Distribution by Channel (Revenue Share):',
               style: pw.TextStyle(fontSize: 6.8, fontWeight: pw.FontWeight.bold, color: primaryColor),
             ),
             pw.SizedBox(height: 3),
@@ -2514,14 +2847,14 @@ class _SalesReportPageState extends State<SalesReportPage>
                 children: [
                   pw.Text(
                     data.isEventOnly
-                        ? 'Nakatuon sa Channel: Event Catering & Special Banquets'
+                        ? 'Focused Channel: Event Catering & Special Banquets'
                         : (data.isAdvanceOnly
-                            ? 'Nakatuon sa Channel: Advance Orders & Pre-Scheduled Takeout'
-                            : 'Nakatuon sa Channel: Walk-in Counter & Dine-in Sales'),
+                            ? 'Focused Channel: Advance Orders & Pre-Scheduled Takeout'
+                            : 'Focused Channel: Walk-in Counter & Dine-in Sales'),
                     style: pw.TextStyle(fontSize: 6.2, fontWeight: pw.FontWeight.bold, color: primaryColor),
                   ),
                   pw.Text(
-                    'Kabuuang Benta: ${_formatPdfMoney(data.grossRevenue)} mula sa ${_formatPdfCount(data.totalOrders)} transaksyon',
+                    'Total Sales: ${_formatPdfMoney(data.grossRevenue)} across ${_formatPdfCount(data.totalOrders)} transactions',
                     style: pw.TextStyle(fontSize: 5.8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
                   ),
                 ],
@@ -2550,7 +2883,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            '2. Dagsa sa Oras ng Pagkain (Meal Rush Demand):',
+                            '2. Service Period & Meal Rush Demand:',
                             style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold, color: primaryColor),
                           ),
                           if (peakHour != null && peakHour.grossSales > 0)
@@ -2638,8 +2971,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                       pw.SizedBox(height: 2),
                       pw.Text(
                         peakHour != null && peakHour.grossSales > 0
-                            ? 'Pangunahing dagsa: ${peakHour.servicePeriod} ang pinakamalaking benta (${_formatPdfMoney(peakHour.grossSales)}).'
-                            : 'Regular ang daloy ng benta sa bawat shift.',
+                            ? 'Peak service period: ${peakHour.servicePeriod} accounts for highest operational sales (${_formatPdfMoney(peakHour.grossSales)}).'
+                            : 'Evenly distributed order volume across operating shifts.',
                         style: const pw.TextStyle(fontSize: 4.8, color: PdfColors.grey600),
                       ),
                     ],
@@ -2664,18 +2997,18 @@ class _SalesReportPageState extends State<SalesReportPage>
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            '3. Nangungunang 5 Putahe (Top Dishes Demand):',
+                            '3. Top 5 Menu Items (Best Selling Dishes):',
                             style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold, color: primaryColor),
                           ),
                           pw.Text(
-                            'Top 5 Putahe sa Benta',
+                            'Top 5 by Revenue',
                             style: const pw.TextStyle(fontSize: 5.0, color: PdfColors.grey600),
                           ),
                         ],
                       ),
                       pw.SizedBox(height: 2.5),
                       if (topDishes.isEmpty)
-                        pw.Text('Walang naitalang benta sa putahe.', style: const pw.TextStyle(fontSize: 5.2, color: PdfColors.grey600))
+                        pw.Text('No menu item sales recorded.', style: const pw.TextStyle(fontSize: 5.2, color: PdfColors.grey600))
                       else
                         ...topDishes.asMap().entries.map((entry) {
                           final idx = entry.key;
@@ -2761,7 +3094,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         }),
                       pw.SizedBox(height: 2),
                       pw.Text(
-                        'Kabuuang naibentang putahe sa panahon: ${_formatPdfCount(data.totalQuantitySold)} servings.',
+                        'Total menu servings sold in this period: ${_formatPdfCount(data.totalQuantitySold)} servings.',
                         style: const pw.TextStyle(fontSize: 4.8, color: PdfColors.grey600),
                       ),
                     ],
@@ -2842,22 +3175,22 @@ class _SalesReportPageState extends State<SalesReportPage>
     final bestDish = data.bestSellers.isNotEmpty ? data.bestSellers.first : null;
     final slowDish = data.lowSellers.isNotEmpty ? data.lowSellers.first : null;
 
-    final salesSummaryText = 'Sa nasasakupang panahon (${data.dateRangeStr}), nakapagtala ang restaurant ng kabuuang benta na ${_formatPdfMoney(totalRev)} mula sa ${_formatPdfCount(totalOrders)} na matagumpay na naisagawang transaksyon. Ang karaniwang gastos bawat customer (AOV) ay ${_formatPdfMoney(aov)}, na nagpapatunay ng magandang pagkonsumo sa sangay.';
+    final salesSummaryText = 'During the audit period (${data.dateRangeStr}), the restaurant achieved gross sales of ${_formatPdfMoney(totalRev)} across ${_formatPdfCount(totalOrders)} successfully completed transactions. The average order value (AOV) was ${_formatPdfMoney(aov)}, demonstrating healthy customer spending.';
 
-    final channelText = 'Ang pangunahing nagdala ng kita sa panahong ito ay ang $topChannelName na umabot sa ${_formatPdfMoney(topChannelRev)}. Bahagi ng iba pang channels: Walk-in (${_formatPdfMoney(data.walkInRevenue)}), Advance Pre-orders (${_formatPdfMoney(data.advanceRevenue)}), at Catering (${_formatPdfMoney(data.reservationRevenue)}).';
+    final channelText = 'The primary revenue driver during this period was $topChannelName amounting to ${_formatPdfMoney(topChannelRev)}. Channel contributions: Walk-in (${_formatPdfMoney(data.walkInRevenue)}), Advance Orders (${_formatPdfMoney(data.advanceRevenue)}), and Event Catering (${_formatPdfMoney(data.reservationRevenue)}).';
 
     final peakHourText = (peakHour != null && peakHour.grossSales > 0)
-        ? 'Naranasan ang pinakamataas na dagsa ng customer tuwing ${peakHour.servicePeriod} (${peakHour.timeWindow}) na may ${_formatPdfCount(peakHour.ordersCount)} na order at kabuuang benta na ${_formatPdfMoney(peakHour.grossSales)}. Ipinapayo ang masusing paghahanda ng kitchen crew at mga sangkap bago pumasok ang nabanggit na peak window.'
-        : 'Patas at regular ang naging daloy ng order sa buong oras ng operasyon.';
+        ? 'The highest customer volume occurred during ${peakHour.servicePeriod} (${peakHour.timeWindow}) with ${_formatPdfCount(peakHour.ordersCount)} orders generating ${_formatPdfMoney(peakHour.grossSales)}. Proactive staging of kitchen crew and food prep stations is advised prior to this peak window.'
+        : 'Order traffic remained steady and evenly distributed throughout operating hours.';
 
     final menuText = (bestDish != null)
-        ? 'Ang nangungunang putahe sa benta ay ang "${bestDish.name}" na may ${_formatPdfCount(bestDish.quantity)} na naibentang servings (${_formatPdfMoney(bestDish.revenue)}). ${slowDish != null && slowDish.name != bestDish.name ? 'Samantala, ang "${slowDish.name}" ay may pinakamababang benta (${_formatPdfCount(slowDish.quantity)} order) at iminumungkahing isama sa combo meal o bigyan ng promosyon.' : ''}'
-        : 'Kasalukuyang pantay ang distribusyon ng benta sa mga pagkain sa menu.';
+        ? 'The top-selling dish was "${bestDish.name}" with ${_formatPdfCount(bestDish.quantity)} servings sold (${_formatPdfMoney(bestDish.revenue)}). ${slowDish != null && slowDish.name != bestDish.name ? 'Conversely, "${slowDish.name}" recorded the lowest sales volume (${_formatPdfCount(slowDish.quantity)} orders) and is recommended for combo meal bundling or promotional spotlighting.' : ''}'
+        : 'Sales distribution is currently balanced across menu items.';
 
     final recommendations = [
-      'Paghahanda sa Peak Hours: Siguraduhing handa ang kitchen crew at pre-cooked stocks bago ang tanghalian at hapunan upang maiwasan ang delay.',
-      'Antas ng Imbentaryo: ${data.lowStockItems > 0 ? 'Mayroong ${data.lowStockItems} sangkap o item na mababa na ang imbentaryo; agad itong i-restock.' : 'Nasa ligtas at sapat na antas ang lahat ng sangkap sa kusina.'}',
-      'Pangangalaga sa Kita: I-promote ang advance pre-orders at event packages tuwing weekday upang mapanatiling mataas ang benta.',
+      'Peak Hour Staging: Ensure kitchen stations and pre-cooked food items are fully prepared prior to lunch and dinner rush hours to avoid service bottlenecks.',
+      'Inventory Threshold: ${data.lowStockItems > 0 ? 'There are ${data.lowStockItems} ingredients or items below minimum safety stock; initiate replenishment immediately.' : 'All kitchen inventory and ingredients remain within safe operational thresholds.'}',
+      'Revenue Optimization: Promote advance pre-orders and weekday catering packages to sustain consistent daily sales volume.',
     ];
 
     return pw.Container(
@@ -2874,27 +3207,27 @@ class _SalesReportPageState extends State<SalesReportPage>
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'EHEKUTIBONG BUOD AT PALIWANAG NG PAGSUSURI (EXECUTIVE INSIGHTS & EXPLANATION)',
+                'EXECUTIVE SUMMARY & OPERATIONAL AUDIT (EXECUTIVE INSIGHTS)',
                 style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor),
               ),
               pw.Text(
-                'Opisyal na Pagsusuri ng Pamunuan',
+                'Official Executive Review',
                 style: const pw.TextStyle(fontSize: 6.2, color: PdfColors.grey600),
               ),
             ],
           ),
           pw.SizedBox(height: 4),
 
-          _buildPdfInsightBullet('1. Pangkalahatang Benta at Pagganap:', salesSummaryText, primaryColor),
+          _buildPdfInsightBullet('1. Overall Sales Performance:', salesSummaryText, primaryColor),
           pw.SizedBox(height: 3),
-          _buildPdfInsightBullet('2. Pagsusuri sa Benta bawat Channel:', channelText, primaryColor),
+          _buildPdfInsightBullet('2. Sales Channel Breakdown:', channelText, primaryColor),
           pw.SizedBox(height: 3),
-          _buildPdfInsightBullet('3. Oras ng Dagsa at Peak Demand:', peakHourText, primaryColor),
+          _buildPdfInsightBullet('3. Peak Service Hours & Demand:', peakHourText, primaryColor),
           pw.SizedBox(height: 3),
-          _buildPdfInsightBullet('4. Galaw ng Menu at Kusina:', menuText, primaryColor),
+          _buildPdfInsightBullet('4. Menu Movement & Kitchen Production:', menuText, primaryColor),
           pw.SizedBox(height: 3),
 
-          pw.Text('5. Mungkahing Hakbang sa Operasyon (Strategic Recommendations):',
+          pw.Text('5. Strategic Recommendations & Action Items:',
               style: pw.TextStyle(fontSize: 6.6, fontWeight: pw.FontWeight.bold, color: primaryColor)),
           pw.SizedBox(height: 2),
           ...recommendations.map((rec) => pw.Padding(
@@ -3292,7 +3625,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               border: pw.Border.all(color: borderColor, width: 0.5),
             ),
             child: pw.Text(
-              '* Paunawa: Ipinapakita ang pinakabagong $maxPdfRows tala sa PDF report na ito para sa mabilis at maayos na format. Para sa buong database audit ($totalCount orders), i-export gamit ang Excel format.',
+              '* Note: Displaying the most recent $maxPdfRows records in this PDF report for layout efficiency. For a complete database audit of all $totalCount orders, export using the Excel format.',
               style: pw.TextStyle(fontSize: 6.5, color: const PdfColor.fromInt(0xFF475569)),
             ),
           ),
@@ -3305,9 +3638,12 @@ class _SalesReportPageState extends State<SalesReportPage>
       final date = (t['raw_date'] as DateTime).toLocal();
       final dateFormatted = DateFormat('MMM d, hh:mm a').format(date);
       final ref = t['id']?.toString() ?? '#N/A';
-      final type = t['type'] == 'Regular'
-          ? 'Dine-in / Walk-in'
-          : (t['type'] == 'Advance' ? 'Pre-Order' : 'Catering Event');
+      final isPosTakeout = (t['is_pos_takeout'] as bool?) ?? false;
+      final type = isPosTakeout
+          ? 'Take-out'
+          : (t['type'] == 'Regular'
+              ? 'Dine-in / Walk-in'
+              : (t['type'] == 'Advance' ? 'Pre-Order' : 'Catering Event'));
       final customer = t['customer']?.toString() ?? 'Guest';
       final payment = t['payment_method']?.toString() ?? 'Cash';
       final itemsCount = (t['_itemsCount'] as int?) ?? 1;
@@ -3364,7 +3700,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             border: pw.Border.all(color: borderColor, width: 0.5),
           ),
           child: pw.Text(
-            '* Paunawa: Ipinapakita ang pinakabagong $maxPdfRows tala sa PDF report na ito para sa mabilis at maayos na format. Para sa buong database audit ($totalCount transaksyon), gamitin ang Export Excel.',
+            '* Note: Displaying the most recent $maxPdfRows records in this PDF report for layout efficiency. For a complete database audit of all $totalCount transactions, export using the Excel format.',
             style: pw.TextStyle(fontSize: 6.5, color: const PdfColor.fromInt(0xFF475569)),
           ),
         ),
@@ -3711,7 +4047,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                                 CircularProgressIndicator(color: AppTheme.adminPrimaryAccent),
                                 SizedBox(height: 16),
                                 Text(
-                                  'Kinukuha ang pinakabagong datos ng benta...',
+                                  'Retrieving real-time sales data...',
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -3743,30 +4079,9 @@ class _SalesReportPageState extends State<SalesReportPage>
                           return _isDateInSelectedPeriod(rawDate);
                         }).toList();
 
-                        final double advanceOrderRevenueTotal = periodAdvanceOrders
-                            .where((o) {
-                              final status = (o['status'] ?? '').toString().toLowerCase();
-                              final pStatus = (o['payment_status'] ?? '').toString().toLowerCase();
-                              if (status == 'cancelled' || status == 'voided' || status == 'refunded' || pStatus == 'refunded' || pStatus == 'cancelled') return false;
-                              return pStatus == 'paid' || pStatus == 'fully_paid';
-                            })
-                            .fold(0.0, (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0));
-
-                        final int completedAdvanceOrdersCount = periodAdvanceOrders
-                            .where((o) => o['status'] == 'done' || o['status'] == 'completed' || o['status'] == 'ready')
-                            .length;
-
-                        final int cancelledAdvanceOrdersCount = periodAdvanceOrders
-                            .where((o) {
-                              final status = (o['status'] ?? '').toString().toLowerCase();
-                              final pStatus = (o['payment_status'] ?? '').toString().toLowerCase();
-                              return status == 'cancelled' || status == 'voided' || status == 'refunded' || pStatus == 'refunded' || pStatus == 'cancelled';
-                            })
-                            .length;
-
-                        final double advanceCancellationRate = periodAdvanceOrders.isNotEmpty
-                            ? (cancelledAdvanceOrdersCount / periodAdvanceOrders.length) * 100
-                            : 0.0;
+                        final double advanceOrderRevenueTotal = (metrics['advanceRevenue'] as num?)?.toDouble() ?? 0.0;
+                        final int completedAdvanceOrdersCount = (metrics['advanceOrders'] as num?)?.toInt() ?? 0;
+                        final double advanceCancellationRate = (metrics['advanceCancellationRate'] as num?)?.toDouble() ?? 0.0;
 
                         final Map<String, int> popularAdvanceItems = {};
                         for (var o in periodAdvanceOrders) {
@@ -3830,7 +4145,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         // Compile All Transactions for the Table
                         List<Map<String, dynamic>> combinedTransactions = [];
 
-                        // 1. Regular Orders
+                        // 1. Regular & POS Take-out Orders
                         for (var o in allOrders) {
                           final date = DateTime.tryParse(o['created_at'] ?? '');
                           if (date == null) continue;
@@ -3845,12 +4160,16 @@ class _SalesReportPageState extends State<SalesReportPage>
                           final revAmt = isValidRevenue ? rawAmt : 0.0;
                           final rawTxnId = o['transaction_id'];
                           final rawDbId = o['id']?.toString() ?? '';
+                          final isTakeout = _isOrderTakeout(o);
+                          const streamType = 'Regular';
                           final shortRef = _formatTransactionRef(rawTxnId, rawDbId, 'Regular');
-                          final processedBy = _resolveProcessedBy(o, 'Regular');
+                          final processedBy = _resolveProcessedBy(o, streamType);
                           final paymentMethod = o['payment_method']?.toString() ?? 'Cash';
                           
                           combinedTransactions.add({
                             'db_id': rawDbId,
+                            'db_source': 'orders',
+                            'is_pos_takeout': isTakeout,
                             'raw_id': (rawTxnId ?? rawDbId).toString(),
                             'id': shortRef,
                             'customer': name,
@@ -3864,10 +4183,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'status': dbStatus == 'Done' ? 'Completed' : (dbStatus.isEmpty ? 'Completed' : dbStatus),
                             'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
                             'color': AppTheme.regularOrderBlue,
-                            'type': 'Regular',
+                            'type': streamType,
                             'processed_by': processedBy,
                             'payment_method': paymentMethod,
                             'payment_status': pStatus,
+                            'order_type': isTakeout ? 'Take-out' : 'Dine-in',
+                            'note': o['note'],
+                            'table_number': o['table_number'],
                           });
                         }
 
@@ -4012,6 +4334,10 @@ class _SalesReportPageState extends State<SalesReportPage>
 
                                 // Operational Intelligence: Meal Rush Hours & Menu Velocity (Top & Slow Moving)
                                 _buildOperationalInsightsSection(isDesktop, combinedTransactions, metrics),
+                                const SizedBox(height: AppTheme.xl),
+
+                                // Payment Method Distribution Analytics: Tender Settlement across POS, Advance & Reservations
+                                _buildPaymentDistributionSection(isDesktop, combinedTransactions, metrics),
                                 const SizedBox(height: AppTheme.xl),
 
                                 // Side-by-side: Location Forecasting & Channel Performance Deep-Dives
@@ -4591,12 +4917,12 @@ class _SalesReportPageState extends State<SalesReportPage>
         : 'Avg. per $channelSubtitle order';
 
     final String customersCardTitle = isEventOnly
-        ? 'Event Clients'
-        : (isAdvanceOnly ? 'Pre-Order Patrons' : 'Active Customers');
-    final String customersCardUnit = isEventOnly ? 'Booked' : 'Served';
+        ? 'Event Guests (Pax)'
+        : (isAdvanceOnly ? 'Pre-Order Patrons' : 'Total Guests Served');
+    final String customersCardUnit = isEventOnly ? 'Pax' : 'Guests';
     final String customersCardSubtitle = isEventOnly
-        ? 'Unique catering hosts'
-        : '$channelSubtitle customers';
+        ? 'Total event attendees'
+        : '$channelSubtitle headcount';
 
     final cards = [
       // 1. Featured Gross Revenue Card
@@ -6642,6 +6968,1074 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
+  // ── 3.7 Payment Method Distribution Analytics ──────────────────────────────
+  String _normalizePaymentMethod(String? raw) {
+    if (raw == null) return 'Cash';
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return 'Cash';
+    if (s.contains('split')) return 'Split Payment';
+    if (s.contains('gcash') || s.contains('qr') || s.contains('e-wallet')) return 'GCash';
+    if (s.contains('cash')) return 'Cash';
+    if (s.contains('card') ||
+        s.contains('bank') ||
+        s.contains('paymongo') ||
+        s.contains('online') ||
+        s.contains('transfer') ||
+        s.contains('deposit')) {
+      return 'Bank / Online';
+    }
+    return 'Cash';
+  }
+
+  Map<String, _PaymentDistributionTender> _computePaymentDistribution(List<Map<String, dynamic>> transactions) {
+    final Map<String, _PaymentDistributionTender> tenders = {
+      'Cash': _PaymentDistributionTender(
+        key: 'Cash',
+        title: 'Cash',
+        color: const Color(0xFF15803D), // Forest Emerald
+        icon: Icons.payments_rounded,
+        revenue: 0.0,
+        count: 0,
+        channelRevenue: {'Regular': 0.0, 'Advance': 0.0, 'Reservation': 0.0},
+        channelCount: {'Regular': 0, 'Advance': 0, 'Reservation': 0},
+      ),
+      'GCash': _PaymentDistributionTender(
+        key: 'GCash',
+        title: 'GCash',
+        color: const Color(0xFF0284C7), // Sky Blue
+        icon: Icons.qr_code_scanner_rounded,
+        revenue: 0.0,
+        count: 0,
+        channelRevenue: {'Regular': 0.0, 'Advance': 0.0, 'Reservation': 0.0},
+        channelCount: {'Regular': 0, 'Advance': 0, 'Reservation': 0},
+      ),
+      'Split Payment': _PaymentDistributionTender(
+        key: 'Split Payment',
+        title: 'Split Payment',
+        color: const Color(0xFFD97706), // Amber Gold
+        icon: Icons.call_split_rounded,
+        revenue: 0.0,
+        count: 0,
+        channelRevenue: {'Regular': 0.0, 'Advance': 0.0, 'Reservation': 0.0},
+        channelCount: {'Regular': 0, 'Advance': 0, 'Reservation': 0},
+      ),
+      'Bank / Online': _PaymentDistributionTender(
+        key: 'Bank / Online',
+        title: 'Bank / Online',
+        color: const Color(0xFF6366F1), // Indigo
+        icon: Icons.account_balance_rounded,
+        revenue: 0.0,
+        count: 0,
+        channelRevenue: {'Regular': 0.0, 'Advance': 0.0, 'Reservation': 0.0},
+        channelCount: {'Regular': 0, 'Advance': 0, 'Reservation': 0},
+      ),
+    };
+
+    final periodTransactions = transactions.where((t) {
+      final date = t['raw_date'] as DateTime?;
+      final isValidRevenue = t['is_valid_revenue'] == true;
+      return isValidRevenue && _isDateInSelectedPeriod(date);
+    }).toList();
+
+    for (var t in periodTransactions) {
+      final rawMethod = t['payment_method']?.toString() ?? '';
+      final normalized = _normalizePaymentMethod(rawMethod);
+      final amt = (t['revenue_amount'] as num?)?.toDouble() ?? 0.0;
+      final channel = t['type']?.toString() ?? 'Regular';
+
+      final target = tenders[normalized] ?? tenders['Cash']!;
+      tenders[target.key] = _PaymentDistributionTender(
+        key: target.key,
+        title: target.title,
+        color: target.color,
+        icon: target.icon,
+        revenue: target.revenue + amt,
+        count: target.count + 1,
+        channelRevenue: {
+          ...target.channelRevenue,
+          channel: (target.channelRevenue[channel] ?? 0.0) + amt,
+        },
+        channelCount: {
+          ...target.channelCount,
+          channel: (target.channelCount[channel] ?? 0) + 1,
+        },
+      );
+    }
+
+    return tenders;
+  }
+
+  Widget _buildPaymentDistributionSection(
+    bool isDesktop,
+    List<Map<String, dynamic>> transactions,
+    Map<String, dynamic> metrics,
+  ) {
+    final tenderMap = _computePaymentDistribution(transactions);
+    final tenderList = tenderMap.values.toList();
+
+    double totalSettledRevenue = 0.0;
+    int totalSettledCount = 0;
+    for (var t in tenderList) {
+      totalSettledRevenue += t.revenue;
+      totalSettledCount += t.count;
+    }
+
+    final isRevenueMode = _paymentDistributionMode == 'Revenue';
+    final double metricTotal = isRevenueMode ? totalSettledRevenue : totalSettledCount.toDouble();
+
+    // Prepare doughnut slices
+    final List<_PaymentPieSlice> slices = [];
+    for (var t in tenderList) {
+      final val = isRevenueMode ? t.revenue : t.count.toDouble();
+      final pct = metricTotal > 0 ? (val / metricTotal) * 100 : 0.0;
+      if (val > 0) {
+        slices.add(_PaymentPieSlice(
+          label: t.title,
+          value: val,
+          color: t.color,
+          percentage: pct,
+          count: t.count,
+        ));
+      }
+    }
+
+    // Top tender insight
+    _PaymentDistributionTender topTender = tenderList.first;
+    for (var t in tenderList) {
+      final compareVal = isRevenueMode ? t.revenue : t.count.toDouble();
+      final currentTopVal = isRevenueMode ? topTender.revenue : topTender.count.toDouble();
+      if (compareVal > currentTopVal) {
+        topTender = t;
+      }
+    }
+    final double topPct = metricTotal > 0
+        ? ((isRevenueMode ? topTender.revenue : topTender.count.toDouble()) / metricTotal) * 100
+        : 0.0;
+
+    // Digital vs Cash ratio
+    final double cashRev = tenderMap['Cash']?.revenue ?? 0.0;
+    final double digitalRev = (tenderMap['GCash']?.revenue ?? 0.0) +
+        (tenderMap['Split Payment']?.revenue ?? 0.0) +
+        (tenderMap['Bank / Online']?.revenue ?? 0.0);
+    final double digitalPct = totalSettledRevenue > 0 ? (digitalRev / totalSettledRevenue) * 100 : 0.0;
+    final double cashPct = totalSettledRevenue > 0 ? (cashRev / totalSettledRevenue) * 100 : 0.0;
+
+    return Container(
+      padding: EdgeInsets.all(isDesktop ? 22 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header & View Mode Switcher ──
+          if (isDesktop)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet_rounded,
+                        size: 20,
+                        color: AppTheme.adminPrimaryAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payment Method Distribution',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.adminPrimaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Settlement mix & tender performance across POS, Advance, & Reservations for $_chartSubtitle',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                _buildPaymentModeToggle(),
+              ],
+            )
+          else ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 18,
+                    color: AppTheme.adminPrimaryAccent,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Payment Distribution',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.adminPrimaryText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Settlement mix across all channels for $_chartSubtitle',
+              style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentModeToggle(),
+          ],
+          const SizedBox(height: 20),
+
+          // ── Body: Circular Donut Chart & Detailed Tender Breakdown ──
+          if (slices.isEmpty || totalSettledCount == 0)
+            Container(
+              padding: const EdgeInsets.all(36),
+              alignment: Alignment.center,
+              child: Column(
+                children: [
+                  Icon(Icons.receipt_long_outlined, size: 44, color: AppTheme.mediumGrey.withValues(alpha: 0.6)),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'No settled transactions recorded in this period.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.adminSecondaryText),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Payment data updates in real-time as transactions are completed.',
+                    style: TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey),
+                  ),
+                ],
+              ),
+            )
+          else if (isDesktop)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left Column: Interactive Center-Hole Donut Chart + Digital Ratio
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 280,
+                        child: SfCircularChart(
+                          margin: EdgeInsets.zero,
+                          tooltipBehavior: TooltipBehavior(
+                            enable: true,
+                            activationMode: ActivationMode.singleTap,
+                            builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                              final _PaymentPieSlice slice = data;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.adminSidebarBackground,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(color: slice.color, shape: BoxShape.circle),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          slice.label,
+                                          style: const TextStyle(color: AppTheme.warmGold, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isRevenueMode
+                                          ? '${_currencyFormat.format(slice.value)} (${slice.percentage.toStringAsFixed(1)}%)'
+                                          : '${slice.value.toInt()} orders (${slice.percentage.toStringAsFixed(1)}%)',
+                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900),
+                                    ),
+                                    Text(
+                                      '${slice.count} orders reconciled',
+                                      style: const TextStyle(color: AppTheme.adminSecondaryText, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          annotations: <CircularChartAnnotation>[
+                            CircularChartAnnotation(
+                              widget: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isRevenueMode ? Icons.payments_outlined : Icons.receipt_long_outlined,
+                                    size: 20,
+                                    color: AppTheme.adminPrimaryAccent,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      isRevenueMode ? _currencyFormat.format(totalSettledRevenue) : '$totalSettledCount',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppTheme.adminPrimaryText,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    isRevenueMode ? 'Total Settled' : 'Total Orders',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.adminSecondaryText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          series: <CircularSeries<_PaymentPieSlice, String>>[
+                            DoughnutSeries<_PaymentPieSlice, String>(
+                              dataSource: slices,
+                              xValueMapper: (_PaymentPieSlice data, _) => data.label,
+                              yValueMapper: (_PaymentPieSlice data, _) => data.value,
+                              pointColorMapper: (_PaymentPieSlice data, _) => data.color,
+                              innerRadius: '68%',
+                              radius: '95%',
+                              enableTooltip: true,
+                              animationDuration: 800,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDigitalVsCashRatioCard(cashRev, digitalRev, cashPct, digitalPct),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppTheme.xl),
+
+                // Right Column: 4 Tender Breakdown Cards & Reconciliation Insight
+                Expanded(
+                  flex: 7,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTenderMetricCard(
+                              tenderList[0],
+                              metricTotal > 0
+                                  ? ((isRevenueMode ? tenderList[0].revenue : tenderList[0].count.toDouble()) / metricTotal) * 100
+                                  : 0.0,
+                              isRevenueMode,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTenderMetricCard(
+                              tenderList[1],
+                              metricTotal > 0
+                                  ? ((isRevenueMode ? tenderList[1].revenue : tenderList[1].count.toDouble()) / metricTotal) * 100
+                                  : 0.0,
+                              isRevenueMode,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTenderMetricCard(
+                              tenderList[2],
+                              metricTotal > 0
+                                  ? ((isRevenueMode ? tenderList[2].revenue : tenderList[2].count.toDouble()) / metricTotal) * 100
+                                  : 0.0,
+                              isRevenueMode,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTenderMetricCard(
+                              tenderList[3],
+                              metricTotal > 0
+                                  ? ((isRevenueMode ? tenderList[3].revenue : tenderList[3].count.toDouble()) / metricTotal) * 100
+                                  : 0.0,
+                              isRevenueMode,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTenderExecutiveInsightBanner(topTender, topPct, isRevenueMode, totalSettledCount),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            // Mobile layout
+            SizedBox(
+              height: 260,
+              child: SfCircularChart(
+                margin: EdgeInsets.zero,
+                tooltipBehavior: TooltipBehavior(enable: true, activationMode: ActivationMode.singleTap),
+                annotations: <CircularChartAnnotation>[
+                  CircularChartAnnotation(
+                    widget: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isRevenueMode ? _currencyFormat.format(totalSettledRevenue) : '$totalSettledCount',
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
+                        ),
+                        Text(
+                          isRevenueMode ? 'Total Settled' : 'Total Orders',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.adminSecondaryText),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                series: <CircularSeries<_PaymentPieSlice, String>>[
+                  DoughnutSeries<_PaymentPieSlice, String>(
+                    dataSource: slices,
+                    xValueMapper: (_PaymentPieSlice data, _) => data.label,
+                    yValueMapper: (_PaymentPieSlice data, _) => data.value,
+                    pointColorMapper: (_PaymentPieSlice data, _) => data.color,
+                    innerRadius: '68%',
+                    radius: '95%',
+                    enableTooltip: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildDigitalVsCashRatioCard(cashRev, digitalRev, cashPct, digitalPct),
+            const SizedBox(height: 14),
+            ...tenderList.map((tender) {
+              final sharePct = metricTotal > 0
+                  ? ((isRevenueMode ? tender.revenue : tender.count.toDouble()) / metricTotal) * 100
+                  : 0.0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildTenderMetricCard(tender, sharePct, isRevenueMode),
+              );
+            }),
+            const SizedBox(height: 10),
+            _buildTenderExecutiveInsightBanner(topTender, topPct, isRevenueMode, totalSettledCount),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentModeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildPaymentToggleOption(
+            title: 'Gross Volume (₱)',
+            mode: 'Revenue',
+            icon: Icons.attach_money_rounded,
+          ),
+          _buildPaymentToggleOption(
+            title: 'Transaction Count (#)',
+            mode: 'Count',
+            icon: Icons.tag_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentToggleOption({
+    required String title,
+    required String mode,
+    required IconData icon,
+  }) {
+    final isSelected = _paymentDistributionMode == mode;
+    return InkWell(
+      onTap: () {
+        if (_paymentDistributionMode != mode) {
+          setState(() => _paymentDistributionMode = mode);
+        }
+      },
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? AppTheme.adminPrimaryAccent : AppTheme.adminSecondaryText,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? AppTheme.adminPrimaryText : AppTheme.adminSecondaryText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTenderMetricCard(_PaymentDistributionTender tender, double sharePct, bool isRevenueMode) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.cardBorder, width: 0.9),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Icon, Tender Title, Percentage Badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: tender.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(tender.icon, size: 15, color: tender.color),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    tender.title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.adminPrimaryText,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: tender.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${sharePct.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: tender.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Main Value
+          Text(
+            isRevenueMode ? _currencyFormat.format(tender.revenue) : '${tender.count} Orders',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.adminPrimaryText,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Visual Progress Bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: (sharePct / 100).clamp(0.0, 1.0),
+              minHeight: 5,
+              backgroundColor: AppTheme.cardBorder,
+              valueColor: AlwaysStoppedAnimation<Color>(tender.color),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Order count & AOV
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${tender.count} txns settled',
+                style: const TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
+              ),
+              Text(
+                'Avg: ${_currencyFormat.format(tender.avgOrderValue)}',
+                style: const TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Mini Channel Breakdown Chips
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              if (tender.channelRevenue['Regular']! > 0)
+                _buildChannelMiniChip('Walk-in: ${_currencyFormat.format(tender.channelRevenue['Regular']!)}', AppTheme.regularOrderBlue),
+              if (tender.channelRevenue['Advance']! > 0)
+                _buildChannelMiniChip('Advance: ${_currencyFormat.format(tender.channelRevenue['Advance']!)}', AppTheme.advanceOrderGreen),
+              if (tender.channelRevenue['Reservation']! > 0)
+                _buildChannelMiniChip('Banquet: ${_currencyFormat.format(tender.channelRevenue['Reservation']!)}', AppTheme.reservationPurple),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelMiniChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 0.6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: color),
+      ),
+    );
+  }
+
+  Widget _buildDigitalVsCashRatioCard(double cashRev, double digitalRev, double cashPct, double digitalPct) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0284C7),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Digital Settlements: ${digitalPct.toStringAsFixed(1)}%',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.adminPrimaryText),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF15803D),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Cash: ${cashPct.toStringAsFixed(1)}%',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.adminPrimaryText),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: (digitalPct * 10).round().clamp(0, 1000),
+                  child: Container(height: 6, color: const Color(0xFF0284C7)),
+                ),
+                Expanded(
+                  flex: (cashPct * 10).round().clamp(0, 1000),
+                  child: Container(height: 6, color: const Color(0xFF15803D)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Digital: ${_currencyFormat.format(digitalRev)}',
+                style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'Cash: ${_currencyFormat.format(cashRev)}',
+                style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTenderExecutiveInsightBanner(
+    _PaymentDistributionTender topTender,
+    double topPct,
+    bool isRevenueMode,
+    int totalCount,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: const Color(0xFFA7F3D0), width: 0.8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights_rounded, size: 16, color: Color(0xFF059669)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 11, color: Color(0xFF065F46)),
+                children: [
+                  const TextSpan(
+                    text: 'EXECUTIVE RECONCILIATION: ',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  TextSpan(
+                    text: '${topTender.title} is currently the leading tender method, representing ${topPct.toStringAsFixed(1)}% of all ${isRevenueMode ? 'gross revenue settlements' : 'completed transaction volume'}. Total audit count: $totalCount transactions.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfPaymentDistribution(
+    _ProcessedReportData data,
+    PdfColor primaryColor,
+    PdfColor goldColor,
+    PdfColor borderColor,
+  ) {
+    // Tally tenders
+    double cashRev = 0.0;
+    int cashCount = 0;
+    double gcashRev = 0.0;
+    int gcashCount = 0;
+    double splitRev = 0.0;
+    int splitCount = 0;
+    double onlineRev = 0.0;
+    int onlineCount = 0;
+
+    for (var t in data.transactions) {
+      if (t['is_valid_revenue'] != true) continue;
+      final rawMethod = t['payment_method']?.toString() ?? '';
+      final normalized = _normalizePaymentMethod(rawMethod);
+      final amt = (t['revenue_amount'] as num?)?.toDouble() ?? 0.0;
+
+      if (normalized == 'Cash') {
+        cashRev += amt;
+        cashCount++;
+      } else if (normalized == 'GCash') {
+        gcashRev += amt;
+        gcashCount++;
+      } else if (normalized == 'Split Payment') {
+        splitRev += amt;
+        splitCount++;
+      } else {
+        onlineRev += amt;
+        onlineCount++;
+      }
+    }
+
+    final double totalRev = data.grossRevenue > 0 ? data.grossRevenue : (cashRev + gcashRev + splitRev + onlineRev);
+    final safeTotalRev = totalRev > 0 ? totalRev : 1.0;
+
+    final double cashPct = (cashRev / safeTotalRev).clamp(0.0, 1.0);
+    final double gcashPct = (gcashRev / safeTotalRev).clamp(0.0, 1.0);
+    final double splitPct = (splitRev / safeTotalRev).clamp(0.0, 1.0);
+    final double onlinePct = (onlineRev / safeTotalRev).clamp(0.0, 1.0);
+
+    int cashFlex = (cashPct * 1000).toInt();
+    int gcashFlex = (gcashPct * 1000).toInt();
+    int splitFlex = (splitPct * 1000).toInt();
+    int onlineFlex = (onlinePct * 1000).toInt();
+    if (cashFlex == 0 && gcashFlex == 0 && splitFlex == 0 && onlineFlex == 0) {
+      cashFlex = 1000;
+    }
+
+    const cashPdfColor = PdfColor.fromInt(0xFF15803D);   // Forest Green
+    const gcashPdfColor = PdfColor.fromInt(0xFF0284C7);  // Sky Blue
+    const splitPdfColor = PdfColor.fromInt(0xFFD97706);  // Amber Gold
+    const onlinePdfColor = PdfColor.fromInt(0xFF6366F1); // Indigo
+
+    final double digitalRev = gcashRev + splitRev + onlineRev;
+    final double digitalPct = (digitalRev / safeTotalRev) * 100;
+
+    pw.Widget tenderBox(String name, double rev, int count, double pct, PdfColor color) {
+      final avg = count > 0 ? rev / count : 0.0;
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(4.5),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.white,
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+          border: pw.TableBorder.all(color: borderColor, width: 0.5),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Row(
+                  children: [
+                    pw.Container(
+                      width: 5.5,
+                      height: 5.5,
+                      decoration: pw.BoxDecoration(color: color, shape: pw.BoxShape.circle),
+                    ),
+                    pw.SizedBox(width: 3),
+                    pw.Text(name, style: pw.TextStyle(fontSize: 5.8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                  ],
+                ),
+                pw.Text('${(pct * 100).toStringAsFixed(1)}%', style: pw.TextStyle(fontSize: 5.2, fontWeight: pw.FontWeight.bold, color: color)),
+              ],
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(_formatPdfMoney(rev), style: pw.TextStyle(fontSize: 6.8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+            pw.SizedBox(height: 1),
+            pw.Text('${_formatPdfCount(count)} orders | Avg ${_formatPdfMoney(avg)}', style: const pw.TextStyle(fontSize: 4.8, color: PdfColors.grey700)),
+          ],
+        ),
+      );
+    }
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(7),
+      decoration: pw.BoxDecoration(
+        color: const PdfColor.fromInt(0xFFF8FAFC),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.TableBorder.all(color: borderColor, width: 0.8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // Header
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'PAYMENT SETTLEMENT & TENDER AUDIT (CROSS-CHANNEL)',
+                    style: pw.TextStyle(fontSize: 7.8, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                  ),
+                  pw.SizedBox(height: 1),
+                  pw.Text(
+                    'Revenue distribution across Cash, GCash, Split Tender, and Bank/Online settlements',
+                    style: const pw.TextStyle(fontSize: 5.8, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: pw.BoxDecoration(
+                  color: const PdfColor.fromInt(0xFFE2E8F0),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+                  border: pw.TableBorder.all(color: const PdfColor.fromInt(0xFFCBD5E1), width: 0.5),
+                ),
+                child: pw.Text(
+                  'TENDER RECONCILIATION',
+                  style: pw.TextStyle(fontSize: 5.2, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 4),
+
+          // Proportional Multi-color Flex Bar
+          pw.Container(
+            height: 9,
+            decoration: const pw.BoxDecoration(
+              borderRadius: pw.BorderRadius.all(pw.Radius.circular(3)),
+              color: PdfColor.fromInt(0xFFE2E8F0),
+            ),
+            child: pw.Row(
+              children: [
+                if (cashFlex > 0)
+                  pw.Expanded(
+                    flex: cashFlex,
+                    child: pw.Container(
+                      decoration: const pw.BoxDecoration(
+                        color: cashPdfColor,
+                        borderRadius: pw.BorderRadius.only(topLeft: pw.Radius.circular(3), bottomLeft: pw.Radius.circular(3)),
+                      ),
+                    ),
+                  ),
+                if (gcashFlex > 0)
+                  pw.Expanded(
+                    flex: gcashFlex,
+                    child: pw.Container(color: gcashPdfColor),
+                  ),
+                if (splitFlex > 0)
+                  pw.Expanded(
+                    flex: splitFlex,
+                    child: pw.Container(color: splitPdfColor),
+                  ),
+                if (onlineFlex > 0)
+                  pw.Expanded(
+                    flex: onlineFlex,
+                    child: pw.Container(
+                      decoration: const pw.BoxDecoration(
+                        color: onlinePdfColor,
+                        borderRadius: pw.BorderRadius.only(topRight: pw.Radius.circular(3), bottomRight: pw.Radius.circular(3)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 4.5),
+
+          // 4 Tender Summary Cards
+          pw.Row(
+            children: [
+              pw.Expanded(child: tenderBox('Cash', cashRev, cashCount, cashPct, cashPdfColor)),
+              pw.SizedBox(width: 4),
+              pw.Expanded(child: tenderBox('GCash', gcashRev, gcashCount, gcashPct, gcashPdfColor)),
+              pw.SizedBox(width: 4),
+              pw.Expanded(child: tenderBox('Split Payment', splitRev, splitCount, splitPct, splitPdfColor)),
+              pw.SizedBox(width: 4),
+              pw.Expanded(child: tenderBox('Bank / Online', onlineRev, onlineCount, onlinePct, onlinePdfColor)),
+            ],
+          ),
+          pw.SizedBox(height: 3.5),
+
+          // Reconciliation Note
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+            decoration: pw.BoxDecoration(
+              color: const PdfColor.fromInt(0xFFF1F5F9),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+              border: pw.TableBorder.all(color: const PdfColor.fromInt(0xFFE2E8F0), width: 0.5),
+            ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'TENDER AUDIT NOTE: ',
+                  style: pw.TextStyle(fontSize: 4.8, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    'Digital tender channels (GCash, Split, & Online) represent ${digitalPct.toStringAsFixed(1)}% (${_formatPdfMoney(digitalRev)}) of total sales turnover, while cash settlement accounts for ${(cashPct * 100).toStringAsFixed(1)}% (${_formatPdfMoney(cashRev)}).',
+                    style: const pw.TextStyle(fontSize: 4.8, color: PdfColors.grey700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── 4. Location Sales Forecasting Card ───────────────────────────────────────
   Widget _buildLocationForecastingCard() {
     final filteredLocations = _includeOthersInLocations
@@ -7218,7 +8612,9 @@ class _SalesReportPageState extends State<SalesReportPage>
         final cust = t['customer']?.toString().toLowerCase() ?? '';
         final type = t['type']?.toString().toLowerCase() ?? '';
         final processedBy = t['processed_by']?.toString().toLowerCase() ?? '';
-        if (!id.contains(q) && !rawId.contains(q) && !dbId.contains(q) && !cust.contains(q) && !type.contains(q) && !processedBy.contains(q)) {
+        final orderType = t['order_type']?.toString().toLowerCase() ?? '';
+        final note = t['note']?.toString().toLowerCase() ?? '';
+        if (!id.contains(q) && !rawId.contains(q) && !dbId.contains(q) && !cust.contains(q) && !type.contains(q) && !processedBy.contains(q) && !orderType.contains(q) && !note.contains(q)) {
           return false;
         }
       }
@@ -7385,7 +8781,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           isDense: true,
           style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
           items: ['All Channels', 'Regular', 'Advance', 'Reservation']
-              .map((c) => DropdownMenuItem(value: c, child: Text(c == 'Regular' ? 'Walk-in' : c == 'Reservation' ? 'Event' : c)))
+              .map((c) => DropdownMenuItem(value: c, child: Text(c == 'Regular' ? 'Walk-in' : c == 'Advance' ? 'Advance' : c == 'Reservation' ? 'Event' : c)))
               .toList(),
           onChanged: (v) {
             _channelDropdownFocusNode.unfocus();
@@ -7531,7 +8927,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           // Channel
           Expanded(
             flex: 2,
-            child: _typeBadge(t['type']),
+            child: _typeBadge(t['type'], isTakeout: (t['is_pos_takeout'] as bool?) ?? false),
           ),
           // Date
           Expanded(
@@ -7641,7 +9037,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _typeBadge(t['type']),
+              _typeBadge(t['type'], isTakeout: (t['is_pos_takeout'] as bool?) ?? false),
               Text(t['amount'], style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText)),
             ],
           ),
@@ -7663,30 +9059,37 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  Widget _typeBadge(String type) {
+  Widget _typeBadge(String type, {bool isTakeout = false}) {
     Color bg;
     Color textColor;
     IconData icon;
     String label = type;
 
-    switch (type) {
-      case 'Advance':
-        bg = AppTheme.advanceOrderGreen.withValues(alpha: 0.1);
-        textColor = AppTheme.advanceOrderGreen;
-        icon = Icons.inventory_2_outlined;
-        label = 'Advance';
-        break;
-      case 'Reservation':
-        bg = AppTheme.reservationPurple.withValues(alpha: 0.1);
-        textColor = AppTheme.reservationPurple;
-        icon = Icons.celebration_outlined;
-        label = 'Event Catering';
-        break;
-      default:
-        bg = AppTheme.regularOrderBlue.withValues(alpha: 0.1);
-        textColor = AppTheme.regularOrderBlue;
-        icon = Icons.storefront_outlined;
-        label = 'Walk-in';
+    if (isTakeout) {
+      bg = AppTheme.advanceOrderGreen.withValues(alpha: 0.1);
+      textColor = AppTheme.advanceOrderGreen;
+      icon = Icons.shopping_bag_outlined;
+      label = 'Take-out';
+    } else {
+      switch (type) {
+        case 'Advance':
+          bg = AppTheme.advanceOrderGreen.withValues(alpha: 0.1);
+          textColor = AppTheme.advanceOrderGreen;
+          icon = Icons.inventory_2_outlined;
+          label = 'Advance';
+          break;
+        case 'Reservation':
+          bg = AppTheme.reservationPurple.withValues(alpha: 0.1);
+          textColor = AppTheme.reservationPurple;
+          icon = Icons.celebration_outlined;
+          label = 'Event Catering';
+          break;
+        default:
+          bg = AppTheme.regularOrderBlue.withValues(alpha: 0.1);
+          textColor = AppTheme.regularOrderBlue;
+          icon = Icons.storefront_outlined;
+          label = 'Walk-in';
+      }
     }
 
     return Container(
@@ -7903,6 +9306,46 @@ class _ProcessedReportData {
     required this.reportPeriodLabel,
     required this.generatedBy,
     required this.generatedAt,
+  });
+}
+
+class _PaymentDistributionTender {
+  final String key;
+  final String title;
+  final Color color;
+  final IconData icon;
+  final double revenue;
+  final int count;
+  final Map<String, double> channelRevenue;
+  final Map<String, int> channelCount;
+
+  _PaymentDistributionTender({
+    required this.key,
+    required this.title,
+    required this.color,
+    required this.icon,
+    required this.revenue,
+    required this.count,
+    required this.channelRevenue,
+    required this.channelCount,
+  });
+
+  double get avgOrderValue => count > 0 ? revenue / count : 0.0;
+}
+
+class _PaymentPieSlice {
+  final String label;
+  final double value;
+  final Color color;
+  final double percentage;
+  final int count;
+
+  _PaymentPieSlice({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.percentage,
+    required this.count,
   });
 }
 
