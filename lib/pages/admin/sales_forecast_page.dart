@@ -80,7 +80,6 @@ class _SalesForecastPageState extends State<SalesForecastPage>
 
   bool _isLoading = true;
   DateTime _lastRefreshTime = DateTime.now();
-  bool _showExplainer = false;
 
   // Raw Database Records
   List<Map<String, dynamic>> _rawOrders = [];
@@ -522,7 +521,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       sheet1.setColumnWidth(7, 18.0);
       sheet1.setColumnWidth(8, 22.0);
 
-      appendRow(sheet1, [excel_pkg.TextCellValue('YANG CHOW RESTAURANT — SALES FORECAST & PREDICTIVE AUDIT')], style: titleStyle);
+      appendRow(sheet1, [excel_pkg.TextCellValue('YANG CHOW RESTAURANT — SALES FORECAST AUDIT')], style: titleStyle);
       appendRow(sheet1, [excel_pkg.TextCellValue('Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())} • Horizon: Next $_selectedHorizonDays Days')]);
       sheet1.appendRow([excel_pkg.TextCellValue('')]);
 
@@ -706,7 +705,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
-                      'Sales Forecast & Predictive Analytics Report',
+                      'Sales Forecast Report',
                       style: pw.TextStyle(fontSize: 12, color: PdfColor.fromHex('#475569')),
                     ),
                   ],
@@ -911,21 +910,21 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       children: [
                         if (_errorMessage != null) ...[
                           Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF2F2),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: const Color(0xFFFECACA)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.info_outline, color: Color(0xFFDC2626), size: 18),
-                                const SizedBox(width: 8),
+                                const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'Notice: $_errorMessage (showing computed baseline estimates)',
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B), fontWeight: FontWeight.w600),
+                                    style: const TextStyle(fontSize: 12.5, color: Color(0xFF991B1B), fontWeight: FontWeight.w600),
                                   ),
                                 ),
                                 TextButton(
@@ -937,19 +936,17 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           ),
                         ],
                         _buildExecutiveHeader(isDesktop),
-                        const SizedBox(height: 18),
-                        _buildAdminExplainerGuide(isDesktop),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 20),
                         _buildHeroKpiGrid(isDesktop, isTablet),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 22),
                         _buildMainChartsSection(isDesktop),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 22),
                         _buildOperationalAlertsCard(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 22),
                         _buildDayByDayScheduleTable(isDesktop),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 22),
                         _buildConfirmedPipelineFeed(),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 36),
                       ],
                     ),
                   ),
@@ -960,19 +957,19 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 5. EXECUTIVE HEADER
+  // 5. EXECUTIVE HEADER & CONTROLS TOOLBAR
   // ─────────────────────────────────────────────────────────────────────────────
 
   Widget _buildExecutiveHeader(bool isDesktop) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -992,16 +989,16 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                      color: const Color(0xFF14332E).withValues(alpha: 0.22),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.auto_graph_rounded, color: Colors.white, size: 26),
+                child: const Icon(Icons.auto_graph_rounded, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1014,33 +1011,33 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       runSpacing: 6,
                       children: [
                         const Text(
-                          'Sales Forecast & Predictive Analytics',
+                          'Sales Forecast',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 21,
                             fontWeight: FontWeight.w900,
                             color: AppTheme.adminPrimaryText,
-                            letterSpacing: -0.5,
+                            letterSpacing: -0.4,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
-                              SizedBox(width: 4),
+                              Icon(Icons.fiber_manual_record_rounded, size: 8, color: Color(0xFF10B981)),
+                              SizedBox(width: 5),
                               Text(
-                                'LIVE • SYSTEM CONNECTED',
+                                'LIVE SYNC',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF10B981),
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.4,
                                 ),
                               ),
                             ],
@@ -1048,11 +1045,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
-                      'Projected store revenue and demand forecasting based on confirmed reservations, advance pre-orders, and historical walk-in dining trends.',
+                      'Store revenue and dining demand combining confirmed advance bookings and 90-day walk-in dining baselines.',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         color: AppTheme.adminSecondaryText.withValues(alpha: 0.9),
                         height: 1.35,
                       ),
@@ -1062,87 +1059,99 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           const Divider(height: 1, color: AppTheme.cardBorder),
           const SizedBox(height: 16),
 
-          // Controls Bar (Horizon Selector + Export Actions)
+          // Controls Bar (Horizon Selector + Centralized Action Buttons)
           LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 860;
+              final isWide = constraints.maxWidth >= 900;
 
-              final horizonSelector = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Modern Horizon Pill Selector
+              final horizonSelector = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Select Horizon:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
-                  ),
-                  const SizedBox(height: 6),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: AppTheme.adminMainBackground,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.cardBorder),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildHorizonChip('7 Days (1 Week)', 7),
-                          _buildHorizonChip('14 Days (2 Weeks)', 14),
-                          _buildHorizonChip('Full Month (30 Days)', 30),
-                        ],
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildHorizonChip('7 Days', 7),
+                        _buildHorizonChip('14 Days', 14),
+                        _buildHorizonChip('30 Days', 30),
+                      ],
                     ),
                   ),
                 ],
               );
 
+              // Action Toolbar
               final actionButtons = Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 alignment: isWide ? WrapAlignment.end : WrapAlignment.start,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  // Methodology Button (Centralized explainer access)
+                  OutlinedButton.icon(
+                    onPressed: _showFormulaExplanationDialog,
+                    icon: const Icon(Icons.calculate_outlined, size: 15, color: Color(0xFF334155)),
+                    label: const Text(
+                      'Methodology',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      backgroundColor: const Color(0xFFF8FAFC),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  // Refresh Button
                   OutlinedButton.icon(
                     onPressed: () => _fetchAndCalculateForecast(isSilent: false),
-                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    icon: const Icon(Icons.refresh_rounded, size: 15),
                     label: Text(
-                      'Refresh (${DateFormat('hh:mm a').format(_lastRefreshTime)})',
+                      'Sync (${DateFormat('hh:mm a').format(_lastRefreshTime)})',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.adminPrimaryText,
                       side: const BorderSide(color: AppTheme.cardBorder),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
+                  // Export Excel
                   OutlinedButton.icon(
                     onPressed: _exportForecastToExcel,
-                    icon: const Icon(Icons.table_chart_outlined, size: 16, color: Color(0xFF16A34A)),
-                    label: const Text('Export to Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    icon: const Icon(Icons.table_chart_outlined, size: 15, color: Color(0xFF16A34A)),
+                    label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF16A34A),
                       side: const BorderSide(color: Color(0xFF86EFAC)),
                       backgroundColor: const Color(0xFFF0FDF4),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
+                  // Download PDF
                   ElevatedButton.icon(
                     onPressed: _downloadPdf,
-                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: Colors.white),
-                    label: const Text('Download PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 15, color: Colors.white),
+                    label: const Text('PDF Report', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF14332E),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
@@ -1152,7 +1161,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               if (isWide) {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     horizonSelector,
                     Flexible(child: actionButtons),
@@ -1175,250 +1184,37 @@ class _SalesForecastPageState extends State<SalesForecastPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 5.1 GABAY PARA KAY ADMIN (PLAIN EXPLAINER GUIDE)
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  Widget _buildAdminExplainerGuide(bool isDesktop) {
-    if (!_showExplainer) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFBBF7D0)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.lightbulb_outline_rounded, size: 16, color: Color(0xFF15803D)),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                'How is Sales Forecast Calculated? Sum of Confirmed Advance Bookings + Estimated POS Walk-in.',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF166534)),
-              ),
-            ),
-            InkWell(
-              onTap: () => setState(() => _showExplainer = true),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF15803D).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'View Methodology',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: Color(0xFF15803D)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFBBF7D0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.lightbulb_rounded, color: Color(0xFF15803D), size: 20),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Admin Guide: How is Sales Forecast Calculated?',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Intuitive & Transparent! Projected turnover combines two distinct components:',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF15803D)),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () => setState(() => _showExplainer = false),
-                icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF166534)),
-                tooltip: 'Hide guide',
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 780;
-              final items = [
-                _buildGuideStepCard(
-                  stepNum: '1',
-                  title: 'Guaranteed Revenue (Booked)',
-                  desc: 'From approved Catering Reservations and Advance Pre-Orders confirmed in the system.',
-                  color: const Color(0xFF0284C7),
-                  icon: Icons.verified_rounded,
-                ),
-                _buildGuideStepCard(
-                  stepNum: '2',
-                  title: 'Estimated Walk-In & Dine-In',
-                  desc: 'Calculated from historical restaurant sales (typically higher Friday through Sunday).',
-                  color: const Color(0xFFF59E0B),
-                  icon: Icons.storefront_rounded,
-                ),
-                _buildGuideStepCard(
-                  stepNum: '=',
-                  title: 'Total Projected Gross Sales',
-                  desc: 'Combined Bookings + Walk-In to guide admin in purchasing ingredients and scheduling staff.',
-                  color: const Color(0xFF14332E),
-                  icon: Icons.payments_rounded,
-                ),
-              ];
-
-              if (isWide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: items
-                      .map((w) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: w,
-                            ),
-                          ))
-                      .toList(),
-                );
-              } else {
-                return Column(
-                  children: items
-                      .map((w) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: w,
-                          ))
-                      .toList(),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGuideStepCard({
-    required String stepNum,
-    required String title,
-    required String desc,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                stepNum,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: color),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, size: 14, color: color),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: color),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  desc,
-                  style: const TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText, height: 1.3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildHorizonChip(String label, int days) {
     final isSelected = _selectedHorizonDays == days;
     return GestureDetector(
       onTap: () {
         if (_selectedHorizonDays != days) {
           setState(() => _selectedHorizonDays = days);
-          // Re-fetch from DB so future events beyond the old horizon are included
           _fetchAndCalculateForecast(isSilent: true);
         }
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF14332E) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF14332E).withValues(alpha: 0.18),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? Colors.white : AppTheme.adminSecondaryText,
+            color: isSelected ? Colors.white : const Color(0xFF475569),
           ),
         ),
       ),
@@ -1434,67 +1230,68 @@ class _SalesForecastPageState extends State<SalesForecastPage>
     final totalGuaranteed = _dailyForecasts.fold<double>(0.0, (sum, f) => sum + f.guaranteedPipeline);
     final totalWalkIn = _dailyForecasts.fold<double>(0.0, (sum, f) => sum + f.projectedWalkInRevenue);
 
-    // Identify Peak Day
     DailySalesForecast? peakDay;
     if (_dailyForecasts.isNotEmpty) {
       peakDay = _dailyForecasts.reduce((curr, next) => curr.totalForecastRevenue > next.totalForecastRevenue ? curr : next);
     }
 
     final totalBookings = _dailyForecasts.fold<int>(0, (sum, f) => sum + f.confirmedReservationsCount + f.confirmedAdvanceCount);
+    final guaranteedShare = totalProjected > 0 ? (totalGuaranteed / totalProjected) * 100 : 0.0;
+    final walkInShare = totalProjected > 0 ? (totalWalkIn / totalProjected) * 100 : 0.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 880
+        final crossAxisCount = constraints.maxWidth > 920
             ? 4
-            : (constraints.maxWidth > 520 ? 2 : 1);
+            : (constraints.maxWidth > 540 ? 2 : 1);
         final cardWidth = (constraints.maxWidth - (crossAxisCount - 1) * 14) / crossAxisCount;
 
         return Wrap(
           spacing: 14,
           runSpacing: 14,
           children: [
-            // 1. Featured Total Projected Card (Hero Green Gradient)
+            // 1. Featured Projected Gross Sales (Hero Emerald Card)
             SizedBox(
               width: cardWidth,
               child: _buildFeaturedKpiCard(
                 title: 'PROJECTED GROSS SALES',
                 value: _currencyFormat.format(totalProjected),
-                subtitle: 'Next $_selectedHorizonDays days',
-                chipLabel: '${(_momentumFactor >= 1.0 ? '+' : '')}${((_momentumFactor - 1.0) * 100).toStringAsFixed(1)}%',
-                chipColor: _momentumFactor >= 1.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                subtitle: 'Next $_selectedHorizonDays days projected',
+                chipLabel: '${(_momentumFactor >= 1.0 ? '+' : '')}${((_momentumFactor - 1.0) * 100).toStringAsFixed(1)}% Trend',
+                chipColor: _momentumFactor >= 1.0 ? const Color(0xFF34D399) : const Color(0xFFFBBF24),
                 icon: Icons.payments_rounded,
               ),
             ),
 
-            // 2. Guaranteed Pipeline Card
+            // 2. Guaranteed Revenue (Booked Pipeline)
             SizedBox(
               width: cardWidth,
               child: _buildStandardKpiCard(
-                title: 'GUARANTEED REVENUE',
+                title: 'GUARANTEED PIPELINE',
                 value: _currencyFormat.format(totalGuaranteed),
-                subtitle: '$totalBookings confirmed bookings',
-                badgeText: 'CONFIRMED',
+                subtitle: '$totalBookings confirmed events & orders',
+                badgeText: '${guaranteedShare.toStringAsFixed(0)}% SHARE',
                 badgeColor: const Color(0xFF0284C7),
                 icon: Icons.verified_rounded,
                 accentColor: const Color(0xFF0284C7),
               ),
             ),
 
-            // 3. Projected Walk-in Sales Card
+            // 3. Estimated Walk-in & Dine-in
             SizedBox(
               width: cardWidth,
               child: _buildStandardKpiCard(
-                title: 'ESTIMATED DINE-IN / WALK-IN',
+                title: 'ESTIMATED WALK-IN',
                 value: _currencyFormat.format(totalWalkIn),
-                subtitle: 'Based on regular sales trend',
-                badgeText: 'REGULAR',
-                badgeColor: const Color(0xFFF59E0B),
+                subtitle: '90-day day-of-week baseline',
+                badgeText: '${walkInShare.toStringAsFixed(0)}% SHARE',
+                badgeColor: const Color(0xFFD97706),
                 icon: Icons.storefront_rounded,
                 accentColor: const Color(0xFFF59E0B),
               ),
             ),
 
-            // 4. Projected Peak Day Card
+            // 4. Projected Peak Sales Day
             SizedBox(
               width: cardWidth,
               child: _buildStandardKpiCard(
@@ -1503,7 +1300,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 subtitle: peakDay != null
                     ? '${peakDay.dateFormatted} • ${_currencyFormat.format(peakDay.totalForecastRevenue)}'
                     : 'No data',
-                badgeText: peakDay?.operationalLoad ?? 'Normal',
+                badgeText: peakDay?.operationalLoad.split(' ').first ?? 'Steady',
                 badgeColor: peakDay?.loadColor ?? const Color(0xFF10B981),
                 icon: Icons.local_fire_department_rounded,
                 accentColor: const Color(0xFFEF4444),
@@ -1524,15 +1321,14 @@ class _SalesForecastPageState extends State<SalesForecastPage>
     required IconData icon,
   }) {
     return Container(
-      height: 122,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF14332E), Color(0xFF1A453E)],
+          colors: [Color(0xFF14332E), Color(0xFF1C473F)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF14332E).withValues(alpha: 0.25),
@@ -1543,52 +1339,50 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFD9A441),
-                    letterSpacing: 0.6,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFD9A441),
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                 decoration: BoxDecoration(
                   color: chipColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   chipLabel,
-                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: chipColor),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: chipColor),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               color: Colors.white,
-              letterSpacing: -0.5,
+              letterSpacing: -0.6,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          const SizedBox(height: 10),
           Row(
             children: [
               Icon(icon, size: 13, color: const Color(0xFFD9A441)),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   subtitle,
@@ -1613,15 +1407,14 @@ class _SalesForecastPageState extends State<SalesForecastPage>
     required Color accentColor,
   }) {
     return Container(
-      height: 122,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -1629,52 +1422,50 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.adminSecondaryText,
-                    letterSpacing: 0.5,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.adminSecondaryText,
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                 decoration: BoxDecoration(
                   color: badgeColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   badgeText,
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: badgeColor),
+                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: badgeColor),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               color: AppTheme.adminPrimaryText,
-              letterSpacing: -0.5,
+              letterSpacing: -0.6,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          const SizedBox(height: 10),
           Row(
             children: [
               Icon(icon, size: 13, color: accentColor),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   subtitle,
@@ -1699,7 +1490,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(flex: 7, child: _buildTimelineForecastChart()),
-          const SizedBox(width: 24),
+          const SizedBox(width: 20),
           Expanded(flex: 4, child: _buildChannelShareDoughnut()),
         ],
       );
@@ -1707,7 +1498,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       return Column(
         children: [
           _buildTimelineForecastChart(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           _buildChannelShareDoughnut(),
         ],
       );
@@ -1717,7 +1508,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   Widget _buildTimelineForecastChart() {
     if (_dailyForecasts.isEmpty) {
       return const SizedBox(
-        height: 300,
+        height: 320,
         child: Center(child: CircularProgressIndicator(color: AppTheme.adminPrimaryAccent)),
       );
     }
@@ -1729,7 +1520,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1753,34 +1544,34 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       Icon(Icons.timeline_rounded, size: 18, color: Color(0xFF14332E)),
                       SizedBox(width: 8),
                       Text(
-                        'Daily Projected Revenue Trends',
+                        'Projected Revenue Trajectory',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                       ),
                     ],
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Daily projected sales trajectory combining confirmed advance bookings and estimated regular walk-in dining',
+                    'Daily breakdown: guaranteed bookings vs estimated walk-in customers',
                     style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
                   ),
                 ],
               ),
-              // Legend
+              // Modern Legend Pills
               Wrap(
-                spacing: 12,
+                spacing: 10,
                 runSpacing: 4,
                 children: [
-                  _buildLegendIndicator('Guaranteed (Bookings)', const Color(0xFF0284C7)),
-                  _buildLegendIndicator('Estimated Walk-In', const Color(0xFFF59E0B)),
-                  _buildLegendIndicator('Total Projected Sales', const Color(0xFF8B5CF6)),
+                  _buildLegendIndicator('Guaranteed Pipeline', const Color(0xFF0284C7)),
+                  _buildLegendIndicator('Projected Walk-In', const Color(0xFFF59E0B)),
+                  _buildLegendIndicator('Total Forecast', const Color(0xFF8B5CF6)),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           SizedBox(
-            height: 340,
+            height: 330,
             child: SfCartesianChart(
               margin: const EdgeInsets.only(top: 8, bottom: 8, left: 4, right: 8),
               primaryXAxis: CategoryAxis(
@@ -1801,8 +1592,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   if (pointIndex < 0 || pointIndex >= _dailyForecasts.length) return const SizedBox.shrink();
                   final f = _dailyForecasts[pointIndex];
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    constraints: const BoxConstraints(maxWidth: 220),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    constraints: const BoxConstraints(maxWidth: 230),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F172A),
                       borderRadius: BorderRadius.circular(10),
@@ -1813,56 +1604,33 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header: Date
                         Row(
                           children: [
                             const Icon(Icons.calendar_today_rounded, color: Colors.white54, size: 10),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 5),
                             Text('${f.dayName}, ${f.dateFormatted}',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10.5)),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
                           ],
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 6),
+                        Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
+                        const SizedBox(height: 6),
+
+                        _tooltipRow(const Color(0xFF8B5CF6), 'Total Forecast: ${_currencyFormat.format(f.totalForecastRevenue)}'),
+                        const SizedBox(height: 3),
+                        _tooltipRow(const Color(0xFF0284C7), 'Guaranteed: ${_currencyFormat.format(f.guaranteedPipeline)}'),
+                        const SizedBox(height: 3),
+                        _tooltipRow(const Color(0xFFF59E0B), 'Walk-In: ${_currencyFormat.format(f.projectedWalkInRevenue)}'),
+
+                        const SizedBox(height: 6),
                         Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
                         const SizedBox(height: 5),
 
-                        // Total
-                        _tooltipRow(const Color(0xFF8B5CF6), 'Total Projected Revenue'),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
-                          child: Text(_currencyFormat.format(f.totalForecastRevenue),
-                              style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w900, fontSize: 12)),
-                        ),
-
-                        // Naka-Book
-                        _tooltipRow(const Color(0xFF0284C7), 'Guaranteed (Booked)'),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
-                          child: Text(_currencyFormat.format(f.guaranteedPipeline),
-                              style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700, fontSize: 10.5)),
-                        ),
-
-                        // Walk-In
-                        _tooltipRow(const Color(0xFFF59E0B), 'Estimated Walk-In / Dine-In'),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 14, top: 1, bottom: 2),
-                          child: Text(_currencyFormat.format(f.projectedWalkInRevenue),
-                              style: const TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.w700, fontSize: 10.5)),
-                        ),
-
-                        Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
-                        const SizedBox(height: 4),
-
-                        // Operational Load
                         Row(
                           children: [
-                            const Icon(Icons.info_outline_rounded, size: 9.5, color: Colors.white38),
-                            const SizedBox(width: 4),
-                            const Text('Kitchen Status: ', style: TextStyle(color: Colors.white38, fontSize: 9)),
-                            Flexible(
-                              child: Text(f.operationalLoad,
-                                  style: TextStyle(color: f.loadColor, fontWeight: FontWeight.w700, fontSize: 9)),
-                            ),
+                            const Text('Kitchen Load: ', style: TextStyle(color: Colors.white54, fontSize: 9.5)),
+                            Text(f.operationalLoad,
+                                style: TextStyle(color: f.loadColor, fontWeight: FontWeight.w800, fontSize: 9.5)),
                           ],
                         ),
                       ],
@@ -1871,24 +1639,24 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 },
               ),
               series: <CartesianSeries<DailySalesForecast, String>>[
-                // Stacked Column: Guaranteed Bookings
+                // Stacked Column: Guaranteed Pipeline
                 StackedColumnSeries<DailySalesForecast, String>(
                   dataSource: _dailyForecasts,
                   xValueMapper: (DailySalesForecast f, _) => '${f.dayName}\n${DateFormat('M/d').format(f.date)}',
                   yValueMapper: (DailySalesForecast f, _) => f.guaranteedPipeline,
                   name: 'Guaranteed Pipeline',
                   color: const Color(0xFF0284C7).withValues(alpha: 0.85),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                   animationDuration: 0,
                 ),
-                // Stacked Column: Projected Walk-in
+                // Stacked Column: Projected Walk-In
                 StackedColumnSeries<DailySalesForecast, String>(
                   dataSource: _dailyForecasts,
                   xValueMapper: (DailySalesForecast f, _) => '${f.dayName}\n${DateFormat('M/d').format(f.date)}',
                   yValueMapper: (DailySalesForecast f, _) => f.projectedWalkInRevenue,
                   name: 'Projected Walk-In',
                   color: const Color(0xFFF59E0B).withValues(alpha: 0.85),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                   animationDuration: 0,
                 ),
                 // Spline Line: Total Projected Curve
@@ -1920,7 +1688,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   Widget _buildChannelShareDoughnut() {
     if (_dailyForecasts.isEmpty) {
       return const SizedBox(
-        height: 240,
+        height: 260,
         child: Center(child: CircularProgressIndicator(color: AppTheme.adminPrimaryAccent)),
       );
     }
@@ -1943,7 +1711,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1964,13 +1732,13 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           ),
           const SizedBox(height: 4),
           const Text(
-            'Channel contribution to overall projected gross sales',
+            'Contribution to projected turnover',
             style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           SizedBox(
-            height: 180,
+            height: 170,
             child: SfCircularChart(
               margin: EdgeInsets.zero,
               annotations: <CircularChartAnnotation>[
@@ -1996,12 +1764,10 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   xValueMapper: (_ChannelPieSlice d, _) => d.channel,
                   yValueMapper: (_ChannelPieSlice d, _) => d.revenue,
                   pointColorMapper: (_ChannelPieSlice d, _) => d.color,
-                  innerRadius: '68%',
+                  innerRadius: '70%',
                   radius: '95%',
                   animationDuration: 0,
-                  dataLabelSettings: const DataLabelSettings(
-                    isVisible: false,
-                  ),
+                  dataLabelSettings: const DataLabelSettings(isVisible: false),
                 ),
               ],
             ),
@@ -2012,12 +1778,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           ...chartData.map((slice) {
             final pct = total > 0 ? (slice.revenue / total) * 100 : 0.0;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 9),
               child: Row(
                 children: [
                   Container(
-                    width: 10,
-                    height: 10,
+                    width: 9,
+                    height: 9,
                     decoration: BoxDecoration(color: slice.color, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 8),
@@ -2054,11 +1820,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 9,
+          height: 9,
           decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         Text(
           label,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.adminSecondaryText),
@@ -2071,13 +1837,13 @@ class _SalesForecastPageState extends State<SalesForecastPage>
     return Row(
       children: [
         Container(
-          width: 9,
-          height: 9,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
         ),
         const SizedBox(width: 5),
         Expanded(
-          child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9.5)),
+          child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
         ),
       ],
     );
@@ -2088,11 +1854,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   // ─────────────────────────────────────────────────────────────────────────────
 
   Widget _buildOperationalAlertsCard() {
-    // Find peak days with heavy catering bookings
-    final highVolumeDays = _dailyForecasts.where((f) => f.operationalLoad.contains('Peak') || f.operationalLoad.contains('Busy') || f.confirmedReservationsCount > 0).toList();
+    final highVolumeDays = _dailyForecasts
+        .where((f) => f.operationalLoad.contains('Peak') || f.operationalLoad.contains('Busy') || f.confirmedReservationsCount > 0)
+        .toList();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFFFFFBEB),
         borderRadius: BorderRadius.circular(16),
@@ -2104,12 +1871,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.tips_and_updates_rounded, color: Color(0xFFD97706), size: 22),
+            child: const Icon(Icons.tips_and_updates_rounded, color: Color(0xFFD97706), size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2117,21 +1884,21 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 const Text(
                   'Kitchen, Inventory & Staffing Advisory',
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF92400E),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 if (highVolumeDays.isNotEmpty) ...[
                   Text(
-                    'High customer traffic expected on: ${highVolumeDays.map((d) => '${d.dayName} (${d.dateFormatted})').join(', ')}. Recommend ordering kitchen supplies early and scheduling additional staff to avoid bottlenecks.',
-                    style: const TextStyle(fontSize: 12.5, color: Color(0xFF78350F), height: 1.35),
+                    'High customer volume expected on: ${highVolumeDays.map((d) => '${d.dayName} (${d.dateFormatted})').join(', ')}. Recommend ordering fresh supplies in advance and scheduling additional kitchen staff.',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), height: 1.4),
                   ),
                 ] else ...[
                   const Text(
-                    'Normal customer volume expected during this period. Standard staffing and regular inventory levels are sufficient.',
-                    style: TextStyle(fontSize: 12.5, color: Color(0xFF78350F), height: 1.35),
+                    'Normal volume expected during this horizon. Standard inventory procurement and regular staffing rosters are sufficient.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF78350F), height: 1.4),
                   ),
                 ],
               ],
@@ -2154,7 +1921,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -2165,11 +1932,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 10,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2180,146 +1945,33 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Daily revenue breakdown: confirmed bookings and estimated walk-in customers',
+                      'Day-by-day revenue breakdown and operational kitchen demand',
                       style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
                     ),
                   ],
                 ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    InkWell(
-                      onTap: _showFormulaExplanationDialog,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.calculate_outlined, size: 14, color: Color(0xFF334155)),
-                            SizedBox(width: 5),
-                            Text(
-                              'How It Works',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.adminMainBackground,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.cardBorder),
-                      ),
-                      child: Text(
-                        '${_dailyForecasts.length}-day forecast',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
-                      ),
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.adminMainBackground,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.cardBorder),
+                  ),
+                  child: Text(
+                    '${_dailyForecasts.length}-Day Horizon',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.adminSecondaryText),
+                  ),
                 ),
               ],
             ),
           ),
           const Divider(height: 1, color: AppTheme.cardBorder),
 
-          // Formula Banner (Clean, Neutral, Educational)
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 640;
-                final textWidget = Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.functions_rounded, size: 16, color: Color(0xFF475569)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.4),
-                          children: [
-                            const TextSpan(text: 'Forecasting Formula: ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-                            const TextSpan(text: 'Total Projected = '),
-                            const TextSpan(text: 'Guaranteed (Bookings)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                            const TextSpan(text: ' + ['),
-                            const TextSpan(text: 'Historical Day-of-Week (90-Day Baseline)', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                            const TextSpan(text: ' × '),
-                            TextSpan(text: 'Sales Trend (${_momentumFactor.toStringAsFixed(3)})', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                            const TextSpan(text: ']'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-
-                final detailBtn = Align(
-                  alignment: isNarrow ? Alignment.centerRight : Alignment.center,
-                  child: TextButton(
-                    onPressed: _showFormulaExplanationDialog,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      foregroundColor: const Color(0xFF14332E),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('View Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                        SizedBox(width: 3),
-                        Icon(Icons.arrow_forward_rounded, size: 12),
-                      ],
-                    ),
-                  ),
-                );
-
-                if (isNarrow) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      textWidget,
-                      const SizedBox(height: 6),
-                      detailBtn,
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(child: textWidget),
-                    const SizedBox(width: 8),
-                    detailBtn,
-                  ],
-                );
-              },
-            ),
-          ),
-
           if (isDesktop) ...[
             // Desktop Table Header
             Container(
               color: const Color(0xFFF8FAFC),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
               child: const Row(
                 children: [
                   Expanded(
@@ -2328,40 +1980,22 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   ),
                   Expanded(
                     flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('GUARANTEED', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
-                        Text('(Catering & Advance)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-                      ],
-                    ),
+                    child: Text('GUARANTEED (BOOKED)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ESTIMATED WALK-IN', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
-                        Text('(90-Day Baseline × Trend)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-                      ],
-                    ),
+                    child: Text('ESTIMATED WALK-IN', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                   Expanded(
                     flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('TOTAL PROJECTED', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
-                        Text('(Guaranteed + Walk-In)', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-                      ],
-                    ),
+                    child: Text('TOTAL PROJECTED', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text('KITCHEN STATUS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
+                    child: Text('KITCHEN DEMAND', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                   SizedBox(
-                    width: 110,
+                    width: 100,
                     child: Text('ACTION', textAlign: TextAlign.end, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText)),
                   ),
                 ],
@@ -2369,7 +2003,6 @@ class _SalesForecastPageState extends State<SalesForecastPage>
             ),
             const Divider(height: 1, color: AppTheme.cardBorder),
 
-            // Rows
             // Desktop Table Rows
             ListView.builder(
               shrinkWrap: true,
@@ -2416,7 +2049,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 Text(
                                   hasBookings
                                       ? '${f.confirmedReservationsCount} Event${f.confirmedReservationsCount != 1 ? 's' : ''} • ${f.confirmedAdvanceCount} Pre-Order'
-                                      : 'No scheduled events',
+                                      : 'Regular dine-in',
                                   style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText),
                                 ),
                               ],
@@ -2425,7 +2058,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
                       ),
 
-                      // Guaranteed Pipeline (Bookings)
+                      // Guaranteed Pipeline
                       Expanded(
                         flex: 2,
                         child: Column(
@@ -2447,7 +2080,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
                       ),
 
-                      // Projected Walk-in
+                      // Projected Walk-In
                       Expanded(
                         flex: 2,
                         child: Text(
@@ -2460,7 +2093,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
                       ),
 
-                      // Total Projected Revenue
+                      // Total Projected
                       Expanded(
                         flex: 3,
                         child: Text(
@@ -2473,7 +2106,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
                       ),
 
-                      // Operational Load Badge (Kitchen Status)
+                      // Kitchen Demand Status
                       Expanded(
                         flex: 2,
                         child: Align(
@@ -2499,9 +2132,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                         ),
                       ),
 
-                      // Action Button: View Details
+                      // Action Button
                       SizedBox(
-                        width: 110,
+                        width: 100,
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: InkWell(
@@ -2599,7 +2232,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Guaranteed (Bookings)', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
+                              const Text('Guaranteed', style: TextStyle(fontSize: 10.5, color: AppTheme.adminSecondaryText)),
                               Text(
                                 _currencyFormat.format(f.guaranteedPipeline),
                                 style: TextStyle(
@@ -2644,8 +2277,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           ),
                           label: Text(
                             hasBookings
-                                ? 'View (${f.confirmedReservationsCount + f.confirmedAdvanceCount} Bookings & Math)'
-                                : 'View Calculation',
+                                ? 'View (${f.confirmedReservationsCount + f.confirmedAdvanceCount} Bookings)'
+                                : 'View Breakdown',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF14332E)),
                           ),
                         ),
@@ -2710,7 +2343,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.025),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -2730,11 +2363,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 children: [
                   Icon(Icons.event_note_rounded, size: 18, color: Color(0xFF14332E)),
                   SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Upcoming Confirmed Bookings Pipeline',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
-                    ),
+                  Text(
+                    'Upcoming Confirmed Bookings Pipeline',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                   ),
                 ],
               ),
@@ -2751,12 +2382,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           const Text(
             'Scheduled catering events and advance pre-orders confirmed within the selected horizon',
             style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           if (allUpcomingBookings.isEmpty) ...[
             Padding(
@@ -2764,10 +2395,10 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.event_available_rounded, size: 40, color: AppTheme.mediumGrey.withValues(alpha: 0.5)),
+                    Icon(Icons.event_available_rounded, size: 36, color: AppTheme.mediumGrey.withValues(alpha: 0.4)),
                     const SizedBox(height: 10),
                     const Text(
-                      'No upcoming catering events or advance orders in this period.',
+                      'No upcoming catering events or advance orders in this horizon.',
                       style: TextStyle(fontSize: 12.5, color: AppTheme.adminSecondaryText),
                     ),
                   ],
@@ -2783,7 +2414,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               itemBuilder: (context, idx) {
                 final b = allUpcomingBookings[idx];
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
                   child: Row(
                     children: [
                       Container(
@@ -2792,7 +2423,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           color: (b['color'] as Color).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(b['icon'] as IconData, size: 18, color: b['color'] as Color),
+                        child: Icon(b['icon'] as IconData, size: 17, color: b['color'] as Color),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -2852,7 +2483,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 11. DAY DETAIL DIALOG (SHOW EXACT BOOKINGS)
+  // 11. DAY DETAIL DIALOG
   // ─────────────────────────────────────────────────────────────────────────────
 
   void _showDayDetailDialog(DailySalesForecast f) {
@@ -2864,7 +2495,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           width: 580,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -2881,7 +2512,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                     children: [
                       Text(
                         '${f.dayName}, ${f.dateFormatted}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -2896,16 +2527,16 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               const Divider(height: 1, color: AppTheme.cardBorder),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               Flexible(
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Dedicated Calculation Breakdown Box for this specific day
+                      // Calculation Breakdown Box for this specific day
                       Container(
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(14),
@@ -2922,13 +2553,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 Icon(Icons.calculate_outlined, size: 15, color: Color(0xFF14332E)),
                                 SizedBox(width: 6),
                                 Text(
-                                  'CALCULATION BREAKDOWN FOR THIS DAY',
+                                  'CALCULATION BREAKDOWN',
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.4),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 10),
-                            // Row 1: Guaranteed (Bookings)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -2952,7 +2582,6 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 ),
                               ),
                             const SizedBox(height: 6),
-                            // Row 2: Projected Walk-In
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -2966,7 +2595,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             Padding(
                               padding: const EdgeInsets.only(left: 12, top: 2),
                               child: Text(
-                                '(90-Day Baseline for ${f.dayName}: ${_currencyFormat.format(f.baseDowRevenue)} [from ${_currencyFormat.format(_dowTotalRevenue[f.date.weekday] ?? (f.baseDowRevenue * 13))} across ${_dowTotalDays[f.date.weekday] ?? 13} ${f.dayName}s] × Trend: ${f.momentumFactor.toStringAsFixed(3)})',
+                                '(90-Day Baseline for ${f.dayName}: ${_currencyFormat.format(f.baseDowRevenue)} × Trend: ${f.momentumFactor.toStringAsFixed(3)})',
                                 style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                               ),
                             ),
@@ -2974,7 +2603,6 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Divider(height: 1, color: Color(0xFFE2E8F0)),
                             ),
-                            // Row 3: Total Projected
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -3025,7 +2653,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.celebration_rounded, color: Color(0xFF14332E), size: 20),
+                              const Icon(Icons.celebration_rounded, color: Color(0xFF14332E), size: 18),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -3040,7 +2668,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             ],
                           ),
                         )),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                       ],
 
                       if (f.advanceOrderBookings.isNotEmpty) ...[
@@ -3072,7 +2700,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                   child: Icon(
                                     isDineIn ? Icons.restaurant_rounded : Icons.takeout_dining_rounded,
                                     color: typeColor,
-                                    size: 18,
+                                    size: 16,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -3096,7 +2724,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
@@ -3117,7 +2745,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 12. FORMULA EXPLANATION DIALOG (PAANO KINUKWENTA ANG TANYA)
+  // 12. METHODOLOGY & CALCULATION DIALOG
   // ─────────────────────────────────────────────────────────────────────────────
 
   void _showFormulaExplanationDialog() {
@@ -3144,8 +2772,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                       Icon(Icons.calculate_outlined, size: 22, color: Color(0xFF14332E)),
                       SizedBox(width: 8),
                       Text(
-                        'How is Sales Forecast Calculated?',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
+                        'Sales Forecasting Methodology',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
                       ),
                     ],
                   ),
@@ -3157,19 +2785,19 @@ class _SalesForecastPageState extends State<SalesForecastPage>
               ),
               const SizedBox(height: 2),
               const Text(
-                'Explanation of Yang Chow predictive sales forecasting methodology',
+                'Transparent forecasting model combining guaranteed contracts and historical demand',
                 style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               const Divider(height: 1, color: AppTheme.cardBorder),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               Flexible(
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Pormula Summary Box
+                      // Formula Summary Box
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
@@ -3188,7 +2816,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             SizedBox(height: 6),
                             Text(
                               'Total Projected Revenue = Guaranteed Pipeline (Bookings) + Estimated Walk-In',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
                             ),
                             SizedBox(height: 4),
                             Text(
@@ -3212,8 +2840,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 28,
-                              height: 28,
+                              width: 26,
+                              height: 26,
                               decoration: const BoxDecoration(
                                 color: Color(0xFFF1F5F9),
                                 shape: BoxShape.circle,
@@ -3233,7 +2861,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Directly pulled from the database for all confirmed Catering Events and Advance Pre-Orders (Take-out/Pick-up/Delivery) scheduled for that specific date. This represents 100% committed revenue backed by reservations or deposits.',
+                                    'Committed revenue from approved Catering Reservations and Advance Pre-Orders (Pick-up / Advance Dine-in) scheduled for that date.',
                                     style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                   ),
                                 ],
@@ -3259,8 +2887,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  width: 28,
-                                  height: 28,
+                                  width: 26,
+                                  height: 26,
                                   decoration: const BoxDecoration(
                                     color: Color(0xFFF1F5F9),
                                     shape: BoxShape.circle,
@@ -3280,12 +2908,12 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '• 90-Day Day-of-Week Baseline: Computes historical average daily sales for each specific day of the week over the trailing 90 days. Total restaurant historical revenue sampled: ${_currencyFormat.format(_totalHistorical90dRevenue)} across $_totalHistoricalDaysSampled recorded days.',
+                                        '• 90-Day Baseline: Average historical daily sales per day-of-week over trailing 90 days (${_currencyFormat.format(_totalHistorical90dRevenue)} total historical revenue sampled across $_totalHistoricalDaysSampled days).',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '• Sales Momentum Trend (${_momentumFactor.toStringAsFixed(3)}): Evaluates recent sales velocity by comparing the trailing 14 days against the prior 14 days to capture current growth or seasonality. Clamped safely between 0.85 and 1.25 to prevent outlier swings.',
+                                        '• Momentum Trend (${_momentumFactor.toStringAsFixed(3)}): Trailing 14 days vs prior 14 days ratio to reflect current growth, clamped safely between 0.85 and 1.25.',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                       ),
                                     ],
@@ -3295,7 +2923,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             ),
                             const SizedBox(height: 12),
 
-                            // Talaan ng 90-Araw na Rekord ng Benta
+                            // 90-Day Historical Baseline Summary Table
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
@@ -3310,11 +2938,11 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       const Text(
-                                        '90-DAY HISTORICAL REVENUE & BASELINE SUMMARY',
+                                        '90-DAY DOW BASELINES',
                                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF14332E), letterSpacing: 0.3),
                                       ),
                                       Text(
-                                        'Total: ${_currencyFormat.format(_totalHistorical90dRevenue)} ($_totalHistoricalDaysSampled days)',
+                                        'Total: ${_currencyFormat.format(_totalHistorical90dRevenue)}',
                                         style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF14332E)),
                                       ),
                                     ],
@@ -3323,9 +2951,9 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                   const Row(
                                     children: [
                                       Expanded(flex: 2, child: Text('DAY', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
-                                      Expanded(flex: 3, child: Text('TOTAL REVENUE (90d)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
+                                      Expanded(flex: 3, child: Text('TOTAL REVENUE', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
                                       Expanded(flex: 2, child: Text('COUNT', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
-                                      Expanded(flex: 3, child: Text('BASELINE (AVERAGE)', textAlign: TextAlign.end, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
+                                      Expanded(flex: 3, child: Text('BASELINE AVG', textAlign: TextAlign.end, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)))),
                                     ],
                                   ),
                                   const Divider(height: 10, color: Color(0xFFE2E8F0)),
@@ -3414,8 +3042,8 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 28,
-                              height: 28,
+                              width: 26,
+                              height: 26,
                               decoration: const BoxDecoration(
                                 color: Color(0xFFF1F5F9),
                                 shape: BoxShape.circle,
@@ -3430,56 +3058,16 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Synthesis (Total Projected Gross Sales)',
+                                    'Synthesis (Projected Gross Sales)',
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Aggregates guaranteed bookings with projected walk-in demand for every upcoming day. This provides management with actionable visibility for raw ingredient procurement and optimal staff rostering.',
+                                    'Aggregates confirmed pipeline with projected walk-in demand to guide inventory procurement and kitchen staffing.',
                                     style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Example Calculation Box
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.lightbulb_outline_rounded, size: 15, color: Color(0xFF334155)),
-                                SizedBox(width: 6),
-                                Text(
-                                  'PRACTICAL EXAMPLE WITH LIVE RESTAURANT DATA',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF334155), letterSpacing: 0.4),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Suppose an upcoming Friday has a ₱15,000 confirmed catering reservation, and Friday\'s 90-day baseline average is ₱7,945:',
-                              style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.4),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '• Estimated Walk-In: ₱7,945 × ${_momentumFactor.toStringAsFixed(3)} = ${_currencyFormat.format(7945 * _momentumFactor)}',
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                            ),
-                            Text(
-                              '• Total Projected Sales: ₱15,000 + ${_currencyFormat.format(7945 * _momentumFactor)} = ${_currencyFormat.format(15000 + (7945 * _momentumFactor))}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF14332E)),
                             ),
                           ],
                         ),
@@ -3489,7 +3077,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(

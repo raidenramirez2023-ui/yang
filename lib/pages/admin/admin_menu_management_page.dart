@@ -23,6 +23,8 @@ class AdminMenuManagementPage extends StatefulWidget {
 class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _categoryScrollController = ScrollController();
+  final ScrollController _mainScrollController = ScrollController();
+  bool _showBackToTop = false;
   String _searchQuery = '';
   String _selectedCategoryFilter = 'All';
   bool _isLoading = true;
@@ -52,6 +54,23 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     super.initState();
     _loadMenuData();
     _categoryScrollController.addListener(_updateScrollArrows);
+    _mainScrollController.addListener(_onMainScroll);
+  }
+
+  void _onMainScroll() {
+    if (!_mainScrollController.hasClients) return;
+    final shouldShow = _mainScrollController.offset > 240;
+    if (shouldShow != _showBackToTop) {
+      setState(() => _showBackToTop = shouldShow);
+    }
+  }
+
+  void _scrollToTop() {
+    _mainScrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _updateScrollArrows() {
@@ -152,14 +171,32 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 8 : 12,
-          vertical: isMobile ? 8 : 12,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      floatingActionButton: _showBackToTop
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 70, right: 10),
+              child: FloatingActionButton.small(
+                onPressed: _scrollToTop,
+                backgroundColor: const Color(0xFF14332E),
+                foregroundColor: const Color(0xFFD9A441),
+                elevation: 4,
+                tooltip: 'Scroll to top',
+                child: const Icon(Icons.arrow_upward_rounded, size: 20),
+              ),
+            )
+          : null,
+      body: CustomScrollView(
+        controller: _mainScrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 8 : 12,
+              vertical: isMobile ? 8 : 12,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             // ── Enterprise Header ─────────────────────────────────────────────
             Container(
               padding: EdgeInsets.symmetric(
@@ -552,74 +589,91 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+                ],
+              ),
+            ),
+          ),
 
-            // ── Main Content Grid ────────────────────────────────────────────
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC9922E)),
+          // ── Main Content Grid ────────────────────────────────────────────
+          if (_isLoading)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC9922E)),
+                ),
+              ),
+            )
+          else if (filteredItems.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.no_meals_rounded, size: 48, color: Color(0xFF94A3B8)),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No matching dishes found',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Check your search spelling or reset the category filter',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _selectedCategoryFilter = 'All';
+                        });
+                      },
+                      icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                      label: const Text('Reset All Filters'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF14332E),
+                        foregroundColor: Colors.white,
                       ),
                     )
-                  : filteredItems.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.no_meals_rounded, size: 48, color: Color(0xFF94A3B8)),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'No matching dishes found',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Check your search spelling or reset the category filter',
-                                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                    _selectedCategoryFilter = 'All';
-                                  });
-                                },
-                                icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                                label: const Text('Reset All Filters'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF14332E),
-                                  foregroundColor: Colors.white,
-                                ),
-                              )
-                            ],
-                          ),
-                        )
-                      : GridView.builder(
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: childAspectRatio,
-                          ),
-                          itemCount: filteredItems.length,
-                          itemBuilder: (context, index) {
-                            final item = filteredItems[index];
-                            return _buildMenuItemCard(item);
-                          },
-                        ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.only(
+                left: isMobile ? 8 : 12,
+                right: isMobile ? 8 : 12,
+                bottom: 32,
+              ),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: childAspectRatio,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final item = filteredItems[index];
+                    return _buildMenuItemCard(item);
+                  },
+                  childCount: filteredItems.length,
+                ),
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -795,6 +849,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
 
   @override
   void dispose() {
+    _mainScrollController.dispose();
     _searchController.dispose();
     _categoryScrollController.dispose();
     super.dispose();
