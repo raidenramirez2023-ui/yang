@@ -331,51 +331,10 @@ class _PettyCashPageState extends State<PettyCashPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Row: Badges & Live Status Telemetry
+          // Top Row: Live Status Telemetry
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD9A441).withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.45)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.savings_rounded, color: Color(0xFFF3C77C), size: 13),
-                        const SizedBox(width: 6),
-                        Text(
-                          'BRANCH LIQUIDITY VAULT',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: const Color(0xFFF3C77C),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isMobile) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '•   MAIN CASHBOX',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFF64748B),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(

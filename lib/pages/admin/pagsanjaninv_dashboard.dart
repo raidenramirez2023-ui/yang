@@ -2530,6 +2530,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             // ── Main Container ──
             Container(
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -2559,6 +2560,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                 physics: const BouncingScrollPhysics(),
                                 child: Row(
                                   children: [
+                                    _buildTxFilterTab(
+                                      index: 0,
+                                      label: 'All Movements',
+                                      count: allCount,
+                                      icon: Icons.layers_rounded,
+                                      activeColor: const Color(0xFF14332E),
+                                    ),
+                                    const SizedBox(width: 6),
                                     _buildTxFilterTab(
                                       index: 1,
                                       label: 'Incoming',
@@ -2590,18 +2599,21 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                             // Date Range Dropdown / Pill
                             Container(
-                              height: 34,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              height: 38,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(9),
                                 border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
                               child: DropdownButtonHideUnderline(
                                 child: DropdownButton<int>(
                                   value: _txDateFilter,
-                                  icon: const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF475569)),
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                  icon: const Padding(
+                                    padding: EdgeInsets.only(left: 6),
+                                    child: Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF64748B)),
+                                  ),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                                   items: _txDateFilterLabels.asMap().entries.map((e) {
                                     return DropdownMenuItem<int>(
                                       value: e.key,
@@ -2932,44 +2944,59 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           _txCurrentPage = 1;
         });
       },
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6.5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor : Colors.white,
-          borderRadius: BorderRadius.circular(9),
+          color: isSelected ? activeColor : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: Colors.black,
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+            width: 1,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.22),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.black),
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                fontSize: 11.5,
+                color: isSelected ? Colors.white : const Color(0xFF334155),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 7),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withValues(alpha: 0.22) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.black, width: 0.8),
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.22)
+                    : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '$count',
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: isSelected ? Colors.white : Colors.black,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
                 ),
               ),
             ),
@@ -2996,11 +3023,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: Colors.black),
             boxShadow: isActive
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -3010,7 +3036,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           child: Icon(
             icon,
             size: 16,
-            color: Colors.black,
+            color: isActive ? const Color(0xFF14332E) : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -3024,61 +3050,56 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       child: ConstrainedBox(
         constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 64),
         child: DataTable(
-          headingRowHeight: 44,
-          dataRowMinHeight: 52,
-          dataRowMaxHeight: 58,
-          horizontalMargin: 16,
-          columnSpacing: 20,
-          headingRowColor: WidgetStateProperty.all(Colors.transparent),
-          border: const TableBorder(horizontalInside: BorderSide(color: Colors.black, width: 0.5)),
-          columns: const [
-            DataColumn(
-              label: Text(
-                'DATE & TIME',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'ITEM NAME & UNIT',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'TYPE',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'QTY MOVED',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'PURPOSE / REFERENCE',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'HANDLED BY',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: 0.5),
-              ),
-            ),
+          headingRowHeight: 46,
+          dataRowMinHeight: 56,
+          dataRowMaxHeight: 64,
+          horizontalMargin: 20,
+          columnSpacing: 24,
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+          border: const TableBorder(
+            horizontalInside: BorderSide(color: Color(0xFFF1F5F9), width: 1),
+          ),
+          columns: [
+            _buildTxHeaderColumn('DATE & TIME', Icons.access_time_rounded),
+            _buildTxHeaderColumn('ITEM NAME & UNIT', Icons.inventory_2_outlined),
+            _buildTxHeaderColumn('TYPE', Icons.swap_horiz_rounded),
+            _buildTxHeaderColumn('QTY MOVED', Icons.tag_rounded),
+            _buildTxHeaderColumn('PURPOSE / REFERENCE', Icons.description_outlined),
+            _buildTxHeaderColumn('HANDLED BY', Icons.person_outline_rounded),
           ],
-          rows: items.map((act) {
+          rows: items.asMap().entries.map((entry) {
+            final rowIndex = entry.key;
+            final act = entry.value;
             final type = (act['transaction_type'] ?? 'unknown').toString().toLowerCase();
             final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String()).toLocal();
             final isIncoming = type == 'incoming';
             final isPetty = (act['purpose'] ?? '').toString().toLowerCase().startsWith('petty cash purchase');
-            final accentColor = isPetty
-                ? const Color(0xFF0284C7)
-                : isIncoming
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFEF4444);
+
+            final Color badgeBg;
+            final Color badgeBorder;
+            final Color badgeTextColor;
+            final IconData typeIcon;
+            final String typeLabel;
+
+            if (isPetty) {
+              badgeBg = const Color(0xFFF0F9FF);
+              badgeBorder = const Color(0xFFBAE6FD);
+              badgeTextColor = const Color(0xFF0284C7);
+              typeIcon = Icons.account_balance_wallet_rounded;
+              typeLabel = 'PETTY CASH';
+            } else if (isIncoming) {
+              badgeBg = const Color(0xFFECFDF5);
+              badgeBorder = const Color(0xFFA7F3D0);
+              badgeTextColor = const Color(0xFF059669);
+              typeIcon = Icons.south_west_rounded;
+              typeLabel = 'INCOMING';
+            } else {
+              badgeBg = const Color(0xFFFEF2F2);
+              badgeBorder = const Color(0xFFFECACA);
+              badgeTextColor = const Color(0xFFDC2626);
+              typeIcon = Icons.north_east_rounded;
+              typeLabel = 'OUTGOING';
+            }
 
             final now = DateTime.now();
             final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
@@ -3100,9 +3121,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             final requestedBy = act['requested_by']?.toString();
             final supplier = act['supplier']?.toString();
 
+            final String handledByDisplay;
+            if (isPetty || rawPurpose == 'Transferred to Storage' || rawPurpose.toLowerCase().contains('petty cash') || processedBy.toLowerCase() == 'unknown' || processedBy.trim().isEmpty || processedBy.toLowerCase() == 'null') {
+              handledByDisplay = 'pagsanjaninv@gmail.com';
+            } else if (supplier != null && supplier.isNotEmpty && supplier.toLowerCase() != 'unknown') {
+              handledByDisplay = supplier;
+            } else if (requestedBy != null && requestedBy.isNotEmpty) {
+              handledByDisplay = '$processedBy → $requestedBy';
+            } else {
+              handledByDisplay = processedBy;
+            }
+
             return DataRow(
+              color: WidgetStateProperty.resolveWith<Color?>((states) {
+                if (states.contains(WidgetState.hovered)) {
+                  return const Color(0xFFF8FAFC);
+                }
+                return rowIndex.isEven ? Colors.white : const Color(0xFFFAFAFA);
+              }),
               cells: [
-                // Date & Time
+                // 1. Date & Time
                 DataCell(
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -3110,130 +3148,143 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     children: [
                       Text(
                         timeStr,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Colors.black),
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF0F172A)),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         dateStr,
-                        style: const TextStyle(fontSize: 10.5, color: Colors.black87, fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                 ),
-                // Item Name & Unit Badge
+
+                // 2. Item Name & Unit
                 DataCell(
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         act['item_name'] ?? 'Unknown Item',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Colors.black),
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.black, width: 0.8),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Text(
                           unit,
-                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.black),
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Type Pill Badge
+
+                // 3. Movement Type Pill
                 DataCell(
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.black, width: 0.8),
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: badgeBorder.withValues(alpha: 0.8)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          isPetty
-                              ? Icons.account_balance_wallet_rounded
-                              : isIncoming
-                                  ? Icons.south_west_rounded
-                                  : Icons.north_east_rounded,
-                          size: 12,
-                          color: accentColor,
-                        ),
-                        const SizedBox(width: 4),
+                        Icon(typeIcon, size: 12, color: badgeTextColor),
+                        const SizedBox(width: 5),
                         Text(
-                          isPetty
-                              ? 'PETTY CASH'
-                              : isIncoming
-                                  ? 'INCOMING'
-                                  : 'OUTGOING',
+                          typeLabel,
                           style: TextStyle(
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w800,
                             fontSize: 10,
-                            color: accentColor,
-                            letterSpacing: 0.3,
+                            color: badgeTextColor,
+                            letterSpacing: 0.4,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                // Quantity Moved Badge
+
+                // 4. Quantity Moved
                 DataCell(
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: Colors.black, width: 0.8),
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: badgeBorder.withValues(alpha: 0.6)),
                     ),
                     child: Text(
                       '${isIncoming ? '+' : '-'}${act['quantity']}',
                       style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                        color: accentColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5,
+                        color: badgeTextColor,
                       ),
                     ),
                   ),
                 ),
-                // Purpose / Reference
+
+                // 5. Purpose / Reference
                 DataCell(
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 320),
-                    child: Text(
-                      _formatPurposeDisplay(rawPurpose),
-                      style: const TextStyle(fontSize: 11.5, color: Colors.black, fontWeight: FontWeight.w500),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: _buildPurposeCell(rawPurpose),
                   ),
                 ),
-                // Handled By
+
+                // 6. Handled By
                 DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.person_outline_rounded, size: 13, color: Colors.black),
-                      const SizedBox(width: 4),
-                      Text(
-                        (isPetty || rawPurpose == 'Transferred to Storage' || rawPurpose.toLowerCase().contains('petty cash') || processedBy.toLowerCase() == 'unknown' || processedBy.trim().isEmpty || processedBy.toLowerCase() == 'null')
-                            ? 'pagsanjaninv@gmail.com'
-                            : (supplier != null && supplier.isNotEmpty && supplier.toLowerCase() != 'unknown')
-                                ? supplier
-                                : (requestedBy != null && requestedBy.isNotEmpty)
-                                    ? '$processedBy → $requestedBy'
-                                    : processedBy,
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.black),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                  Tooltip(
+                    message: handledByDisplay,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE2E8F0),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.person_rounded,
+                              size: 13,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              handledByDisplay,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -3241,6 +3292,85 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           }).toList(),
         ),
       ),
+    );
+  }
+
+  DataColumn _buildTxHeaderColumn(String label, IconData icon) {
+    return DataColumn(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: const Color(0xFF94A3B8)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurposeCell(String rawPurpose) {
+    final formatted = _formatPurposeDisplay(rawPurpose);
+
+    // Check if contains a Request # tag like "(Request #EAD7A0)"
+    final requestTagMatch = RegExp(r'\(Request\s*#?([A-Za-z0-9]+)\)').firstMatch(formatted);
+    if (requestTagMatch != null) {
+      final prefix = formatted.substring(0, requestTagMatch.start).trim();
+      final tag = requestTagMatch.group(1);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (prefix.isNotEmpty)
+            Flexible(
+              child: Text(
+                prefix,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF334155),
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              '#$tag',
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF475569),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      formatted,
+      style: const TextStyle(
+        fontSize: 12,
+        color: Color(0xFF334155),
+        fontWeight: FontWeight.w500,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
@@ -3259,8 +3389,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         final accentColor = isPetty
             ? const Color(0xFF0284C7)
             : isIncoming
-                ? const Color(0xFF10B981)
-                : const Color(0xFFEF4444);
+                ? const Color(0xFF059669)
+                : const Color(0xFFDC2626);
 
         final now = DateTime.now();
         final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
@@ -3277,6 +3407,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.2)),
                 ),
                 child: Icon(
                   isPetty
@@ -3301,7 +3432,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               fontSize: 13.5,
                               color: Color(0xFF0F172A),
                             ),
@@ -3310,14 +3441,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.12),
+                            color: accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: accentColor.withValues(alpha: 0.25)),
                           ),
                           child: Text(
                             '${isIncoming ? '+' : '-'}${act['quantity']} ${act['unit'] ?? 'pcs'}',
                             style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
                               color: accentColor,
                             ),
                           ),
@@ -3325,25 +3457,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      _formatPurposeDisplay(act['purpose']?.toString()),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF475569),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
+                    _buildPurposeCell(act['purpose']?.toString() ?? ''),
+                    const SizedBox(height: 5),
                     Row(
                       children: [
                         Text(
                           timeStr,
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11,
                             color: Color(0xFF94A3B8),
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         if (isPetty ||
@@ -3357,7 +3480,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           const Text(
                             'pagsanjaninv@gmail.com',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11,
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.w500,
                             ),
@@ -3369,7 +3492,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           Text(
                             act['processed_by'].toString(),
                             style: const TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11,
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.w500,
                             ),
