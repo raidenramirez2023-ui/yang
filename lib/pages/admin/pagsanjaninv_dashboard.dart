@@ -6060,15 +6060,25 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   Future<void> _approveRequestCore(Map<String, dynamic> request, {bool skipNotification = false}) async {
-    final itemName = request['item_name']?.toString();
+    final rawItemName = request['item_name']?.toString();
+    final itemName = rawItemName?.trim();
     final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
 
-    if (itemName != null && quantityNeeded > 0) {
-      final inventoryItems = await _supabase
+    if (itemName != null && itemName.isNotEmpty && quantityNeeded > 0) {
+      // 1. Find matching inventory item (exact first, then ilike fallback)
+      var inventoryItems = await _supabase
           .from('inventory')
           .select('id, quantity, category')
-          .ilike('name', '%$itemName%')
+          .ilike('name', itemName)
           .limit(1);
+
+      if (inventoryItems.isEmpty) {
+        inventoryItems = await _supabase
+            .from('inventory')
+            .select('id, quantity, category')
+            .ilike('name', '%$itemName%')
+            .limit(1);
+      }
 
       if (inventoryItems.isNotEmpty) {
         final inventoryItem = inventoryItems.first;
@@ -6081,12 +6091,22 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             .update({'quantity': newInventoryQuantity})
             .eq('id', inventoryItem['id']);
 
-        final kitchenItems = await _supabase
+        // 2. Find matching kitchen_inventory item (exact first, then ilike fallback)
+        var kitchenItems = await _supabase
             .from('kitchen_inventory')
-            .select('id, quantity')
-            .ilike('name', '%$itemName%')
+            .select('id, quantity, name')
+            .ilike('name', itemName)
             .limit(1);
 
+        if (kitchenItems.isEmpty) {
+          kitchenItems = await _supabase
+              .from('kitchen_inventory')
+              .select('id, quantity, name')
+              .ilike('name', '%$itemName%')
+              .limit(1);
+        }
+
+        final nowUtc = DateTime.now().toUtc().toIso8601String();
         int newKitchenQuantity;
         if (kitchenItems.isNotEmpty) {
           final kitchenItem = kitchenItems.first;
@@ -6094,7 +6114,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           newKitchenQuantity = currentKitchenQuantity + transferQty;
           await _supabase
               .from('kitchen_inventory')
-              .update({'quantity': newKitchenQuantity})
+              .update({
+                'quantity': newKitchenQuantity,
+                'updated_at': nowUtc,
+              })
               .eq('id', kitchenItem['id']);
         } else {
           newKitchenQuantity = transferQty;
@@ -6103,7 +6126,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             'quantity': newKitchenQuantity,
             'unit': request['unit'] ?? 'pcs',
             'category': inventoryItem['category'] ?? 'General',
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
+            'updated_at': nowUtc,
           });
         }
 
@@ -6300,7 +6323,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             batchOps.add(
               _supabase
                   .from('kitchen_inventory')
-                  .update({'quantity': item['quantity']})
+                  .update({
+                    'quantity': item['quantity'],
+                    'updated_at': nowUtc,
+                  })
                   .eq('id', item['id']),
             );
           }

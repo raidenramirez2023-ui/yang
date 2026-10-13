@@ -37,7 +37,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   DateTime? _customEndDate;
 
   // Pagination / Limit
-  final int _limit = 500;
+  final int _limit = 5000;
   int _currentPage = 1;
   static const int _itemsPerPage = 20;
 
@@ -672,57 +672,128 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     }
   }
 
+  String _formatModuleDisplayName(String rawModule) {
+    final m = rawModule.toLowerCase().trim();
+    if (m == 'reservations' || m == 'qr_check_in' || m == 'qr_scanner' || m == 'advance_orders') {
+      return 'Reservations';
+    }
+    if (m == 'reschedule' || m == 'reschedules') return 'Reschedule';
+    if (m == 'payments' || m == 'payment') return 'Payments';
+    if (m == 'refunds' || m == 'refund') return 'Refunds';
+    if (m == 'petty cash' || m == 'petty_cash' || m == 'pettycash') return 'Petty Cash';
+    if (m == 'inventory' || m == 'kitchen_inventory' || m == 'stock') return 'Inventory';
+    if (m == 'menu' || m == 'dish' || m == 'recipe') return 'Menu';
+    if (m == 'users' || m == 'customer accounts' || m == 'profile') return 'Users';
+    if (m == 'announcements' || m == 'announcement') return 'Announcements';
+    if (m == 'spoilage' || m == 'waste' || m == 'spoilage_wastage') return 'Spoilage';
+    if (m == 'auth' || m == 'authentication' || m == 'login' || m == 'logout') return 'Auth';
+    if (m == 'system' || m == 'system backup' || m == 'system backup & recovery' || m == 'admin governance') return 'System';
+    return rawModule;
+  }
+
   Color _getModuleColor(String module) {
-    switch (module.toLowerCase()) {
+    switch (module.toLowerCase().trim()) {
       case 'reschedule':
+      case 'reschedules':
         return const Color(0xFF7C3AED); // Vibrant Purple
       case 'reservations':
+      case 'qr_check_in':
+      case 'qr_scanner':
+      case 'advance_orders':
         return const Color(0xFF14332E); // Deep Forest Green
       case 'payments':
+      case 'payment':
         return const Color(0xFF0D9488); // Teal
       case 'refunds':
+      case 'refund':
         return const Color(0xFFE11D48); // Rose
       case 'petty cash':
+      case 'petty_cash':
+      case 'pettycash':
         return const Color(0xFFD9A441); // Warm Gold
+      case 'inventory':
+      case 'kitchen_inventory':
+      case 'stock':
+        return const Color(0xFF059669); // Emerald Green
       case 'menu':
+      case 'dish':
+      case 'recipe':
         return const Color(0xFFEA580C); // Orange
       case 'spoilage':
+      case 'waste':
+      case 'spoilage_wastage':
         return const Color(0xFFDC2626); // Red
       case 'users':
+      case 'customer accounts':
+      case 'profile':
         return const Color(0xFF0284C7); // Sky Blue
       case 'announcements':
+      case 'announcement':
         return const Color(0xFF6366F1); // Indigo
-      case 'system':
       case 'auth':
+      case 'authentication':
+      case 'login':
+      case 'logout':
+        return const Color(0xFF4F46E5); // Indigo Auth
+      case 'system':
+      case 'system backup':
+      case 'system backup & recovery':
+      case 'admin governance':
       default:
         return const Color(0xFF475569); // Slate
     }
   }
 
   IconData _getModuleIcon(String module) {
-    switch (module.toLowerCase()) {
+    switch (module.toLowerCase().trim()) {
       case 'reschedule':
+      case 'reschedules':
         return Icons.edit_calendar_rounded;
       case 'reservations':
+      case 'qr_check_in':
+      case 'qr_scanner':
+      case 'advance_orders':
         return Icons.calendar_month_rounded;
       case 'payments':
+      case 'payment':
         return Icons.payments_outlined;
       case 'refunds':
+      case 'refund':
         return Icons.currency_exchange_rounded;
       case 'petty cash':
+      case 'petty_cash':
+      case 'pettycash':
         return Icons.account_balance_wallet_outlined;
+      case 'inventory':
+      case 'kitchen_inventory':
+      case 'stock':
+        return Icons.inventory_2_outlined;
       case 'menu':
+      case 'dish':
+      case 'recipe':
         return Icons.restaurant_menu_rounded;
       case 'spoilage':
+      case 'waste':
+      case 'spoilage_wastage':
         return Icons.delete_sweep_rounded;
       case 'users':
+      case 'customer accounts':
+      case 'profile':
         return Icons.people_alt_outlined;
       case 'announcements':
+      case 'announcement':
         return Icons.campaign_outlined;
-      case 'system':
       case 'auth':
+      case 'authentication':
+      case 'login':
+      case 'logout':
+        return Icons.lock_outline_rounded;
+      case 'system':
+      case 'system backup':
+      case 'system backup & recovery':
+      case 'admin governance':
       default:
-        return Icons.shield_outlined;
+        return Icons.settings_suggest_outlined;
     }
   }
 
@@ -1967,7 +2038,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
-                                      log.module,
+                                      _formatModuleDisplayName(log.module),
                                       style: GoogleFonts.inter(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
@@ -2157,7 +2228,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        log.module.toUpperCase(),
+                                        _formatModuleDisplayName(log.module).toUpperCase(),
                                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: moduleColor),
                                       ),
                                     ),

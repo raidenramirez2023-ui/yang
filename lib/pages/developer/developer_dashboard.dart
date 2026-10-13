@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,7 +10,6 @@ import 'developer_theme.dart';
 import 'backup_restore_page.dart';
 import 'system_health_page.dart';
 import 'audit_logs_page.dart';
-import 'security_events_page.dart';
 import 'maintenance_mode_page.dart';
 import 'user_monitoring_page.dart';
 import '../../utils/url_helper.dart';
@@ -36,12 +33,10 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   static const _indexToRoute = [
     '/developer/dashboard',   // 0 – System Overview
     '/developer/health',      // 1 – System Health & Status
-    '/developer/audit-logs',  // 2 – Audit Logs
-    '/developer/security',    // 3 – Security Events
-    '/developer/users',       // 4 – User & Role Monitoring
-    '/developer/maintenance',  // 5 – Maintenance Mode
-    '/developer/backup',      // 6 – Backup Status
-    '/developer/info',        // 7 – System Information
+    '/developer/audit-logs',  // 2 – Audit Logs (incl. Security & Auth view)
+    '/developer/users',       // 3 – User & Role Monitoring
+    '/developer/maintenance',  // 4 – Maintenance Mode
+    '/developer/backup',      // 5 – Backup Status
   ];
 
   int _latencyMs = 0;
@@ -50,18 +45,18 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   Timer? _itAccessPollTimer;
   RealtimeChannel? _itAccessRealtimeSub;
   String _developerEmail = 'Developer';
-  String _appName = 'Yang Chow Pagsanjan Restaurant Management System (YCPRMS)';
   String _appVersion = '1.0.0+20';
   List<Map<String, dynamic>> _pendingItRequests = [];
   Map<String, dynamic>? _activeItRequest;
   AdminContinuityConfig? _continuityConfig;
   bool _isContinuityKeyRevealed = false;
   int _continuityLockoutSeconds = 0;
+  bool _isContinuityVaultExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex;
+    _selectedIndex = widget.initialIndex > 5 ? 1 : widget.initialIndex;
     _developerEmail = Supabase.instance.client.auth.currentUser?.email ?? 'yangchowit@gmail.com';
     _loadAppVersion();
     _checkSystemPulse();
@@ -108,14 +103,10 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
       final info = await PackageInfo.fromPlatform();
       final ver = info.version;
       final build = info.buildNumber;
-      final name = info.appName.trim();
       if (mounted) {
         setState(() {
           if (ver.isNotEmpty) {
             _appVersion = build.isNotEmpty ? '$ver+$build' : ver;
-          }
-          if (name.isNotEmpty) {
-            _appName = 'Yang Chow Pagsanjan Restaurant Management System ($name)';
           }
         });
       }
@@ -277,16 +268,14 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 _buildTopAppBar(),
                 Expanded(
                   child: IndexedStack(
-                    index: _selectedIndex,
+                    index: _selectedIndex.clamp(0, 5),
                     children: [
                       _buildOverviewTab(),
                       SystemHealthPage(onHealthUpdated: _checkSystemPulse),
                       const DeveloperAuditLogsPage(),
-                      const SecurityEventsPage(),
                       const UserMonitoringPage(),
                       MaintenanceModePage(onMaintenanceChanged: _checkSystemPulse),
                       const BackupRestorePage(),
-                      _buildSystemInfoTab(),
                     ],
                   ),
                 ),
@@ -485,11 +474,9 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 _buildNavItem(0, 'System Overview', Icons.dashboard),
                 _buildNavItem(1, 'System Health & Status', Icons.health_and_safety),
                 _buildNavItem(2, 'Audit Logs', Icons.receipt_long_outlined),
-                _buildNavItem(3, 'Security Events', Icons.shield_outlined),
-                _buildNavItem(4, 'User & Role Monitoring', Icons.manage_accounts),
-                _buildNavItem(5, 'Maintenance Mode', Icons.build_circle),
-                _buildNavItem(6, 'Backup Status', Icons.backup),
-                _buildNavItem(7, 'System Information', Icons.info_outline_rounded),
+                _buildNavItem(3, 'User & Role Monitoring', Icons.manage_accounts),
+                _buildNavItem(4, 'Maintenance Mode', Icons.build_circle),
+                _buildNavItem(5, 'Backup Status', Icons.backup),
               ],
             ),
           ),
@@ -565,7 +552,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                   ),
                 ),
               ),
-              if (index == 5 && _isMaintenanceActive)
+              if (index == 4 && _isMaintenanceActive)
                 Container(
                   width: 8,
                   height: 8,
@@ -582,6 +569,9 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
   }
 
   Widget _buildOverviewTab() {
+    final hasElevated = _activeItRequest != null;
+    final isContinuityExecuted = _continuityConfig?.isSuccessionCompleted == true;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -596,15 +586,19 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                   Text('Technical Operations Overview', style: DeveloperTheme.headingLarge()),
                   const SizedBox(height: 4),
                   Text(
-                    'High-level architecture telemetry, active services, and security health',
+                    'Infrastructure telemetry, elevated IT access control, and diagnostic launching',
                     style: DeveloperTheme.bodySmall(),
                   ),
                 ],
               ),
               ElevatedButton.icon(
-                onPressed: () => setState(() => _selectedIndex = 1),
-                icon: const Icon(Icons.troubleshoot_rounded, size: 18),
-                label: const Text('Diagnostics Center'),
+                onPressed: () {
+                  _checkSystemPulse();
+                  _loadItAccessRequests();
+                  _loadContinuityConfig();
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Refresh Telemetry'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: DeveloperTheme.accentIndigo,
                   foregroundColor: Colors.white,
@@ -779,7 +773,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             const SizedBox(height: 16),
           ],
 
-          // Overview KPI Grid
+          // Operational KPI Grid (non-redundant, action-oriented)
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 800;
@@ -792,36 +786,40 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 childAspectRatio: isWide ? 2.1 : 1.7,
                 children: [
                   _buildQuickCard(
-                    title: 'System State',
-                    value: _isMaintenanceActive ? 'MAINTENANCE' : 'OPERATIONAL',
-                    subtitle: _isMaintenanceActive ? 'Technical Mode Active' : 'Normal Operations',
-                    color: _isMaintenanceActive ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
-                    icon: Icons.power,
-                    onTap: () => setState(() => _selectedIndex = 5),
+                    title: 'Elevated IT Session',
+                    value: hasElevated ? 'ELEVATED' : 'STANDBY',
+                    subtitle: hasElevated ? (_activeItRequest!['access_scope'] ?? 'Active Scope') : 'Standard Mode',
+                    color: hasElevated ? DeveloperTheme.accentEmerald : DeveloperTheme.accentCyan,
+                    icon: Icons.verified_user_rounded,
+                    onTap: () {
+                      if (_pendingItRequests.isNotEmpty || hasElevated) {
+                        _loadItAccessRequests();
+                      }
+                    },
                   ),
                   _buildQuickCard(
-                    title: 'Database Latency',
-                    value: '$_latencyMs ms',
-                    subtitle: 'PostgreSQL Ping',
-                    color: DeveloperTheme.accentCyan,
-                    icon: Icons.speed_rounded,
-                    onTap: () => setState(() => _selectedIndex = 1),
+                    title: 'IT Support Queue',
+                    value: '${_pendingItRequests.length} PENDING',
+                    subtitle: _pendingItRequests.isEmpty ? 'All Tickets Cleared' : 'Action Required',
+                    color: _pendingItRequests.isNotEmpty ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
+                    icon: Icons.support_agent_rounded,
+                    onTap: _loadItAccessRequests,
                   ),
                   _buildQuickCard(
-                    title: 'Security Posture',
-                    value: 'VERIFIED',
-                    subtitle: 'RLS & Identity Protected',
-                    color: DeveloperTheme.accentIndigo,
-                    icon: Icons.shield,
-                    onTap: () => setState(() => _selectedIndex = 3),
-                  ),
-                  _buildQuickCard(
-                    title: 'Role Access',
-                    value: 'ISOLATED',
-                    subtitle: 'Admin / IT Separated',
+                    title: 'Security Boundary',
+                    value: 'ENFORCED',
+                    subtitle: 'Admin / IT Segregated',
                     color: DeveloperTheme.accentPurple,
                     icon: Icons.fingerprint,
-                    onTap: () => setState(() => _selectedIndex = 4),
+                    onTap: () => setState(() => _selectedIndex = 2),
+                  ),
+                  _buildQuickCard(
+                    title: 'Disaster Recovery',
+                    value: isContinuityExecuted ? 'EXECUTED' : 'ESCROW ACTIVE',
+                    subtitle: 'Break-Glass Ready',
+                    color: isContinuityExecuted ? DeveloperTheme.accentAmber : DeveloperTheme.accentEmerald,
+                    icon: Icons.shield,
+                    onTap: () => setState(() => _isContinuityVaultExpanded = !_isContinuityVaultExpanded),
                   ),
                 ],
               );
@@ -829,51 +827,6 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
           ),
 
           const SizedBox(height: 28),
-
-          // Quick Action Launchpad
-          Text('Quick Management Launchpad', style: DeveloperTheme.headingMedium()),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionTile(
-                  title: 'Toggle Maintenance Mode',
-                  desc: 'Activate scheduled technical maintenance or emergency pause',
-                  icon: Icons.build_circle,
-                  color: DeveloperTheme.accentAmber,
-                  onTap: () => setState(() => _selectedIndex = 5),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildActionTile(
-                  title: 'Inspect Audit Trail',
-                  desc: 'Browse user operations, logs, entity IDs, and CSV export',
-                  icon: Icons.receipt_long_outlined,
-                  color: DeveloperTheme.accentCyan,
-                  onTap: () => setState(() => _selectedIndex = 2),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildActionTile(
-                  title: 'Verify Database Backups',
-                  desc: 'Inspect tables and trigger structured JSON data exports',
-                  icon: Icons.backup,
-                  color: DeveloperTheme.accentIndigo,
-                  onTap: () => setState(() => _selectedIndex = 6),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 28),
-
-          // ── Emergency Continuity & Succession Vault (Break-Glass Key) ──
-          _buildContinuityVaultCard(),
-
-          const SizedBox(height: 32),
 
           // ─── Portal Access Launchpad ──────────────────────────────────────────
           // Allows the Developer to navigate directly into any portal for testing
@@ -887,14 +840,13 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                   Text('Portal Access Launchpad', style: DeveloperTheme.headingMedium()),
                   const SizedBox(height: 4),
                   Text(
-                    'Direct access to all portals for testing and debugging',
+                    'Direct diagnostic access to all portals for verification and debugging',
                     style: DeveloperTheme.bodySmall(),
                   ),
                 ],
               ),
               Builder(
                 builder: (context) {
-                  final hasElevated = _activeItRequest != null;
                   final color = _isMaintenanceActive
                       ? DeveloperTheme.accentAmber
                       : (hasElevated ? DeveloperTheme.accentEmerald : const Color(0xFFEF4444));
@@ -992,41 +944,10 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             },
           ),
 
+          const SizedBox(height: 28),
 
-          const SizedBox(height: 32),
-
-          // Architecture Notice
-
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: DeveloperTheme.cardDecoration(),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline_rounded, color: DeveloperTheme.accentCyan, size: 24),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Architectural Separation: Business Operations vs IT Maintenance',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: DeveloperTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'The Developer / IT module handles infrastructure diagnostics, security logs, and maintenance toggles. Business operations (reservations, menu pricing, staff schedules, and refunds) remain strictly inside the Admin and Staff portals.',
-                        style: DeveloperTheme.bodySmall(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // ── Emergency Continuity & Succession Vault (Break-Glass Key) ──
+          _buildContinuityVaultCard(),
         ],
       ),
     );
@@ -1070,127 +991,6 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             Text(subtitle, style: DeveloperTheme.bodySmall(color: color)),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionTile({
-    required String title,
-    required String desc,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: DeveloperTheme.cardDecoration(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 22, color: color),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: DeveloperTheme.textPrimary),
-            ),
-            const SizedBox(height: 4),
-            Text(desc, style: DeveloperTheme.bodySmall()),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
-  Widget _buildSystemInfoTab() {
-    String storageInfo = 'Firebase Storage Bucket (Polyglot image storage)';
-    try {
-      if (Firebase.apps.isNotEmpty) {
-        final bucket = Firebase.app().options.storageBucket;
-        if (bucket != null && bucket.isNotEmpty) {
-          storageInfo = 'Firebase Storage ($bucket)';
-        }
-      }
-    } catch (_) {}
-
-    final clientPlatform = kIsWeb
-        ? 'Web (${defaultTargetPlatform.name.toUpperCase()} Client)'
-        : '${defaultTargetPlatform.name.toUpperCase()} (Native Engine)';
-
-    final buildMode = kReleaseMode
-        ? 'Production (AOT)'
-        : kProfileMode
-            ? 'Profile'
-            : 'Development (Debug JIT)';
-
-    final dbStatus = _latencyMs >= 0
-        ? 'Supabase PostgreSQL 15.x (${_latencyMs}ms latency • Online)'
-        : 'Supabase PostgreSQL 15.x (Online)';
-
-    final authInfo = _developerEmail.isNotEmpty
-        ? 'Supabase GoTrue JWT (Active Session: $_developerEmail)'
-        : 'Supabase GoTrue JWT & Role Authorization Guard';
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('System Architecture Information', style: DeveloperTheme.headingLarge()),
-          const SizedBox(height: 4),
-          Text('Runtime environment, versions, and deployment specifications', style: DeveloperTheme.bodySmall()),
-          const SizedBox(height: 24),
-
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: DeveloperTheme.cardDecoration(),
-            child: Column(
-              children: [
-                _buildInfoRow('Application Name', _appName),
-                _buildInfoRow('Software Release Version', '$_appVersion ($buildMode)'),
-                _buildInfoRow('Framework & SDK', 'Flutter 3.x / Dart 3.x (${kIsWeb ? "Web Engine" : "Native Engine"})'),
-                _buildInfoRow('Relational Database', dbStatus),
-                _buildInfoRow('Object Storage', storageInfo),
-                _buildInfoRow('Authentication Scheme', authInfo),
-                _buildInfoRow('Design System', 'Flutter Material 3 (Yang Chow Brand Palette & Dark Slate IT Console)'),
-                _buildInfoRow('Host Operating System', clientPlatform),
-                _buildInfoRow('Operating System Target', 'Web, Windows, Android, iOS (Cross-Platform)'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 220,
-            child: Text(label, style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted)),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: DeveloperTheme.monoText(fontSize: 12, color: DeveloperTheme.textPrimary),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1297,282 +1097,302 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
                 icon: const Icon(Icons.refresh_rounded, size: 18, color: DeveloperTheme.textMuted),
                 tooltip: 'Refresh Vault Telemetry',
               ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _isContinuityVaultExpanded = !_isContinuityVaultExpanded),
+                icon: Icon(
+                  _isContinuityVaultExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  size: 16,
+                  color: DeveloperTheme.accentCyan,
+                ),
+                label: Text(
+                  _isContinuityVaultExpanded ? 'Collapse' : 'Inspect Key',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: DeveloperTheme.accentCyan),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: DeveloperTheme.borderSubtle),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
             ],
           ),
 
-          const SizedBox(height: 20),
-          const Divider(color: DeveloperTheme.borderSubtle, height: 1),
-          const SizedBox(height: 20),
+          if (_continuityLockoutSeconds > 0 || _isContinuityVaultExpanded) ...[
+            const SizedBox(height: 20),
+            const Divider(color: DeveloperTheme.borderSubtle, height: 1),
+            const SizedBox(height: 20),
 
-          if (_continuityLockoutSeconds > 0) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+            if (_continuityLockoutSeconds > 0) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_clock, color: Colors.amberAccent, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Lockout Active: 3 failed attempts triggered by successor login (${(_continuityLockoutSeconds / 60).ceil()}m remaining).',
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.lock_open_rounded, size: 14),
+                      label: const Text('Reset Lockout Now'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: DeveloperTheme.accentEmerald,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        textStyle: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () async {
+                        await AdminContinuityService.resetFailedAttempts();
+                        await _loadContinuityConfig();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: DeveloperTheme.accentEmerald,
+                              content: Text(
+                                'Security Lockout reset by IT Custodian! Succession login is now unlocked.',
+                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.lock_clock, color: Colors.amberAccent, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Lockout Active: 3 failed attempts triggered by successor login (${(_continuityLockoutSeconds / 60).ceil()}m remaining).',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
+            ],
+
+            // Details Layout
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 850;
+                final leftSide = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'GOVERNANCE REGISTRY',
+                      style: DeveloperTheme.monoText(
+                        fontSize: 11,
+                        color: DeveloperTheme.accentCyan,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.lock_open_rounded, size: 14),
-                    label: const Text('Reset Lockout Now'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: DeveloperTheme.accentEmerald,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    const SizedBox(height: 12),
+                    _buildVaultInfoRow('Primary Administrator', '$primaryName ($primaryEmail)'),
+                    _buildVaultInfoRow('Designated Successor', '$backupName ($backupEmail)'),
+                    _buildVaultInfoRow(
+                      'Successor Mode',
+                      cfg.authorityMode == 'co_admin'
+                          ? 'Active Co-Admin (Authorized Daily Login)'
+                          : 'Standby Mode (Emergency Takeover Only)',
                     ),
-                    onPressed: () async {
-                      await AdminContinuityService.resetFailedAttempts();
-                      await _loadContinuityConfig();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            backgroundColor: DeveloperTheme.accentEmerald,
-                            content: Text(
-                              'Security Lockout reset by IT Custodian! Succession login is now unlocked.',
-                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    if (isSuccessionDone) ...[
+                      if (cfg.formerAdminEmail != null && cfg.formerAdminEmail!.isNotEmpty)
+                        _buildVaultInfoRow('Predecessor Admin', '${cfg.formerAdminName ?? "Former Admin"} (${cfg.formerAdminEmail})'),
+                      if (cfg.successionDate != null && cfg.successionDate!.isNotEmpty)
+                        _buildVaultInfoRow('Executed At', cfg.successionDate!),
+                      if (cfg.successionReason != null && cfg.successionReason!.isNotEmpty)
+                        _buildVaultInfoRow('Succession Cause', cfg.successionReason!),
+                    ],
+                  ],
+                );
+
+                final effectiveRefNumber = (cfg.successionReference != null && cfg.successionReference!.trim().isNotEmpty)
+                    ? cfg.successionReference!.trim()
+                    : 'HR-MEMO-2026-004';
+
+                final rightSide = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BREAK-GLASS EMERGENCY VERIFICATION KEY',
+                      style: DeveloperTheme.monoText(
+                        fontSize: 11,
+                        color: DeveloperTheme.accentAmber,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: DeveloperTheme.bgDark,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: DeveloperTheme.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.vpn_key_rounded, size: 16, color: DeveloperTheme.accentAmber),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: SelectableText(
+                              _isContinuityKeyRevealed ? key : '\u2022' * 32,
+                              style: DeveloperTheme.monoText(
+                                fontSize: 12.5,
+                                color: _isContinuityKeyRevealed
+                                    ? DeveloperTheme.accentEmerald
+                                    : DeveloperTheme.textMuted,
+                              ),
                             ),
                           ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
+                          IconButton(
+                            icon: Icon(
+                              _isContinuityKeyRevealed ? Icons.visibility_off : Icons.visibility,
+                              size: 18,
+                              color: DeveloperTheme.textSecondary,
+                            ),
+                            onPressed: () => setState(() => _isContinuityKeyRevealed = !_isContinuityKeyRevealed),
+                            tooltip: _isContinuityKeyRevealed ? 'Hide Passphrase' : 'Show Passphrase',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: key));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: DeveloperTheme.accentEmerald,
+                                  content: Text(
+                                    'Continuity Verification Key copied to clipboard.',
+                                    style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
+                                  ),
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                            },
+                            tooltip: 'Copy Key',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Text(
+                          'OFFICIAL REFERENCE DIRECTIVE (AUDIT RECORD)',
+                          style: DeveloperTheme.monoText(
+                            fontSize: 11,
+                            color: DeveloperTheme.accentCyan,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: DeveloperTheme.accentEmerald.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: DeveloperTheme.accentEmerald.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            'REGISTERED & VALID',
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: DeveloperTheme.accentEmerald,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: DeveloperTheme.bgDark,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: DeveloperTheme.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.description_outlined, size: 16, color: DeveloperTheme.accentCyan),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: SelectableText(
+                              effectiveRefNumber,
+                              style: DeveloperTheme.monoText(
+                                fontSize: 12.5,
+                                color: DeveloperTheme.accentCyan,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 18, color: DeveloperTheme.accentCyan),
+                            onPressed: () => _showEditDirectiveDialog(effectiveRefNumber),
+                            tooltip: 'Edit Reference Directive',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: effectiveRefNumber));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: DeveloperTheme.accentEmerald,
+                                  content: Text(
+                                    'Official Reference Document Number ($effectiveRefNumber) copied to clipboard.',
+                                    style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
+                                  ),
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                            },
+                            tooltip: 'Copy Reference Number',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '⚠ Required legal audit identifier. Matches the physical HR Memorandum or Incident Certificate on file.',
+                      style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                    ),
+                  ],
+                );
+
+                if (isWide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 5, child: leftSide),
+                      const SizedBox(width: 32),
+                      Expanded(flex: 6, child: rightSide),
+                    ],
+                  );
+                } else {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      leftSide,
+                      const SizedBox(height: 20),
+                      const Divider(color: DeveloperTheme.borderSubtle, height: 1),
+                      const SizedBox(height: 20),
+                      rightSide,
+                    ],
+                  );
+                }
+              },
             ),
           ],
-
-          // Details Layout
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 850;
-              final leftSide = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GOVERNANCE REGISTRY',
-                    style: DeveloperTheme.monoText(
-                      fontSize: 11,
-                      color: DeveloperTheme.accentCyan,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildVaultInfoRow('Primary Administrator', '$primaryName ($primaryEmail)'),
-                  _buildVaultInfoRow('Designated Successor', '$backupName ($backupEmail)'),
-                  _buildVaultInfoRow(
-                    'Successor Mode',
-                    cfg.authorityMode == 'co_admin'
-                        ? 'Active Co-Admin (Authorized Daily Login)'
-                        : 'Standby Mode (Emergency Takeover Only)',
-                  ),
-                  if (isSuccessionDone) ...[
-                    if (cfg.formerAdminEmail != null && cfg.formerAdminEmail!.isNotEmpty)
-                      _buildVaultInfoRow('Predecessor Admin', '${cfg.formerAdminName ?? "Former Admin"} (${cfg.formerAdminEmail})'),
-                    if (cfg.successionDate != null && cfg.successionDate!.isNotEmpty)
-                      _buildVaultInfoRow('Executed At', cfg.successionDate!),
-                    if (cfg.successionReason != null && cfg.successionReason!.isNotEmpty)
-                      _buildVaultInfoRow('Succession Cause', cfg.successionReason!),
-                  ],
-                ],
-              );
-
-              final effectiveRefNumber = (cfg.successionReference != null && cfg.successionReference!.trim().isNotEmpty)
-                  ? cfg.successionReference!.trim()
-                  : 'HR-MEMO-2026-004';
-
-              final rightSide = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'BREAK-GLASS EMERGENCY VERIFICATION KEY',
-                    style: DeveloperTheme.monoText(
-                      fontSize: 11,
-                      color: DeveloperTheme.accentAmber,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: DeveloperTheme.bgDark,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: DeveloperTheme.borderSubtle),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.vpn_key_rounded, size: 16, color: DeveloperTheme.accentAmber),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: SelectableText(
-                            _isContinuityKeyRevealed ? key : '••••••••••••••••••••••••••••••••',
-                            style: DeveloperTheme.monoText(
-                              fontSize: 12.5,
-                              color: _isContinuityKeyRevealed
-                                  ? DeveloperTheme.accentEmerald
-                                  : DeveloperTheme.textMuted,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            _isContinuityKeyRevealed ? Icons.visibility_off : Icons.visibility,
-                            size: 18,
-                            color: DeveloperTheme.textSecondary,
-                          ),
-                          onPressed: () => setState(() => _isContinuityKeyRevealed = !_isContinuityKeyRevealed),
-                          tooltip: _isContinuityKeyRevealed ? 'Hide Passphrase' : 'Show Passphrase',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: key));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: DeveloperTheme.accentEmerald,
-                                content: Text(
-                                  'Continuity Verification Key copied to clipboard.',
-                                  style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
-                                ),
-                                duration: const Duration(seconds: 3),
-                              ),
-                            );
-                          },
-                          tooltip: 'Copy Key',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Text(
-                        'OFFICIAL REFERENCE DIRECTIVE (AUDIT RECORD)',
-                        style: DeveloperTheme.monoText(
-                          fontSize: 11,
-                          color: DeveloperTheme.accentCyan,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: DeveloperTheme.accentEmerald.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: DeveloperTheme.accentEmerald.withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          'REGISTERED & VALID',
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: DeveloperTheme.accentEmerald,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: DeveloperTheme.bgDark,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: DeveloperTheme.borderSubtle),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.description_outlined, size: 16, color: DeveloperTheme.accentCyan),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: SelectableText(
-                            effectiveRefNumber,
-                            style: DeveloperTheme.monoText(
-                              fontSize: 12.5,
-                              color: DeveloperTheme.accentCyan,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 18, color: DeveloperTheme.accentCyan),
-                          onPressed: () => _showEditDirectiveDialog(effectiveRefNumber),
-                          tooltip: 'Edit Reference Directive',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          icon: const Icon(Icons.copy_rounded, size: 18, color: DeveloperTheme.accentIndigo),
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: effectiveRefNumber));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: DeveloperTheme.accentEmerald,
-                                content: Text(
-                                  'Official Reference Document Number ($effectiveRefNumber) copied to clipboard.',
-                                  style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w600),
-                                ),
-                                duration: const Duration(seconds: 3),
-                              ),
-                            );
-                          },
-                          tooltip: 'Copy Reference Number',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '⚠ Required legal audit identifier. Matches the physical HR Memorandum or Incident Certificate on file.',
-                    style: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
-                  ),
-                ],
-              );
-
-              if (isWide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 5, child: leftSide),
-                    const SizedBox(width: 32),
-                    Expanded(flex: 6, child: rightSide),
-                  ],
-                );
-              } else {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    leftSide,
-                    const SizedBox(height: 20),
-                    const Divider(color: DeveloperTheme.borderSubtle, height: 1),
-                    const SizedBox(height: 20),
-                    rightSide,
-                  ],
-                );
-              }
-            },
-          ),
         ],
       ),
     );
@@ -1901,7 +1721,7 @@ class _DeveloperDashboardPageState extends State<DeveloperDashboardPage> {
             ),
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _selectedIndex = 5);
+              setState(() => _selectedIndex = 4);
             },
             icon: const Icon(Icons.build_circle_rounded, size: 16),
             label: Text(
