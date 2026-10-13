@@ -2595,7 +2595,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                             Padding(
                               padding: const EdgeInsets.only(left: 12, top: 2),
                               child: Text(
-                                '(90-Day Baseline for ${f.dayName}: ${_currencyFormat.format(f.baseDowRevenue)} × Trend: ${f.momentumFactor.toStringAsFixed(3)})',
+                                '(90-Day Baseline for ${f.dayName}: ${_currencyFormat.format(f.baseDowRevenue)} × Trend: ${f.momentumFactor >= 1.0 ? '+' : ''}${((f.momentumFactor - 1.0) * 100).toStringAsFixed(1)}% [${f.momentumFactor.toStringAsFixed(3)}])',
                                 style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                               ),
                             ),
@@ -2913,7 +2913,7 @@ class _SalesForecastPageState extends State<SalesForecastPage>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '• Momentum Trend (${_momentumFactor.toStringAsFixed(3)}): Trailing 14 days vs prior 14 days ratio to reflect current growth, clamped safely between 0.85 and 1.25.',
+                                        '• Momentum Trend (${(_momentumFactor >= 1.0 ? '+' : '')}${((_momentumFactor - 1.0) * 100).toStringAsFixed(1)}% / ${_momentumFactor.toStringAsFixed(3)}): Trailing 14 days vs prior 14 days ratio to reflect current growth, clamped safely between 0.85 and 1.25.',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), height: 1.45),
                                       ),
                                     ],

@@ -665,7 +665,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     // Update Recent Activity
 
-    _updateActivity(todayOrders, allInventory, allReservations, allAdvanceOrders);
+    _updateActivity(allOrders, allInventory, allReservations, allAdvanceOrders);
 
     // Process Confirmed Events Analytics
 
@@ -1473,25 +1473,51 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
+  String _formatActivityTime(DateTime? dt) {
+    if (dt == null) return 'Recent';
+    final now = DateTime.now();
+    final localDt = dt.toLocal();
+    final diff = now.difference(localDt);
+
+    if (diff.isNegative) {
+      return 'Just now';
+    }
+    if (diff.inSeconds < 60) {
+      return 'Just now';
+    }
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes}m ago';
+    }
+    if (localDt.year == now.year && localDt.month == now.month && localDt.day == now.day) {
+      return '${diff.inHours}h ago';
+    }
+    final yesterday = now.subtract(const Duration(days: 1));
+    if (localDt.year == yesterday.year && localDt.month == yesterday.month && localDt.day == yesterday.day) {
+      return 'Yesterday';
+    }
+    if (diff.inDays < 7) {
+      return '${diff.inDays}d ago';
+    }
+    if (localDt.year == now.year) {
+      return DateFormat('MMM d').format(localDt);
+    }
+    return DateFormat('MMM d, yyyy').format(localDt);
+  }
+
   void _updateActivity(
     List<Map<String, dynamic>> recentOrders,
-
     List<Map<String, dynamic>> inventory,
-
     List<Map<String, dynamic>> reservations,
-
     List<Map<String, dynamic>> advanceOrders,
   ) {
-    List<_ActivityItem> activities = [];
+    final now = DateTime.now();
+    final List<_ActivityItem> transactionActivities = [];
 
-    // Latest 5 POS Orders (for main dashboard)
-    for (var i = 0; i < min(5, recentOrders.length); i++) {
+    // 1. Recent POS / Walk-in Orders
+    for (var i = 0; i < min(10, recentOrders.length); i++) {
       final o = recentOrders[i];
-
-      final time = DateTime.tryParse(o['created_at'] ?? '');
-      final timeStr = time != null
-          ? DateFormat('HH:mm').format(time)
-          : 'Just now';
+      final time = DateTime.tryParse(o['created_at']?.toString() ?? '')?.toLocal();
+      final timeStr = _formatActivityTime(time);
 
       final kitchenStatus = (o['kitchen_status']?.toString() ?? '').toLowerCase();
       final orderStatus = (o['order_status']?.toString() ?? o['status']?.toString() ?? '').toLowerCase();
@@ -1500,48 +1526,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       Color statusColor;
       IconData statusIcon;
 
+      final idDisplay = o['transaction_id'] ?? o['id'] ?? '';
+
       if (kitchenStatus == 'preparing' || orderStatus == 'preparing') {
-        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} In Prep';
+        statusTitle = 'Order #$idDisplay In Prep';
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.local_fire_department_rounded;
       } else if (kitchenStatus == 'ready' || orderStatus == 'ready') {
-        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Ready';
+        statusTitle = 'Order #$idDisplay Ready';
         statusColor = AppTheme.infoBlue;
         statusIcon = Icons.check_circle_outline_rounded;
       } else if (kitchenStatus == 'completed' || kitchenStatus == 'served' || orderStatus == 'completed' || orderStatus == 'paid') {
-        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Completed';
+        statusTitle = 'Order #$idDisplay Completed';
         statusColor = AppTheme.successGreen;
         statusIcon = Icons.check_circle_rounded;
-      } else if (orderStatus == 'cancelled') {
-        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Cancelled';
+      } else if (orderStatus == 'cancelled' || orderStatus == 'voided') {
+        statusTitle = 'Order #$idDisplay Cancelled';
         statusColor = const Color(0xFFEF4444);
         statusIcon = Icons.cancel_rounded;
       } else {
-        // Pending / New Order
-        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Placed';
+        statusTitle = 'Order #$idDisplay Placed';
         statusColor = AppTheme.warningOrange;
         statusIcon = Icons.receipt_long_rounded;
       }
 
-      activities.add(
+      transactionActivities.add(
         _ActivityItem(
           icon: statusIcon,
           color: statusColor,
           title: statusTitle,
-          subtitle: '${o['customer_name'] ?? 'Guest'} · ₱${o['total_amount']}',
+          subtitle: '${o['customer_name'] ?? 'Guest'} · ₱${o['total_amount'] ?? o['total_price'] ?? '0'}',
           time: timeStr,
+          timestamp: time,
         ),
       );
     }
 
-    // Latest 3 Advance Orders (for main dashboard)
-    for (var i = 0; i < min(3, advanceOrders.length); i++) {
+    // 2. Recent Advance Orders
+    for (var i = 0; i < min(10, advanceOrders.length); i++) {
       final ao = advanceOrders[i];
-
-      final time = DateTime.tryParse(ao['created_at'] ?? '');
-      final timeStr = time != null
-          ? DateFormat('HH:mm').format(time)
-          : 'Just now';
+      final time = DateTime.tryParse(ao['created_at']?.toString() ?? '')?.toLocal();
+      final timeStr = _formatActivityTime(time);
 
       final status = (ao['status']?.toString() ?? 'pending').toLowerCase();
       final paymentStatus = (ao['payment_status']?.toString() ?? 'unpaid').toLowerCase();
@@ -1551,89 +1576,131 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       Color statusColor;
       IconData statusIcon;
 
+      final aoId = ao['id'] ?? '';
+
       if (status == 'completed') {
-        statusTitle = 'Advance Order #${ao['id']} Completed';
+        statusTitle = 'Advance Order #$aoId Completed';
         statusColor = AppTheme.successGreen;
         statusIcon = Icons.check_circle_rounded;
       } else if (status == 'preparing') {
-        statusTitle = 'Advance Order #${ao['id']} In Prep';
+        statusTitle = 'Advance Order #$aoId In Prep';
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.local_fire_department_rounded;
       } else if (status == 'ready') {
-        statusTitle = 'Advance Order #${ao['id']} Ready';
+        statusTitle = 'Advance Order #$aoId Ready';
         statusColor = AppTheme.infoBlue;
         statusIcon = Icons.check_circle_outline_rounded;
       } else if (isPaid) {
-        statusTitle = 'Advance Order #${ao['id']} Paid';
+        statusTitle = 'Advance Order #$aoId Paid';
         statusColor = AppTheme.successGreen;
         statusIcon = Icons.calendar_today_rounded;
       } else {
-        statusTitle = 'New Advance Order #${ao['id']}';
+        statusTitle = 'New Advance Order #$aoId';
         statusColor = AppTheme.warningOrange;
         statusIcon = Icons.pending_actions_rounded;
       }
 
-      activities.add(
+      transactionActivities.add(
         _ActivityItem(
           icon: statusIcon,
           color: statusColor,
           title: statusTitle,
-          subtitle: '${ao['customer_name'] ?? 'Guest'} · ₱${ao['total_price']} · ${ao['order_date'] ?? 'TBD'}',
+          subtitle: '${ao['customer_name'] ?? 'Guest'} · ₱${ao['total_price'] ?? '0'} · ${ao['order_date'] ?? 'TBD'}',
           time: timeStr,
+          timestamp: time,
         ),
       );
     }
 
-    // Latest 3 Reservations (for main dashboard)
-    for (var i = 0; i < min(3, reservations.length); i++) {
+    // 3. Recent Reservations
+    for (var i = 0; i < min(10, reservations.length); i++) {
       final r = reservations[i];
+      final time = DateTime.tryParse(r['created_at']?.toString() ?? '')?.toLocal();
+      final timeStr = _formatActivityTime(time);
 
       final status = (r['status']?.toString() ?? 'pending').toLowerCase();
       final isConfirmed = status == 'confirmed';
       final isCancelled = status == 'cancelled' || status == 'rejected';
+      final isCompleted = status == 'completed';
 
-      activities.add(
+      final eventDateStr = r['event_date']?.toString();
+      final eventDate = eventDateStr != null ? DateTime.tryParse(eventDateStr) : null;
+      final isPastEvent = eventDate != null && eventDate.isBefore(DateTime(now.year, now.month, now.day));
+
+      String statusTitle;
+      Color statusColor;
+      IconData statusIcon;
+
+      if (isCompleted || (isConfirmed && isPastEvent)) {
+        statusTitle = 'Reservation Completed';
+        statusColor = AppTheme.successGreen;
+        statusIcon = Icons.event_available_rounded;
+      } else if (isConfirmed) {
+        statusTitle = 'Reservation Confirmed';
+        statusColor = AppTheme.successGreen;
+        statusIcon = Icons.check_circle_rounded;
+      } else if (isCancelled) {
+        statusTitle = 'Reservation Cancelled';
+        statusColor = const Color(0xFFEF4444);
+        statusIcon = Icons.cancel_rounded;
+      } else {
+        statusTitle = 'New Reservation';
+        statusColor = AppTheme.infoBlue;
+        statusIcon = Icons.pending_actions_rounded;
+      }
+
+      final customerName = r['customer_name']?.toString() ?? 'Guest';
+      final eventType = r['event_type']?.toString() ?? 'Event';
+      final dateFormatted = eventDate != null ? DateFormat('MMM d, yyyy').format(eventDate) : null;
+      final subtitle = dateFormatted != null
+          ? '$customerName · $eventType ($dateFormatted)'
+          : '$customerName · $eventType';
+
+      transactionActivities.add(
         _ActivityItem(
-          icon: isConfirmed
-              ? Icons.check_circle_rounded
-              : isCancelled
-                  ? Icons.cancel_rounded
-                  : Icons.event_available_rounded,
-          color: isConfirmed
-              ? AppTheme.successGreen
-              : isCancelled
-                  ? const Color(0xFFEF4444)
-                  : AppTheme.infoBlue,
-          title: isConfirmed
-              ? 'Reservation Confirmed'
-              : isCancelled
-                  ? 'Reservation Cancelled'
-                  : 'New Reservation',
-          subtitle: '${r['customer_name']} · ${r['event_type']}',
-          time: 'Just now',
+          icon: statusIcon,
+          color: statusColor,
+          title: statusTitle,
+          subtitle: subtitle,
+          time: timeStr,
+          timestamp: time,
         ),
       );
     }
 
-    // Latest 2 Low Stock Alerts (for main dashboard)
-    final lowStockItems = inventory
-        .where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) < 10)
-        .take(2)
-        .toList();
+    // Sort transaction activities by true timestamp (newest first)
+    transactionActivities.sort((a, b) {
+      final aTime = a.timestamp ?? DateTime(2000);
+      final bTime = b.timestamp ?? DateTime(2000);
+      return bTime.compareTo(aTime);
+    });
 
+    // 4. Active Low Stock Alerts (real-time inventory condition)
+    final lowStockItems = inventory.where((item) {
+      final q = (item['quantity'] as num?)?.toInt() ?? 0;
+      return q < 10;
+    }).take(2).toList();
+
+    List<_ActivityItem> alertActivities = [];
     for (var item in lowStockItems) {
-      activities.add(
+      final q = (item['quantity'] as num?)?.toInt() ?? 0;
+      final isOutOfStock = q == 0;
+      alertActivities.add(
         _ActivityItem(
           icon: Icons.inventory_2_rounded,
-          color: AppTheme.warningOrange,
-          title: 'Low Stock Alert',
-          subtitle: '${item['name']} · ${item['quantity']} left',
-          time: 'Now',
+          color: isOutOfStock ? const Color(0xFFEF4444) : AppTheme.warningOrange,
+          title: isOutOfStock ? 'Out of Stock Alert' : 'Low Stock Alert',
+          subtitle: '${item['name']} · $q left in inventory',
+          time: 'Active Alert',
+          isAlert: true,
         ),
       );
     }
 
-    _recentActivity = activities;
+    _recentActivity = [
+      ...alertActivities,
+      ...transactionActivities.take(15),
+    ];
   }
 
   @override
@@ -4967,6 +5034,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         ? _recentActivity.sublist(startIndex, endIndex)
         : <_ActivityItem>[];
 
+    final today = DateTime.now();
+    final eventsToday = _recentActivity.where((a) {
+      if (a.isAlert || a.timestamp == null) return false;
+      final local = a.timestamp!.toLocal();
+      return local.year == today.year && local.month == today.month && local.day == today.day;
+    }).length;
+    final activeAlerts = _recentActivity.where((a) => a.isAlert).length;
+
+    String subtitleText;
+    if (activeAlerts > 0) {
+      subtitleText = eventsToday > 0
+          ? '$eventsToday events logged today · $activeAlerts active alerts'
+          : '$activeAlerts active alerts · ${_recentActivity.length - activeAlerts} recent records';
+    } else {
+      subtitleText = eventsToday > 0
+          ? '$eventsToday events logged today'
+          : '${_recentActivity.length} recent activity records';
+    }
+
     return Container(
       padding: const EdgeInsets.all(AppTheme.lg),
       decoration: _cardDecoration(),
@@ -4997,7 +5083,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             fontSize: 16, fontWeight: FontWeight.w800,
                             color: AppTheme.darkGrey, letterSpacing: -0.3,
                           )),
-                      Text('${_recentActivity.length} events logged today',
+                      Text(subtitleText,
                           style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
                     ],
                   ),
@@ -5327,15 +5413,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppTheme.adminMainBackground,
+                      color: item.isAlert
+                          ? item.color.withValues(alpha: 0.12)
+                          : AppTheme.adminMainBackground,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppTheme.cardBorder),
+                      border: Border.all(
+                        color: item.isAlert
+                            ? item.color.withValues(alpha: 0.3)
+                            : AppTheme.cardBorder,
+                      ),
                     ),
-                    child: Text(item.time,
-                        style: const TextStyle(
-                          fontSize: 9.5, color: AppTheme.mediumGrey,
-                          fontWeight: FontWeight.w700,
-                        )),
+                    child: Text(
+                      item.time,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: item.isAlert ? item.color : AppTheme.mediumGrey,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -7102,6 +7197,8 @@ class _ActivityItem {
   final String title;
   final String subtitle;
   final String time;
+  final DateTime? timestamp;
+  final bool isAlert;
 
   const _ActivityItem({
     required this.icon,
@@ -7109,6 +7206,8 @@ class _ActivityItem {
     required this.title,
     required this.subtitle,
     required this.time,
+    this.timestamp,
+    this.isAlert = false,
   });
 }
 
