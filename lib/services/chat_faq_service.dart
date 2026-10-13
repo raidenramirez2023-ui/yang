@@ -66,8 +66,8 @@ class ChatFaqService {
           '3. **Step 3: Review Order & Downpayment**\n'
           '   • Review your booking summary, ordered dishes, total bill, and the required deposit downpayment amount.\n\n'
           '4. **Step 4: Settle Payment (GCash QR / PayMongo)**\n'
-          '   • Proceed to checkout and pay via **GCash QR** (enter Ref No. & upload receipt proof) or **PayMongo** (credit/debit card or e-wallet).\n'
-          '   • Tap **Submit Payment**.\n\n'
+          '   • Proceed to checkout and pay via **GCash QR** (enter Ref No. & upload receipt proof) or **PayMongo** (E-wallet).\n'
+          '   • Tap **Submit for Verification**.\n\n'
           '5. **Step 5: Track Your Booking**\n'
           '   • Once submitted, track your live status (*Pending ➔ Confirmed*) under **"My Bookings"** on your Dashboard. You will also receive email notifications.',
       actionType: 'book_flow',
@@ -91,7 +91,7 @@ class ChatFaqService {
           '   • Copy the **GCash Reference Number** and upload the **Screenshot / Receipt Proof**.\n'
           '   • Tap **Submit Payment** for admin/cashier verification.\n\n'
           '2. **PayMongo Gateway:**\n'
-          '   • Select **PayMongo** for instant online payment using Debit/Credit Card or supported E-Wallets.\n'
+          '   • Select **PayMongo** for instant online payment using supported E-Wallets.\n'
           '   • Complete payment on PayMongo\'s secure checkout page. Confirmation is verified automatically in real-time.\n\n'
           '3. **Remaining Balance Settlement:**\n'
           '   • The verified downpayment is automatically credited.\n'
