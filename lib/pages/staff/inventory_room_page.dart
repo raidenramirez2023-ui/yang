@@ -356,7 +356,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             final stock = (item['quantity'] as num?)?.toInt() ?? 0;
             if (stock == 0) {
               outOfStockCount++;
-            } else if (stock <= 10) {
+            } else if (stock < 10) {
               lowStockCount++;
             }
           }
@@ -384,9 +384,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   if (stockHealthFilter == 'OUT') {
                     matchesStockHealth = currentStock == 0;
                   } else if (stockHealthFilter == 'LOW') {
-                    matchesStockHealth = currentStock > 0 && currentStock <= 10;
+                    matchesStockHealth = currentStock > 0 && currentStock < 10;
                   } else if (stockHealthFilter == 'OPTIMAL') {
-                    matchesStockHealth = currentStock > 10;
+                    matchesStockHealth = currentStock >= 10;
                   }
 
                   return matchesCategory && matchesQuery && matchesSelectedOnly && matchesStockHealth;
@@ -441,7 +441,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 if (onlyZero && currentStock == 0) {
                   restockQtys[name] = targetAmount;
                   qtyControllers[name]?.text = targetAmount.toString();
-                } else if (!onlyZero && currentStock <= 10) {
+                } else if (!onlyZero && currentStock < 10) {
                   restockQtys[name] = targetAmount;
                   qtyControllers[name]?.text = targetAmount.toString();
                 }
@@ -581,40 +581,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 },
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF0F172A),
-                                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                                  backgroundColor: const Color(0xFFF8FAFC),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                icon: const Icon(Icons.add_rounded, size: 15, color: Color(0xFF64748B)),
-                                label: const Text('+ Unlisted', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                                onPressed: () {
-                                  _showAddBulkItemDialog(
-                                    allDbItems,
-                                    (item) {
-                                      setDialogState(() {
-                                        extraCustomItems.add(item);
-                                        final name = item['name']?.toString() ?? '';
-                                        final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                                        if (name.isNotEmpty) {
-                                          qtyControllers[name] = TextEditingController(text: qty.toString());
-                                          restockQtys[name] = qty;
-                                        }
-                                        showOnlyUnlisted = true;
-                                        showOnlySelected = false;
-                                        selectedCategoryFilter = 'All';
-                                      });
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
                           ],
                         ),
                       ],
@@ -720,38 +686,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   }
                                   showOnlySelected = true;
                                   showOnlyUnlisted = false;
-                                });
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        // Add Unlisted Item
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF0F172A),
-                            side: const BorderSide(color: Color(0xFFCBD5E1)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF64748B)),
-                          label: const Text('+ Unlisted', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
-                          onPressed: () {
-                            _showAddBulkItemDialog(
-                              allDbItems,
-                              (item) {
-                                setDialogState(() {
-                                  extraCustomItems.add(item);
-                                  final name = item['name']?.toString() ?? '';
-                                  final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                                  if (name.isNotEmpty) {
-                                    qtyControllers[name] = TextEditingController(text: qty.toString());
-                                    restockQtys[name] = qty;
-                                  }
-                                  showOnlyUnlisted = true; // SOLO UNLISTED VIEW
-                                  showOnlySelected = false;
-                                  selectedCategoryFilter = 'All';
                                 });
                               },
                             );
@@ -1521,7 +1455,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               final newTotal = currentStock + restockQty;
 
                               final isZero = currentStock == 0;
-                              final isLow = currentStock > 0 && currentStock <= 10;
+                              final isLow = currentStock > 0 && currentStock < 10;
                               final Color stockBg = isZero
                                   ? const Color(0xFFFEF2F2)
                                   : isLow
@@ -2632,352 +2566,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       ),
     );
   }
-
-  void _showAddBulkItemDialog(
-    List<Map<String, dynamic>> allItems,
-    Function(Map<String, dynamic>) onItemAdded,
-  ) {
-    String? selectedCategory;
-    final itemNameCtrl = TextEditingController();
-    final qtyCtrl = TextEditingController();
-    final unitCtrl = TextEditingController();
-    final supplierCtrl = TextEditingController();
-    List<String> filteredItemNames = allItems
-        .map((item) => item['name']?.toString() ?? '')
-        .where((name) => name.isNotEmpty)
-        .toList();
-    bool initialized = false;
-    bool isExistingItem = false;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          if (!initialized) {
-            initialized = true;
-            itemNameCtrl.addListener(() {
-              final value = itemNameCtrl.text;
-              try {
-                final match = allItems.firstWhere(
-                  (item) => item['name']?.toString() == value,
-                );
-                final dbUnit = match['unit']?.toString().trim();
-                final dbSupplier = match['supplier']?.toString().trim();
-                final dbCategory = match['category']?.toString();
-                
-                bool changed = false;
-                if (!isExistingItem) {
-                  isExistingItem = true;
-                  changed = true;
-                }
-                if (dbCategory != null && dbCategory.isNotEmpty && dbCategory != selectedCategory && categories.contains(dbCategory)) {
-                  selectedCategory = dbCategory;
-                  changed = true;
-                }
-                if (dbUnit != null && dbUnit.isNotEmpty && unitCtrl.text != dbUnit) {
-                  unitCtrl.text = dbUnit;
-                  changed = true;
-                }
-                if (dbSupplier != null && dbSupplier.isNotEmpty && supplierCtrl.text != dbSupplier) {
-                  supplierCtrl.text = dbSupplier;
-                  changed = true;
-                }
-                if (changed && context.mounted) setDialogState(() {});
-              } catch (_) {
-                if (isExistingItem) {
-                  isExistingItem = false;
-                  if (context.mounted) setDialogState(() {});
-                }
-              }
-            });
-          }
-
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              constraints: BoxConstraints(
-                maxWidth: ResponsiveUtils.isMobile(context)
-                    ? double.infinity
-                    : 500,
-                maxHeight: ResponsiveUtils.isMobile(context)
-                    ? MediaQuery.of(context).size.height * 0.85
-                    : 600,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.add_circle_outline,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Add Item to Bulk Delivery',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.darkGrey,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.close,
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Category Dropdown
-                          DropdownButtonFormField<String>(
-                            initialValue: selectedCategory,
-                            decoration: _buildDecoration(
-                              'Category',
-                              Icons.category_outlined,
-                            ),
-                            items: categories
-                                .where((cat) => cat != 'All')
-                                .map(
-                                  (category) => DropdownMenuItem(
-                                    value: category,
-                                    child: Text(category),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setDialogState(() {
-                                  selectedCategory = value;
-                                  filteredItemNames = allItems
-                                      .map(
-                                        (item) =>
-                                            item['name']?.toString() ?? '',
-                                      )
-                                      .where((name) => name.isNotEmpty)
-                                      .toList();
-                                  // Do not clear the item and its details, allowing user to keep typed item with newly selected category.
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Item Name Dropdown
-                          StreamBuilder<List<Map<String, dynamic>>>(
-                            stream: Supabase.instance.client
-                                .from('inventory')
-                                .stream(primaryKey: ['id'])
-                                .order('name'),
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                final fresh = snapshot.data!;
-                                if (fresh.length != allItems.length) {
-                                  WidgetsBinding.instance.addPostFrameCallback((
-                                    _,
-                                  ) {
-                                    setDialogState(() {
-                                      allItems = fresh;
-                                      filteredItemNames = allItems
-                                          .map(
-                                            (item) =>
-                                                item['name']?.toString() ?? '',
-                                          )
-                                          .where((name) => name.isNotEmpty)
-                                          .toList();
-                                    });
-                                  });
-                                }
-                              }
-
-                              final items = filteredItemNames;
-
-                              return _CustomSearchDropdown(
-                                controller: itemNameCtrl,
-                                items: items,
-                                label: 'Item Name',
-                                hintText: items.isEmpty ? 'No items in this category' : 'Search or enter new item',
-                                icon: Icons.inventory_2_outlined,
-                                showDropdownIcon: false,
-                                onChanged: (value) {
-                                  if (context.mounted) setDialogState(() {});
-                                },
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Quantity
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildInput(
-                                  qtyCtrl,
-                                  'Quantity',
-                                  Icons.numbers,
-                                  isNumber: true,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(3),
-                                    TextInputFormatter.withFunction((
-                                      oldValue,
-                                      newValue,
-                                    ) {
-                                      if (newValue.text.isEmpty) {
-                                        return newValue;
-                                      }
-                                      if (newValue.text.startsWith('0')) {
-                                        final stripped = newValue.text
-                                            .replaceFirst(RegExp(r'^0+'), '');
-                                        return TextEditingValue(
-                                          text: stripped,
-                                          selection: TextSelection.collapsed(
-                                            offset: stripped.length,
-                                          ),
-                                        );
-                                      }
-                                      return newValue;
-                                    }),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildInput(
-                                  unitCtrl,
-                                  'Unit',
-                                  Icons.straighten,
-                                  readOnly: isExistingItem,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Supplier
-                          _buildInput(
-                            supplierCtrl,
-                            'Supplier',
-                            Icons.business_outlined,
-                            readOnly: isExistingItem,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          final qty = int.tryParse(qtyCtrl.text);
-                          final name = itemNameCtrl.text.trim();
-                          final unit = unitCtrl.text.trim();
-                          final supplier = supplierCtrl.text.trim();
-
-                          if (name.isEmpty ||
-                              selectedCategory == null ||
-                              selectedCategory!.isEmpty ||
-                              unit.isEmpty ||
-                              supplier.isEmpty ||
-                              qty == null ||
-                              qty <= 0) {
-                            _showErrorSnackBar(
-                              'Please fill all fields with valid values',
-                            );
-                            return;
-                          }
-
-                          onItemAdded({
-                            'name': name,
-                            'category': selectedCategory,
-                            'quantity': qty,
-                            'unit': unit,
-                            'supplier': supplier,
-                          });
-
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: AppTheme.white,
-                        ),
-                        child: const Text('Add to List'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  InputDecoration _buildDecoration(String label, IconData icon, {bool readOnly = false}) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: readOnly ? AppTheme.mediumGrey : AppTheme.primaryColor),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppTheme.lightGrey),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: readOnly ? AppTheme.lightGrey : AppTheme.primaryColor),
-      ),
-      filled: true,
-      fillColor: AppTheme.backgroundColor,
-    );
-  }
-
-  Widget _buildInput(
-    TextEditingController ctrl,
-    String label,
-    IconData icon, {
-    bool isNumber = false,
-    List<TextInputFormatter>? inputFormatters,
-    bool readOnly = false,
-  }) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      inputFormatters: inputFormatters,
-      readOnly: readOnly,
-      decoration: _buildDecoration(label, icon, readOnly: readOnly),
-    );
-  }
-
 
   Future<void> _processBulkIncomingStock(
     List<Map<String, dynamic>> bulkItems,
@@ -5824,7 +5412,6 @@ class _CustomSearchDropdown extends StatefulWidget {
   final TextEditingController controller;
   final List<String> items;
   final void Function(String)? onChanged;
-  final bool showDropdownIcon;
 
   const _CustomSearchDropdown({
     required this.label,
@@ -5833,7 +5420,6 @@ class _CustomSearchDropdown extends StatefulWidget {
     required this.controller,
     required this.items,
     this.onChanged,
-    this.showDropdownIcon = true,
   });
 
   @override
@@ -5920,7 +5506,7 @@ class _CustomSearchDropdownState extends State<_CustomSearchDropdown> {
                 labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 hintText: widget.hintText,
                 prefixIcon: Icon(widget.icon, color: const Color(0xFF64748B), size: 18),
-                suffixIcon: widget.showDropdownIcon ? IconButton(
+                suffixIcon: IconButton(
                   icon: Icon(
                     controller.isOpen ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
                     color: const Color(0xFF64748B),
@@ -5936,7 +5522,7 @@ class _CustomSearchDropdownState extends State<_CustomSearchDropdown> {
                       _focusNode.requestFocus();
                     }
                   },
-                ) : null,
+                ),
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 border: OutlineInputBorder(
@@ -5995,4 +5581,3 @@ class _CustomSearchDropdownState extends State<_CustomSearchDropdown> {
     );
   }
 }
-

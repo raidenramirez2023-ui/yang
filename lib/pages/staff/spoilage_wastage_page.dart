@@ -62,6 +62,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
 
       // 3. Fetch real wastage transactions from Supabase stock_transactions table
       List<Map<String, dynamic>> dbWastageLogs = [];
+      bool fetchSuccess = false;
       try {
         final stockTxRes = await _supabase
             .from('stock_transactions')
@@ -73,8 +74,20 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         for (var tx in stockTxRes) {
           final purpose = tx['purpose']?.toString() ?? 'Wastage';
           String reason = 'Spoilage / Rotten';
+          String extractedNotes = (tx['notes'] ?? '').toString();
           if (purpose.contains(':')) {
-            reason = purpose.split(':').last.trim();
+            final afterColon = purpose.split('Wastage:').last.trim();
+            if (afterColon.contains('| Note:')) {
+              final parts = afterColon.split('| Note:');
+              reason = parts[0].trim();
+              if (extractedNotes.isEmpty && parts.length > 1) {
+                extractedNotes = parts[1].trim();
+              }
+            } else if (afterColon.contains(':')) {
+              reason = afterColon.split(':').last.trim();
+            } else {
+              reason = afterColon.trim();
+            }
           }
 
           dbWastageLogs.add({
@@ -87,71 +100,35 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
             'total_cost': (tx['total_cost'] as num?)?.toDouble() ?? 0.0,
             'reason': reason,
             'logged_by': tx['requested_by'] ?? tx['processed_by'] ?? 'Staff',
-            'notes': tx['notes'] ?? '',
+            'notes': extractedNotes,
             'created_at': tx['created_at'] ?? DateTime.now().toIso8601String(),
           });
         }
+        fetchSuccess = true;
       } catch (e) {
         debugPrint('Note fetching stock_transactions for wastage: $e');
       }
 
-      // 4. Merge with local persistent storage using fingerprint deduplication
       final prefs = await SharedPreferences.getInstance();
-      final String? raw = prefs.getString(_storageKey);
-      List<Map<String, dynamic>> localLogs = [];
-      if (raw != null && raw.isNotEmpty) {
-        final List<dynamic> decoded = jsonDecode(raw);
-        localLogs = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
-      }
 
-      // Deduplicate using unique fingerprint: (item_name + quantity + UTC date bucket)
-      final Map<String, Map<String, dynamic>> uniqueMap = {};
-
-      String getFingerprint(Map<String, dynamic> item) {
-        final name = (item['item_name'] ?? '').toString().toLowerCase().trim();
-        final qty = (item['quantity'] as num?)?.toDouble() ?? 0.0;
-        final rawDate = item['created_at']?.toString() ?? '';
-        final dt = DateTime.tryParse(rawDate)?.toUtc();
-        
-        final minuteBucket = dt != null ? (dt.minute ~/ 5) : 0;
-        final dateKey = dt != null
-            ? '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}_${dt.hour.toString().padLeft(2, '0')}:$minuteBucket'
-            : (rawDate.length >= 16 ? rawDate.substring(0, 16) : rawDate);
-        return '${name}_${qty}_$dateKey';
-      }
-
-      // DB entries take highest priority
-      for (var l in dbWastageLogs) {
-        final fp = getFingerprint(l);
-        uniqueMap[fp] = l;
-      }
-
-      // Local entries only if not already matched
-      for (var l in localLogs) {
-        final fp = getFingerprint(l);
-        if (uniqueMap.containsKey(fp)) {
-          final currentNote = (uniqueMap[fp]!['notes'] ?? '').toString().trim();
-          final localNote = (l['notes'] ?? '').toString().trim();
-          if (currentNote.isEmpty && localNote.isNotEmpty) {
-            uniqueMap[fp]!['notes'] = localNote;
-          }
-        } else {
-          final localId = (l['id'] ?? '').toString();
-          final existsById = uniqueMap.values.any((item) => item['id']?.toString() == localId);
-          if (!existsById) {
-            uniqueMap[fp] = l;
-          }
+      if (fetchSuccess) {
+        // Supabase DB is the Single Source of Truth
+        _wastageLogs = dbWastageLogs;
+        // Keep local cache in sync with Supabase
+        await prefs.setString(_storageKey, jsonEncode(_wastageLogs));
+      } else {
+        // Fallback to local storage ONLY if database query failed (e.g., offline)
+        final String? raw = prefs.getString(_storageKey);
+        if (raw != null && raw.isNotEmpty) {
+          final List<dynamic> decoded = jsonDecode(raw);
+          _wastageLogs = decoded.map((e) => Map<String, dynamic>.from(e)).toList()
+            ..sort((a, b) {
+              final dtA = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final dtB = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return dtB.compareTo(dtA);
+            });
         }
       }
-
-      _wastageLogs = uniqueMap.values.toList()
-        ..sort((a, b) {
-          final dtA = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final dtB = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return dtB.compareTo(dtA);
-        });
-
-      await prefs.setString(_storageKey, jsonEncode(_wastageLogs));
     } catch (e) {
       debugPrint('Error loading spoilage logs: $e');
     } finally {
@@ -1283,28 +1260,6 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Tooltip(
-                                    message: 'Delete Log',
-                                    child: InkWell(
-                                      onTap: () => _confirmDeleteLog(log),
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Container(
-                                        width: 28,
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFEF2F2),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: const Color(0xFFFECACA)),
-                                        ),
-                                        child: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          size: 14,
-                                          color: Color(0xFFDC2626),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -1550,14 +1505,6 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           visualDensity: VisualDensity.compact,
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Delete Log',
-                        icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                        color: const Color(0xFFDC2626),
-                        onPressed: () => _confirmDeleteLog(log),
-                        padding: const EdgeInsets.all(4),
-                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
@@ -2299,16 +2246,18 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                               // 2. Record in stock_transactions table
                               String? insertedTxId;
                               String? insertedCreatedAt;
+                              final purposeText = notes.trim().isNotEmpty
+                                  ? 'Wastage: $selectedReason | Note: ${notes.trim()}'
+                                  : 'Wastage: $selectedReason';
                               try {
                                 final txRes = await _supabase.from('stock_transactions').insert({
                                   'item_name': itemDbName,
                                   'transaction_type': 'outgoing',
                                   'quantity': qty.round() > 0 ? qty.round() : 1,
                                   'unit': unit,
-                                  'purpose': 'Wastage: $selectedReason',
+                                  'purpose': purposeText,
                                   'requested_by': selectedStaffName,
                                   'processed_by': selectedStaffName,
-                                  'notes': notes,
                                 }).select('id, created_at').single();
                                 insertedTxId = txRes['id']?.toString();
                                 insertedCreatedAt = txRes['created_at']?.toString();
@@ -2428,10 +2377,23 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
+              final dynamic logId = log['id'];
               setState(() {
                 _wastageLogs.removeWhere((l) => l['id'] == log['id']);
               });
               await _saveWastageLogs();
+
+              // Also delete from Supabase stock_transactions table
+              if (logId != null) {
+                final idStr = logId.toString();
+                if (!idStr.startsWith('TX-') && !idStr.startsWith('WST-')) {
+                  try {
+                    await _supabase.from('stock_transactions').delete().eq('id', logId);
+                  } catch (e) {
+                    debugPrint('Error deleting wastage transaction from Supabase: $e');
+                  }
+                }
+              }
 
               final currentAuthEmail = _supabase.auth.currentUser?.email ?? 'pagsanjaninv@gmail.com';
               final currentAuthName = currentAuthEmail.split('@').first;

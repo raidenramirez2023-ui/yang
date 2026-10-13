@@ -8143,21 +8143,21 @@ class _StockViewTabState extends State<_StockViewTab> {
 
   String _getStockStatus(int quantity) {
     if (quantity == 0) return 'OUT OF STOCK';
-    if (quantity <= 10) return 'LOW STOCK'; 
+    if (quantity < 10) return 'LOW STOCK'; 
     if (quantity < 50) return 'NORMAL';
     return 'HIGH STOCK';
   }
 
   Color _getStatusColor(int quantity) {
     if (quantity == 0) return AppTheme.errorRed;
-    if (quantity <= 10) return AppTheme.warningOrange; 
+    if (quantity < 10) return AppTheme.warningOrange; 
     if (quantity < 50) return AppTheme.infoBlue;
     return AppTheme.successGreen;
   }
 
   IconData _getStockStatusIcon(int quantity) {
     if (quantity == 0) return Icons.remove_circle;
-    if (quantity <= 10) return Icons.warning_amber_rounded; 
+    if (quantity < 10) return Icons.warning_amber_rounded; 
     if (quantity < 50) return Icons.inventory_2_rounded;
     return Icons.check_circle;
   }
