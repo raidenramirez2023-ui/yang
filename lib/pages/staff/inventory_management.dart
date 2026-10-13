@@ -17,7 +17,6 @@ import 'package:printing/printing.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
-import 'package:yang_chow/services/app_settings_service.dart';
 
 class InventoryPage extends StatefulWidget {
   final bool isViewOnly;
@@ -34,7 +33,6 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   bool _isAdmin = false;
-  bool _isPagsanjanInv = false;
   bool get _canEdit => _isAdmin && !widget.isViewOnly;
   String _searchQuery = '';
   String _selectedCategory = 'All';
@@ -137,18 +135,15 @@ class _InventoryPageState extends State<InventoryPage> {
       final role = (res?['role'] ?? '').toString().toLowerCase();
       final userEmail = user.email?.toLowerCase() ?? '';
 
-      final isStaffInv = userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff';
       if (userEmail == 'pagsanjaninv@gmail.com' ||
           role == 'inventory staff' ||
           role == 'admin') {
         setState(() {
           _isAdmin = true;
-          _isPagsanjanInv = isStaffInv;
         });
       } else {
         setState(() {
           _isAdmin = false;
-          _isPagsanjanInv = false;
         });
       }
     } catch (_) {
@@ -2029,422 +2024,10 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── ADMIN INVENTORY PASSCODE AUTHORIZATION LOGIC ─────────────────────────
-  // ══════════════════════════════════════════════════════════════════════════
-
-  Future<bool> _promptPasscodeVerification() async {
-    final passcodeCtrl = TextEditingController();
-    bool isObscured = true;
-    String? errorMessage;
-    bool isValidating = false;
-
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            backgroundColor: Colors.white,
-            elevation: 16,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Icon + Title
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.lock_person_rounded,
-                          color: Color(0xFFD97706),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Staff Passcode Required',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                            Text(
-                              'Pagsanjan Inventory Authorization',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(dialogCtx, false),
-                        icon: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFDE68A)),
-                    ),
-                    child: const Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFFB45309)),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Admin inventory is set to audit/monitoring mode. To batch update stock via CSV, please enter the authorization passcode from Pagsanjan Inventory staff.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF92400E),
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Passcode Input
-                  TextField(
-                    controller: passcodeCtrl,
-                    obscureText: isObscured,
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 2),
-                    decoration: InputDecoration(
-                      labelText: 'Pagsanjan Staff Passcode',
-                      hintText: 'Enter authorization code',
-                      prefixIcon: const Icon(Icons.vpn_key_rounded, size: 18, color: Color(0xFF14332E)),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          isObscured ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                          size: 18,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                        onPressed: () => setDialogState(() => isObscured = !isObscured),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onSubmitted: (_) async {
-                      if (isValidating) return;
-                      setDialogState(() {
-                        isValidating = true;
-                        errorMessage = null;
-                      });
-                      final input = passcodeCtrl.text.trim();
-                      final currentPasscode = AppSettingsService().getInventoryImportPasscode();
-                      if (input.toLowerCase() == currentPasscode.trim().toLowerCase()) {
-                        Navigator.pop(dialogCtx, true);
-                      } else {
-                        setDialogState(() {
-                          isValidating = false;
-                          errorMessage = 'Invalid Passcode. Please coordinate with Pagsanjan Inventory staff.';
-                        });
-                      }
-                    },
-                  ),
-
-                  if (errorMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded, size: 14, color: AppTheme.errorRed),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            errorMessage!,
-                            style: const TextStyle(fontSize: 11, color: AppTheme.errorRed, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 18),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogCtx, false),
-                        child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF14332E),
-                          foregroundColor: const Color(0xFFE6C374),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        ),
-                        onPressed: isValidating
-                            ? null
-                            : () async {
-                                setDialogState(() {
-                                  isValidating = true;
-                                  errorMessage = null;
-                                });
-                                final input = passcodeCtrl.text.trim();
-                                final currentPasscode = AppSettingsService().getInventoryImportPasscode();
-                                if (input.toLowerCase() == currentPasscode.trim().toLowerCase()) {
-                                  Navigator.pop(dialogCtx, true);
-                                } else {
-                                  setDialogState(() {
-                                    isValidating = false;
-                                    errorMessage = 'Invalid Passcode. Please coordinate with Pagsanjan Inventory staff.';
-                                  });
-                                }
-                              },
-                        icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                        label: const Text('Verify & Proceed', style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-
-    return result ?? false;
-  }
-
-  void _showPasscodeManagerDialog() {
-    final currentPasscode = AppSettingsService().getInventoryImportPasscode();
-    final editCtrl = TextEditingController(text: currentPasscode);
-    bool isEditing = false;
-    bool isSaving = false;
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            backgroundColor: Colors.white,
-            elevation: 16,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF14332E).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.vpn_key_rounded,
-                          color: Color(0xFF14332E),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Import Authorization Passcode',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                            Text(
-                              'Passcode required by Admin to import stock',
-                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(dialogCtx),
-                        icon: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (!isEditing) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0F2C27), Color(0xFF14332E)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'CURRENT ACTIVE PASSCODE',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFB0C8C3),
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          SelectableText(
-                            currentPasscode,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFFE6C374),
-                              letterSpacing: 3,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white.withValues(alpha: 0.15),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: currentPasscode));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Passcode copied to clipboard!'),
-                                      backgroundColor: Color(0xFF15803D),
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.copy_rounded, size: 14),
-                                label: const Text('Copy Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE6C374),
-                                  foregroundColor: const Color(0xFF14332E),
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () => setDialogState(() => isEditing = true),
-                                icon: const Icon(Icons.edit_rounded, size: 14),
-                                label: const Text('Change Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else ...[
-                    TextField(
-                      controller: editCtrl,
-                      autofocus: true,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                      decoration: InputDecoration(
-                        labelText: 'New Passcode',
-                        hintText: 'Enter new authorization code',
-                        prefixIcon: const Icon(Icons.key_rounded, size: 18, color: Color(0xFF14332E)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => setDialogState(() => isEditing = false),
-                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF14332E),
-                            foregroundColor: const Color(0xFFE6C374),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: isSaving
-                              ? null
-                              : () async {
-                                  final newCode = editCtrl.text.trim();
-                                  if (newCode.isEmpty) return;
-                                  setDialogState(() => isSaving = true);
-                                  await AppSettingsService().updateInventoryImportPasscode(newCode);
-                                  if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Passcode updated to "$newCode"!'),
-                                        backgroundColor: const Color(0xFF15803D),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
-                          child: Text(isSaving ? 'Saving...' : 'Save Passcode', style: const TextStyle(fontWeight: FontWeight.w700)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
   // ── PHYSICAL STOCK AUDIT & VARIANCE CHECKER (READ-ONLY) ─────────────────
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _handleImportCsv() async {
-    // If on Admin side (view-only mode or not pagsanjaninv staff), require passcode verification
-    final needsPasscode = widget.isViewOnly || !_isPagsanjanInv;
-
-    if (needsPasscode) {
-      final isAuthorized = await _promptPasscodeVerification();
-      if (!isAuthorized) return;
-    }
-
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -4803,7 +4386,6 @@ class _InventoryPageState extends State<InventoryPage> {
                         // Actions dropdown
                         PopupMenuButton<String>(
                           onSelected: (value) {
-                            if (value == 'passcode') _showPasscodeManagerDialog();
                             if (value == 'audit') _handleImportCsv();
                             if (value == 'export') _showExportOptionsDialog(items: _currentDisplayedItems);
                           },
@@ -4815,15 +4397,6 @@ class _InventoryPageState extends State<InventoryPage> {
                           color: Colors.white,
                           elevation: 6,
                           itemBuilder: (context) => [
-                            if (_isPagsanjanInv || !widget.isViewOnly)
-                              const PopupMenuItem<String>(
-                                value: 'passcode',
-                                child: Row(children: [
-                                  Icon(Icons.vpn_key_rounded, size: 16, color: _invTextTertiary),
-                                  SizedBox(width: 10),
-                                  Text('Passcode', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _invTextPrimary)),
-                                ]),
-                              ),
                             const PopupMenuItem<String>(
                               value: 'audit',
                               child: Row(children: [
