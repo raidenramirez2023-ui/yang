@@ -481,12 +481,15 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       }
 
       // Create user in Supabase Auth
+      final fullName = '$firstName $lastName'.trim();
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
         data: {
           'firstname': firstName,
           'lastname': lastName,
+          'full_name': fullName,
+          'name': fullName,
           'phone': phone,
           'role': 'customer',
         },
@@ -494,15 +497,22 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
       if (authResponse.user != null) {
         // Insert user into users table with is_approved = true (no admin approval needed)
-        await Supabase.instance.client.from('users').insert({
+        final userRow = <String, dynamic>{
           'id': authResponse.user!.id, // Store Supabase Auth user ID
           'email': email,
           'firstname': firstName,
           'lastname': lastName,
+          'name': fullName,
           'phone': phone,
           'role': 'customer',
           'is_approved': true, // Auto-approved after email verification
-        });
+        };
+        try {
+          await Supabase.instance.client.from('users').insert(userRow);
+        } catch (_) {
+          userRow.remove('name');
+          await Supabase.instance.client.from('users').insert(userRow);
+        }
 
         debugPrint('=== CUSTOMER CREATED VIA AUTH ===');
         debugPrint('User ID: ${authResponse.user!.id}');

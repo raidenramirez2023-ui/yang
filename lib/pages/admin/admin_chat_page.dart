@@ -58,7 +58,144 @@ class _AdminChatPageState extends State<AdminChatPage> {
     });
   }
 
+  Map<String, String> _customerNamesByEmail = {};
+  final Set<String> _pendingNameFetches = {};
+
+  Future<void> _loadCustomerNames() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('users')
+          .select('*');
+      final Map<String, String> map = {};
+      for (final u in res) {
+        final email = (u['email'] ?? '').toString().trim().toLowerCase();
+        if (email.isEmpty) continue;
+        final first = (u['firstname'] ?? '').toString().trim();
+        final last = (u['lastname'] ?? '').toString().trim();
+        final combined = '$first $last'.trim();
+        final alt = (u['name'] ?? u['full_name'])?.toString().trim() ?? '';
+        final finalName = combined.isNotEmpty ? combined : alt;
+        if (finalName.isNotEmpty) {
+          map[email] = finalName;
+        }
+      }
+      if (mounted) {
+        setState(() => _customerNamesByEmail = map);
+        _syncChatSessionNamesWithUsers(map);
+      }
+    } catch (e) {
+      debugPrint('Error loading customer names: $e');
+    }
+  }
+
+  Future<void> _syncChatSessionNamesWithUsers(Map<String, String> nameMap) async {
+    try {
+      final sessions = await Supabase.instance.client
+          .from('chat_sessions')
+          .select('id, customer_email, customer_name');
+      for (final s in sessions) {
+        final email = (s['customer_email'] ?? '').toString().trim().toLowerCase();
+        if (email.isEmpty) continue;
+        final realName = nameMap[email];
+        final currentName = (s['customer_name'] ?? '').toString().trim();
+        if (realName != null &&
+            realName.isNotEmpty &&
+            (currentName != realName ||
+             currentName.toLowerCase().contains('concierge') ||
+             currentName.toLowerCase().contains('bot') ||
+             currentName.toLowerCase() == 'customer' ||
+             currentName.toLowerCase() == email.split('@').first)) {
+          await Supabase.instance.client
+              .from('chat_sessions')
+              .update({'customer_name': realName})
+              .eq('id', s['id']);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error syncing chat session names with users: $e');
+    }
+  }
+
+  void _fetchAndCacheCustomerName(String email) {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty ||
+        _customerNamesByEmail.containsKey(cleanEmail) ||
+        _pendingNameFetches.contains(cleanEmail)) {
+      return;
+    }
+    _pendingNameFetches.add(cleanEmail);
+    Supabase.instance.client
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle()
+        .then((u) {
+      if (u != null) {
+        final first = (u['firstname'] ?? '').toString().trim();
+        final last = (u['lastname'] ?? '').toString().trim();
+        final combined = '$first $last'.trim();
+        final alt = (u['name'] ?? u['full_name'])?.toString().trim() ?? '';
+        final finalName = combined.isNotEmpty ? combined : alt;
+        if (finalName.isNotEmpty && mounted) {
+          setState(() {
+            _customerNamesByEmail[cleanEmail] = finalName;
+          });
+          Supabase.instance.client
+              .from('chat_sessions')
+              .update({'customer_name': finalName})
+              .eq('customer_email', cleanEmail)
+              .catchError((_) {});
+        }
+      }
+    }).catchError((e) {
+      debugPrint('Error fetching on-demand customer name: $e');
+    });
+  }
+
+  String _resolveCustomerName(String? email, String? sessionName) {
+    final cleanEmail = (email ?? '').trim().toLowerCase();
+    
+    // 1. Check cached real name from users table
+    if (_customerNamesByEmail.containsKey(cleanEmail) &&
+        _customerNamesByEmail[cleanEmail]!.isNotEmpty) {
+      return _customerNamesByEmail[cleanEmail]!;
+    }
+
+    // Trigger on-demand lookup from users table in background
+    _fetchAndCacheCustomerName(cleanEmail);
+
+    final rawName = sessionName?.trim() ?? '';
+    final rawLower = rawName.toLowerCase();
+    final emailPrefix = cleanEmail.contains('@') ? cleanEmail.split('@').first : '';
+
+    // Check if rawName is just the email prefix or a bot/generic name
+    final isEmailPrefix = emailPrefix.isNotEmpty &&
+        (rawLower == emailPrefix ||
+         rawLower == emailPrefix.replaceAll(RegExp(r'[._]'), ''));
+
+    if (rawName.isNotEmpty &&
+        !isEmailPrefix &&
+        !rawLower.contains('concierge') &&
+        !rawLower.contains('bot') &&
+        rawLower != 'customer') {
+      return rawName;
+    }
+
+    // Clean formatted fallback from email while loading so it never displays generic "Customer"
+    if (cleanEmail.isNotEmpty && cleanEmail.contains('@')) {
+      final prefix = cleanEmail.split('@').first;
+      final parts = prefix.split(RegExp(r'[._\d]+')).where((p) => p.isNotEmpty).toList();
+      if (parts.isNotEmpty) {
+        return parts.map((p) => p[0].toUpperCase() + p.substring(1)).join(' ');
+      }
+      return prefix[0].toUpperCase() + prefix.substring(1);
+    }
+
+    return 'Customer';
+  }
+
   Future<void> _initializeChat() async {
+    _loadCustomerNames();
     _conversationsStream = Supabase.instance.client
         .from('chat_sessions')
         .stream(primaryKey: ['id'])
@@ -100,8 +237,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
     if (textToSend.isEmpty && _selectedImage == null) return;
     if (_isSending || _isUploading) return;
 
-    final customerEmail = _selectedConversation!['customer_email'];
-    final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
+    final customerEmail = _selectedConversation!['customer_email'] ?? '';
+    final customerName = _resolveCustomerName(customerEmail, _selectedConversation!['customer_name']);
 
     setState(() => _isSending = true);
 
@@ -424,8 +561,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
 
         if (query.isNotEmpty) {
           conversations = conversations.where((c) {
-            final name = (c['customer_name'] ?? '').toString().toLowerCase();
             final email = (c['customer_email'] ?? '').toString().toLowerCase();
+            final name = _resolveCustomerName(email, c['customer_name']).toLowerCase();
             return name.contains(query) || email.contains(query);
           }).toList();
         }
@@ -476,8 +613,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
 
   Widget _buildConversationListItem(Map<String, dynamic> conversation) {
     final isSelected = _selectedConversation?['id'] == conversation['id'];
-    final customerName = conversation['customer_name'] ?? 'Customer';
     final customerEmail = conversation['customer_email'] ?? '';
+    final customerName = _resolveCustomerName(customerEmail, conversation['customer_name']);
     final unreadCount =
         (conversation['unread_customer_count'] as num?)?.toInt() ?? 0;
     final lastMessageTime = conversation['last_message_at'] != null
@@ -646,8 +783,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   Widget _buildChatArea() {
-    final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
-    final customerEmail = _selectedConversation!['customer_email'];
+    final customerEmail = _selectedConversation!['customer_email'] ?? '';
+    final customerName = _resolveCustomerName(customerEmail, _selectedConversation!['customer_name']);
 
     return Container(
       color: const Color(0xFFF8FAFC),

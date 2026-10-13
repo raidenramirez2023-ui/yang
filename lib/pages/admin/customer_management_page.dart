@@ -105,10 +105,30 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     }
   }
 
+  String _getCustomerDisplayName(Map<String, dynamic> c) {
+    final first = (c['firstname'] ?? '').toString().trim();
+    final last = (c['lastname'] ?? '').toString().trim();
+    final combined = '$first $last'.trim();
+    if (combined.isNotEmpty) return combined;
+
+    final alt = (c['name'] ?? c['full_name'])?.toString().trim() ?? '';
+    if (alt.isNotEmpty) return alt;
+
+    final email = (c['email'] ?? '').toString().trim();
+    if (email.isNotEmpty && email.contains('@')) {
+      final prefix = email.split('@').first;
+      return prefix
+          .split(RegExp(r'[._]'))
+          .where((p) => p.isNotEmpty)
+          .map((p) => p[0].toUpperCase() + p.substring(1))
+          .join(' ');
+    }
+    return 'Customer';
+  }
+
   List<Map<String, dynamic>> get _filtered {
     var list = _allCustomers.where((c) {
-      final name =
-          '${c['firstname'] ?? ''} ${c['lastname'] ?? ''}'.toLowerCase();
+      final name = _getCustomerDisplayName(c).toLowerCase();
       final email = (c['email'] ?? '').toString().toLowerCase();
       final phone = (c['phone'] ?? '').toString().toLowerCase();
       final q = _searchQuery.toLowerCase();
@@ -160,11 +180,11 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
         break;
       case 'name_asc':
         list.sort((a, b) =>
-            '${a['firstname']} ${a['lastname']}'.compareTo('${b['firstname']} ${b['lastname']}'));
+            _getCustomerDisplayName(a).toLowerCase().compareTo(_getCustomerDisplayName(b).toLowerCase()));
         break;
       case 'name_desc':
         list.sort((a, b) =>
-            '${b['firstname']} ${b['lastname']}'.compareTo('${a['firstname']} ${a['lastname']}'));
+            _getCustomerDisplayName(b).toLowerCase().compareTo(_getCustomerDisplayName(a).toLowerCase()));
         break;
       case 'newest':
       default:
@@ -1059,9 +1079,9 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   // CUSTOMER CARD
   // -------------------------------------------------------------------------
   Widget _buildCustomerCard(Map<String, dynamic> customer, bool isMobile) {
-    final firstName = (customer['firstname'] ?? '').toString();
-    final lastName = (customer['lastname'] ?? '').toString();
-    final fullName = '$firstName $lastName'.trim();
+    final firstName = (customer['firstname'] ?? '').toString().trim();
+    final lastName = (customer['lastname'] ?? '').toString().trim();
+    final fullName = _getCustomerDisplayName(customer);
     final email = (customer['email'] ?? 'N/A').toString();
     final phone = (customer['phone'] ?? 'N/A').toString();
 
@@ -1084,10 +1104,17 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       const Color(0xFF0891B2),
     ];
     final colorIndex =
-        (firstName.isNotEmpty ? firstName.codeUnitAt(0) : 65) % colors.length;
+        (fullName.isNotEmpty ? fullName.codeUnitAt(0) : 65) % colors.length;
     final avatarColor = colors[colorIndex];
-    final initials = (firstName.isNotEmpty ? firstName[0] : '?').toUpperCase() +
-        (lastName.isNotEmpty ? lastName[0] : '').toUpperCase();
+    String initials = '?';
+    if (firstName.isNotEmpty) {
+      initials = (firstName[0] + (lastName.isNotEmpty ? lastName[0] : '')).toUpperCase();
+    } else {
+      final parts = fullName.split(' ').where((p) => p.isNotEmpty).toList();
+      if (parts.isNotEmpty) {
+        initials = (parts.first[0] + (parts.length > 1 ? parts.last[0] : '')).toUpperCase();
+      }
+    }
 
     // "New" badge — joined within last 7 days
     final isNew = regDate != null &&
@@ -1174,7 +1201,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  fullName.isNotEmpty ? fullName : 'N/A',
+                                  fullName.isNotEmpty ? fullName : 'Customer',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: isMobile ? 14 : 15,
                                     fontWeight: FontWeight.w800,
@@ -1543,8 +1570,9 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       debugPrint('Error fetching uploaded ID: $e');
     });
 
-    final firstName = (customer['firstname'] ?? '').toString();
-    final lastName = (customer['lastname'] ?? '').toString();
+    final firstName = (customer['firstname'] ?? '').toString().trim();
+    final lastName = (customer['lastname'] ?? '').toString().trim();
+    final fullName = _getCustomerDisplayName(customer);
     final colors = [
       const Color(0xFF14332E),
       const Color(0xFF0284C7),
@@ -1554,10 +1582,17 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       const Color(0xFF0891B2),
     ];
     final colorIndex =
-        (firstName.isNotEmpty ? firstName.codeUnitAt(0) : 65) % colors.length;
+        (fullName.isNotEmpty ? fullName.codeUnitAt(0) : 65) % colors.length;
     final avatarColor = colors[colorIndex];
-    final initials = (firstName.isNotEmpty ? firstName[0] : '?').toUpperCase() +
-        (lastName.isNotEmpty ? lastName[0] : '').toUpperCase();
+    String initials = '?';
+    if (firstName.isNotEmpty) {
+      initials = (firstName[0] + (lastName.isNotEmpty ? lastName[0] : '')).toUpperCase();
+    } else {
+      final parts = fullName.split(' ').where((p) => p.isNotEmpty).toList();
+      if (parts.isNotEmpty) {
+        initials = (parts.first[0] + (parts.length > 1 ? parts.last[0] : '')).toUpperCase();
+      }
+    }
 
     showDialog(
       context: context,
@@ -1658,8 +1693,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'
-                                  .trim(),
+                              fullName.isNotEmpty ? fullName : 'Customer',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
@@ -1713,7 +1747,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                               () {
                                 final custEmail = (customer['email'] ?? '').toString().trim().toLowerCase();
                                 final userId = customer['id']?.toString();
-                                final custName = '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'.trim();
+                                final custName = fullName;
                                 final stat = _customerReservationStats[custEmail] ?? {
                                   'total': 0,
                                   'completed': 0,
