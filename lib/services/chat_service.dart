@@ -117,8 +117,12 @@ class ChatService {
     final currentUser = _supabase.auth.currentUser;
     if (currentUser == null) return false;
 
+    final metaFirst = currentUser.userMetadata?['firstname']?.toString().trim() ?? '';
+    final metaLast = currentUser.userMetadata?['lastname']?.toString().trim() ?? '';
+    final metaCombined = '$metaFirst $metaLast'.trim();
     final customerName = currentUser.userMetadata?['full_name'] ?? 
                         currentUser.userMetadata?['name'] ?? 
+                        (metaCombined.isNotEmpty ? metaCombined : null) ??
                         currentUser.email?.split('@')[0] ?? 'Customer';
 
     debugPrint('Customer sending message: $message');

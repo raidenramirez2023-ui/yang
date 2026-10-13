@@ -63,8 +63,13 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
 
+    final metaFirst = currentUser.userMetadata?['firstname']?.toString().trim() ?? '';
+    final metaLast = currentUser.userMetadata?['lastname']?.toString().trim() ?? '';
+    final metaCombined = '$metaFirst $metaLast'.trim();
+
     _currentUserName = currentUser.userMetadata?['full_name'] ??
         currentUser.userMetadata?['name'] ??
+        (metaCombined.isNotEmpty ? metaCombined : null) ??
         currentUser.email?.split('@')[0] ??
         'Customer';
 
@@ -72,12 +77,17 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     try {
       final userRow = await Supabase.instance.client
           .from('users')
-          .select('full_name, name')
+          .select('*')
           .eq('email', currentUser.email!)
           .maybeSingle();
       if (userRow != null) {
-        final dbName = (userRow['full_name'] ?? userRow['name'])?.toString().trim();
-        if (dbName != null && dbName.isNotEmpty) {
+        final dbFirst = (userRow['firstname'] ?? '').toString().trim();
+        final dbLast = (userRow['lastname'] ?? '').toString().trim();
+        final dbCombined = '$dbFirst $dbLast'.trim();
+        final dbName = (userRow['name'] ?? userRow['full_name'])?.toString().trim() ?? '';
+        if (dbCombined.isNotEmpty) {
+          _currentUserName = dbCombined;
+        } else if (dbName.isNotEmpty) {
           _currentUserName = dbName;
         }
       }
@@ -88,6 +98,20 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     setState(() => _isLoading = true);
 
     await _getOrCreateChatSession();
+
+    // Ensure the chat_session in database reflects the customer's real full name
+    if (_currentUserName != null &&
+        _currentUserName!.isNotEmpty &&
+        _currentUserName != 'Customer') {
+      try {
+        await Supabase.instance.client
+            .from('chat_sessions')
+            .update({'customer_name': _currentUserName})
+            .eq('customer_email', currentUser.email!);
+      } catch (e) {
+        debugPrint('Error syncing customer name to chat session: $e');
+      }
+    }
 
     _messagesStream = Supabase.instance.client
         .from('chat_messages')
