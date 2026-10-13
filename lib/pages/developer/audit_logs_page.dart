@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/audit_log_model.dart';
 import '../../services/audit_log_service.dart';
 import 'developer_theme.dart';
@@ -18,6 +19,9 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
   List<AuditLog> _logs = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _securityOnly = false;
+  int _pendingDeletionCount = 0;
+  bool _isLoggingNote = false;
   int _currentPage = 1;
   static const int _pageSize = 100;
 
@@ -79,6 +83,114 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
   void initState() {
     super.initState();
     _loadLogs();
+    _loadPendingDeletions();
+  }
+
+  bool _isSecurityLog(AuditLog log) {
+    final act = log.action.toUpperCase();
+    final mod = log.module.toLowerCase();
+    return act.contains('LOGIN') ||
+        act.contains('AUTH') ||
+        act.contains('SECURITY') ||
+        act.contains('DELETE') ||
+        act.contains('MAINTENANCE') ||
+        act.contains('ROLE') ||
+        act.contains('SUCCESSION') ||
+        act.contains('IT_ACCESS') ||
+        act.contains('DEACTIVAT') ||
+        mod.contains('auth') ||
+        mod.contains('security') ||
+        mod.contains('it access') ||
+        mod.contains('continuity') ||
+        mod.contains('user');
+  }
+
+  Future<void> _loadPendingDeletions() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('account_deletion_requests')
+          .select('id')
+          .or('status.eq.pending_review,status.eq.pending');
+      if (mounted) setState(() => _pendingDeletionCount = (res as List).length);
+    } catch (e) {
+      debugPrint('Error loading pending deletions: $e');
+    }
+  }
+
+  Future<void> _recordSecurityAuditNote() async {
+    final noteController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: DeveloperTheme.bgCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: DeveloperTheme.borderSubtle),
+        ),
+        title: Text('Record Security Inspection', style: DeveloperTheme.headingMedium()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Log an immutable verification note in the audit trail to confirm that system integrity has been audited.',
+              style: DeveloperTheme.bodySmall(),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              maxLines: 3,
+              style: GoogleFonts.inter(fontSize: 13, color: DeveloperTheme.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'e.g. Verified database RLS rules, no unauthorized developer roles detected.',
+                hintStyle: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
+                filled: true,
+                fillColor: DeveloperTheme.bgDark,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: DeveloperTheme.borderSubtle),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DeveloperTheme.accentIndigo,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log Audit Note'),
+          ),
+        ],
+      ),
+    );
+
+    final note = noteController.text.trim();
+    noteController.dispose();
+    if (result != true || note.isEmpty) return;
+
+    setState(() => _isLoggingNote = true);
+    await AuditLogService.logActivity(
+      action: 'SECURITY_ALERT',
+      module: 'Security',
+      description: 'Manual IT Security Audit: $note',
+      metadata: {
+        'type': 'MANUAL_INSPECTION',
+        'verified_by': Supabase.instance.client.auth.currentUser?.email ?? 'developer',
+      },
+    );
+    if (!mounted) return;
+    setState(() => _isLoggingNote = false);
+    _loadLogs();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: DeveloperTheme.accentEmerald,
+        content: Text('Security inspection note recorded successfully!'),
+      ),
+    );
   }
 
   @override
@@ -118,9 +230,11 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
         limit: 1500,
       );
 
+      final visibleLogs = _securityOnly ? logs.where(_isSecurityLog).toList() : logs;
+
       if (mounted) {
         setState(() {
-          _logs = logs;
+          _logs = visibleLogs;
           _isLoading = false;
           final totalPages = (_logs.length / _pageSize).ceil().clamp(1, 99999);
           if (_currentPage > totalPages) {
@@ -339,6 +453,17 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
               Row(
                 children: [
                   OutlinedButton.icon(
+                    onPressed: _isLoggingNote ? null : _recordSecurityAuditNote,
+                    icon: const Icon(Icons.shield_outlined, size: 16),
+                    label: const Text('Log Security Note'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: DeveloperTheme.accentCyan,
+                      side: const BorderSide(color: DeveloperTheme.borderSubtle),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
                     onPressed: _exportCsv,
                     icon: const Icon(Icons.copy_rounded, size: 16),
                     label: const Text('Copy CSV'),
@@ -454,6 +579,51 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                     }
                   },
                 ),
+
+                FilterChip(
+                  label: Text(
+                    'Security & Auth only',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: _securityOnly ? Colors.white : DeveloperTheme.textSecondary,
+                    ),
+                  ),
+                  avatar: Icon(
+                    Icons.shield_outlined,
+                    size: 14,
+                    color: _securityOnly ? Colors.white : DeveloperTheme.accentIndigo,
+                  ),
+                  selected: _securityOnly,
+                  selectedColor: DeveloperTheme.accentIndigo,
+                  backgroundColor: DeveloperTheme.bgDark,
+                  checkmarkColor: Colors.white,
+                  side: const BorderSide(color: DeveloperTheme.borderSubtle),
+                  onSelected: (val) {
+                    setState(() {
+                      _securityOnly = val;
+                      _currentPage = 1;
+                    });
+                    _loadLogs();
+                  },
+                ),
+
+                if (_pendingDeletionCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: DeveloperTheme.accentAmber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: DeveloperTheme.accentAmber.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      '$_pendingDeletionCount pending account deletion${_pendingDeletionCount == 1 ? '' : 's'}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: DeveloperTheme.accentAmber,
+                      ),
+                    ),
+                  ),
 
                 Text(
                   '${_logs.length} entries found',

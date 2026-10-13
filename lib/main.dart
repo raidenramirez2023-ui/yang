@@ -405,27 +405,27 @@ class YangChowApp extends StatelessWidget {
         '/developer/security': (context) => const AuthGuard(
           allowedRoles: ['developer'],
           redirectRoute: '/developer/login',
-          child: DeveloperDashboardPage(initialIndex: 3),
+          child: DeveloperDashboardPage(initialIndex: 2),
         ),
         '/developer/users': (context) => const AuthGuard(
           allowedRoles: ['developer'],
           redirectRoute: '/developer/login',
-          child: DeveloperDashboardPage(initialIndex: 4),
+          child: DeveloperDashboardPage(initialIndex: 3),
         ),
         '/developer/maintenance': (context) => const AuthGuard(
           allowedRoles: ['developer'],
           redirectRoute: '/developer/login',
-          child: DeveloperDashboardPage(initialIndex: 5),
+          child: DeveloperDashboardPage(initialIndex: 4),
         ),
         '/developer/backup': (context) => const AuthGuard(
           allowedRoles: ['developer'],
           redirectRoute: '/developer/login',
-          child: DeveloperDashboardPage(initialIndex: 6),
+          child: DeveloperDashboardPage(initialIndex: 5),
         ),
         '/developer/info': (context) => const AuthGuard(
           allowedRoles: ['developer'],
           redirectRoute: '/developer/login',
-          child: DeveloperDashboardPage(initialIndex: 7),
+          child: DeveloperDashboardPage(initialIndex: 1),
         ),
 
         // ==========================================

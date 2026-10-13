@@ -1587,7 +1587,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   Widget _buildTableRow(Map<String, dynamic> r) {
     final status = (r['status'] ?? 'pending').toString().toLowerCase();
     final totalPrice = (r['total_price'] as num?)?.toDouble() ?? 0.0;
-    final depositAmount = (r['deposit_amount'] as num?)?.toDouble() ?? 0.0;
     final eventType = (r['event_type'] ?? 'Banquet Event').toString();
     final guestCount = r['number_of_guests'] ?? 0;
 
@@ -1877,46 +1876,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         _buildQuotationCountdownChip(r['quotation_expires_at']),
                       ],
                     ],
-                  ),
-                  const SizedBox(height: 2),
-                  Builder(
-                    builder: (context) {
-                      final paymentStatus = (r['payment_status'] ?? 'unpaid').toString().toLowerCase();
-                      final isFullyPaid = paymentStatus == 'fully_paid' || paymentStatus == 'paid';
-                      final num? dbRemNum = r['remaining_balance'] as num?;
-                      final double effectiveRem = isFullyPaid
-                          ? 0.0
-                          : (dbRemNum != null ? dbRemNum.toDouble() : (totalPrice - depositAmount).clamp(0.0, double.infinity));
-                      final double effectivePaid = isFullyPaid
-                          ? totalPrice
-                          : (depositAmount > 0 ? depositAmount : 0.0);
-
-                      if (isFullyPaid || effectiveRem <= 0) {
-                        return Text(
-                          'Paid: ₱${effectivePaid.toStringAsFixed(0)} (Rem: ₱0)',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            color: const Color(0xFF15803D),
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      }
-
-                      return Text(
-                        depositAmount > 0
-                            ? 'Paid: ₱${depositAmount.toStringAsFixed(0)} (Rem: ₱${effectiveRem.toStringAsFixed(0)})'
-                            : 'No Deposit Paid Yet',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          color: depositAmount > 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      );
-                    },
                   ),
                 ] else
                   Text(

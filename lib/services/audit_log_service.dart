@@ -98,6 +98,40 @@ class AuditLogService {
     }
   }
 
+  /// Returns module aliases and naming variations to ensure case-insensitive,
+  /// comprehensive audit log searching across submodules.
+  static List<String> getModuleAliases(String moduleName) {
+    final m = moduleName.toLowerCase().trim();
+    switch (m) {
+      case 'reservations':
+        return ['Reservations', 'reservations', 'RESERVATIONS', 'qr_check_in', 'qr_scanner', 'advance_orders'];
+      case 'reschedule':
+        return ['Reschedule', 'reschedule', 'reschedules'];
+      case 'payments':
+        return ['Payments', 'payments', 'payment'];
+      case 'refunds':
+        return ['Refunds', 'refunds', 'refund'];
+      case 'petty cash':
+        return ['Petty Cash', 'petty cash', 'petty_cash', 'pettycash', 'Expenses', 'expenses'];
+      case 'inventory':
+        return ['Inventory', 'inventory', 'kitchen_inventory', 'stock'];
+      case 'menu':
+        return ['Menu', 'menu', 'dish', 'recipe'];
+      case 'users':
+        return ['Users', 'users', 'customer accounts', 'profile'];
+      case 'announcements':
+        return ['Announcements', 'announcements', 'announcement'];
+      case 'spoilage':
+        return ['Spoilage', 'spoilage', 'waste', 'spoilage_wastage'];
+      case 'auth':
+        return ['Auth', 'auth', 'authentication', 'login', 'logout'];
+      case 'system':
+        return ['System', 'system', 'system backup', 'system backup & recovery'];
+      default:
+        return [m];
+    }
+  }
+
   /// Fetch audit logs with filtering options.
   /// Set [operationsOnly] to true to strictly show Yang Chow business operations
   /// and exclude IT Developer testing, maintenance toggles, and system diagnostic logs.
@@ -113,8 +147,25 @@ class AuditLogService {
     try {
       var query = _supabase.from('audit_logs').select();
 
-      if (module != null && module.isNotEmpty && module != 'All Modules') {
-        query = query.eq('module', module);
+      final bool isSpecificModule = module != null && module.isNotEmpty && module != 'All Modules';
+      List<String> moduleAliases = [];
+
+      if (isSpecificModule) {
+        moduleAliases = getModuleAliases(module);
+        // Build casing variants for database inFilter
+        final Set<String> dbVariants = {};
+        for (final a in moduleAliases) {
+          dbVariants.add(a);
+          dbVariants.add(a.toUpperCase());
+          dbVariants.add(a.toLowerCase());
+          // Title Case every word (e.g. "petty cash" -> "Petty Cash")
+          final titleCased = a
+              .split(' ')
+              .map((w) => w.isNotEmpty ? (w[0].toUpperCase() + w.substring(1).toLowerCase()) : '')
+              .join(' ');
+          dbVariants.add(titleCased);
+        }
+        query = query.inFilter('module', dbVariants.toList());
       }
 
       if (action != null && action.isNotEmpty && action != 'All Actions') {
@@ -126,16 +177,47 @@ class AuditLogService {
       }
 
       if (endDate != null) {
-        // Set to end of the selected day
         final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
         query = query.lte('created_at', endOfDay.toUtc().toIso8601String());
       }
 
-      final response = await query.order('created_at', ascending: false).limit(limit);
+      if (operationsOnly) {
+        query = query
+            .not('action', 'in', '("ERROR","CRITICAL","FAILED","SYSTEM_ERROR","WARNING")')
+            .not('user_role', 'in', '("DEVELOPER","IT")')
+            .not('user_email', 'ilike', '%yangchowit%');
+      }
 
-      List<AuditLog> logs = (response as List)
+      List<dynamic> allRecords = [];
+      const int chunkSize = 1000;
+      int offset = 0;
+
+      while (allRecords.length < limit) {
+        final int to = offset + chunkSize - 1;
+        final chunk = await query
+            .order('created_at', ascending: false)
+            .range(offset, to);
+
+        final chunkList = chunk as List;
+        allRecords.addAll(chunkList);
+
+        if (chunkList.length < chunkSize) {
+          break; // Reached the end of database records
+        }
+        offset += chunkSize;
+      }
+
+      List<AuditLog> logs = allRecords
           .map((item) => AuditLog.fromJson(item as Map<String, dynamic>))
           .toList();
+
+      // In-memory case-insensitive safety filter for module
+      if (isSpecificModule && moduleAliases.isNotEmpty) {
+        logs = logs.where((log) {
+          final logMod = log.module.toLowerCase().trim();
+          return moduleAliases.any((alias) => logMod == alias || logMod.contains(alias));
+        }).toList();
+      }
 
       if (operationsOnly) {
         logs = logs.where((log) {
@@ -149,16 +231,18 @@ class AuditLogService {
             return false;
           }
 
-          // Exclude technical IT / Maintenance actions
+          // Exclude technical IT / Maintenance actions / Admin Governance
           if (moduleLower.contains('it access') ||
+              moduleLower.contains('admin governance') ||
               actionUpper.startsWith('IT_ACCESS') ||
               actionUpper.contains('MAINTENANCE') ||
+              actionUpper.startsWith('CONTINUITY') ||
+              actionUpper.startsWith('SUCCESSION') ||
               actionUpper == 'PURGE_MAINTENANCE_TEST_DATA') {
             return false;
           }
 
           // Exclude internal Flutter framework exceptions, rendering crashes & developer telemetry
-          // (e.g. widgets library, gestures library, scheduler library, FlutterFramework)
           final isTechnicalFrameworkLog = actionUpper == 'ERROR' ||
               actionUpper == 'CRITICAL' ||
               actionUpper == 'WARNING' ||
@@ -168,6 +252,31 @@ class AuditLogService {
               (log.metadata['is_system_telemetry'] == true);
           if (isTechnicalFrameworkLog) {
             return false;
+          }
+
+          // Strictly restrict to authentic restaurant operational modules present in the dropdown
+          if (!isSpecificModule) {
+            final isRecognizedOperation = moduleLower.contains('reservation') ||
+                moduleLower.contains('reschedule') ||
+                moduleLower.contains('payment') ||
+                moduleLower.contains('billing') ||
+                moduleLower.contains('refund') ||
+                moduleLower.contains('petty') ||
+                moduleLower.contains('inventory') ||
+                moduleLower.contains('stock') ||
+                moduleLower.contains('menu') ||
+                moduleLower.contains('dish') ||
+                moduleLower.contains('user') ||
+                moduleLower.contains('account') ||
+                moduleLower.contains('announcement') ||
+                moduleLower.contains('spoilage') ||
+                moduleLower.contains('waste') ||
+                moduleLower.contains('auth') ||
+                moduleLower.contains('login') ||
+                moduleLower.contains('logout');
+            if (!isRecognizedOperation) {
+              return false;
+            }
           }
 
           return true;

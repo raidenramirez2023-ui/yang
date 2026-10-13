@@ -1163,118 +1163,99 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildEnterpriseItSupportHeaderButton({bool isCompact = false}) {
     final hasActiveSession = _activeItSession != null;
+    if (!hasActiveSession) {
+      return const SizedBox.shrink();
+    }
 
     if (isCompact) {
       return IconButton(
         icon: Stack(
           clipBehavior: Clip.none,
           children: [
-            Icon(
-              hasActiveSession ? Icons.shield_rounded : Icons.support_agent_rounded,
-              color: hasActiveSession ? const Color(0xFF059669) : AppTheme.adminSecondaryText,
+            const Icon(
+              Icons.shield_rounded,
+              color: Color(0xFF059669),
               size: 22,
             ),
-            if (hasActiveSession)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
               ),
+            ),
           ],
         ),
-        tooltip: hasActiveSession ? 'Elevated IT Session Active' : 'Enterprise IT Service Desk',
-        onPressed: () => _showItAccessRequestDialog(initialTab: hasActiveSession ? 1 : 0),
+        tooltip: 'Elevated IT Session Active',
+        onPressed: () => _showItAccessRequestDialog(initialTab: 1),
       );
     }
 
-    if (hasActiveSession) {
-      return Material(
-        color: Colors.transparent,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => _showItAccessRequestDialog(initialTab: 1),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECFDF5),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.6), width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.shield_rounded, color: Color(0xFF047857), size: 16),
-                const SizedBox(width: 6),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'IT SESSION ACTIVE',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: const Color(0xFF065F46),
-                      ),
-                    ),
-                    Text(
-                      ItAccessService.getRemainingTimeString(_activeItSession!),
-                      style: GoogleFonts.inter(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF059669),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+        onTap: () => _showItAccessRequestDialog(initialTab: 1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.6), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ),
-      );
-    }
-
-    return OutlinedButton.icon(
-      onPressed: () => _showItAccessRequestDialog(initialTab: 0),
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
-        backgroundColor: const Color(0xFFF8FAFC),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      icon: const Icon(Icons.support_agent_rounded, size: 16, color: Color(0xFF1E40AF)),
-      label: Text(
-        'IT Support Desk',
-        style: GoogleFonts.inter(
-          color: const Color(0xFF334155),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.shield_rounded, color: Color(0xFF047857), size: 16),
+              const SizedBox(width: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'IT SESSION ACTIVE',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: const Color(0xFF065F46),
+                    ),
+                  ),
+                  Text(
+                    ItAccessService.getRemainingTimeString(_activeItSession!),
+                    style: GoogleFonts.inter(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF059669),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2704,8 +2685,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
           ),
           const Spacer(),
           _buildStaffDelegationToggle(),
-          const SizedBox(width: 12),
-          _buildEnterpriseItSupportHeaderButton(),
+          if (_activeItSession != null) ...[
+            const SizedBox(width: 12),
+            _buildEnterpriseItSupportHeaderButton(),
+          ],
           const SizedBox(width: 12),
           _buildAdminNotificationIcon(),
           const SizedBox(width: 16),
@@ -2866,7 +2849,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
         ),
       ),
       actions: [
-        _buildEnterpriseItSupportHeaderButton(isCompact: true),
+        if (_activeItSession != null)
+          _buildEnterpriseItSupportHeaderButton(isCompact: true),
         Padding(
           padding: const EdgeInsets.only(right: 8.0),
           child: _buildAdminNotificationIcon(),
