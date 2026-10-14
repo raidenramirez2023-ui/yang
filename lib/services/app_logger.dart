@@ -28,25 +28,6 @@ class AppLogger {
         context: context ?? {},
       );
     } catch (_) {}
-
-    // 2. Persist to database audit_logs
-    try {
-      await AuditLogService.logActivity(
-        action: 'CRITICAL',
-        module: module,
-        description: message,
-        entityId: entityId,
-        metadata: {
-          ...?context,
-          'severity': 'CRITICAL',
-          'is_system_telemetry': true,
-          if (error != null) 'error': error.toString(),
-          'stack_trace': fullStackTrace,
-        },
-      );
-    } catch (e) {
-      debugPrint('[AppLogger] Failed to persist critical log: $e');
-    }
   }
 
   /// Log an Error event (action failure, catch-block exception, UI error)
@@ -62,7 +43,7 @@ class AppLogger {
     final errorStr = error != null ? ' | Error: $error' : '';
     debugPrint('🟠 [ERROR][$module] $message$errorStr');
 
-    // 1. Feed in-memory developer store
+    // Feed in-memory developer store only (does not pollute audit_logs table)
     try {
       ErrorLogStore().addLog(
         severity: ErrorSeverity.error,
@@ -72,25 +53,6 @@ class AppLogger {
         context: context ?? {},
       );
     } catch (_) {}
-
-    // 2. Persist to database audit_logs
-    try {
-      await AuditLogService.logActivity(
-        action: 'ERROR',
-        module: module,
-        description: message,
-        entityId: entityId,
-        metadata: {
-          ...?context,
-          'severity': 'ERROR',
-          'is_system_telemetry': true,
-          if (error != null) 'error': error.toString(),
-          if (fullStackTrace != null) 'stack_trace': fullStackTrace,
-        },
-      );
-    } catch (e) {
-      debugPrint('[AppLogger] Failed to persist error log: $e');
-    }
   }
 
   /// Log a Warning event (non-fatal, anomaly, low stock, deprecation)

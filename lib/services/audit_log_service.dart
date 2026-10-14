@@ -177,7 +177,7 @@ class AuditLogService {
       }
 
       if (endDate != null) {
-        final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+        final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
         query = query.lte('created_at', endOfDay.toUtc().toIso8601String());
       }
 
@@ -279,6 +279,19 @@ class AuditLogService {
             }
           }
 
+          return true;
+        }).toList();
+      }
+
+      // In-memory safety guard for date boundaries (ensures exact local/UTC alignment)
+      if (startDate != null || endDate != null) {
+        final endLimit = endDate != null
+            ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999)
+            : null;
+        logs = logs.where((log) {
+          final localLogDate = log.createdAt.toLocal();
+          if (startDate != null && localLogDate.isBefore(startDate)) return false;
+          if (endLimit != null && localLogDate.isAfter(endLimit)) return false;
           return true;
         }).toList();
       }

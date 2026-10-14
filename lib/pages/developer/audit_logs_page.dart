@@ -19,7 +19,6 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
   List<AuditLog> _logs = [];
   bool _isLoading = true;
   String? _errorMessage;
-  bool _securityOnly = false;
   int _pendingDeletionCount = 0;
   bool _isLoggingNote = false;
   int _currentPage = 1;
@@ -27,56 +26,20 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
 
   // Filters
   final TextEditingController _searchController = TextEditingController();
-  String _selectedModule = 'All Modules';
-  String _selectedAction = 'All Actions';
-  String _selectedDateRange = 'All Time';
+  String _selectedCategory = 'All Logs';
+  String _selectedDateRange = 'Today';
 
-  final List<String> _moduleOptions = [
-    'All Modules',
-    'System',
-    'Maintenance',
-    'Auth',
-    'Security',
-    'IT Access Control',
-    'Admin Continuity',
-    'Backup & Restore',
-    'Users',
-    'Reservations',
-    'Payments',
-    'Refunds',
-    'Petty Cash',
-    'Inventory',
-    'Menu',
-  ];
-
-  final List<String> _actionOptions = [
-    'All Actions',
-    'LOGIN',
-    'LOGOUT',
-    'AUTH_DENIED',
-    'MAINTENANCE_TOGGLE',
-    'SECURITY_ALERT',
-    'IT_ACCESS_REQUESTED',
-    'IT_ACCESS_ACCEPTED',
-    'IT_ACCESS_DECLINED',
-    'IT_ACCESS_RESOLVED',
-    'IT_ACCESS_REVOKED',
-    'SUCCESSION_INITIATED',
-    'SUCCESSION_COMPLETED',
-    'BACKUP_EXPORT',
-    'DATABASE_RESTORE',
-    'CREATE',
-    'UPDATE',
-    'DELETE',
-    'STATUS_CHANGE',
-    'EXPORT',
+  final List<String> _categoryOptions = [
+    'All Logs',
+    'Security & Logins',
+    'Operations',
   ];
 
   final List<String> _dateOptions = [
-    'All Time',
     'Today',
     'Past 7 Days',
     'Past 30 Days',
+    'All Time',
   ];
 
   @override
@@ -103,6 +66,34 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
         mod.contains('it access') ||
         mod.contains('continuity') ||
         mod.contains('user');
+  }
+
+  bool _matchesCategory(AuditLog log, String category) {
+    final act = log.action.toUpperCase();
+    final mod = log.module.toLowerCase();
+
+    // Never expose technical framework crashes, flutter rendering issues, or telemetry to the audit trail
+    if (act.contains('ERROR') ||
+        act.contains('CRITICAL') ||
+        act.contains('FAILED') ||
+        act.contains('WARNING') ||
+        mod.contains('library') ||
+        mod.contains('dispatcher') ||
+        (log.metadata['is_system_telemetry'] == true)) {
+      return false;
+    }
+
+    if (category == 'All Logs') return true;
+
+    if (category == 'Security & Logins') {
+      return _isSecurityLog(log);
+    }
+
+    if (category == 'Operations') {
+      return !_isSecurityLog(log);
+    }
+
+    return true;
   }
 
   Future<void> _loadPendingDeletions() async {
@@ -211,26 +202,24 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
       final now = DateTime.now();
 
       if (_selectedDateRange == 'Today') {
-        start = DateTime(now.year, now.month, now.day);
-        end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        start = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       } else if (_selectedDateRange == 'Past 7 Days') {
-        start = now.subtract(const Duration(days: 7));
-        end = now;
+        start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       } else if (_selectedDateRange == 'Past 30 Days') {
-        start = now.subtract(const Duration(days: 30));
-        end = now;
+        start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30));
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       }
 
       final logs = await AuditLogService.fetchLogs(
         searchQuery: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
-        module: _selectedModule == 'All Modules' ? null : _selectedModule,
-        action: _selectedAction == 'All Actions' ? null : _selectedAction,
         startDate: start,
         endDate: end,
         limit: 1500,
       );
 
-      final visibleLogs = _securityOnly ? logs.where(_isSecurityLog).toList() : logs;
+      final visibleLogs = logs.where((log) => _matchesCategory(log, _selectedCategory)).toList();
 
       if (mounted) {
         setState(() {
@@ -326,6 +315,7 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                   child: Column(
                     children: [
                       _buildDetailRow('Log ID', log.id),
+                      _buildDetailRow('Local Time', DateFormat('MMM dd, yyyy - hh:mm:ss a').format(log.createdAt.toLocal())),
                       _buildDetailRow('Timestamp (UTC)', log.createdAt.toUtc().toIso8601String()),
                       _buildDetailRow('Operator Email', log.userEmail),
                       _buildDetailRow('Operator Role', log.userRole),
@@ -379,6 +369,21 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
         );
       },
     );
+  }
+
+  String _formatLogDate(DateTime dt) {
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(local.year, local.month, local.day);
+
+    if (dateOnly == today) {
+      return 'Today, ${DateFormat('MMM dd').format(local)}';
+    } else if (dateOnly == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday, ${DateFormat('MMM dd').format(local)}';
+    } else {
+      return DateFormat('MMM dd, yyyy').format(local);
+    }
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -505,9 +510,9 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
               runSpacing: 12,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                // Search Input
-                  SizedBox(
-                  width: 260,
+                // Search Input (expanded width)
+                SizedBox(
+                  width: 320,
                   height: 40,
                   child: TextField(
                     controller: _searchController,
@@ -517,9 +522,19 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                     },
                     style: GoogleFonts.inter(fontSize: 13, color: DeveloperTheme.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Search email, action, text...',
+                      hintText: 'Search logs, email, action, text...',
                       hintStyle: DeveloperTheme.bodySmall(color: DeveloperTheme.textMuted),
                       prefixIcon: const Icon(Icons.search, size: 18, color: DeveloperTheme.textMuted),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16, color: DeveloperTheme.textMuted),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _currentPage = 1);
+                                _loadLogs();
+                              },
+                            )
+                          : null,
                       contentPadding: EdgeInsets.zero,
                       filled: true,
                       fillColor: DeveloperTheme.bgDark,
@@ -535,29 +550,14 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                   ),
                 ),
 
-                // Module Filter
+                // Category Filter
                 _buildDropdown(
-                  value: _selectedModule,
-                  items: _moduleOptions,
+                  value: _selectedCategory,
+                  items: _categoryOptions,
                   onChanged: (val) {
                     if (val != null) {
                       setState(() {
-                        _selectedModule = val;
-                        _currentPage = 1;
-                      });
-                      _loadLogs();
-                    }
-                  },
-                ),
-
-                // Action Filter
-                _buildDropdown(
-                  value: _selectedAction,
-                  items: _actionOptions,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedAction = val;
+                        _selectedCategory = val;
                         _currentPage = 1;
                       });
                       _loadLogs();
@@ -577,33 +577,6 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                       });
                       _loadLogs();
                     }
-                  },
-                ),
-
-                FilterChip(
-                  label: Text(
-                    'Security & Auth only',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: _securityOnly ? Colors.white : DeveloperTheme.textSecondary,
-                    ),
-                  ),
-                  avatar: Icon(
-                    Icons.shield_outlined,
-                    size: 14,
-                    color: _securityOnly ? Colors.white : DeveloperTheme.accentIndigo,
-                  ),
-                  selected: _securityOnly,
-                  selectedColor: DeveloperTheme.accentIndigo,
-                  backgroundColor: DeveloperTheme.bgDark,
-                  checkmarkColor: Colors.white,
-                  side: const BorderSide(color: DeveloperTheme.borderSubtle),
-                  onSelected: (val) {
-                    setState(() {
-                      _securityOnly = val;
-                      _currentPage = 1;
-                    });
-                    _loadLogs();
                   },
                 ),
 
@@ -764,14 +737,15 @@ class _DeveloperAuditLogsPageState extends State<DeveloperAuditLogsPage> {
                                                       crossAxisAlignment: CrossAxisAlignment.end,
                                                       children: [
                                                         Text(
-                                                          DateFormat('yyyy-MM-dd').format(log.createdAt),
+                                                          _formatLogDate(log.createdAt),
                                                           style: DeveloperTheme.monoText(
                                                             fontSize: 11,
                                                             color: DeveloperTheme.textSecondary,
+                                                            fontWeight: FontWeight.w600,
                                                           ),
                                                         ),
                                                         Text(
-                                                          DateFormat('HH:mm:ss').format(log.createdAt),
+                                                          DateFormat('hh:mm:ss a').format(log.createdAt.toLocal()),
                                                           style: DeveloperTheme.monoText(
                                                             fontSize: 11,
                                                             color: DeveloperTheme.textMuted,
