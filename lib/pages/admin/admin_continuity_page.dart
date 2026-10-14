@@ -208,14 +208,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Enterprise-grade governance, secondary administrator redundancy, and emergency administrative succession protocol.',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF94A3B8),
-                    fontSize: isMobile ? 12 : 13,
-                  ),
-                ),
               ],
             ),
           ),
@@ -276,23 +268,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
       ),
     );
 
-    final nistBadge = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Text(
-        'NIST SP 800-63 Compliant',
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: _slate,
-        ),
-      ),
-    );
-
     return Container(
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: isMobile ? 10 : 12),
       decoration: BoxDecoration(
@@ -300,42 +275,18 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: isMobile
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      hasBackup ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
-                      color: hasBackup ? _successGreen : _goldDark,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: bannerContent),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: nistBadge,
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Icon(
-                  hasBackup ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
-                  color: hasBackup ? _successGreen : _goldDark,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(child: bannerContent),
-                const SizedBox(width: 12),
-                nistBadge,
-              ],
-            ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            hasBackup ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+            color: hasBackup ? _successGreen : _goldDark,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: bannerContent),
+        ],
+      ),
     );
   }
 
@@ -417,8 +368,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
               ],
             ),
           ],
-          const SizedBox(height: 24),
-          _buildAccountPolicyGuidelines(),
         ],
       ),
     );
@@ -875,43 +824,6 @@ class _AdminContinuityPageState extends State<AdminContinuityPage>
     );
   }
 
-  Widget _buildAccountPolicyGuidelines() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBBF7D0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.verified_user_rounded, color: _successGreen, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Security Principle: Separation of Individual Accounts',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: const Color(0xFF166534),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '• The Primary Administrator and Backup Administrator each have their OWN named email and password.\n'
-            '• Credentials must NEVER be shared between individuals or written on physical notes.\n'
-            '• If the Primary Administrator becomes permanently unavailable, the Backup Administrator transitions to primary using their OWN account.\n'
-            '• Historical records created by the previous administrator are permanently preserved and remain tied to their name in the audit trail.',
-            style: GoogleFonts.inter(fontSize: 12, height: 1.5, color: const Color(0xFF14532D)),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ─── Tab 2: Emergency Succession ────────────────────────────────────────
 
