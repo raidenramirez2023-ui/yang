@@ -41,8 +41,6 @@ class _SystemHealthPageState extends State<SystemHealthPage> {
   bool _dbHealthy = true;
 
   final List<ServiceHealthItem> _services = [];
-  final Map<String, int> _tableCounts = {};
-  bool _loadingCounts = false;
 
   @override
   void initState() {
@@ -170,48 +168,6 @@ class _SystemHealthPageState extends State<SystemHealthPage> {
         _isRunningDiagnostics = false;
       });
       widget.onHealthUpdated?.call();
-      _fetchTableCounts();
-    }
-  }
-
-  Future<void> _fetchTableCounts() async {
-    setState(() => _loadingCounts = true);
-    final supabase = Supabase.instance.client;
-    final tables = [
-      'users',
-      'reservations',
-      'orders',
-      'menu_items',
-      'inventory',
-      'stock_transactions',
-      'refunds',
-      'it_access_requests',
-      'account_deletion_requests',
-      'audit_logs',
-      'app_settings',
-    ];
-
-    final Map<String, int> counts = {};
-    for (final tbl in tables) {
-      try {
-        final res = await supabase.from(tbl).select().count(CountOption.exact);
-        counts[tbl] = res.count;
-      } catch (_) {
-        try {
-          final res = await supabase.from(tbl).select().limit(500);
-          counts[tbl] = (res as List).length;
-        } catch (_) {
-          counts[tbl] = -1; // Indicates RLS restricted or error
-        }
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        _tableCounts.clear();
-        _tableCounts.addAll(counts);
-        _loadingCounts = false;
-      });
     }
   }
 
@@ -346,12 +302,12 @@ class _SystemHealthPageState extends State<SystemHealthPage> {
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 800;
               return GridView.count(
-                crossAxisCount: isWide ? 4 : 2,
+                crossAxisCount: isWide ? 3 : 1,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: isWide ? 2.2 : 1.8,
+                childAspectRatio: isWide ? 2.6 : 2.0,
                 children: [
                   _buildMetricCard(
                     title: 'Database Ping',
@@ -381,13 +337,6 @@ class _SystemHealthPageState extends State<SystemHealthPage> {
                     status: 'Active microservices',
                     color: DeveloperTheme.accentIndigo,
                     icon: Icons.hub,
-                  ),
-                  _buildMetricCard(
-                    title: 'Table Watchdogs',
-                    value: '${_tableCounts.length} Tables',
-                    status: _loadingCounts ? 'Querying...' : 'Schemas Active',
-                    color: DeveloperTheme.accentPurple,
-                    icon: Icons.dataset,
                   ),
                 ],
               );
@@ -512,65 +461,6 @@ class _SystemHealthPageState extends State<SystemHealthPage> {
                 ),
               );
             },
-          ),
-
-          const SizedBox(height: 32),
-
-          // Database Table Records Inspector
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Database Table Volume', style: DeveloperTheme.headingMedium()),
-              if (_loadingCounts)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: DeveloperTheme.accentCyan),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: DeveloperTheme.cardDecoration(),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: _tableCounts.entries.map((entry) {
-                return Container(
-                  width: 170,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: DeveloperTheme.bgDark,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: DeveloperTheme.borderSubtle),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.key,
-                        style: DeveloperTheme.monoText(
-                          fontSize: 12,
-                          color: DeveloperTheme.accentIndigo,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        entry.value >= 0 ? '${entry.value} rows' : 'Restricted',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: entry.value >= 0 ? DeveloperTheme.textPrimary : DeveloperTheme.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
           ),
         ],
       ),
