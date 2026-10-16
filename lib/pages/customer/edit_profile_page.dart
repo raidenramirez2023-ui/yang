@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/image_storage_service.dart';
+import 'package:yang_chow/services/sms_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/widgets/phone_otp_modal.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -23,6 +25,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _initialFirstName = '';
   String _initialLastName = '';
   String _initialPhone = '';
+  bool _isPhoneVerified = false;
 
   bool _isSaving = false;
   XFile? _pickedFile;
@@ -70,6 +73,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _emailController.text = user.email ?? '';
     _phoneNumberController.text = user.userMetadata?['phone'] ?? '';
     _initialPhone = user.userMetadata?['phone'] ?? '';
+
+    _checkPhoneVerifiedStatus();
+  }
+
+  Future<void> _checkPhoneVerifiedStatus() async {
+    final verified = await SmsService().isCurrentUserPhoneVerified();
+    if (mounted) {
+      setState(() => _isPhoneVerified = verified);
+    }
+  }
+
+  void _openPhoneVerification() {
+    PhoneOtpModal.show(
+      context,
+      initialPhone: _phoneNumberController.text.trim(),
+      onVerified: () {
+        _checkPhoneVerifiedStatus();
+      },
+    );
   }
 
   bool _isValidName(String name) {
@@ -384,28 +406,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final lastName = _lastNameController.text.trim();
 
       // ── 2. Update user metadata ─────────────────────────────────────────
+      final metaData = <String, dynamic>{
+        'firstname': firstName,
+        'lastname': lastName,
+        'avatar_url': avatarUrl,
+        'phone': currentPhone,
+        'full_name': '$firstName $lastName'.trim(),
+        'name': '$firstName $lastName'.trim(),
+      };
+      if (hasPhoneChanged) {
+        metaData['is_phone_verified'] = false;
+      }
+
       await Supabase.instance.client.auth.updateUser(
-        UserAttributes(
-          data: {
-            'firstname': firstName,
-            'lastname': lastName,
-            'avatar_url': avatarUrl,
-            'phone': currentPhone,
-            'full_name': '$firstName $lastName'.trim(),
-            'name': '$firstName $lastName'.trim(),
-          },
-        ),
+        UserAttributes(data: metaData),
       );
 
       // ── 3. Update public users table ────────────────────────────────────
+      final userUpdates = <String, dynamic>{
+        'firstname': firstName,
+        'lastname': lastName,
+        'phone': currentPhone,
+        'avatar_url': avatarUrl,
+      };
+      if (hasPhoneChanged) {
+        userUpdates['is_phone_verified'] = false;
+      }
+
       await Supabase.instance.client
           .from('users')
-          .update({
-            'firstname': firstName,
-            'lastname': lastName,
-            'phone': currentPhone,
-            'avatar_url': avatarUrl,
-          })
+          .update(userUpdates)
           .eq('email', user.email ?? '');
 
       if (!mounted) return;
@@ -892,8 +922,64 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           const SizedBox(height: 18),
 
-          // Phone Number Field
-          _buildFieldLabel('Mobile Phone Number', isRequired: true),
+          // Phone Number Field with Verification Status
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildFieldLabel('Mobile Phone Number', isRequired: true),
+              _isPhoneVerified
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 11),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Verified via SMS',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF059669),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : InkWell(
+                      onTap: _openPhoneVerification,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFCD34D)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.sms_outlined, color: Color(0xFFB45309), size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Verify via SMS',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFB45309),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ],
+          ),
           const SizedBox(height: 8),
           TextFormField(
             controller: _phoneNumberController,

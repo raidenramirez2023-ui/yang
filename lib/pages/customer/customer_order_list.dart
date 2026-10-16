@@ -14,8 +14,10 @@ import 'package:intl/intl.dart';
 
 import 'package:yang_chow/models/menu_item.dart';
 import 'package:yang_chow/services/menu_service.dart';
+import 'package:yang_chow/services/sms_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
+import 'package:yang_chow/widgets/phone_otp_modal.dart';
 
 // ─── Cart Icon (with badge) ──────────────────────────────────────────────────
 
@@ -1558,7 +1560,7 @@ class _CustomerOrderListPageState extends State<CustomerOrderListPage> {
                   const SizedBox(height: 18),
                   // CTA Button
                   AnimatedTapScale(
-                    onTap: () {
+                    onTap: () async {
                       if (_checkedItems.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -1589,16 +1591,37 @@ class _CustomerOrderListPageState extends State<CustomerOrderListPage> {
                         }
                       }
 
-                      // Open Order Type Sheet instead of proceeding directly
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => _OrderTypeSheet(
-                          cartItems: selectedSubset,
-                          onConfirm: widget.onProceed,
-                        ),
-                      );
+                      void openOrderTypeSheet() {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => _OrderTypeSheet(
+                            cartItems: selectedSubset,
+                            onConfirm: widget.onProceed,
+                          ),
+                        );
+                      }
+
+                      // Check if customer's mobile number is authenticated via PhilSMS OTP
+                      final isPhoneVerified =
+                          await SmsService().isCurrentUserPhoneVerified();
+                      if (!context.mounted) return;
+
+                      if (!isPhoneVerified) {
+                        PhoneOtpModal.show(
+                          context,
+                          onVerified: () {
+                            if (context.mounted) {
+                              openOrderTypeSheet();
+                            }
+                          },
+                        );
+                        return;
+                      }
+
+                      // If already verified, directly proceed to Order Type Sheet
+                      openOrderTypeSheet();
                     },
                     child: Container(
                       width: double.infinity,

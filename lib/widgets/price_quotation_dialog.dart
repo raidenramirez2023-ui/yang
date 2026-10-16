@@ -262,6 +262,8 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
         customerName: widget.reservation['customer_name'],
 
+        customerPhone: widget.reservation['customer_phone']?.toString() ?? widget.reservation['phone']?.toString(),
+
         eventType: widget.reservation['event_type'],
 
         eventDate: widget.reservation['event_date'],
