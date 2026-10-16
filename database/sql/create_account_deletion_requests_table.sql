@@ -66,3 +66,70 @@ GRANT ALL ON TABLE public.account_deletion_requests TO anon, authenticated, serv
 CREATE INDEX IF NOT EXISTS idx_account_deletion_email ON public.account_deletion_requests(email);
 CREATE INDEX IF NOT EXISTS idx_account_deletion_status ON public.account_deletion_requests(status);
 CREATE INDEX IF NOT EXISTS idx_account_deletion_requested_at ON public.account_deletion_requests(requested_at DESC);
+
+-- 7. RPC function for guaranteed cancellation (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.cancel_account_deletion_request(
+  p_request_id UUID DEFAULT NULL,
+  p_email TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_user_email TEXT;
+  v_rows_updated INT := 0;
+BEGIN
+  v_user_id := auth.uid();
+  v_user_email := COALESCE(auth.jwt()->>'email', p_email);
+
+  IF p_request_id IS NOT NULL THEN
+    UPDATE public.account_deletion_requests
+    SET
+      status = 'cancelled_by_user',
+      processed_by = COALESCE(v_user_email, 'Customer'),
+      processed_at = NOW(),
+      admin_notes = 'Customer cancelled account deletion during 14-day grace period.',
+      updated_at = NOW()
+    WHERE id = p_request_id
+      AND status = 'pending_review';
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+  END IF;
+
+  IF v_rows_updated = 0 AND v_user_email IS NOT NULL AND v_user_email <> '' THEN
+    UPDATE public.account_deletion_requests
+    SET
+      status = 'cancelled_by_user',
+      processed_by = COALESCE(v_user_email, 'Customer'),
+      processed_at = NOW(),
+      admin_notes = 'Customer cancelled account deletion during 14-day grace period.',
+      updated_at = NOW()
+    WHERE lower(email) = lower(v_user_email)
+      AND status = 'pending_review';
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+  END IF;
+
+  IF v_rows_updated = 0 AND v_user_id IS NOT NULL THEN
+    UPDATE public.account_deletion_requests
+    SET
+      status = 'cancelled_by_user',
+      processed_by = COALESCE(v_user_email, 'Customer'),
+      processed_at = NOW(),
+      admin_notes = 'Customer cancelled account deletion during 14-day grace period.',
+      updated_at = NOW()
+    WHERE user_id = v_user_id
+      AND status = 'pending_review';
+    GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'rows_updated', v_rows_updated
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.cancel_account_deletion_request(UUID, TEXT) TO anon, authenticated, service_role;
+

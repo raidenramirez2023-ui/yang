@@ -13,6 +13,7 @@ import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/refund_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
+import 'package:yang_chow/services/sms_service.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 
 
@@ -1301,6 +1302,7 @@ class ReservationService {
     required int numberOfGuests,
     int deadlineHours = 24,
     DateTime? customDeadline,
+    String? customerPhone,
   }) async {
     try {
       final now = DateTime.now();
@@ -1341,6 +1343,49 @@ class ReservationService {
         paymentDeadlineStr: formattedDeadline,
         reservationId: reservationId,
       );
+
+      // Send Real-time SMS via PhilSMS
+      try {
+        String? phone = customerPhone;
+        if (phone == null || phone.isEmpty) {
+          final resRow = await _supabase
+              .from('reservations')
+              .select('customer_phone')
+              .eq('id', reservationId)
+              .maybeSingle();
+          phone = resRow?['customer_phone']?.toString();
+        }
+        if (phone == null || phone.isEmpty) {
+          final userRow = await _supabase
+              .from('users')
+              .select('phone')
+              .eq('email', customerEmail)
+              .maybeSingle();
+          phone = userRow?['phone']?.toString();
+        }
+
+        debugPrint('[setReservationPricing] Sending quotation SMS to: $phone');
+
+        if (phone != null && phone.isNotEmpty) {
+          final resCode = reservationId.length > 8
+              ? reservationId.substring(0, 8).toUpperCase()
+              : reservationId.toUpperCase();
+          final amountToPay = depositAmount > 0 ? depositAmount : totalPrice;
+          final smsDeadline = DateFormat('MMM dd, yyyy h:mm a').format(quotationExpiresAt.toLocal());
+          final smsResult = await SmsService().sendPaymentReminderSms(
+            phone: phone,
+            customerName: customerName,
+            reservationCode: resCode,
+            amount: amountToPay,
+            deadline: smsDeadline,
+          );
+          debugPrint('[setReservationPricing] Quotation SMS dispatch result: $smsResult');
+        } else {
+          debugPrint('[setReservationPricing] No valid phone found for quotation SMS.');
+        }
+      } catch (smsErr) {
+        debugPrint('[SmsNotification] Error sending SMS on quotation: $smsErr');
+      }
 
       // Audit log entry
       await AuditLogService.logActivity(
@@ -3077,6 +3122,58 @@ class ReservationService {
               eventDate: table == 'reservations' ? record['event_date'] : record['order_date'],
             );
           }
+
+          // 3. Send Real-time SMS via PhilSMS
+          try {
+            if (table == 'reservations') {
+              String? phone = record['customer_phone']?.toString();
+              if (phone == null || phone.isEmpty) {
+                final userRow = await _supabase
+                    .from('users')
+                    .select('phone')
+                    .eq('email', record['customer_email'])
+                    .maybeSingle();
+                phone = userRow?['phone']?.toString();
+              }
+
+              if (phone != null && phone.isNotEmpty) {
+                final customerName = record['customer_name']?.toString() ?? 'Customer';
+                final resCode = id.length > 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+                await SmsService().sendReservationConfirmedSms(
+                  phone: phone,
+                  customerName: customerName,
+                  reservationCode: resCode,
+                  eventDate: record['event_date']?.toString() ?? '',
+                  startTime: record['start_time']?.toString() ?? '',
+                );
+                debugPrint('[approvePendingPayment] Sent Confirmed SMS to $phone for reservation $resCode');
+              }
+            } else if (table == 'advance_orders') {
+              String? phone = record['customer_phone']?.toString() ?? record['contact_number']?.toString();
+              if (phone == null || phone.isEmpty) {
+                final userRow = await _supabase
+                    .from('users')
+                    .select('phone')
+                    .eq('email', record['customer_email'])
+                    .maybeSingle();
+                phone = userRow?['phone']?.toString();
+              }
+
+              if (phone != null && phone.isNotEmpty) {
+                final customerName = record['customer_name']?.toString() ?? 'Customer';
+                final orderCode = id.length > 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+                await SmsService().sendAdvanceOrderStatusSms(
+                  phone: phone,
+                  customerName: customerName,
+                  orderId: orderCode,
+                  status: 'CONFIRMED',
+                );
+                debugPrint('[approvePendingPayment] Sent Advance Order Confirmed SMS to $phone');
+              }
+            }
+          } catch (smsErr) {
+            debugPrint('[approvePendingPayment] Error sending SMS: $smsErr');
+          }
         }
       } catch (e) {
         debugPrint('Warning: payment approval notification failed: $e');
@@ -3134,6 +3231,34 @@ class ReservationService {
             startTime: table == 'reservations' ? record['start_time'] : record['order_time'],
             guestCount: record['number_of_guests'],
           );
+
+          // Real-time SMS rejection notification
+          try {
+            String? phone = record['customer_phone']?.toString() ?? record['contact_number']?.toString();
+            if (phone == null || phone.isEmpty) {
+              final userRow = await _supabase
+                  .from('users')
+                  .select('phone')
+                  .eq('email', record['customer_email'])
+                  .maybeSingle();
+              phone = userRow?['phone']?.toString();
+            }
+
+            if (phone != null && phone.isNotEmpty) {
+              final customerName = record['customer_name']?.toString() ?? 'Customer';
+              final code = id.length > 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+              await SmsService().sendReservationStatusSms(
+                phone: phone,
+                customerName: customerName,
+                reservationCode: code,
+                status: 'Payment Rejected',
+                reason: reason,
+              );
+              debugPrint('[rejectPendingPayment] Sent SMS rejection to $phone');
+            }
+          } catch (smsErr) {
+            debugPrint('[rejectPendingPayment] SMS error: $smsErr');
+          }
         }
       } catch (e) {
         debugPrint('Warning: customer notification failed: $e');

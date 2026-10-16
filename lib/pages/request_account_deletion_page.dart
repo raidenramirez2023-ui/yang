@@ -961,25 +961,46 @@ class _RequestAccountDeletionPageState
         'admin_notes': 'Customer cancelled account deletion during 14-day grace period.',
       };
 
-      if (reqId != null) {
-        await Supabase.instance.client
-            .from('account_deletion_requests')
-            .update(updatePayload)
-            .eq('id', reqId);
+      bool cancelSuccess = false;
+
+      // 1. Try RPC function first (bypasses RLS issues via SECURITY DEFINER)
+      try {
+        final rpcRes = await Supabase.instance.client.rpc(
+          'cancel_account_deletion_request',
+          params: {
+            'p_request_id': reqId,
+            'p_email': userEmail,
+          },
+        );
+        if (rpcRes != null && (rpcRes['rows_updated'] ?? 0) > 0) {
+          cancelSuccess = true;
+        }
+      } catch (rpcErr) {
+        debugPrint('RPC cancel_account_deletion_request note: $rpcErr');
       }
-      if (userEmail.isNotEmpty) {
-        await Supabase.instance.client
-            .from('account_deletion_requests')
-            .update(updatePayload)
-            .ilike('email', userEmail)
-            .eq('status', 'pending_review');
-      }
-      if (user != null && user.id.isNotEmpty) {
-        await Supabase.instance.client
-            .from('account_deletion_requests')
-            .update(updatePayload)
-            .eq('user_id', user.id)
-            .eq('status', 'pending_review');
+
+      // 2. Direct table update fallback
+      if (!cancelSuccess) {
+        if (reqId != null) {
+          await Supabase.instance.client
+              .from('account_deletion_requests')
+              .update(updatePayload)
+              .eq('id', reqId);
+        }
+        if (userEmail.isNotEmpty) {
+          await Supabase.instance.client
+              .from('account_deletion_requests')
+              .update(updatePayload)
+              .ilike('email', userEmail)
+              .eq('status', 'pending_review');
+        }
+        if (user != null && user.id.isNotEmpty) {
+          await Supabase.instance.client
+              .from('account_deletion_requests')
+              .update(updatePayload)
+              .eq('user_id', user.id)
+              .eq('status', 'pending_review');
+        }
       }
 
       if (user != null) {

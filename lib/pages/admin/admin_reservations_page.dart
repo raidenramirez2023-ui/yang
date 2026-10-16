@@ -13,6 +13,7 @@ import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
 import 'package:yang_chow/widgets/admin_add_event_dialog.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
+import 'package:yang_chow/services/sms_service.dart';
 import 'package:yang_chow/utils/global_messenger.dart';
 
 class AdminReservationsPage extends StatefulWidget {
@@ -609,6 +610,42 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           eventType: reservation['event_type'],
           eventDate: reservation['event_date'],
         );
+
+        // Also send Real-time SMS via PhilSMS
+        try {
+          String? phone = reservation['customer_phone']?.toString() ?? reservation['phone']?.toString();
+          if (phone == null || phone.isEmpty) {
+            final userRow = await Supabase.instance.client
+                .from('users')
+                .select('phone')
+                .eq('email', reservation['customer_email'])
+                .maybeSingle();
+            phone = userRow?['phone']?.toString();
+          }
+          if (phone != null && phone.isNotEmpty) {
+            final customerName = reservation['customer_name'] ?? 'Customer';
+            final resCode = reservation['reservation_code'] ??
+                (reservationId.length > 8 ? reservationId.substring(0, 8).toUpperCase() : reservationId.toUpperCase());
+            if (newStatus == 'confirmed') {
+              await SmsService().sendReservationConfirmedSms(
+                phone: phone,
+                customerName: customerName,
+                reservationCode: resCode,
+                eventDate: reservation['event_date']?.toString() ?? '',
+                startTime: reservation['start_time']?.toString() ?? '',
+              );
+            } else {
+              await SmsService().sendReservationStatusSms(
+                phone: phone,
+                customerName: customerName,
+                reservationCode: resCode,
+                status: newStatus,
+              );
+            }
+          }
+        } catch (smsErr) {
+          debugPrint('[SmsNotification] Error sending SMS: $smsErr');
+        }
       }
 
       _showSnackBar('Reservation status updated to $newStatus', Colors.green);
@@ -3039,13 +3076,42 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       success = await emailService.sendEventReminderEmail(reservationId: reservationId);
     }
 
+    // Also send SMS Reminder via PhilSMS
+    try {
+      String? phone = reservation['customer_phone']?.toString() ?? reservation['phone']?.toString();
+      if (phone == null || phone.isEmpty) {
+        final userRow = await Supabase.instance.client
+            .from('users')
+            .select('phone')
+            .eq('email', reservation['customer_email'])
+            .maybeSingle();
+        phone = userRow?['phone']?.toString();
+      }
+      if (phone != null && phone.isNotEmpty) {
+        final resCode = reservation['reservation_code'] ??
+            (reservationId.length > 8 ? reservationId.substring(0, 8).toUpperCase() : reservationId.toUpperCase());
+        final remainingBalance = (reservation['remaining_balance'] as num?)?.toDouble() ??
+            (reservation['deposit_amount'] as num?)?.toDouble() ??
+            (reservation['total_price'] as num?)?.toDouble() ??
+            0.0;
+        await SmsService().sendPaymentReminderSms(
+          phone: phone,
+          customerName: customerName,
+          reservationCode: resCode,
+          amount: remainingBalance,
+        );
+      }
+    } catch (smsErr) {
+      debugPrint('[SmsNotification] Reminder SMS error: $smsErr');
+    }
+
     if (!mounted) return;
 
     if (success) {
-      _showSnackBar('✅ Reminder email sent to $customerName successfully!', const Color(0xFF059669));
+      _showSnackBar('✅ Reminder (Email & SMS) sent to $customerName successfully!', const Color(0xFF059669));
       _loadReservations(); // Refresh to update reminder_sent status
     } else {
-      _showSnackBar('❌ Failed to send reminder email. Please try again.', Colors.red);
+      _showSnackBar('❌ Failed to send reminder. Please try again.', Colors.red);
     }
   }
 

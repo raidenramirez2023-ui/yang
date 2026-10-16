@@ -492,6 +492,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           'name': fullName,
           'phone': phone,
           'role': 'customer',
+          'is_phone_verified': false,
         },
       );
 
@@ -506,6 +507,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           'phone': phone,
           'role': 'customer',
           'is_approved': true, // Auto-approved after email verification
+          'is_phone_verified': false,
         };
         try {
           await Supabase.instance.client.from('users').insert(userRow);
