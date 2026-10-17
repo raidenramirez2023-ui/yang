@@ -2132,11 +2132,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                 switch (n['action_type']) {
                                   case 'created':
-                                    icon = Icons.add_circle_outline_rounded;
-                                    statusBadge = 'Received';
-                                    dotColor = const Color(0xFF2563EB);
-                                    badgeBg = const Color(0xFFF8FAFC);
-                                    badgeText = const Color(0xFF334155);
+                                    icon = Icons.pending_actions_rounded;
+                                    statusBadge = 'Pending Review';
+                                    dotColor = const Color(0xFFD97706);
+                                    badgeBg = const Color(0xFFFEF3C7);
+                                    badgeText = const Color(0xFF92400E);
                                     break;
                                   case 'approved':
                                   case 'completed':
@@ -2668,7 +2668,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         case 'created':
 
-          return 'New Reservation from $actorName';
+          return 'Booking Request from $actorName (Pending Review)';
 
 
 
@@ -2736,7 +2736,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       case 'created':
 
-        return 'Reservation Received';
+        return 'Booking Request Received (Pending Review)';
 
 
 

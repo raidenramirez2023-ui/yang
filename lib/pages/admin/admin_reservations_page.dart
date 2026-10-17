@@ -646,6 +646,21 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         } catch (smsErr) {
           debugPrint('[SmsNotification] Error sending SMS: $smsErr');
         }
+
+        // Send official confirmation email when reservation is approved
+        if (newStatus == 'confirmed') {
+          try {
+            await EmailNotificationService().sendReservationApproved(
+              customerEmail: reservation['customer_email']?.toString() ?? '',
+              customerName: reservation['customer_name']?.toString() ?? 'Customer',
+              eventType: reservation['event_type']?.toString() ?? 'Event',
+              eventDate: reservation['event_date']?.toString() ?? '',
+              startTime: reservation['start_time']?.toString() ?? '',
+            );
+          } catch (emailErr) {
+            debugPrint('[EmailNotification] Error sending confirmation email: $emailErr');
+          }
+        }
       }
 
       _showSnackBar('Reservation status updated to $newStatus', Colors.green);

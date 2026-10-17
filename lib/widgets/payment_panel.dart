@@ -153,27 +153,41 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   bool get _isSplitMode => _method == 'Split';
 
-  double get _total =>
-      widget.overrideTotalAmount ??
-      widget.cart.fold(0.0, (s, i) => s + i.item.price * i.quantity);
+  double get _total {
+    final double raw = widget.overrideTotalAmount ??
+        widget.cart.fold<double>(0.0, (s, i) => s + i.item.price * i.quantity);
+    return double.parse(raw.toStringAsFixed(2));
+  }
 
   double get _splitTotalPaid =>
-      _splitPayments.fold(0.0, (s, i) => s + i.amount);
+      double.parse(_splitPayments.fold<double>(0.0, (s, i) => s + i.amount).toStringAsFixed(2));
 
-  double get _splitRemaining =>
-      (_total - _splitTotalPaid).clamp(0.0, _total);
+  double get _splitRemaining {
+    final rem = _total - _splitTotalPaid;
+    if (rem <= 0.005) return 0.0;
+    return double.parse(rem.clamp(0.0, _total).toStringAsFixed(2));
+  }
 
   double get _paid => _isSplitMode
       ? _splitTotalPaid
       : (double.tryParse(_entered) ?? 0.0);
 
-  double get _change => _isSplitMode
-      ? _splitPayments.fold(0.0, (s, i) => s + i.change)
-      : (_paid - _total);
+  double get _change {
+    if (_isSplitMode) {
+      return double.parse(_splitPayments.fold<double>(0.0, (s, i) => s + i.change).toStringAsFixed(2));
+    }
+    final diff = _paid - _total;
+    if (diff.abs() < 0.005) return 0.0;
+    return double.parse(diff.toStringAsFixed(2));
+  }
 
-  bool get _canComplete => _isSplitMode
-      ? (_splitTotalPaid >= _total && _total > 0)
-      : (_paid >= _total && _total > 0);
+  bool get _canComplete {
+    if (_total <= 0) return false;
+    if (_isSplitMode) {
+      return (_splitTotalPaid - _total) >= -0.009;
+    }
+    return (_paid - _total) >= -0.009;
+  }
 
   String get _displayPaid {
     if (_entered.isEmpty) return '0.00';
@@ -265,6 +279,23 @@ class _PaymentPanelState extends State<PaymentPanel>
   void _removeSplitTender(int index) {
     setState(() {
       _splitPayments.removeAt(index);
+    });
+  }
+
+  void _setExactAmount() {
+    if (_total <= 0) return;
+    setState(() {
+      if (_isSplitMode) {
+        _entered = _splitRemaining.toStringAsFixed(2);
+      } else {
+        _entered = _total.toStringAsFixed(2);
+      }
+    });
+  }
+
+  void _setQuickAmount(double amount) {
+    setState(() {
+      _entered = amount.toStringAsFixed(2);
     });
   }
 
@@ -645,6 +676,9 @@ class _PaymentPanelState extends State<PaymentPanel>
             key == LogicalKeyboardKey.numpadDecimal) {
           _tap('.');
           return KeyEventResult.handled;
+        } else if (key == LogicalKeyboardKey.keyE) {
+          _setExactAmount();
+          return KeyEventResult.handled;
         }
 
         // Handle numbers 0-9 and Numpad 0-9
@@ -672,15 +706,17 @@ class _PaymentPanelState extends State<PaymentPanel>
                   child: Column(
                     children: [
                       _buildTopSummary(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       if (_isSplitMode) ...[
                         Expanded(child: _buildSplitPaymentView()),
                       ] else ...[
                         _buildInputBox(),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
+                        _buildQuickCashRow(),
+                        const SizedBox(height: 10),
                         Expanded(child: _buildNumpad()),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildActions(),
                     ],
                   ),
@@ -1416,7 +1452,7 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   Widget _buildTopSummary() {
     if (_isSplitMode) {
-      final isDone = _splitRemaining == 0.0 && _splitTotalPaid >= _total;
+      final isDone = _splitRemaining == 0.0 && _canComplete;
       return Container(
         height: 84,
         decoration: BoxDecoration(
@@ -2036,6 +2072,77 @@ class _PaymentPanelState extends State<PaymentPanel>
     );
   }
 
+  Widget _buildQuickCashRow() {
+    return Row(
+      children: [
+        // Exact Amount Button (Primary Highlight)
+        Expanded(
+          flex: 4,
+          child: SizedBox(
+            height: 38,
+            child: ElevatedButton.icon(
+              onPressed: _total <= 0 ? null : _setExactAmount,
+              icon: const Icon(Icons.flash_on_rounded, size: 16),
+              label: Text(
+                'Exact (₱${_fmt.format(_total)})',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        _quickAmountChip(100),
+        const SizedBox(width: 6),
+        _quickAmountChip(200),
+        const SizedBox(width: 6),
+        _quickAmountChip(500),
+        const SizedBox(width: 6),
+        _quickAmountChip(1000),
+      ],
+    );
+  }
+
+  Widget _quickAmountChip(double amount) {
+    return Expanded(
+      flex: 2,
+      child: SizedBox(
+        height: 38,
+        child: OutlinedButton(
+          onPressed: () => _setQuickAmount(amount),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: _textDark,
+            side: const BorderSide(color: _border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: EdgeInsets.zero,
+          ),
+          child: Text(
+            '₱${amount.toInt()}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: _textDark,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActions() {
     final isSplit = _isSplitMode;
     return Row(
@@ -2068,7 +2175,32 @@ class _PaymentPanelState extends State<PaymentPanel>
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
+        // EXACT AMOUNT BUTTON IN ACTIONS ROW
+        Expanded(
+          flex: 1,
+          child: SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _total <= 0 ? null : _setExactAmount,
+              icon: const Icon(Icons.flash_on_rounded, size: 18),
+              label: const Text(
+                'EXACT',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFECFDF5),
+                foregroundColor: const Color(0xFF059669),
+                side: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
           flex: 2,
           child: SizedBox(

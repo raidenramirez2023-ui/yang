@@ -116,57 +116,6 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     }
   }
 
-  bool _isStockAvailable(String itemName, int requestedQuantity) {
-    final recipeIngredients = _recipeCache[itemName];
-    if (recipeIngredients == null || recipeIngredients.isEmpty) return true;
-
-    for (final ing in recipeIngredients) {
-      final String ingName = ing['name'].toString().toLowerCase();
-      
-      num? stock;
-      if (_inventoryCache.containsKey(ingName)) {
-        stock = _inventoryCache[ingName];
-      } else {
-        for (final entry in _inventoryCache.entries) {
-          if (entry.key.contains(ingName) || ingName.contains(entry.key)) {
-            stock = entry.value;
-            break;
-          }
-        }
-      }
-
-      if (stock != null) {
-        final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
-        final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
-        
-        if (requiredQty > stock) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
-              backgroundColor: AppTheme.errorRed,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          return false;
-        }
-        
-        if (stock <= 0) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('No stock available for $itemName. No ${ing['name']} available.'),
-              backgroundColor: AppTheme.errorRed,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
   @override
   void dispose() {
     _categoryScrollController.dispose();
@@ -184,8 +133,6 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
   void _addToSelection(MenuItem item) {
     int currentQty = selectedItems[item.name] ?? 0;
-    if (!_isStockAvailable(item.name, currentQty + 1)) return;
-    
     setState(() {
       selectedItems[item.name] = currentQty + 1;
     });

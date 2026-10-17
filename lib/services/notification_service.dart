@@ -255,6 +255,20 @@ class NotificationService {
     int? guestCount,
   }) async {
     try {
+      // Prevent duplicate creation notifications for the same reservation
+      if (actionType == 'created' && reservationId.isNotEmpty) {
+        final existing = await _supabase
+            .from('notifications')
+            .select('id')
+            .eq('action_type', 'created')
+            .eq('reservation_id', reservationId)
+            .limit(1);
+        if (existing.isNotEmpty) {
+          debugPrint('Duplicate creation notification suppressed for reservation: $reservationId');
+          return;
+        }
+      }
+
       await _supabase.from('notifications').insert({
         'recipient_email': recipientEmail?.toLowerCase(),
         'is_for_admin': isForAdmin,
