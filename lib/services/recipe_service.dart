@@ -212,24 +212,66 @@ class RecipeService {
           .from('kitchen_inventory')
           .select('*');
 
-      for (final cartItem in cart) {
-        final recipeDataResponse = await supabase
-            .from('recipe_ingredients')
-            .select()
-            .eq('menu_item_name', cartItem.item.name);
-            
-        if ((recipeDataResponse as List).isEmpty) continue;
+      final List<CartItem> activeCart = cart.where((c) => c.quantity > 0).toList();
+      if (activeCart.isEmpty) return null;
 
-        final List ingredients = recipeDataResponse as List;
+      final Set<String> itemNames = activeCart.map((c) => c.item.name).toSet();
+
+      final recipeDataResponse = await supabase
+          .from('recipe_ingredients')
+          .select()
+          .inFilter('menu_item_name', itemNames.toList());
+
+      final Map<String, List<Map<String, dynamic>>> recipesByItem = {};
+      for (final row in (recipeDataResponse as List? ?? [])) {
+        final mName = row['menu_item_name'] as String;
+        recipesByItem.putIfAbsent(mName, () => []).add(row as Map<String, dynamic>);
+      }
+
+      // Aggregate ingredient demands across all items in the cart
+      // Map: inventoryItemId -> Map with metadata & total required
+      final Map<dynamic, Map<String, dynamic>> ingredientUsage = {};
+
+      for (final cartItem in activeCart) {
+        final ingredients = recipesByItem[cartItem.item.name] ?? [];
+
+        if (ingredients.isEmpty) {
+          // Direct inventory match fallback for items without recipe (e.g. bottled drinks)
+          final lowerName = cartItem.item.name.toLowerCase().trim();
+          Map<String, dynamic>? matchingItem;
+          for (final item in inventoryItems) {
+            final invName = item['name']?.toString().toLowerCase().trim() ?? '';
+            if (invName == lowerName || invName.contains(lowerName) || lowerName.contains(invName)) {
+              matchingItem = item;
+              break;
+            }
+          }
+          if (matchingItem != null) {
+            final itemMap = matchingItem;
+            final invId = itemMap['id'];
+            ingredientUsage.putIfAbsent(invId, () => {
+              'inventoryItem': itemMap,
+              'requiredQty': 0.0,
+              'sources': <String>{},
+              'unit': itemMap['unit'] ?? 'pcs',
+              'name': itemMap['name'] ?? cartItem.item.name,
+            });
+            ingredientUsage[invId]!['requiredQty'] = (ingredientUsage[invId]!['requiredQty'] as double) + cartItem.quantity.toDouble();
+            (ingredientUsage[invId]!['sources'] as Set<String>).add(cartItem.item.name);
+          }
+          continue;
+        }
+
         for (final ing in ingredients) {
-          final String ingName = ing['name'];
-          
+          final String ingName = ing['name']?.toString().trim() ?? '';
+          if (ingName.isEmpty) continue;
+
           // Find matching inventory item (using exact-first fuzzy matching)
           Map<String, dynamic>? matchingItem;
           double bestMatchScore = 0;
-          
+
           for (final item in inventoryItems) {
-            final inventoryName = item['name']?.toString().toLowerCase() ?? '';
+            final inventoryName = item['name']?.toString().toLowerCase().trim() ?? '';
             final ingredientName = ingName.toLowerCase();
 
             if (inventoryName == ingredientName) {
@@ -246,24 +288,41 @@ class RecipeService {
           }
 
           if (matchingItem != null) {
-            final num currentStock = (matchingItem['quantity'] as num?) ?? 0;
-            
-            // Calculate required ingredient quantity based on recipe and order quantity
-            final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
-            final double requiredQty = ingredientQtyPerUnit * cartItem.quantity;
-            
-            // Check if required quantity exceeds current stock
-            if (requiredQty > currentStock) {
-              final String itemName = cartItem.item.name;
-              return 'No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${currentStock.toInt()} available.';
-            }
-            
-            // Check if stock is zero - no stock available
-            if (currentStock <= 0) {
-              final String itemName = cartItem.item.name;
-              return 'No stock available for $itemName. No ${ing['name']} available.';
-            }
+            final itemMap = matchingItem;
+            final invId = itemMap['id'];
+            final double ingredientQtyPerUnit = (ing['quantity'] as num?)?.toDouble() ?? 1.0;
+            final double reqQty = ingredientQtyPerUnit * cartItem.quantity;
+
+            ingredientUsage.putIfAbsent(invId, () => {
+              'inventoryItem': itemMap,
+              'requiredQty': 0.0,
+              'sources': <String>{},
+              'unit': ing['unit'] ?? itemMap['unit'] ?? 'pcs',
+              'name': itemMap['name'] ?? ingName,
+            });
+            ingredientUsage[invId]!['requiredQty'] = (ingredientUsage[invId]!['requiredQty'] as double) + reqQty;
+            (ingredientUsage[invId]!['sources'] as Set<String>).add(cartItem.item.name);
           }
+        }
+      }
+
+      // Check aggregated requirements against current inventory stock
+      for (final usage in ingredientUsage.values) {
+        final matchingItem = usage['inventoryItem'] as Map<String, dynamic>;
+        final num currentStock = (matchingItem['quantity'] as num?) ?? 0;
+        final double totalRequired = usage['requiredQty'] as double;
+        final Set<String> sources = usage['sources'] as Set<String>;
+        final String name = usage['name'] as String;
+        final String unit = usage['unit'] as String;
+
+        if (currentStock <= 0) {
+          final sourcesStr = sources.join(', ');
+          return 'No stock available for "$name" (needed by: $sourcesStr). Current stock: 0.';
+        }
+
+        if (totalRequired > currentStock) {
+          final sourcesStr = sources.join(', ');
+          return 'Insufficient stock for "$name". Total needed: ${totalRequired.round()} $unit across ($sourcesStr), but only ${currentStock.toInt()} available.';
         }
       }
 

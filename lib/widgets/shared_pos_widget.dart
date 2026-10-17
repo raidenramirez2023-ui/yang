@@ -1241,6 +1241,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   // 🔔 Real-time order ready alert subscription & top overlay
   StreamSubscription<List<Map<String, dynamic>>>? _readyOrdersSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _kitchenInventorySubscription;
   final Set<String> _notifiedReadyOrderIds = {};
   OverlayEntry? _orderReadyTopOverlay;
   Timer? _orderReadyTopOverlayTimer;
@@ -1259,6 +1260,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     _loadMenu();
     _fetchInventory();
     _listenForReadyOrders();
+    _listenForInventoryChanges();
   }
 
   void _listenForReadyOrders() {
@@ -1339,6 +1341,33 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             );
           }
         });
+  }
+
+  void _listenForInventoryChanges() {
+    try {
+      _kitchenInventorySubscription = Supabase.instance.client
+          .from('kitchen_inventory')
+          .stream(primaryKey: ['id'])
+          .listen((rows) {
+            if (!mounted) return;
+            final Map<String, num> newCache = {};
+            for (var item in rows) {
+              final name = item['name']?.toString().toLowerCase().trim() ?? '';
+              if (name.isNotEmpty) {
+                newCache[name] = (item['quantity'] as num?) ?? 0;
+              }
+            }
+            if (newCache.isNotEmpty) {
+              setState(() {
+                _inventoryCache.addAll(newCache);
+              });
+            }
+          }, onError: (e) {
+            debugPrint('[POS Realtime Inventory] Error in stream: $e');
+          });
+    } catch (e) {
+      debugPrint('[POS Realtime Inventory] Failed to initialize stream: $e');
+    }
   }
 
   void _showOrderReadyBanner({
@@ -1538,6 +1567,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   @override
   void dispose() {
+    _kitchenInventorySubscription?.cancel();
     _dismissOrderReadyBanner();
     _readyOrdersSubscription?.cancel();
     _mobileCustomerNameController.dispose();
@@ -1627,114 +1657,183 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-  bool _isStockAvailable(String itemName, int requestedQuantity) {
-
-    if (widget.userRole != 'Staff') return true;
-
-    
-
+  /// Checks whether an item has sufficient stock without showing a SnackBar.
+  /// Used for UI rendering (e.g. graying out cards, "OUT OF STOCK" badges).
+  bool _isItemInStock(String itemName, {int requestedQuantity = 1}) {
+    // 1. Check recipe ingredients if recipe exists
     final recipeIngredients = _recipeCache[itemName];
-
-    if (recipeIngredients == null || recipeIngredients.isEmpty) return true;
-
-
-
-    for (final ing in recipeIngredients) {
-
-      final String ingName = ing['name'].toString().toLowerCase();
-
-      
-
-      num? stock;
-
-      if (_inventoryCache.containsKey(ingName)) {
-
-        stock = _inventoryCache[ingName];
-
-      } else {
-
-        for (final entry in _inventoryCache.entries) {
-
-          if (entry.key.contains(ingName) || ingName.contains(entry.key)) {
-
-            stock = entry.value;
-
-            break;
-
+    if (recipeIngredients != null && recipeIngredients.isNotEmpty) {
+      for (final ing in recipeIngredients) {
+        final String ingName = ing['name'].toString().toLowerCase().trim();
+        num? stock;
+        if (_inventoryCache.containsKey(ingName)) {
+          stock = _inventoryCache[ingName];
+        } else {
+          for (final entry in _inventoryCache.entries) {
+            if (entry.key == ingName || entry.key.contains(ingName) || ingName.contains(entry.key)) {
+              stock = entry.value;
+              break;
+            }
           }
-
         }
 
+        if (stock != null) {
+          final double ingredientQtyPerUnit = (ing['quantity'] as num?)?.toDouble() ?? 1.0;
+          final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
+          if (stock <= 0 || requiredQty > stock) {
+            return false;
+          }
+        }
       }
+      return true;
+    }
 
-
-
-      if (stock != null) {
-
-        // Calculate required ingredient quantity based on recipe and order quantity
-
-        final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
-
-        final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
-
-        
-
-        // Check if required quantity exceeds current stock
-
-        if (requiredQty > stock) {
-
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-
-            SnackBar(
-
-              content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
-
-              backgroundColor: Colors.red,
-
-              duration: const Duration(seconds: 2),
-
-            ),
-
-          );
-
-          return false;
-
-        }
-
-        
-
-        // Check if stock is zero - no stock available
-
-        if (stock <= 0) {
-
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-
-            SnackBar(
-
-              content: Text('No stock available for $itemName. No ${ing['name']} available.'),
-
-              backgroundColor: Colors.red,
-
-              duration: const Duration(seconds: 2),
-
-            ),
-
-          );
-
-          return false;
-
-        }
-
+    // 2. Direct match fallback in inventory cache (e.g. drinks, canned goods)
+    final lowerName = itemName.toLowerCase().trim();
+    if (_inventoryCache.containsKey(lowerName)) {
+      return (_inventoryCache[lowerName] ?? 0) >= requestedQuantity;
+    }
+    for (final entry in _inventoryCache.entries) {
+      if (entry.key == lowerName || entry.key.contains(lowerName) || lowerName.contains(entry.key)) {
+        return entry.value >= requestedQuantity;
       }
-
     }
 
     return true;
+  }
 
+  /// Checks if a GroupedMenuItem (with or without variants) is available.
+  bool _isGroupedItemInStock(GroupedMenuItem gItem) {
+    if (gItem.hasVariants) {
+      // If ANY variant is in stock, the item card can be opened
+      return gItem.variants.any((v) => _isItemInStock(v.name));
+    }
+    return _isItemInStock(gItem.primaryItem.name);
+  }
+
+  bool _isStockAvailable(String itemName, int requestedQuantity) {
+    if (_inventoryCache.isEmpty) return true;
+
+    // Simulate proposed cart state with updated quantity for itemName
+    final Map<String, int> proposedQuantities = {};
+    for (final c in cart) {
+      proposedQuantities[c.item.name] = c.quantity;
+    }
+    proposedQuantities[itemName] = requestedQuantity;
+
+    final Map<String, double> demandedIngredients = {};
+    final Map<String, String> displayNames = {};
+    final Map<String, String> units = {};
+    final Map<String, Set<String>> contributingItems = {};
+
+    for (final entry in proposedQuantities.entries) {
+      final name = entry.key;
+      final qty = entry.value;
+      if (qty <= 0) continue;
+
+      final recipeIngredients = _recipeCache[name];
+      if (recipeIngredients != null && recipeIngredients.isNotEmpty) {
+        for (final ing in recipeIngredients) {
+          final String ingName = ing['name']?.toString().toLowerCase().trim() ?? '';
+          if (ingName.isEmpty) continue;
+
+          String? matchedKey;
+          if (_inventoryCache.containsKey(ingName)) {
+            matchedKey = ingName;
+          } else {
+            for (final invEntry in _inventoryCache.entries) {
+              if (invEntry.key == ingName || invEntry.key.contains(ingName) || ingName.contains(invEntry.key)) {
+                matchedKey = invEntry.key;
+                break;
+              }
+            }
+          }
+
+          if (matchedKey != null) {
+            final double ingredientQtyPerUnit = (ing['quantity'] as num?)?.toDouble() ?? 1.0;
+            demandedIngredients[matchedKey] = (demandedIngredients[matchedKey] ?? 0.0) + (ingredientQtyPerUnit * qty);
+            displayNames[matchedKey] = ing['name']?.toString() ?? matchedKey;
+            units[matchedKey] = ing['unit']?.toString() ?? 'pcs';
+            contributingItems.putIfAbsent(matchedKey, () => <String>{}).add(name);
+          }
+        }
+      } else {
+        // Check direct inventory if no recipe
+        final lowerName = name.toLowerCase().trim();
+        String? matchedKey;
+        if (_inventoryCache.containsKey(lowerName)) {
+          matchedKey = lowerName;
+        } else {
+          for (final invEntry in _inventoryCache.entries) {
+            if (invEntry.key == lowerName || invEntry.key.contains(lowerName) || lowerName.contains(invEntry.key)) {
+              matchedKey = invEntry.key;
+              break;
+            }
+          }
+        }
+
+        if (matchedKey != null) {
+          demandedIngredients[matchedKey] = (demandedIngredients[matchedKey] ?? 0.0) + (1.0 * qty);
+          displayNames[matchedKey] = name;
+          units[matchedKey] = 'pcs';
+          contributingItems.putIfAbsent(matchedKey, () => <String>{}).add(name);
+        }
+      }
+    }
+
+    for (final entry in demandedIngredients.entries) {
+      final invKey = entry.key;
+      final totalDemanded = entry.value;
+      final stock = _inventoryCache[invKey] ?? 0;
+      final displayName = displayNames[invKey] ?? invKey;
+      final unit = units[invKey] ?? 'pcs';
+      final itemsList = contributingItems[invKey]?.toList() ?? [];
+
+      if (stock <= 0) {
+        _showStockWarning('No stock available for "$displayName". It is out of stock in kitchen inventory.');
+        return false;
+      }
+
+      if (totalDemanded > stock) {
+        if (itemsList.length > 1) {
+          _showStockWarning(
+            'Insufficient stock for "$displayName". Total needed: ${totalDemanded.round()} $unit across (${itemsList.join(', ')}), but only ${stock.toInt()} available.'
+          );
+        } else {
+          _showStockWarning(
+            'Insufficient stock for "$itemName". Needs ${totalDemanded.round()} $unit of "$displayName", but only ${stock.toInt()} available.'
+          );
+        }
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void _showStockWarning(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
 
@@ -4872,12 +4971,15 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         .fold<int>(0, (sum, ci) => sum + ci.quantity);
 
     final inCart = totalInCart > 0;
-
-
+    final bool isAvailable = _isGroupedItemInStock(item);
 
     return GestureDetector(
 
       onTap: () {
+        if (!isAvailable) {
+          _showStockWarning('Cannot order "${item.baseName}": Out of stock (insufficient ingredients).');
+          return;
+        }
         if (item.hasVariants) {
           _showVariantDialog(item);
         } else {
@@ -4887,249 +4989,33 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       onLongPress: () => _showIngredientsDialog(item.primaryItem),
 
-      child: Container(
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: isAvailable ? 1.0 : 0.65,
+        child: Container(
 
-        decoration: BoxDecoration(
+          decoration: BoxDecoration(
 
-          borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(10),
 
-          border: inCart
+            border: !isAvailable
+                ? Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.6), width: 1.5)
+                : inCart
+                    ? Border.all(
+                        color: const Color.fromARGB(255, 255, 0, 0),
+                        width: 2,
+                      )
+                    : Border.all(color: const Color(0xFFE5E7EB)),
 
-              ? Border.all(
+            boxShadow: [
 
-                  color: const Color.fromARGB(255, 255, 0, 0),
+              BoxShadow(
 
-                  width: 2,
+                color: Colors.black.withValues(alpha: 0.08),
 
-                )
+                blurRadius: 6,
 
-              : Border.all(color: const Color(0xFFE5E7EB)),
-
-          boxShadow: [
-
-            BoxShadow(
-
-              color: Colors.black.withOpacity(0.08),
-
-              blurRadius: 6,
-
-              offset: const Offset(0, 2),
-
-            ),
-
-          ],
-
-        ),
-
-        child: ClipRRect(
-
-          borderRadius: BorderRadius.circular(9),
-
-          child: Stack(
-
-            fit: StackFit.expand,
-
-            children: [
-
-              // ── Full-bleed image ────────────────────────────────────────
-
-              _buildImageWidget(item.primaryItem),
-
-
-
-              // ── Bottom gradient + text overlay ──────────────────────────
-
-              Positioned(
-
-                left: 0,
-
-                right: 0,
-
-                bottom: 0,
-
-                child: Container(
-
-                  decoration: const BoxDecoration(
-
-                    gradient: LinearGradient(
-
-                      begin: Alignment.bottomCenter,
-
-                      end: Alignment.topCenter,
-
-                      colors: [
-
-                        Color(0xEE000000),
-
-                        Color(0x99000000),
-
-                        Colors.transparent,
-
-                      ],
-
-                      stops: [0.0, 0.6, 1.0],
-
-                    ),
-
-                  ),
-
-                  padding: const EdgeInsets.fromLTRB(8, 22, 8, 8),
-
-                  child: Column(
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    mainAxisSize: MainAxisSize.min,
-
-                    children: [
-
-                      Text(
-
-                        item.baseName,
-
-                        style: const TextStyle(
-
-                          color: Colors.white,
-
-                          fontWeight: FontWeight.w700,
-
-                          fontSize: 11,
-
-                          shadows: [
-
-                            Shadow(color: Colors.black54, blurRadius: 4),
-
-                          ],
-
-                        ),
-
-                        maxLines: 2,
-
-                        overflow: TextOverflow.ellipsis,
-
-                      ),
-
-                      const SizedBox(height: 2),
-
-                      Row(
-
-                        children: [
-
-                          Text(
-
-                            item.hasVariants
-                                ? item.priceRangeDisplay
-                                : 'P${NumberFormat('#,##0.00', 'en_US').format(item.minPrice)}',
-
-                            style: const TextStyle(
-
-                              color: Colors.white,
-
-                              fontWeight: FontWeight.bold,
-
-                              fontSize: 12,
-
-                            ),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-              ),
-
-
-
-              // ── Quantity badge (top-right) ──────────────────────────────
-
-              if (inCart)
-
-                Positioned(
-
-                  top: 6,
-
-                  right: 6,
-
-                  child: Container(
-
-                    width: 22,
-
-                    height: 22,
-
-                    decoration: const BoxDecoration(
-
-                      color: Color.fromARGB(255, 255, 0, 0),
-
-                      shape: BoxShape.circle,
-
-                    ),
-
-                    child: Center(
-
-                      child: Text(
-
-                        '$totalInCart',
-
-                        style: const TextStyle(
-
-                          color: Colors.white,
-
-                          fontWeight: FontWeight.bold,
-
-                          fontSize: 10,
-
-                        ),
-
-                      ),
-
-                    ),
-
-                  ),
-
-                ),
-
-
-
-              // ── Ingredients indicator (top-left) ─────────────────────────
-
-              Positioned(
-
-                top: 6,
-
-                left: 6,
-
-                child: Container(
-
-                  width: 24,
-
-                  height: 24,
-
-                  decoration: BoxDecoration(
-
-                    color: Colors.black.withOpacity(0.6),
-
-                    shape: BoxShape.circle,
-
-                  ),
-
-                  child: const Icon(
-
-                    Icons.info_outline,
-
-                    color: Colors.white,
-
-                    size: 14,
-
-                  ),
-
-                ),
+                offset: const Offset(0, 2),
 
               ),
 
@@ -5137,8 +5023,273 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
           ),
 
-        ),
+          child: ClipRRect(
 
+            borderRadius: BorderRadius.circular(9),
+
+            child: Stack(
+
+              fit: StackFit.expand,
+
+              children: [
+
+                // ── Full-bleed image ────────────────────────────────────────
+
+                ColorFiltered(
+                  colorFilter: isAvailable
+                      ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                      : const ColorFilter.matrix(<double>[
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0,      0,      0,      1, 0,
+                        ]),
+                  child: _buildImageWidget(item.primaryItem),
+                ),
+
+
+
+                // ── Bottom gradient + text overlay ──────────────────────────
+
+                Positioned(
+
+                  left: 0,
+
+                  right: 0,
+
+                  bottom: 0,
+
+                  child: Container(
+
+                    decoration: const BoxDecoration(
+
+                      gradient: LinearGradient(
+
+                        begin: Alignment.bottomCenter,
+
+                        end: Alignment.topCenter,
+
+                        colors: [
+
+                          Color(0xEE000000),
+
+                          Color(0x99000000),
+
+                          Colors.transparent,
+
+                        ],
+
+                        stops: [0.0, 0.6, 1.0],
+
+                      ),
+
+                    ),
+
+                    padding: const EdgeInsets.fromLTRB(8, 22, 8, 8),
+
+                    child: Column(
+
+                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                      mainAxisSize: MainAxisSize.min,
+
+                      children: [
+
+                        Text(
+
+                          item.baseName,
+
+                          style: const TextStyle(
+
+                            color: Colors.white,
+
+                            fontWeight: FontWeight.w700,
+
+                            fontSize: 11,
+
+                            shadows: [
+
+                              Shadow(color: Colors.black54, blurRadius: 4),
+
+                            ],
+
+                          ),
+
+                          maxLines: 2,
+
+                          overflow: TextOverflow.ellipsis,
+
+                        ),
+
+                        const SizedBox(height: 2),
+
+                        Row(
+
+                          children: [
+
+                            Text(
+
+                              item.hasVariants
+                                  ? item.priceRangeDisplay
+                                  : 'P${NumberFormat('#,##0.00', 'en_US').format(item.minPrice)}',
+
+                              style: const TextStyle(
+
+                                color: Colors.white,
+
+                                fontWeight: FontWeight.bold,
+
+                                fontSize: 12,
+
+                              ),
+
+                            ),
+
+                          ],
+
+                        ),
+
+                      ],
+
+                    ),
+
+                  ),
+
+                ),
+
+                // ── OUT OF STOCK Banner Overlay ─────────────────────────────
+                if (!isAvailable)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626),
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.remove_circle_outline_rounded, size: 12, color: Colors.white),
+                              SizedBox(width: 4),
+                              Text(
+                                'OUT OF STOCK',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 9.5,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // ── Quantity badge (top-right) ──────────────────────────────
+
+                if (inCart)
+
+                  Positioned(
+
+                    top: 6,
+
+                    right: 6,
+
+                    child: Container(
+
+                      width: 22,
+
+                      height: 22,
+
+                      decoration: const BoxDecoration(
+
+                        color: Color.fromARGB(255, 255, 0, 0),
+
+                        shape: BoxShape.circle,
+
+                      ),
+
+                      child: Center(
+
+                        child: Text(
+
+                          '$totalInCart',
+
+                          style: const TextStyle(
+
+                            color: Colors.white,
+
+                            fontWeight: FontWeight.bold,
+
+                            fontSize: 10,
+
+                          ),
+
+                        ),
+
+                      ),
+
+                    ),
+
+                  ),
+
+
+
+                // ── Ingredients indicator (top-left) ─────────────────────────
+
+                Positioned(
+
+                  top: 6,
+
+                  left: 6,
+
+                  child: Container(
+
+                    width: 24,
+
+                    height: 24,
+
+                    decoration: BoxDecoration(
+
+                      color: Colors.black.withValues(alpha: 0.6),
+
+                      shape: BoxShape.circle,
+
+                    ),
+
+                    child: const Icon(
+
+                      Icons.info_outline,
+
+                      color: Colors.white,
+
+                      size: 14,
+
+                    ),
+
+                  ),
+
+                ),
+
+              ],
+
+            ),
+
+          ),
+
+        ),
       ),
 
     );
@@ -5203,61 +5354,100 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 final inCart = cart
                     .where((c) => c.item.name == v.name)
                     .fold<int>(0, (s, c) => s + c.quantity);
+                final bool vInStock = _isItemInStock(v.name);
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: InkWell(
                     onTap: () {
+                      if (!vInStock) {
+                        _showStockWarning('Cannot order "$displayLabel": Out of stock (insufficient ingredients).');
+                        return;
+                      }
                       Navigator.pop(ctx);
                       addToCart(v);
                     },
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: inCart > 0 ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
-                          width: inCart > 0 ? 1.5 : 1,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 180),
+                      opacity: vInStock ? 1.0 : 0.55,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: !vInStock
+                                ? const Color(0xFFDC2626).withValues(alpha: 0.4)
+                                : inCart > 0
+                                    ? const Color(0xFF14332E)
+                                    : const Color(0xFFE2E8F0),
+                            width: inCart > 0 ? 1.5 : 1,
+                          ),
+                          color: !vInStock
+                              ? const Color(0xFFFEF2F2)
+                              : inCart > 0
+                                  ? const Color(0xFF14332E).withValues(alpha: 0.04)
+                                  : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        color: inCart > 0
-                            ? const Color(0xFF14332E).withValues(alpha: 0.04)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              displayLabel,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          Text(
-                            'P${NumberFormat('#,##0.00', 'en_US').format(v.price)}',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF14332E),
-                            ),
-                          ),
-                          if (inCart > 0) ...[
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF14332E),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                        child: Row(
+                          children: [
+                            Expanded(
                               child: Text(
-                                '$inCart in cart',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                displayLabel,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: vInStock ? const Color(0xFF1E293B) : Colors.grey[700],
                                 ),
                               ),
                             ),
+                            if (!vInStock) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDC2626),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'OUT OF STOCK',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              'P${NumberFormat('#,##0.00', 'en_US').format(v.price)}',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: vInStock ? const Color(0xFF14332E) : Colors.grey[500],
+                              ),
+                            ),
+                            if (inCart > 0) ...[
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF14332E),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$inCart in cart',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),

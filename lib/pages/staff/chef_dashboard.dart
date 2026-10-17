@@ -8,6 +8,7 @@ import 'package:yang_chow/utils/url_sync_helper.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/menu_service.dart';
 import 'package:yang_chow/services/recipe_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ══════════════════════════════════════════════════════════
 //  CHEF DASHBOARD PAGE
@@ -2086,6 +2087,23 @@ class _CombinedKitchenTab extends StatefulWidget {
   State<_CombinedKitchenTab> createState() => _CombinedKitchenTabState();
 }
 
+// Shared in-memory cache of POS order preparation start times
+final Map<String, DateTime> _kitchenPrepStartTimes = {};
+
+void _savePrepTimeToLocal(String orderId, DateTime time) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('kitchen_prep_pos_$orderId', time.toIso8601String());
+  } catch (_) {}
+}
+
+void _removePrepTimeFromLocal(String orderId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('kitchen_prep_pos_$orderId');
+  } catch (_) {}
+}
+
 class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
   final Map<String, String> _kitchenStatus = {};
 
@@ -2124,7 +2142,13 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
         .from('orders')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
-        .listen((rows) {
+        .listen((rows) async {
+          if (!mounted) return;
+          SharedPreferences? prefs;
+          try {
+            prefs = await SharedPreferences.getInstance();
+          } catch (_) {}
+
           if (!mounted) return;
           setState(() {
             _posRaw = rows;
@@ -2132,7 +2156,30 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
             // Sync local cache
             for (final o in rows) {
               final key = 'pos_${o['id']}';
-              _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
+              final ks = o['kitchen_status']?.toString() ?? 'Pending';
+              _kitchenStatus[key] = ks;
+              if (ks == 'Preparing') {
+                if (o['prep_started_at'] != null) {
+                  final dbTime = DateTime.tryParse(o['prep_started_at'].toString())?.toLocal();
+                  if (dbTime != null) {
+                    _kitchenPrepStartTimes[key] = dbTime;
+                    _savePrepTimeToLocal(o['id'].toString(), dbTime);
+                  }
+                } else if (!_kitchenPrepStartTimes.containsKey(key)) {
+                  // Restore from browser LocalStorage if page was refreshed
+                  final savedStr = prefs?.getString('kitchen_prep_pos_${o['id']}');
+                  if (savedStr != null) {
+                    _kitchenPrepStartTimes[key] = DateTime.tryParse(savedStr)?.toLocal() ?? DateTime.now();
+                  } else {
+                    final now = DateTime.now();
+                    _kitchenPrepStartTimes[key] = now;
+                    _savePrepTimeToLocal(o['id'].toString(), now);
+                  }
+                }
+              } else if (ks == 'Pending') {
+                _kitchenPrepStartTimes.remove(key);
+                _removePrepTimeFromLocal(o['id'].toString());
+              }
             }
           });
         });
@@ -2198,12 +2245,43 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
 
   // ── Update status for POS orders ──
   Future<void> _updatePosStatus(String orderId, String newStatus) async {
-    setState(() => _kitchenStatus['pos_$orderId'] = newStatus);
+    final now = DateTime.now();
+    setState(() {
+      _kitchenStatus['pos_$orderId'] = newStatus;
+      if (newStatus == 'Preparing') {
+        _kitchenPrepStartTimes['pos_$orderId'] = now;
+        _savePrepTimeToLocal(orderId, now);
+      } else if (newStatus == 'Pending') {
+        _kitchenPrepStartTimes.remove('pos_$orderId');
+        _removePrepTimeFromLocal(orderId);
+      }
+    });
+
+    final updateData = <String, dynamic>{'kitchen_status': newStatus};
+    if (newStatus == 'Preparing') {
+      updateData['prep_started_at'] = now.toUtc().toIso8601String();
+    } else if (newStatus == 'Pending') {
+      updateData['prep_started_at'] = null;
+    }
+
     try {
-      await Supabase.instance.client
-          .from('orders')
-          .update({'kitchen_status': newStatus})
-          .eq('id', orderId);
+      try {
+        await Supabase.instance.client
+            .from('orders')
+            .update(updateData)
+            .eq('id', orderId);
+      } catch (err) {
+        // Fallback if prep_started_at column doesn't exist yet in Supabase
+        if (updateData.containsKey('prep_started_at')) {
+          updateData.remove('prep_started_at');
+          await Supabase.instance.client
+              .from('orders')
+              .update(updateData)
+              .eq('id', orderId);
+        } else {
+          rethrow;
+        }
+      }
 
       // 🔔 Hakbang 3: Send real-time notification to POS / Waiter when food is DONE / READY
       if (newStatus == 'Done' || newStatus == 'Ready') {
@@ -2420,6 +2498,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       '_is_advance': false,
       '_is_reservation': false,
       'kitchen_status': _kitchenStatus['pos_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending',
+      'prep_started_at': o['prep_started_at'] ?? _kitchenPrepStartTimes['pos_${o['id']}']?.toIso8601String(),
       '_sort_key': o['created_at']?.toString() ?? '',
     }).toList();
 
@@ -2640,7 +2719,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
                     crossAxisCount: cols,
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
-                    mainAxisExtent: 300,
+                    mainAxisExtent: 315,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => _buildOrderCard(cookingOrders[index]),
@@ -2671,7 +2750,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
                     crossAxisCount: cols,
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
-                    mainAxisExtent: 300,
+                    mainAxisExtent: 315,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => _buildOrderCard(scheduledLaterOrders[index]),
@@ -3074,10 +3153,41 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           )
         : null;
     final isTooEarly = prepTime != null && DateTime.now().isBefore(prepTime) && status == 'Pending';
-    final isUrgent = elapsed != null && elapsed.inMinutes >= 15 && status == 'Pending';
+    final isPosOrder = !widget.isAdvanceOrder && !widget.isReservation;
+    final isPreparing = status == 'Preparing';
+    final isReady = status == 'Ready';
+    final isDone = status == 'Done';
+
+    // ── Food Preparation Tracking (Standard Target: 15–20 minutes) ──
+    final prepStartedAtStr = widget.order['prep_started_at']?.toString();
+    DateTime? prepStartedAt = prepStartedAtStr != null
+        ? DateTime.tryParse(prepStartedAtStr)?.toLocal()
+        : null;
+
+    if (prepStartedAt == null && isPosOrder && isPreparing) {
+      prepStartedAt = _kitchenPrepStartTimes['pos_${widget.order['id']}'];
+      if (prepStartedAt == null) {
+        // If first time observed in Preparing, initialize with current moment
+        prepStartedAt = DateTime.now();
+        _kitchenPrepStartTimes['pos_${widget.order['id']}'] = prepStartedAt;
+      }
+    }
+
+    final prepDuration = (isPosOrder && isPreparing && prepStartedAt != null)
+        ? DateTime.now().difference(prepStartedAt)
+        : Duration.zero;
+    final prepMinutes = prepDuration.inMinutes;
+
+    // Prep time thresholds:
+    // 15–20 mins: warning window (plate / finish soon)
+    // > 20 mins: overdue prep alert
+    final isPrepWarning = isPosOrder && isPreparing && prepMinutes >= 15 && prepMinutes <= 20;
+    final isPrepOverdue = isPosOrder && isPreparing && prepMinutes > 20;
+    final isPendingUrgent = elapsed != null && elapsed.inMinutes >= 15 && status == 'Pending';
+    final isUrgent = isPendingUrgent || isPrepOverdue;
 
     String countdownStr = '';
-    if (isTooEarly && prepTime != null) {
+    if (isTooEarly) {
       final diff = prepTime.difference(DateTime.now());
       if (diff.isNegative) {
         countdownStr = 'due now';
@@ -3251,6 +3361,77 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                         ),
                       ),
 
+                    // POS Order Food Preparation Ribbon in Modal
+                    if (isPosOrder)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isPrepOverdue
+                              ? const Color(0xFFFEF2F2)
+                              : isPrepWarning
+                                  ? const Color(0xFFFFFBEB)
+                                  : isPreparing
+                                      ? const Color(0xFFF0F9FF)
+                                      : const Color(0xFFF0FDF4),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isPrepOverdue
+                                  ? const Color(0xFFFECACA)
+                                  : isPrepWarning
+                                      ? const Color(0xFFFDE68A)
+                                      : isPreparing
+                                          ? const Color(0xFFBAE6FD)
+                                          : const Color(0xFFBBF7D0),
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isPrepOverdue
+                                  ? Icons.local_fire_department_rounded
+                                  : isPrepWarning
+                                      ? Icons.warning_amber_rounded
+                                      : isPreparing
+                                          ? Icons.soup_kitchen_rounded
+                                          : Icons.schedule_rounded,
+                              size: 16,
+                              color: isPrepOverdue
+                                  ? const Color(0xFFDC2626)
+                                  : isPrepWarning
+                                      ? const Color(0xFFD97706)
+                                      : isPreparing
+                                          ? const Color(0xFF0284C7)
+                                          : const Color(0xFF059669),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                isPrepOverdue
+                                    ? 'Food Prep Overdue: ${prepMinutes}m elapsed (Exceeded 20m target) • Priority serve!'
+                                    : isPrepWarning
+                                        ? 'Food Prep Target Reached: ${prepMinutes}m elapsed (15–20m window) • Plate & serve soon'
+                                        : isPreparing
+                                            ? 'Actively Preparing: ${prepMinutes}m in cooking • Standard target: 15–20 mins'
+                                            : 'POS Counter Order • Standard Food Preparation Target: 15–20 mins',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isPrepOverdue
+                                      ? const Color(0xFF991B1B)
+                                      : isPrepWarning
+                                          ? const Color(0xFF92400E)
+                                          : isPreparing
+                                              ? const Color(0xFF0369A1)
+                                              : const Color(0xFF065F46),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Special Notes
                     if (displayNote.isNotEmpty)
                       Container(
@@ -3361,9 +3542,6 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
       );
     }
 
-    final isPreparing = status == 'Preparing';
-    final isReady = status == 'Ready';
-    final isDone = status == 'Done';
     final cleanCardNote = _cleanSpecialRequests(widget.order['note'])
         .replaceAll('[TAKE HOME]', '')
         .replaceAll('[DINE IN]', '')
@@ -3371,31 +3549,35 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
 
     final List<Color> headerGradient = isUrgent
         ? [const Color(0xFF881337), const Color(0xFF9F1239)]
-        : isPreparing
-            ? [const Color(0xFF0369A1), const Color(0xFF0284C7)]
-            : isReady
-                ? [const Color(0xFF047857), const Color(0xFF059669)]
-                : isDone
-                    ? [const Color(0xFF334155), const Color(0xFF475569)]
-                    : (widget.isAdvanceOrder && isTooEarly)
-                        ? [const Color(0xFF1E293B), const Color(0xFF334155)]
-                        : (widget.isAdvanceOrder && !isTooEarly && status == 'Pending')
-                            ? [const Color(0xFF064E3B), const Color(0xFF047857)]
-                            : [const Color(0xFF0B211D), const Color(0xFF133831)];
+        : isPrepWarning
+            ? [const Color(0xFF92400E), const Color(0xFFB45309)]
+            : isPreparing
+                ? [const Color(0xFF0369A1), const Color(0xFF0284C7)]
+                : isReady
+                    ? [const Color(0xFF047857), const Color(0xFF059669)]
+                    : isDone
+                        ? [const Color(0xFF334155), const Color(0xFF475569)]
+                        : (widget.isAdvanceOrder && isTooEarly)
+                            ? [const Color(0xFF1E293B), const Color(0xFF334155)]
+                            : (widget.isAdvanceOrder && !isTooEarly && status == 'Pending')
+                                ? [const Color(0xFF064E3B), const Color(0xFF047857)]
+                                : [const Color(0xFF0B211D), const Color(0xFF133831)];
 
     final Color cardBorderColor = isUrgent
         ? const Color(0xFFEF4444)
-        : isPreparing
-            ? const Color(0xFF0284C7).withValues(alpha: 0.6)
-            : isReady
-                ? const Color(0xFF10B981).withValues(alpha: 0.6)
-                : (widget.isAdvanceOrder && isTooEarly)
-                    ? const Color(0xFFCBD5E1)
-                    : (widget.isAdvanceOrder && !isTooEarly && status == 'Pending')
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFE2E8F0);
+        : isPrepWarning
+            ? const Color(0xFFF59E0B)
+            : isPreparing
+                ? const Color(0xFF0284C7).withValues(alpha: 0.8)
+                : isReady
+                    ? const Color(0xFF10B981).withValues(alpha: 0.6)
+                    : (widget.isAdvanceOrder && isTooEarly)
+                        ? const Color(0xFFCBD5E1)
+                        : (widget.isAdvanceOrder && !isTooEarly && status == 'Pending')
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFE2E8F0);
 
-    final double cardBorderWidth = (isUrgent || isPreparing || isReady || (widget.isAdvanceOrder && !isTooEarly && status == 'Pending'))
+    final double cardBorderWidth = (isUrgent || isPrepWarning || isPreparing || isReady || (widget.isAdvanceOrder && !isTooEarly && status == 'Pending'))
         ? 1.8
         : 1.0;
 
@@ -3632,27 +3814,35 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                       decoration: BoxDecoration(
                         color: isUrgent
                             ? const Color(0xFFEF4444)
-                            : Colors.white.withValues(alpha: 0.15),
+                            : isPrepWarning
+                                ? const Color(0xFFD97706)
+                                : Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isUrgent ? Colors.white : Colors.white24,
+                          color: (isUrgent || isPrepWarning) ? Colors.white : Colors.white24,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isUrgent ? Icons.local_fire_department_rounded : Icons.timer_outlined,
+                            isUrgent
+                                ? Icons.local_fire_department_rounded
+                                : isPrepWarning
+                                    ? Icons.warning_amber_rounded
+                                    : (isPosOrder && isPreparing ? Icons.soup_kitchen_rounded : Icons.timer_outlined),
                             size: 11,
                             color: Colors.white,
                           ),
                           const SizedBox(width: 3),
                           Text(
-                            elapsedStr,
+                            isPosOrder && isPreparing
+                                ? (prepMinutes < 1 ? 'Prep: Just now' : 'Prep: ${prepMinutes}m')
+                                : elapsedStr,
                             style: GoogleFonts.plusJakartaSans(
                               color: Colors.white,
                               fontSize: 9.5,
-                              fontWeight: isUrgent ? FontWeight.w900 : FontWeight.w700,
+                              fontWeight: (isUrgent || isPrepWarning) ? FontWeight.w900 : FontWeight.w700,
                             ),
                           ),
                         ],
@@ -3732,10 +3922,93 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                   ],
                 ),
               )
-            else if (!widget.isAdvanceOrder && !widget.isReservation && isUrgent)
+            else if (isPosOrder && isPrepOverdue)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEF2F2),
+                  border: Border(bottom: BorderSide(color: Color(0xFFFECACA))),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded, size: 13, color: Color(0xFFDC2626)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'OVERDUE PREP: ${prepMinutes}m (>20m target) • Priority Serve!',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFB91C1C),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isPosOrder && isPrepWarning)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFFBEB),
+                  border: Border(bottom: BorderSide(color: Color(0xFFFDE68A))),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, size: 13, color: Color(0xFFD97706)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'PREP TARGET: ${prepMinutes}m in prep (15–20m window) • Plate soon!',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isPosOrder && isPreparing)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF0F9FF),
+                  border: Border(bottom: BorderSide(color: Color(0xFFBAE6FD))),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.soup_kitchen_rounded, size: 13, color: Color(0xFF0284C7)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        prepMinutes < 1
+                            ? 'PREPARING: Just started • Target: 15–20 mins'
+                            : 'PREPARING: ${prepMinutes}m in prep • Target: 15–20 mins',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0369A1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isPosOrder && isPendingUrgent)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
                 decoration: const BoxDecoration(
                   color: Color(0xFFFEF2F2),
                   border: Border(bottom: BorderSide(color: Color(0xFFFECACA))),
@@ -3746,13 +4019,40 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        'HIGH PRIORITY: Waiting $elapsedStr',
+                        'HIGH PRIORITY: Waiting $elapsedStr • Start Prep Now!',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFB91C1C),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isPosOrder && status == 'Pending')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF0FDF4),
+                  border: Border(bottom: BorderSide(color: Color(0xFFBBF7D0))),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 12, color: Color(0xFF059669)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'TARGET PREP: 15–20 MINS • Tap Start Prep to cook',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFFB91C1C),
+                          color: const Color(0xFF065F46),
                         ),
                       ),
                     ),
@@ -3950,7 +4250,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 ),
                                 label: Text(
                                   nextStatus == 'Preparing'
-                                      ? (widget.isAdvanceOrder ? 'START PREPARATION' : 'START PREP')
+                                      ? (widget.isAdvanceOrder ? 'START PREPARATION' : 'START PREP (15-20m)')
                                       : 'MARK READY',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontWeight: FontWeight.w900,

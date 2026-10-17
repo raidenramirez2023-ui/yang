@@ -3713,7 +3713,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       return '$actorName paid for $eventType';
     }
     if (actionType == 'created') {
-      return '$actorName submitted new reservation for $eventType';
+      return '$actorName submitted reservation request for $eventType (Pending Review)';
     }
 
     return '$actorName: $actionType for $eventType';
@@ -3732,7 +3732,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     switch (n['action_type']) {
       case 'created':
-        return 'New Reservation';
+        return 'Booking Request (Pending)';
       case 'cancelled':
         return 'Reservation Cancelled';
       case 'deleted':
@@ -3919,7 +3919,7 @@ class _AdminNotificationCenterDialogState extends State<_AdminNotificationCenter
   }
 
   String _getTitleForAction(String action, String eventType) {
-    if (action == 'created') return 'New Reservation';
+    if (action == 'created') return 'Booking Request (Pending)';
     if (action == 'cancelled') return 'Reservation Cancelled';
     if (action == 'deleted') return 'Reservation Deleted';
     if (action == 'deposit_paid') return 'Deposit Payment Received';
@@ -3959,7 +3959,7 @@ class _AdminNotificationCenterDialogState extends State<_AdminNotificationCenter
       return '$actorName paid for $cleanEventType';
     }
     if (action == 'created') {
-      return '$actorName submitted new reservation for $cleanEventType';
+      return '$actorName submitted reservation request for $cleanEventType (Pending Review)';
     }
     if (action == 'cancelled') {
       return '$actorName cancelled reservation for $cleanEventType';

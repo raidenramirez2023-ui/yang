@@ -28,7 +28,7 @@ class EmailNotificationService {
   }) async {
     return _logEmailNotification(
       recipientEmail: customerEmail,
-      subject: 'Reservation Confirmation - Yang Chow Restaurant',
+      subject: 'Reservation Request Received (Pending Review) - Yang Chow Restaurant',
       emailType: AppConstants.emailTypeConfirmation,
       body: _buildReservationConfirmationBody(
         customerName: customerName,
